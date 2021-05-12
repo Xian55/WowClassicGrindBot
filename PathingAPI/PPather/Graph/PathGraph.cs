@@ -590,6 +590,7 @@ namespace PatherPath.Graph
         private float heuristicsFactor = 5f;
 
         public Spot ClosestSpot = null;
+        public Spot PeekSpot = null;
 
         private Spot Search(Spot fromSpot, Spot destinationSpot, float minHowClose, ILocationHeuristics locationHeuristics)
         {
@@ -646,6 +647,7 @@ namespace PatherPath.Graph
                     //logger.WriteLine($"Closet spot is {distance} from the target");
                     closest = distance;
                     ClosestSpot = currentSearchSpot;
+                    PeekSpot = ClosestSpot;
                     timeSinceProgress.Reset();
                     timeSinceProgress.Start();
                 }
@@ -788,6 +790,8 @@ namespace PatherPath.Graph
                     float nx = currentSearchSpot.X + (float)Math.Sin(radianAngle) * WantedStepLength;// *0.8f;
                     float ny = currentSearchSpot.Y + (float)Math.Cos(radianAngle) * WantedStepLength;// *0.8f;
 
+                    PeekSpot = new Spot(nx, ny, currentSearchSpot.Z);
+
                     //find the spot at this location, stop if there is one already
                     if (GetSpot(nx, ny, currentSearchSpot.Z) != null) { continue; } //found a spot so don't create a new one
 
@@ -819,6 +823,7 @@ namespace PatherPath.Graph
 
                     //create a new spot and connect it
                     Spot newSpot = AddAndConnectSpot(new Spot(nx, ny, new_z));
+                    //PeekSpot = newSpot;
 
                     //check flags return by triangleWorld.FindStandableA
                     if ((flags & ChunkedTriangleCollection.TriangleFlagDeepWater) != 0)
@@ -1003,7 +1008,7 @@ namespace PatherPath.Graph
                     paint.AddBigMarker(l.X, l.Y, l.Z);
                     if (prev != null)
                     {
-                        paint.PaintPath(l.X, l.Y, l.Z + 3, prev.X, prev.Y, prev.Z + 3);
+                        paint.PaintPath(l.X, l.Y, l.Z, prev.X, prev.Y, prev.Z);
                     }
                     prev = l;
                 }

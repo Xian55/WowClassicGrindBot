@@ -62,6 +62,7 @@ local CELL_SPACING = 1 -- 0 or 1
 -- Item slot trackers initialization
 local itemNum = 0
 local equipNum = 0
+local actionNum = 1
 local globalCounter = 0
 -- Global table of all items player has
 local items = {}
@@ -69,6 +70,11 @@ local itemsPlaceholderComparison = {}
 local enchantedItemsList = {}
 -- How often item frames change
 local ITEM_ITERATION_FRAME_CHANGE_RATE = 6
+-- How often the actionbar frames change
+local ACTION_BAR_ITERATION_FRAME_CHANGE_RATE = 5
+
+local MAX_POWER_TYPE = 1000000
+local MAX_ACTION_IDX = 1000
 
 -- Action bar configuration for which spells are tracked
 local MAIN_MIN = 1
@@ -395,11 +401,18 @@ function DataToColor:CreateFrames(n)
                     globalCounter = 1000
                 end
             end
+            if Modulo(globalCounter, ACTION_BAR_ITERATION_FRAME_CHANGE_RATE) == 0 then
+                actionNum = actionNum + 1
+            end
             -- Controls rate at which item frames change.
             globalCounter = globalCounter + 1
 
             if itemNum >= 21 then
                 itemNum = 1
+            end
+
+            if actionNum >= 84 then
+                actionNum = 1
             end
 
             -- Bag contents - Uses data pixel positions 20-29
@@ -448,7 +461,7 @@ function DataToColor:CreateFrames(n)
             
             MakePixelSquareArr(integerToColor(self:getTargetLevel()), 43)
 
-            --MakePixelSquareArr(integerToColor(self:GameTime()), 44) -- Returns time in the game
+            MakePixelSquareArr(integerToColor(DataToColor:actionbarCost(actionNum)), 44)
             --MakePixelSquareArr(integerToColor(self:GetGossipIcons()), 45) -- Returns which gossip icons are on display in dialogue box
 
             MakePixelSquareArr(integerToColor(self:PlayerClass()), 46) -- Returns player class as an integer
@@ -576,8 +589,8 @@ function DataToColor:Base2Converter()
     self:MakeIndexBase2(self:inInMeleeRange(), 4) + 
     self:MakeIndexBase2(0, 5) +
     self:MakeIndexBase2(self:IsPetVisible(), 6) + 
-    self:MakeIndexBase2(0, 7) + 
-    self:MakeIndexBase2(0, 8) +
+    self:MakeIndexBase2(self:mainhandEnchantActive(), 7) + 
+    self:MakeIndexBase2(self:offhandEnchantActive(), 8) +
     self:MakeIndexBase2(self:GetInventoryBroken(), 9) + 
     self:MakeIndexBase2(self:IsPlayerFlying(), 10) + 
     self:MakeIndexBase2(self:IsPlayerSwimming(), 11) +
@@ -633,6 +646,8 @@ function DataToColor:getBuffsForClass()
         self:MakeIndexBase2(self:GetBuffs("Soul Link"), 11) +
         self:MakeIndexBase2(self:GetBuffs("Soulstone Resurrection"), 12) +
         self:MakeIndexBase2(self:GetBuffs("Shadow Trance"), 13);
+    elseif CC == "SHAMAN" then
+        class=class+self:MakeIndexBase2(self:GetBuffs("Lightning Shield"), 10);
     end
     return class;
 end
@@ -762,6 +777,9 @@ function DataToColor:CastingInfoSpellId()
     if spellID ~= nil then
         return spellID
     end
+    if texture ~= nil then -- temp fix for tbc
+        return texture
+    end
      _, _, _, _, _, _, _, spellID = ChannelInfo();
      if spellID ~= nil then
         return spellID
@@ -884,6 +902,34 @@ function DataToColor:sum24(num)
     return num % 0x1000000
 end
 
+function DataToColor:actionbarCost(slot)
+    if HasAction(slot) then
+        local actionName, _
+        local actionType, id = GetActionInfo(slot)
+        if actionType == 'macro' then _, _ , id = GetMacroSpell(id) end
+        if actionType == 'item' then
+            actionName = GetItemInfo(id)
+        elseif actionType == 'spell' or (actionType == 'macro' and id) then
+            actionName = GetSpellInfo(id)
+        end
+        if actionName then
+            local cost = 0
+            local type = 0
+            local costTable = GetSpellPowerCost(actionName)
+            if costTable ~= nil then
+                for key, costInfo in pairs(costTable) do
+                    cost = costInfo.cost
+                    type = costInfo.type
+                    break
+                end
+            end
+            --print(button:GetName(), actionType, (GetSpellLink(id)), actionName, type, cost, id)
+            return MAX_POWER_TYPE * type + MAX_ACTION_IDX * slot + cost
+        end
+    end
+    return MAX_ACTION_IDX * slot
+end
+
 -- A function used to check which items we have.
 -- Find item IDs on wowhead in the url: e.g: http://www.wowhead.com/item=5571/small-black-pouch. Best to confirm ingame if possible, though.
 function DataToColor:itemName(bag, slot)
@@ -929,6 +975,22 @@ end
 function DataToColor:enchantedItems()
     if ValuesAreEqual(items, itemsPlaceholderComparison) then
     end
+end
+
+function DataToColor:mainhandEnchantActive() 
+    local hasMainHandEnchant = GetWeaponEnchantInfo()
+    if hasMainHandEnchant then
+        return 1
+    end
+    return 0
+end
+
+function DataToColor:offhandEnchantActive() 
+    local _, _, _, _, hasOffHandEnchant = GetWeaponEnchantInfo()
+    if hasOffHandEnchant then
+        return 1
+    end
+    return 0
 end
 
 function DataToColor:equipName(slot)
@@ -994,7 +1056,12 @@ function DataToColor:areSpellsInRange()
         spellList = {
             "Shadow Bolt",
             "Shoot"
-        };               
+        };
+    elseif CC == "SHAMAN" then
+        spellList = {
+            "Lightning Bolt",
+            "Earth Shock"
+        }
     else
         spellList = {};
     end

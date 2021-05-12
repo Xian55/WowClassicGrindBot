@@ -54,12 +54,16 @@ namespace Core
         //Hunter
         public bool Hunter_RaptorStrike { get => IsBitSet(0); }
 
-        public bool Hunter_ShootGun { get => IsBitSet(1); }
+        public bool Hunter_AutoShoot { get => IsBitSet(1); }
 
         // Warlock
         public bool Warlock_ShadowBolt { get => IsBitSet(0); }
 
         public bool Warlock_Shoot { get => IsBitSet(1); }
+
+        // Shaman
+        public bool Shaman_LightningBolt { get => IsBitSet(0); }
+        public bool Shaman_EarthShock { get => IsBitSet(1); }
 
         public bool WithinPullRange(PlayerReader playerReader, PlayerClassEnum playerClass) => playerClass switch
         {
@@ -68,8 +72,9 @@ namespace Core
             PlayerClassEnum.Priest => Priest_ShadowWordPain,
             PlayerClassEnum.Druid => playerReader.Druid_ShapeshiftForm == ShapeshiftForm.Druid_Bear ? Druid_Bash : playerReader.Druid_ShapeshiftForm == ShapeshiftForm.Druid_Cat ? Druid_Rip : Druid_Wrath,
             PlayerClassEnum.Mage => (playerReader.PlayerLevel >= 4 && Mage_Frostbolt) || Mage_Fireball,
-            PlayerClassEnum.Hunter => Hunter_ShootGun,
+            PlayerClassEnum.Hunter => Hunter_AutoShoot,
             PlayerClassEnum.Warlock => Warlock_ShadowBolt,
+            PlayerClassEnum.Shaman => (playerReader.PlayerLevel >= 4 && Shaman_EarthShock) || Shaman_LightningBolt,
             _ => true
         };
 
@@ -81,8 +86,9 @@ namespace Core
             PlayerClassEnum.Druid => playerReader.Druid_ShapeshiftForm == ShapeshiftForm.Druid_Bear ? Druid_Bash : playerReader.Druid_ShapeshiftForm == ShapeshiftForm.Druid_Cat ? Druid_Rip : Druid_Wrath,
             PlayerClassEnum.Paladin => Paladin_Judgement,
             PlayerClassEnum.Mage => Mage_Frostbolt || Mage_Fireball,
-            PlayerClassEnum.Hunter => Hunter_ShootGun || Hunter_RaptorStrike,
+            PlayerClassEnum.Hunter => Hunter_AutoShoot || Hunter_RaptorStrike,
             PlayerClassEnum.Warlock => Warlock_ShadowBolt,
+            PlayerClassEnum.Shaman => Shaman_LightningBolt,
             _ => true
         };
     }

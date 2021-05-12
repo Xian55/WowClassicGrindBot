@@ -182,5 +182,7 @@ namespace PathingAPI
         public Location SearchTo => this.search?.locationTo;
 
         public Location ClosestLocation => this.search?.PathGraph?.ClosestSpot?.location;
+
+        public Location PeekLocation => this.search?.PathGraph?.PeekSpot?.location;
     }
 }

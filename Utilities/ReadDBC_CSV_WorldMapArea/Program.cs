@@ -11,7 +11,6 @@ namespace ReadDBC_CSV_WorldMapArea
 
             transfrom.Validate();
 
-            Console.WriteLine("\nExpected result:\nUnsupported mini maps areas: Expansion01, Sunwell");
             Console.ReadLine();
         }
     }

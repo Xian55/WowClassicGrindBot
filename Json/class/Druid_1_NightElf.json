@@ -37,7 +37,7 @@
         "StopBeforeCast": true,
         "ShapeShiftForm": "None",
         "HasCastBar": true,
-        "ManaRequirement": 20
+        "MinMana": 20
       }
     ]
   },
@@ -58,7 +58,7 @@
         "HasCastBar": true,
         "Log": false,
         "ShapeShiftForm": "None",
-        "ManaRequirement": 25
+        "MinMana": 25
       },
       {
         "Name": "Wrath",
@@ -66,7 +66,7 @@
         "StopBeforeCast": true,
         "ShapeShiftForm": "None",
         "HasCastBar": true,
-        "ManaRequirement": 20
+        "MinMana": 20
       }
     ]
   },

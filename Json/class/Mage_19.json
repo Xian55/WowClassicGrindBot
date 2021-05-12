@@ -21,7 +21,7 @@
         "HasCastBar": true,
         "StopBeforeCast": false,
         "Key": "5",
-        "ManaRequirement": 35
+        "MinMana": 35
       },
       {
         "Name": "Fireball",
@@ -29,7 +29,7 @@
         "HasCastBar": true,
         "StopBeforeCast": false,
         "Key": "2",
-        "ManaRequirement": 65
+        "MinMana": 65
       }
     ]
   },
@@ -47,13 +47,13 @@
         "HasCastBar": false,
         "StopBeforeCast": false,
         "Key": "0",
-        "ManaRequirement": 75,
+        "MinMana": 75,
         "Cooldown": 6
       },
       {
         "Name": "Frost Nova",
         "Key": 6,
-        "ManaRequirement": 55,
+        "MinMana": 55,
         "Cooldown": 25,
         "Requirement": "InMeleeRange",
         "StepBackAfterCast": 1000,
@@ -64,7 +64,7 @@
         "HasCastBar": true,
         "StopBeforeCast": true,
         "Key": "2",
-        "ManaRequirement": 65
+        "MinMana": 65
       },
       {
         "Name": "shoot",
@@ -109,7 +109,7 @@
         "Name": "Frost Armor",
         "StopBeforeCast": false,
         "Key": "3",
-        "ManaRequirement": 60,
+        "MinMana": 60,
         "Requirement": "not Frost Armor"
       },
       {

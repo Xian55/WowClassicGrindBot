@@ -67,12 +67,16 @@ namespace Core
 
         private ILogger? logger;
 
-        public void Initialise(PlayerReader playerReader, RequirementFactory requirementFactory, ILogger logger)
+        public void Initialise(AddonReader addonReader, RequirementFactory requirementFactory, ILogger logger)
         {
-            this.playerReader = playerReader;
+            this.playerReader = addonReader.PlayerReader;
             this.logger = logger;
 
-            ResetChanges();
+            ResetCharges();
+
+            KeyReader.ReadKey(logger, this);
+
+            UpdateMinResourceRequirement(addonReader.ActionBarCostReader);
 
             if (!string.IsNullOrEmpty(this.Requirement))
             {
@@ -92,8 +96,6 @@ namespace Core
                     logger.LogInformation($"Unknown shapeshift form: {ShapeShiftForm}");
                 }
             }
-
-            KeyReader.ReadKey(logger, this);
         }
 
         public void CreateCooldownRequirement()
@@ -192,13 +194,13 @@ namespace Core
                 }
                 else
                 {
-                    ResetChanges();
+                    ResetCharges();
                     SetClicked();
                 }
             }
         }
 
-        internal void ResetChanges()
+        internal void ResetCharges()
         {
             _charge = Charge;
         }
@@ -206,6 +208,32 @@ namespace Core
         public bool CanRun()
         {
             return !this.RequirementObjects.Any(r => !r.HasRequirement());
+        }
+
+        private void UpdateMinResourceRequirement(ActionBarCostReader actionBarCostReader)
+        {
+            var tuple = actionBarCostReader.GetCostByActionBarSlot(Key);
+            if (tuple.Item2 != 0)
+            {
+                int oldValue = 0;
+                switch (tuple.Item1)
+                {
+                    case PowerType.Mana:
+                        oldValue = MinMana;
+                        MinMana = tuple.Item2;
+                        break;
+                    case PowerType.Rage:
+                        oldValue = MinRage;
+                        MinRage = tuple.Item2;
+                        break;
+                    case PowerType.Energy:
+                        oldValue = MinEnergy;
+                        MinEnergy = tuple.Item2;
+                        break;
+                }
+
+                logger.LogInformation($"Updated {tuple.Item1} cost of {this.Name} to {tuple.Item2} from {oldValue}");
+            }
         }
 
         public void LogInformation(string message)

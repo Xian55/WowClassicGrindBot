@@ -75,7 +75,7 @@ This file is required to find paths from where you are to the grind area, vendor
 
 Copy it into the \Json\MPQ folder (e.g. C:\WowClassicGrindBot\Json\MPQ)
 
-For TBC you have to download expansion.MPQ (1.8Gb) can get here: https://mega.nz/file/7ZwAVaQI#L0qvvU1uuRPFY5jGBErKaVpzmJQ4JhOv3nOrkQ-ppbQ
+For TBC you have to download expansion.MPQ (1.8Gb) can get here: https://mega.nz/file/Of4i2YQS#egDGj-SXi9RigG-_8kPITihFsLom2L1IFF-ltnB3wmU
 and copy next to the common-2.MPQ file. 
 
 ## 3. System Requirements
@@ -249,9 +249,9 @@ Commands have the following parameters, only a subset will be used by each comma
 | CastIfAddsVisible | If the bot can "See" any adds | false |
 | Charge | How many times shoud this Command be used in sequence and ignore its Cooldown | 1 |
 | Cooldown | The cooldown in seconds until the command can be done again | 0 |
-| MinMana | The minimum Mana required to cast the spell | 0 |
-| MinRage | The minimum Rage required to cast the spell | 0 |
-| MinEnergy | The minimum Energy required to cast the spell | 0 |
+| MinMana | (Optional) The minimum Mana required to cast the spell | 0 |
+| MinRage | (Optional) The minimum Rage required to cast the spell | 0 |
+| MinEnergy | (Optional) The minimum Energy required to cast the spell | 0 |
 | MinComboPoints | The minimum combo points required to cast the spell | 0 |
 | Requirement | A single "Requirement" (See below) which must be true | |
 | Requirements | A list of "Requirements" which must be true |  |
@@ -330,6 +330,10 @@ Warlock `heal` macro used in warlock profiles. Have to change manually when new 
     /cast Create Healthstone (Minor)
     /use Minor Healthstone
 
+Hunter `autoshoot` spammable Auto Shoot macro
+
+    #showtooltip
+    /cast !Auto Shot
 
 Because some NPCs are hard to reach, there is the option to add a short path to them e.g. "Tanaris_GadgetzanKrinkleGoodsteel.json". The idea is that the start of the path is easy to get to and is a short distance from the NPC, you record a path from the easy to reach spot to the NPC with a distance between spots of 1. When the bot needs to vend or repair it will path to the first spot in the list, then walk closely through the rest of the spots, once they are walked it will press the defined Key, then walk back through the path.
 
@@ -444,6 +448,9 @@ e.g.
 | --- | --- |
 | "AutoAttacking" | Auto spell `Auto Attack` is active |
 | "Shooting" | (wand) Auto spell `Shoot` is active |
+| --- | --- |
+| "HasMainHandEnchant" | Indicates that main hand weapon has active poison/sharpening stone/shaman buff effect |
+| "HasOffHandEnchant" | Indicates that off hand weapon has active poison/sharpening stone/shaman buff effect |
 
 | Class | Buff Condition |
 | --- | --- |
@@ -476,6 +483,7 @@ e.g.
 | Warlock | "Soulstone Resurraction" |
 | Warlock | "Soul Link" |
 | Warrior | "Battle Shout" |
+| Shaman | "Lightning Shield" |
 
 | Class | Debuff Condition |
 | --- | --- |

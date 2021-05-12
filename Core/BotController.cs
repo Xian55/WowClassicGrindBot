@@ -272,7 +272,7 @@ namespace Core
             if (File.Exists(classFilePath))
             {
                 classConfig = JsonConvert.DeserializeObject<ClassConfiguration>(File.ReadAllText(classFilePath));
-                classConfig.Initialise(DataConfig, AddonReader.PlayerReader, requirementFactory, logger, pathFilename);
+                classConfig.Initialise(DataConfig, AddonReader, requirementFactory, logger, pathFilename);
 
                 logger.LogDebug($"Loaded `{classFilename}` with Path Profile `{classConfig.PathFilename}`.");
 

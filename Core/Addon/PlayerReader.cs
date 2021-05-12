@@ -91,6 +91,8 @@ namespace Core
 
         public long TargetLevel => reader.GetLongAtCell(43);
 
+        // cell 44 reserved to ActionBarCostReader
+
         public PlayerClassEnum PlayerClass => (PlayerClassEnum)reader.GetLongAtCell(46);
 
         public bool Unskinnable => reader.GetLongAtCell(47) != 0; // Returns 1 if creature is unskinnable

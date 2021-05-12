@@ -36,5 +36,8 @@
         public bool DeadStatus { get => IsBitSet(2); }
         public bool TargetIsDead { get => IsBitSet(1); }
         public bool TargetInCombat { get => IsBitSet(0); }
+
+        public bool MainHandEnchant_Active { get => IsBitSet(7); }
+        public bool OffHandEnchant_Active { get => IsBitSet(8); }
     }
 }

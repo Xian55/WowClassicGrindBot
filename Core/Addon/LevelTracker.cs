@@ -34,6 +34,7 @@ namespace Core
             {
                 if (lastXp != playerReader.PlayerXp)
                 {
+                    lastXp = playerReader.PlayerXp;
                     MobsKilled++;
 
                     var runningSeconds = (DateTime.Now - levelStartTime).TotalSeconds;
@@ -45,8 +46,6 @@ namespace Core
                     if (secondsLeft > 0 && secondsLeft < 60 * 60 * 10)
                     {
                         PredictedLevelTime = DateTime.Now.AddSeconds(secondsLeft);
-
-                        lastXp = playerReader.PlayerXp;
                     }
                 }
             }

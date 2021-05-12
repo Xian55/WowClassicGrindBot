@@ -99,6 +99,7 @@
     private Location lastFrom = new Location(0, 0,0);
     private Location lastTo = new Location(0, 0, 0);
     private Location lastClosest = new Location(0, 0, 0);
+    private Location lastPeek = new Location(0, 0, 0);
 
     public void SearchPathRefresh()
     {
@@ -135,6 +136,15 @@
                         {
                             jsRuntime.InvokeVoidAsync("drawLine", Vertex.Create(pPatherService.ClosestLocation.X, pPatherService.ClosestLocation.Y, pPatherService.ClosestLocation.Z), 5, "closest").ConfigureAwait(false);
                             lastClosest = pPatherService.ClosestLocation;
+                        }
+                    }
+
+                    if (pPatherService.PeekLocation != null)
+                    {
+                        if (lastPeek.X != pPatherService.PeekLocation.X)
+                        {
+                            jsRuntime.InvokeVoidAsync("drawLine", Vertex.Create(pPatherService.PeekLocation.X, pPatherService.PeekLocation.Y, pPatherService.PeekLocation.Z), 6, "peek").ConfigureAwait(false);
+                            lastPeek = pPatherService.PeekLocation;
                         }
                     }
 

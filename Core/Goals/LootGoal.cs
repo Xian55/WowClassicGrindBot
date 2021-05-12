@@ -137,6 +137,20 @@ namespace Core.Goals
             {
                 Log($"No corpse found - Npc Count: {npcNameFinder.NpcCount}");
 
+                await input.TapLastTargetKey("loot second attempt by last target");
+                await playerReader.WaitForNUpdate(1);
+                if(playerReader.HasTarget)
+                {
+                    if(playerReader.PlayerBitValues.TargetIsDead)
+                    {
+                        await input.TapInteractKey("loot dead corpse by last target");
+                    }
+                    else
+                    {
+                        await input.TapClearTarget("dont attack");
+                    }
+                }
+
                 if (!await Wait(100, DiDEnteredCombat()))
                 {
                     await AquireTarget();

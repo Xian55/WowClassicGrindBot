@@ -69,13 +69,15 @@ namespace WinAPI
         private static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpRect);
 
         [DllImport("user32.dll")]
-        public static extern int GetSystemMetrics(int nIndexn);
+        static extern int GetSystemMetrics(int nIndexn);
 
-        [DllImport("user32.dll")]
-        public static extern int GetDpiForSystem();
+        private static int SM_CXCURSOR = 13;
+        private static int SM_CYCURSOR = 14;
 
-        public static int SM_CXCURSOR = 13;
-        public static int SM_CYCURSOR = 14;
+        [DllImport("gdi32.dll")]
+        static extern int GetDeviceCaps(IntPtr hDC, int nIndex);
+
+        private static int LOGPIXELSX = 88;
 
         private static bool IsWindowedMode(POINT point)
         {
@@ -121,9 +123,17 @@ namespace WinAPI
             }
         }
 
+        private static int GetDpi()
+        {
+            Graphics g = Graphics.FromHwnd(IntPtr.Zero);
+            IntPtr desktop = g.GetHdc();
+            var dpi = GetDeviceCaps(desktop, LOGPIXELSX);
+            return dpi;
+        }
+
         public static Size GetCursorSize()
         {
-            int dpi = GetDpiForSystem();
+            int dpi = GetDpi();
             var size = new SizeF(GetSystemMetrics(SM_CXCURSOR), GetSystemMetrics(SM_CYCURSOR));
             size *= DPI2PPI(dpi);
             return size.ToSize();

@@ -7,9 +7,9 @@ namespace Core
     {
         public List<KeyAction> Sequence { get; } = new List<KeyAction>();
 
-        public void Initialise(PlayerReader playerReader, RequirementFactory requirementFactory, ILogger logger)
+        public void Initialise(AddonReader addonReader, RequirementFactory requirementFactory, ILogger logger)
         {
-            Sequence.ForEach(i => i.Initialise(playerReader, requirementFactory, logger));
+            Sequence.ForEach(i => i.Initialise(addonReader, requirementFactory, logger));
         }
     }
 }

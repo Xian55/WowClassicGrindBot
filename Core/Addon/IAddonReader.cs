@@ -15,6 +15,8 @@ namespace Core
         BagReader BagReader { get; set; }
         EquipmentReader equipmentReader { get; set; }
 
+        ActionBarCostReader ActionBarCostReader { get; set; }
+
         LevelTracker LevelTracker { get; set; }
     }
 }

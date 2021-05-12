@@ -1,0 +1,77 @@
+{
+  "ClassName": "Shaman",
+  "Loot": true,
+  "PathFilename": "_pack\\1-20\\Draenei\\1-5_Azuremyst Isle.json",
+  "PathThereAndBack": true,
+  "PathReduceSteps": true,
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Lightning Bolt",
+        "Key": "2",
+        "StopBeforeCast": true,
+        "HasCastBar": true,
+        "MinMana": 15
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Lightning Bolt",
+        "Key": "2",
+        "StopBeforeCast": true,
+        "HasCastBar": true,
+        "MinMana": 15,
+        "Requirement": "not InMeleeRange"
+      },
+      {
+        "Name": "Healing Wave",
+        "Key": "3",
+        "Requirement": "Health%<40",
+        "Cooldown": 10,
+        "HasCastBar": true,
+        "Log": false,
+        "MinMana": 25
+      },
+      {
+        "Name": "AutoAttack",
+        "Cooldown": 3,
+        "Requirements": ["not HasRangedWeapon", "not AutoAttacking"]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Rockbiter Weapon",
+        "StopBeforeCast": false,
+        "Key": "5",
+        "MinMana": 15,
+        "Requirement": "not HasMainHandEnchant"
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "HasCastBar": true,
+        "StopBeforeCast": true,
+        "Key": "6",
+        "Requirement": "Health%<30",
+        "Cooldown": 10,
+        "Log": false
+      },
+      {
+        "Name": "Water",
+        "HasCastBar": true,
+        "StopBeforeCast": true,
+        "Key": "7",
+        "Requirement": "Mana%<30",
+        "Cooldown": 10,
+        "Log": false
+      }
+    ]
+  }
+}

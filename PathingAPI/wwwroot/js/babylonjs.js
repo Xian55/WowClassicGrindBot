@@ -113,6 +113,10 @@
         camera = new BABYLON.FreeCamera('camera1', new BABYLON.Vector3(0, 50, -0), scene);
         camera.attachControl(canvas, false); // attach the camera to the canvas
 
+        var cameraMinSpeed = 0.1;
+        var cameraMaxSpeed = 1;
+        camera.speed = cameraMinSpeed;
+
         // Skybox
         const skybox = BABYLON.MeshBuilder.CreateBox("skyBox", { size: 4000.0 }, scene);
         const skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
@@ -126,6 +130,42 @@
         engine.runRenderLoop(function () {
             if (!startedRendering) {
                 scene.render();
+            }
+        });
+
+        var energy = 1000, shiftPressed = false;
+        scene.onBeforeRenderObservable.add(function () {
+            if (shiftPressed) {
+                if (energy > 0) {
+                    camera.speed = cameraMaxSpeed;
+                    energy--;
+                }
+                else {
+                    camera.speed = cameraMinSpeed;
+                }
+            } else {
+                camera.speed = cameraMinSpeed;
+            }
+        });
+        scene.onKeyboardObservable.add((kbInfo) => {
+            switch (kbInfo.type) {
+                case BABYLON.KeyboardEventTypes.KEYDOWN:
+                    switch (kbInfo.event.key) {
+                        case "Shift":
+                            shiftPressed = true;
+                            break;
+                    }
+                    break;
+
+                case BABYLON.KeyboardEventTypes.KEYUP:
+                    switch (kbInfo.event.key) {
+                        case "Shift":
+                            shiftPressed = false;
+                            break;
+                        case "o":
+                            log("Camera Position: " + camera.position);
+                            break;
+                    }
             }
         });
 

@@ -19,7 +19,6 @@ namespace Core
 
         public static Dictionary<string, ConsoleKey> KeyMapping { get; } = new Dictionary<string, ConsoleKey>()
         {
-            {"0", ConsoleKey.D0 },
             {"1", ConsoleKey.D1 },
             {"2", ConsoleKey.D2 },
             {"3", ConsoleKey.D3 },
@@ -29,8 +28,8 @@ namespace Core
             {"7", ConsoleKey.D7 },
             {"8", ConsoleKey.D8 },
             {"9", ConsoleKey.D9 },
+            {"0", ConsoleKey.D0 },
 
-            {BR + "0", ConsoleKey.NumPad0 },
             {BR + "1", ConsoleKey.NumPad1 },
             {BR + "2", ConsoleKey.NumPad2 },
             {BR + "3", ConsoleKey.NumPad3 },
@@ -40,6 +39,7 @@ namespace Core
             {BR + "7", ConsoleKey.NumPad7 },
             {BR + "8", ConsoleKey.NumPad8 },
             {BR + "9", ConsoleKey.NumPad9 },
+            {BR + "0", ConsoleKey.NumPad0 },
 
             {BL + "0", ConsoleKey.F10 },
             {BL + "1", ConsoleKey.F1 },
@@ -58,6 +58,55 @@ namespace Core
             {"-",ConsoleKey.OemMinus },
             {"=",ConsoleKey.OemPlus },
             {" ",ConsoleKey.Spacebar },
+        };
+
+        public static Dictionary<string, int> ActionBarSlotMap { get; } = new Dictionary<string, int>
+        {
+            // ActionBar page 1: slots 1 to 12
+            {"1", 1 },
+            {"2", 2 },
+            {"3", 3 },
+            {"4", 4 },
+            {"5", 5 },
+            {"6", 6 },
+            {"7", 7 },
+            {"8", 8 },
+            {"9", 9 },
+            {"0", 0 },
+            //11 - unused
+            //12 - unused
+
+            // ActionBar page 2: slots 13 to 24
+            // ActionBar page 3 (Right ActionBar): slots 25 to 36
+            // ActionBar page 4 (Right ActionBar 2): slots 37 to 48
+            
+            // ActionBar page 5 (Bottom Right ActionBar): slots 49 to 60
+            {BR + "1", 49 },
+            {BR + "2", 50 },
+            {BR + "3", 51 },
+            {BR + "4", 52 },
+            {BR + "5", 53 },
+            {BR + "6", 54 },
+            {BR + "7", 55 },
+            {BR + "8", 56 },
+            {BR + "9", 57 },
+            {BR + "0", 58 },
+            //11 - unused
+            //12 - unused
+
+            // ActionBar page 6 (Bottom Left ActionBar): slots 61 to 72
+            {BL + "1", 61 },
+            {BL + "2", 62 },
+            {BL + "3", 63 },
+            {BL + "4", 64 },
+            {BL + "5", 65 },
+            {BL + "6", 66 },
+            {BL + "7", 67 },
+            {BL + "8", 68 },
+            {BL + "9", 69 },
+            {BL + "0", 70 },
+            {BL + "11", 71 },
+            {BL + "12", 72 }
         };
 
         public static bool ReadKey(ILogger logger, KeyAction key)

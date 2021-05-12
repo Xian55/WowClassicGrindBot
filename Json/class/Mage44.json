@@ -28,7 +28,7 @@
         "Name": "Fireball",
         "HasCastBar": true,
         "Key": "2",
-        "ManaRequirement": 65,
+        "MinMana": 65,
         "DelayUntilCombat": true,
         "DelayAfterCast": 2000
       },
@@ -36,7 +36,7 @@
         "Name": "Fireball",
         "HasCastBar": true,
         "Key": "2",
-        "ManaRequirement": 65
+        "MinMana": 65
       }
     ]
   },
@@ -54,14 +54,14 @@
         "HasCastBar": false,
         "StopBeforeCast": false,
         "Key": "0",
-        "ManaRequirement": 75,
+        "MinMana": 75,
         "Cooldown": 8
       },
       {
         "Name": "Fireball",
         "HasCastBar": true,
         "Key": "2",
-        "ManaRequirement": 65
+        "MinMana": 65
       },
       {
         "Name": "shoot",
@@ -106,7 +106,7 @@
         "Name": "Frost Armor",
         "StopBeforeCast": false,
         "Key": "3",
-        "ManaRequirement": 60,
+        "MinMana": 60,
         "Requirement": "not Frost Armor"
       },
       {

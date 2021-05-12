@@ -1,0 +1,42 @@
+{
+  "ClassName": "Hunter",
+  "PathFilename": "1_Gnome.json",
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Approach",
+        "DelayAfterCast": 0,
+        "Log": false
+      },
+      {
+        "Name": "autoshoot",
+        "StopBeforeCast": true,
+        "Key": "3",
+        "Requirements": ["HasRangedWeapon", "not InMeleeRange"]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "autoshoot",
+        "StopBeforeCast": true,
+        "Key": "3",
+        "Requirements": ["HasRangedWeapon", "not InMeleeRange"]
+      },
+      {
+        "Name": "Raptor Strike",
+        "Key": "2",
+        "MinMana": 15,
+        "Cooldown": 6,
+        "Requirement": "InMeleeRange"
+      },
+      {
+        "Name": "AutoAttack",
+        "Cooldown": 3,
+        "DelayAfterCast": 0,
+        "Requirements": ["InMeleeRange", "not AutoAttacking"]
+      }
+    ]
+  }
+}

@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="PInvoke.Windows.Core" Version="0.6.6" />
+    <PackageReference Include="System.Drawing.Common" Version="4.7.0" />
   </ItemGroup>
 
 </Project>

@@ -109,7 +109,7 @@ namespace Core.Goals
             {
                 logger.LogInformation($"Reset cooldown on {item.Name}");
                 item.ResetCooldown();
-                item.ResetChanges();
+                item.ResetCharges();
             });
         }
 

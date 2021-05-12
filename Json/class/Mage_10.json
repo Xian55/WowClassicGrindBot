@@ -12,7 +12,7 @@
         "HasCastBar": true,
         "StopBeforeCast": true,
         "Key": "1",
-        "ManaRequirement": 25
+        "MinMana": 25
       }
     ]
   },
@@ -21,14 +21,14 @@
       {
         "Name": "Fire Blast",
         "Key": "5",
-        "ManaRequirement": 40,
+        "MinMana": 40,
         "Cooldown": 8,
         "Requirements": ["TargetHealth%<45", "SpellInRange:4"]
       },
       {
         "Name": "Frost Nova",
         "Key": 6,
-        "ManaRequirement": 55,
+        "MinMana": 55,
         "Cooldown": 25,
         "Requirement": "InMeleeRange",
         "StepBackAfterCast": 1000,
@@ -39,7 +39,7 @@
         "HasCastBar": true,
         "StopBeforeCast": true,
         "Key": "2",
-        "ManaRequirement": 30,
+        "MinMana": 30,
         "Requirements": ["TargetHealth%>35"]
       },
       {
@@ -85,7 +85,7 @@
         "Name": "Frost Armor",
         "StopBeforeCast": false,
         "Key": "3",
-        "ManaRequirement": 60,
+        "MinMana": 60,
         "Requirement": "not Frost Armor"
       },
       {

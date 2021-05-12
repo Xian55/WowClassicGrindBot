@@ -91,64 +91,64 @@ namespace Core
 
         public static Dictionary<ShapeshiftForm, ConsoleKey> ShapeshiftFormKeys { get; private set; } = new Dictionary<ShapeshiftForm, ConsoleKey>();
 
-        public void Initialise(DataConfig dataConfig, PlayerReader playerReader, RequirementFactory requirementFactory, ILogger logger, string? overridePathProfileFile)
+        public void Initialise(DataConfig dataConfig, AddonReader addonReader, RequirementFactory requirementFactory, ILogger logger, string? overridePathProfileFile)
         {
             SpiritPathFilename = string.Empty;
 
             Interact.Key = InteractKey;
             Interact.Name = "Interact";
-            Interact.Initialise(playerReader, requirementFactory, logger);
+            Interact.Initialise(addonReader, requirementFactory, logger);
 
             Approach.Key = InteractKey;
             Approach.Name = "Approach";
-            Approach.Initialise(playerReader, requirementFactory, logger);
+            Approach.Initialise(addonReader, requirementFactory, logger);
 
             AutoAttack.Key = InteractKey;
             AutoAttack.Name = "AutoAttack";
             AutoAttack.DelayAfterCast = 0;
-            AutoAttack.Initialise(playerReader, requirementFactory, logger);
+            AutoAttack.Initialise(addonReader, requirementFactory, logger);
 
             InitializeKeyActions(Pull, Interact, Approach, AutoAttack);
             InitializeKeyActions(Combat, Interact, Approach, AutoAttack);
 
-            Pull.Initialise(playerReader, requirementFactory, logger);
-            Combat.Initialise(playerReader, requirementFactory, logger);
-            Adhoc.Initialise(playerReader, requirementFactory, logger);
-            NPC.Initialise(playerReader, requirementFactory, logger);
-            Parallel.Initialise(playerReader, requirementFactory, logger);
-            ShapeshiftForm.ForEach(i => i.Initialise(playerReader, requirementFactory, logger));
+            Pull.Initialise(addonReader, requirementFactory, logger);
+            Combat.Initialise(addonReader, requirementFactory, logger);
+            Adhoc.Initialise(addonReader, requirementFactory, logger);
+            NPC.Initialise(addonReader, requirementFactory, logger);
+            Parallel.Initialise(addonReader, requirementFactory, logger);
+            ShapeshiftForm.ForEach(i => i.Initialise(addonReader, requirementFactory, logger));
 
             Jump.Key = JumpKey;
-            Jump.Initialise(playerReader, requirementFactory, logger);
+            Jump.Initialise(addonReader, requirementFactory, logger);
 
             TargetLastTarget.Key = TargetLastTargetKey;
-            TargetLastTarget.Initialise(playerReader, requirementFactory, logger);
+            TargetLastTarget.Initialise(addonReader, requirementFactory, logger);
 
             StandUp.Key = StandUpKey;
-            StandUp.Initialise(playerReader, requirementFactory, logger);
+            StandUp.Initialise(addonReader, requirementFactory, logger);
 
             ClearTarget.Key = ClearTargetKey;
-            ClearTarget.Initialise(playerReader, requirementFactory, logger);
+            ClearTarget.Initialise(addonReader, requirementFactory, logger);
 
             StopAttack.Key = StopAttackKey;
-            StopAttack.Initialise(playerReader, requirementFactory, logger);
+            StopAttack.Initialise(addonReader, requirementFactory, logger);
 
             TargetNearestTarget.Key = TargetNearestTargetKey;
-            TargetNearestTarget.Initialise(playerReader, requirementFactory, logger);
+            TargetNearestTarget.Initialise(addonReader, requirementFactory, logger);
 
             TargetPet.Key = TargetPetKey;
-            TargetPet.Initialise(playerReader, requirementFactory, logger);
+            TargetPet.Initialise(addonReader, requirementFactory, logger);
 
             TargetTargetOfTarget.Key = TargetTargetOfTargetKey;
-            TargetTargetOfTarget.Initialise(playerReader, requirementFactory, logger);
+            TargetTargetOfTarget.Initialise(addonReader, requirementFactory, logger);
 
             PetAttack.Key = PetAttackKey;
-            PetAttack.Initialise(playerReader, requirementFactory, logger);
+            PetAttack.Initialise(addonReader, requirementFactory, logger);
 
             GatherFindKeys.ForEach(key =>
             {
                 GatherFindKeyConfig.Add(new KeyAction { Key = key });
-                GatherFindKeyConfig.Last().Initialise(playerReader, requirementFactory, logger);
+                GatherFindKeyConfig.Last().Initialise(addonReader, requirementFactory, logger);
             });
 
             OverridePathFilename = overridePathProfileFile;

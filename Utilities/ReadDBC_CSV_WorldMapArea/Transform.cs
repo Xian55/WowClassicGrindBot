@@ -10,6 +10,8 @@ namespace ReadDBC_CSV_WorldMapArea
     {
         public const string path = "../../../data/";
 
+        List<string> acceptedOverride = new List<string> { "Hellfire", "Kalimdor" };
+
         public WorldMapArea CreateV2(string[] values)
         {
             //https://wow.tools/dbc/?dbc=worldmaparea&build=2.0.0.5610#page=1
@@ -47,8 +49,13 @@ namespace ReadDBC_CSV_WorldMapArea
 
         public List<WorldMapArea> Validate()
         {
+            Console.WriteLine("\nResult:");
+
             var list = JsonConvert.DeserializeObject<List<WorldMapArea>>(File.ReadAllText(Path.Join(path, "WorldMapArea.json")));
-            Console.WriteLine("Result:\nUnsupported mini maps areas: " + string.Join(", ", list.Where(l => l.UIMapId == 0).Select(s => s.AreaName).OrderBy(s => s)));
+            Console.WriteLine("Unsupported mini maps areas: " + string.Join(", ", list.Where(l => l.UIMapId == 0).Select(s => s.AreaName).OrderBy(s => s)));
+
+            var duplicates = list.GroupBy(s => s.MapID).Where(g => g.Count() > 1).Select(g => g.Key);
+            Console.WriteLine("Duplicated 'MapID' (continents accepted): " + string.Join(", ", duplicates.ToArray()));
 
             return list;
         }
@@ -70,7 +77,7 @@ namespace ReadDBC_CSV_WorldMapArea
 
         public void PopulateUIMap(WorldMapArea area, IEnumerable<string[]> uimapLines)
         {
-            var kalidor = uimapLines.Where(s => s[0] == "Kalimdor").Select(s => s[1]).FirstOrDefault();
+            var kalimdor = uimapLines.Where(s => s[0] == "Kalimdor").Select(s => s[1]).FirstOrDefault();
 
             // two outland occurrences need the last one
             var outland = uimapLines.Where(s => s[0] == "Outland").Select(s => s[1]).LastOrDefault();
@@ -80,18 +87,31 @@ namespace ReadDBC_CSV_WorldMapArea
 
             if (matches.Count > 1)
             {
-
+                Console.WriteLine($"\n- WARN [{area.AreaName}] has more than one matches:\n {string.Join(",\n ", matches.Select(t => new { AreaName = t[0], UIMapId = t[1] }))}");
             }
 
             if (matches.Count == 0)
             {
-
+                Console.WriteLine($"\n- WARN [{area.AreaName}] has no matches!");
             }
 
             matches.ForEach(a =>
             {
-                area.UIMapId = int.Parse(a[1]);
-                area.Continent = a[2] == outland ? "Expansion01" : (a[2] == kalidor ? "Kalimdor" : "Azeroth");
+                if (area.UIMapId == 0 || acceptedOverride.Contains(area.AreaName))
+                {
+                    if(area.UIMapId != 0 && acceptedOverride.Contains(area.AreaName))
+                    {
+                        Console.WriteLine($" - Accepted override [{area.AreaName}] from [{area.UIMapId}] to [{int.Parse(a[1])}]");
+                    }
+
+                    area.UIMapId = int.Parse(a[1]);
+                }
+                else
+                {
+                    Console.WriteLine($" - Prevented override [{area.AreaName}] from [{area.UIMapId}] to [{int.Parse(a[1])}]");
+                }
+
+                area.Continent = a[2] == outland ? "Expansion01" : (a[2] == kalimdor ? "Kalimdor" : "Azeroth");
             });
         }
 
@@ -104,14 +124,16 @@ namespace ReadDBC_CSV_WorldMapArea
         private bool Matches(WorldMapArea area, string[] s)
         {
             var areaname = s[0].Replace(" ", "").Replace("'", "");
-            return areaname.StartsWith(area.AreaName, StringComparison.InvariantCultureIgnoreCase)
-                 || area.AreaName.StartsWith(areaname, StringComparison.InvariantCultureIgnoreCase);
+            var areaname1 = area.AreaName.Replace(" ", "").Replace("'", "");
+            return areaname.StartsWith(areaname1, StringComparison.InvariantCultureIgnoreCase)
+                 || areaname1.StartsWith(areaname, StringComparison.InvariantCultureIgnoreCase);
         }
 
         private void CorrectTypos(ref List<WorldMapArea> list)
         {
             // Unsupported mini maps areas: Aszhara, Barrens, Darnassis, Expansion01, Hilsbrad, Hinterlands, Ogrimmar, Sunwell
-            for(int i =0; i<list.Count; i++)
+            // Unsupported mini maps areas: Expansion01, Sunwell
+            for (int i =0; i<list.Count; i++)
             {
                 // typo :dense:
                 if (list[i].AreaName == "Aszhara")
@@ -132,6 +154,10 @@ namespace ReadDBC_CSV_WorldMapArea
 
                 if (list[i].AreaName == "Hinterlands")
                     list[i].AreaName = "TheHinterlands";
+
+                // have to test this later
+                //if (list[i].AreaName == "Sunwell")
+                //    list[i].AreaName = "Isle of Quel'Danas";
             }
         }
 

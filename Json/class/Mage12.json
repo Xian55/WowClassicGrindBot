@@ -14,7 +14,7 @@
         "HasCastBar": true,
         "StopBeforeCast": true,
         "Key": "5",
-        "ManaRequirement": 35
+        "MinMana": 35
       },
       {
         "Name": "Arcane Missiles",
@@ -50,7 +50,7 @@
         "HasCastBar": false,
         "StopBeforeCast": false,
         "Key": "0",
-        "ManaRequirement": 75,
+        "MinMana": 75,
         "Requirements": ["Health%<80", "SpellInRange:4"],
         "Cooldown": 8
       },
@@ -59,7 +59,7 @@
         "HasCastBar": true,
         "StopBeforeCast": true,
         "Key": "2",
-        "ManaRequirement": 65
+        "MinMana": 65
       }
     ]
   },
@@ -92,7 +92,7 @@
         "Name": "Frost Armor",
         "StopBeforeCast": false,
         "Key": "3",
-        "ManaRequirement": 60,
+        "MinMana": 60,
         "Requirement": "not Frost Armor"
       },
       {
