@@ -68,7 +68,19 @@
     "LocRight": -2016.6666,
     "LocTop": 1500.0,
     "LocBottom": -366.66666,
-    "UIMapId": 1459,
+    "UIMapId": 1415,
+    "Continent": "Azeroth"
+  },
+  {
+    "ID": 15,
+    "MapID": 0,
+    "AreaID": 36,
+    "AreaName": "Alterac",
+    "LocLeft": 783.3333,
+    "LocRight": -2016.6666,
+    "LocTop": 1500.0,
+    "LocBottom": -366.66666,
+    "UIMapId": 1416,
     "Continent": "Azeroth"
   },
   {

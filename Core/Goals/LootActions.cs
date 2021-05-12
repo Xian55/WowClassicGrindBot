@@ -1,4 +1,4 @@
-﻿using Core.GOAP;
+using Core.GOAP;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Core.Goals
 {
-    public class CombatGoal : GoapGoal
+    public class LootActions : GoapGoal
     {
         public override float CostOfPerformingAction { get => 4f; }
 
@@ -23,7 +23,7 @@ namespace Core.Goals
 
         private int lastKilledGuid;
 
-        public CombatGoal(ILogger logger, ConfigurableInput input, PlayerReader playerReader, StopMoving stopMoving,  ClassConfiguration classConfiguration, CastingHandler castingHandler)
+        public LootActions(ILogger logger, ConfigurableInput input, PlayerReader playerReader, StopMoving stopMoving,  ClassConfiguration classConfiguration, CastingHandler castingHandler)
         {
             this.logger = logger;
             this.input = input;
@@ -36,19 +36,19 @@ namespace Core.Goals
 
             lastKilledGuid = playerReader.LastKilledGuid;
 
-            AddPrecondition(GoapKey.incombat, true);
+            AddPrecondition(GoapKey.incombat, false);
             AddPrecondition(GoapKey.hastarget, true);
-            AddPrecondition(GoapKey.targetisalive, true);
+            AddPrecondition(GoapKey.targetisalive, false);
             //AddPrecondition(GoapKey.incombatrange, true);
 
             AddEffect(GoapKey.producedcorpse, true);
             AddEffect(GoapKey.targetisalive, false);
             AddEffect(GoapKey.hastarget, false);
 
-            this.classConfiguration.Combat.Sequence.Where(k => k != null).ToList().ForEach(key => this.Keys.Add(key));
+            this.classConfiguration.LootActions.Sequence.Where(k => k != null).ToList().ForEach(key => this.Keys.Add(key));
         }
 
-        protected async Task Fight()
+        protected async Task Loot()
         {
             //logger.LogInformation("-");
             if ((DateTime.Now - lastActive).TotalSeconds > 5)
@@ -56,10 +56,6 @@ namespace Core.Goals
                 classConfiguration.Interact.ResetCooldown();
             }
 
-            if(playerReader.PlayerBitValues.HasPet && !playerReader.PetHasTarget)
-            {
-                await input.TapPetAttack("");
-            }
 
             bool pressed = false;
             foreach (var item in this.Keys)
@@ -102,7 +98,7 @@ namespace Core.Goals
 
         private void ResetCooldowns()
         {
-            this.classConfiguration.Combat.Sequence
+            this.classConfiguration.LootActions.Sequence
             .Where(i => i.ResetOnNewTarget)
             .ToList()
             .ForEach(item =>
@@ -155,80 +151,8 @@ namespace Core.Goals
 
             await this.castingHandler.InteractOnUIError();
 
-            await Fight();
-            await KillCheck();
+            await Loot();
             lastActive = DateTime.Now;
-        }
-
-        private async Task KillCheck()
-        {
-            if (DidKilledACreature())
-            {
-                if (!await CreatureTargetMeOrMyPet())
-                {
-                    logger.LogInformation("Exit CombatGoal!!!");
-                }
-            }
-            await Task.Delay(0);
-        }
-
-        private bool DidKilledACreature()
-        {
-            if (lastKilledGuid != playerReader.LastKilledGuid)
-            {
-                logger.LogInformation($"----- A mob just died {playerReader.LastKilledGuid}");
-
-                if ((playerReader.CombatCreatures.Any(x => x.CreatureId == playerReader.LastKilledGuid) || // creature dealt damage to me or my pet
-                playerReader.TargetHistory.Any(x => x.CreatureId == playerReader.LastKilledGuid)))     // has ever targeted by the player)
-                {
-                    lastKilledGuid = playerReader.LastKilledGuid;
-
-                    playerReader.IncrementKillCount();
-                    logger.LogInformation($"----- Killed a mob! Current: {playerReader.LastCombatKillCount} - " + 
-                        $"CombatCreature: {playerReader.CombatCreatures.Any(x => x.CreatureId == playerReader.LastKilledGuid)} - " + 
-                        $"TargetHistory: {playerReader.TargetHistory.Any(x => x.CreatureId == playerReader.LastKilledGuid)}");
-
-                    SendActionEvent(new ActionEventArgs(GoapKey.producedcorpse, true));
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private async Task<bool> CreatureTargetMeOrMyPet()
-        {
-            if (playerReader.PetHasTarget &&
-                playerReader.LastKilledGuid != playerReader.PetTargetGuid)
-            {
-                logger.LogWarning("---- My pet has a target!");
-                ResetCooldowns();
-
-                await input.TapTargetPet();
-                await input.TapTargetOfTarget();
-                
-                return playerReader.HasTarget;
-            }
-
-            // check for targets attacking me
-            await input.TapNearestTarget();
-            await playerReader.WaitForNUpdate(1);
-            if (this.playerReader.HasTarget && playerReader.PlayerBitValues.TargetInCombat)
-            {
-                if (this.playerReader.PlayerBitValues.TargetOfTargetIsPlayer)
-                {
-                    ResetCooldowns();
-
-                    logger.LogWarning("---- Somebody is attacking me or my pet!");
-                    await input.TapInteractKey("Found new target to attack");
-                    return true;
-                }
-            }
-
-            await input.TapClearTarget();
-            logger.LogWarning("---- No Threat has been found!");
-
-            return false;
         }
     }
 }

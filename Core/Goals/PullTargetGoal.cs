@@ -39,7 +39,8 @@ namespace Core.Goals
             AddPrecondition(GoapKey.incombat, false);
             AddPrecondition(GoapKey.hastarget, true);
             AddPrecondition(GoapKey.pulled, false);
-            AddPrecondition(GoapKey.withinpullrange, true);
+            AddPrecondition(GoapKey.targetisalive, true);
+            // AddPrecondition(GoapKey.withinpullrange, true);
             AddPrecondition(GoapKey.isswimming, false);
             AddEffect(GoapKey.pulled, true);
 

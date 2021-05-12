@@ -54,6 +54,15 @@ namespace Core.Goals
                 }
                 await Task.Delay(1000);
             }
+            if (key.DelayBeforeCast != 0)
+            {
+                await Task.Delay(key.DelayBeforeCast);
+            }
+
+            if (key.DelayAfterCast != 0)
+            {
+                await Task.Delay(key.DelayAfterCast);
+            }
             await this.castingHandler.CastIfReady(key);
 
             this.key.ResetCooldown();

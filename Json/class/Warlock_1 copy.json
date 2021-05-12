@@ -1,0 +1,88 @@
+{
+  "ClassName": "Warlock",
+  "Loot": true,
+  "NPCMaxLevels_Below": 3,
+  "PathFilename": "test.json",
+  "PathThereAndBack": true,
+  "PathReduceSteps": false,
+
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Shadow Bolt",
+        "HasCastBar": true,
+        "StopBeforeCast": true,
+        "Key": "2",
+        "MinMana": 25
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Shadow Bolt",
+        "HasCastBar": true,
+        "StopBeforeCast": true,
+        "Key": "2",
+        "MinMana": 25
+      },
+      {
+        "Name": "shoot",
+        "Key": "0",
+        "Cooldown": 3,
+        "Requirements": ["HasRangedWeapon", "not Shooting"],
+        "Log": false
+      },
+      {
+        "Name": "AutoAttack",
+        "Cooldown": 3,
+        "Requirements": ["not HasRangedWeapon", "not AutoAttacking"]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Demon Skin",
+        "StopBeforeCast": false,
+        "Key": "3",
+        "MinMana": 50,
+        "Requirement": "not Demon Skin"
+      },
+      {
+        "Name": "Food",
+        "HasCastBar": true,
+        "StopBeforeCast": true,
+        "Key": "N1",
+        "Requirement": "Health%<50",
+        "Cooldown": 60
+      },
+      {
+        "Name": "Water",
+        "HasCastBar": true,
+        "StopBeforeCast": true,
+        "Key": "N2",
+        "Requirement": "Mana%<50",
+        "Cooldown": 60
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Name": "Repair",
+        "Key": "C",
+        "Requirement": "Items Broken",
+        "PathFilename": "1_Gnome_Vendor.json",
+        "Cost": 6
+      },
+      {
+        "Name": "Sell",
+        "Key": "C",
+        "Requirement": "BagFull",
+        "PathFilename": "1_Gnome_Vendor.json",
+        "Cost": 6
+      }
+    ]
+}
+}

@@ -48,6 +48,7 @@ namespace Core
 
         public KeyActions Pull { get; set; } = new KeyActions();
         public KeyActions Combat { get; set; } = new KeyActions();
+        public KeyActions LootActions { get; set; } = new KeyActions();
         public KeyActions Adhoc { get; set; } = new KeyActions();
         public KeyActions Parallel { get; set; } = new KeyActions();
         public KeyActions NPC { get; set; } = new KeyActions();
@@ -110,9 +111,11 @@ namespace Core
 
             InitializeKeyActions(Pull, Interact, Approach, AutoAttack);
             InitializeKeyActions(Combat, Interact, Approach, AutoAttack);
+            InitializeKeyActions(LootActions, Interact, Approach, AutoAttack);
 
             Pull.Initialise(playerReader, requirementFactory, logger);
             Combat.Initialise(playerReader, requirementFactory, logger);
+            LootActions.Initialise(playerReader, requirementFactory, logger);
             Adhoc.Initialise(playerReader, requirementFactory, logger);
             NPC.Initialise(playerReader, requirementFactory, logger);
             Parallel.Initialise(playerReader, requirementFactory, logger);

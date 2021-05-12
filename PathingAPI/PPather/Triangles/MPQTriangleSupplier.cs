@@ -171,6 +171,10 @@ namespace WowTriangles
 
         public void SetContinent(string continent)
         {
+            if (continent == null) {
+                return;
+            }
+
             continentFile = continent;
 
             wdt = new WDT();
@@ -213,9 +217,9 @@ namespace WowTriangles
             for (int i = 0; i < maps.recordCount; i++)
             {
                 int mapID = maps.GetInt(i, 0);
-                // logger.WriteLine("   ID:" + maps.GetInt(i, 0));
-                // logger.WriteLine(" File: " + maps.GetString(i, 1));
-                // logger.WriteLine(" Name: " + maps.GetString(i, 4)); // the file!!!
+                logger.WriteLine("   ID:" + maps.GetInt(i, 0));
+                logger.WriteLine(" File: " + maps.GetString(i, 1));
+                logger.WriteLine(" Name: " + maps.GetString(i, 4)); // the file!!!
 
                 if (mapID == continentID) // file == continentFile)
                 {

@@ -120,9 +120,9 @@ namespace Core
                 {
                     foreach (var location in locFindAndClickNpc)
                     {
-                        var clickPostion = bitmapProvider.DirectBitmap.ToScreenCoordinates(npc.ClickPoint.X + location.X, npc.ClickPoint.Y + location.Y);
+                        var clickPostion = bitmapProvider.DirectBitmap.ToScreenCoordinates(npc.ClickPoint.X + location.X, npc.ClickPoint.Y + location.Y + 30);
                         mouseInput.SetCursorPosition(clickPostion);
-                        await Task.Delay(100);
+                        await Task.Delay(50);
                         CursorClassifier.Classify(out var cls).Dispose();
                         if (cls == CursorClassification.Kill)
                         {

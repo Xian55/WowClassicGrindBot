@@ -85,6 +85,7 @@ namespace Core
                 if (classConfig.Loot)
                 {
                     var lootAction = new LootGoal(logger, input, addonReader.PlayerReader, addonReader.BagReader, stopMoving, classConfig, npcNameFinder);
+                   // var lootAction = new LootActions(logger, input, addonReader.PlayerReader, stopMoving, classConfig, castingHandler);
                     lootAction.AddPreconditions();
                     availableActions.Add(lootAction);
 

@@ -51,6 +51,7 @@ namespace Core
             config.Parallel.Sequence.ForEach(k => AddUnique(k));
             config.Pull.Sequence.ForEach(k => AddUnique(k));
             config.Combat.Sequence.ForEach(k => AddUnique(k));
+            config.LootActions.Sequence.ForEach(k => AddUnique(k));
             config.NPC.Sequence.ForEach(k => AddUnique(k));
 
             ResolveConsumables();

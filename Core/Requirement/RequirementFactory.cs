@@ -90,7 +90,10 @@ namespace Core
             if (BuffDictionary.Count == 0)
             {
                 BuffDictionary = new Dictionary<string, Func<bool>>
-                {
+                {   
+                    // Target
+                    {  "hastarget", ()=> playerReader.HasTarget },
+                    {  "targetalive", ()=> !playerReader.PlayerBitValues.TargetIsDead },
                     // Range
                     { "InMeleeRange", ()=> playerReader.PlayerBitValues.IsInMeleeRange },
                     { "OutOfCombatRange", ()=> !playerReader.WithInCombatRange },
@@ -280,7 +283,7 @@ namespace Core
                 {  "TargetHealth%", ()=> playerReader.TargetHealthPercentage },
                 {  "Mana%", ()=> playerReader.ManaPercentage },
                 {  "BagCount", ()=> bagReader.BagItems.Count },
-                {  "MobCount", ()=> playerReader.CombatCreatureCount },
+                {  "MobCount", ()=> playerReader.CombatCreatureCount }
             };
 
             if (!valueDictionary.Keys.Contains(parts[0]))

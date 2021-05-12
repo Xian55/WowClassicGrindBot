@@ -74,6 +74,7 @@ namespace Core.Goals
             if (classConfiguration.Mode != Mode.AttendedGather)
             {
                 AddPrecondition(GoapKey.incombat, false);
+                AddPrecondition(GoapKey.hastarget, false);
             }
         }
 
@@ -153,7 +154,7 @@ namespace Core.Goals
                 {
                     logger.LogError("wtf too far away kekw");
                     routeToWaypoint.Pop();
-                    return;
+                    // return;
                 }
 
                 //wowProcess.SetKeyState(ConsoleKey.UpArrow, true, false, "FollowRouteAction 1");

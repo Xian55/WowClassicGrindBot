@@ -123,6 +123,12 @@ namespace Core.Goals
                     return;
                 }
                 */
+                if (!await Wait(4000, DiDEnteredCombat()))
+                {
+                    await AquireTarget();
+                    return;
+                }
+
                 Log("Loot Successfull");
 
                 await GoalExit();
@@ -213,6 +219,9 @@ namespace Core.Goals
 
         private async Task GoalExit()
         {
+            await input.TapLastTargetKey("Last target key");
+            await input.TapInteractKey("Interract key");
+            await Task.Delay(5000);
             AddEffect(GoapKey.shouldloot, false);
             SendActionEvent(new ActionEventArgs(GoapKey.shouldloot, false));
 
