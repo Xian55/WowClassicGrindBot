@@ -10,6 +10,8 @@ public class WowPoint : IEquatable<WowPoint>
 
     public Vector2 Vector2() => new Vector2((float)X, (float)Y);
 
+    public WowPoint() {}
+
     public WowPoint(double x, double y)
     {
         this.X = x;
