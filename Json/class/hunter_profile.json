@@ -1,0 +1,137 @@
+{
+    "ClassName": "Hunter",
+    "Loot": true,
+    "Skin": false,
+  
+    "PathFilename":  "37_Wetlands_full.json",
+    "PathThereAndBack": false,
+    "PathReduceSteps": false,
+  
+    "Pull": {
+      "Sequence": [
+        {
+          "Name": "Pet attack",
+          "Log": false,
+          "StopBeforeCast": false,
+          "Key": "8",
+          "Cooldown": 1,
+          "Requirements": ["TargetHealth%>99"]
+        },
+        {
+          "Name": "Hunter mark",
+          "StopBeforeCast": false,
+          "Key": "R",
+          "ResetOnNewTarget": true,
+          "Requirements": ["TargetHealth%>99"]
+        },
+        {
+          "Name": "Approach",
+          "Log": false,
+          "StopBeforeCast": false,
+          "Cooldown": 0.5,
+          "Requirements": ["TargetHealth%>99"]
+        },
+      ]
+    },
+    "Combat": {
+      "Sequence": [
+        {
+          "Name": "Approach",
+          "Log": false,
+          "Cooldown": 10
+        },
+        {
+          "Name": "Serpent Sting",
+          "StopBeforeCast": false,
+          "MinMana": 115,
+          "Key": "3",
+          "Cooldown": 20,
+          "Requirements": ["not InMeleeRange"]
+        },
+        {
+          "Name": "Arcane shot",
+          "StopBeforeCast": false,
+          "MinMana": 105,
+          "Key": "2",
+          "Cooldown": 20,
+          "Requirements": ["not InMeleeRange"]
+        },
+        {
+          "Name": "Intimidation",
+          "Key": "Q",
+          "MinMana": 500,
+          "Cooldown": 60
+        },
+        {
+          "Name": "Rapid Fire",
+          "Key": "F7",
+          "MinMana": 1000,
+          "Cooldown": 300
+        },
+        {
+          "Name": "Blood Fury",
+          "Key": "T",
+          "MinMana": 55,
+          "Cooldown": 120,
+          "Requirements": ["InMeleeRange"]
+        },
+        {
+          "Name": "Rupture strike",
+          "Key": "1",
+          "MinMana": 55,
+          "Cooldown": 3,
+          "Requirements": ["InMeleeRange"]
+        },
+        {
+          "Name": "Автоматическая стрельба",
+          "Log": false,
+          "Key": "4",
+          "Cooldown": 1
+        }
+      ]
+    },
+    "Adhoc": {
+      "Sequence": [
+        {
+            "Name": "Summon Pet",
+            "HasCastBar": true,
+            "StopBeforeCast": true,
+            "Key": "F10",
+            "MinMana": 663,
+            "Requirements": ["not Has Pet"],
+            "Log": false,
+            "Cooldown": 60
+        },
+        {
+            "Name": "Ressurect Pet",
+            "HasCastBar": true,
+            "StopBeforeCast": true,
+            "Key": "F6",
+            "MinMana": 663,
+            "Requirements": ["not Has Pet"],
+            "Log": false,
+            "Cooldown": 60
+        },
+        {
+          "Name": "Low Health",
+          "HasCastBar": true,
+          "StopBeforeCast": true,
+          "Key": "K",
+          "Requirement": "Health%<70",
+          "Cooldown": 10,
+          "Log": false,
+          "DelayAfterCast": 30000
+        },
+        {
+          "Name": "Low mana",
+          "HasCastBar": true,
+          "StopBeforeCast": true,
+          "Key": "K",
+          "Requirement": "Mana%<40",
+          "Cooldown": 10,
+          "Log": false,
+          "DelayAfterCast": 30000
+        }
+      ]
+    }
+  }

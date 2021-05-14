@@ -123,7 +123,7 @@ namespace Core.Goals
                     return;
                 }
                 */
-                if (!await Wait(4000, DiDEnteredCombat()))
+                if (!await Wait(400, DiDEnteredCombat()))
                 {
                     await AquireTarget();
                     return;
