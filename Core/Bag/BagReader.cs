@@ -14,20 +14,23 @@ namespace Core
 
         private readonly ISquareReader reader;
         private readonly ItemDB itemDb;
+        private readonly EquipmentReader equipmentReader;
 
         private DateTime lastEvent = DateTime.Now;
 
         public List<BagItem> BagItems { get; private set; } = new List<BagItem>();
 
         private readonly long[] bagSlotsCount = new long[] { 16, 0, 0, 0, 0 };
+        private readonly bool[] bagForLoot = new bool[] { true, false, false, false, false };
 
         public event EventHandler? DataChanged;
 
-        public BagReader(ISquareReader reader, int bagItemsDataStart, ItemDB itemDb)
+        public BagReader(ISquareReader reader, int bagItemsDataStart, ItemDB itemDb, EquipmentReader equipmentReader)
         {
             this.bagItemsDataStart = bagItemsDataStart;
             this.reader = reader;
             this.itemDb = itemDb;
+            this.equipmentReader = equipmentReader;
         }
 
         public void Read()
@@ -38,6 +41,9 @@ namespace Core
             for(var bagSlotIndex = 0; bagSlotIndex < 4; bagSlotIndex++)
             {
                 bagSlotsCount[bagSlotIndex+1] = reader.GetLongAtCell(bagSlotCountStart + bagSlotIndex);
+
+                var bagItemId = equipmentReader.GetId((int)InventorySlotId.Bag_0 + bagSlotIndex);
+                bagForLoot[bagSlotIndex + 1] = IsContainerItem(bagItemId);
             }
 
             for (var bag = 0; bag < 5; bag++)
@@ -120,7 +126,33 @@ namespace Core
         }
 
         public long SlotCount => bagSlotsCount.Sum();
-        public bool BagsFull => BagItems.Count == SlotCount;
+
+        public bool BagsFull => LootableItemSlotCount() == LootableSlotCount();
+
+        private long LootableItemSlotCount()
+        {
+            int count = 0;
+            for(int i = 0; i<BagItems.Count; i++)
+            {
+                if (bagForLoot[BagItems[i].Bag])
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private long LootableSlotCount()
+        {
+            long sum = 0;
+            for (int i = 0; i < bagForLoot.Length; i++)
+            {
+                if (bagForLoot[i])
+                    sum += bagSlotsCount[i];
+            }
+
+            return sum;
+        }
 
         public int ItemCount(int itemId) => BagItems.Where(bi => bi.ItemId == itemId).Sum(bi => bi.Count);
 
@@ -140,5 +172,9 @@ namespace Core
                 FirstOrDefault();
         }
 
+        private bool IsContainerItem(int itemId)
+        {
+            return itemDb.IsContainer(itemId);
+        }
     }
 }

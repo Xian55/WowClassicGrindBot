@@ -1,0 +1,108 @@
+{
+  "ClassName": "Hunter",
+  "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\4-6_Dun Morogh.json",
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Hunter's Mark",
+        "DelayAfterCast": 0,
+        "Key": "0"
+      },
+      {
+        "Name": "autoshoot",
+        "StopBeforeCast": true,
+        "Key": "3",
+        "Requirements": ["HasRangedWeapon", "not InMeleeRange", "HasAmmo"]
+      },
+      {
+        "Name": "Approach",
+        "DelayAfterCast": 0
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Serpent Sting",
+        "Key": "2",
+        "MinMana": 15,
+        "Cooldown": 15,
+        "Requirements": ["HasRangedWeapon", "not InMeleeRange", "not Serpent Sting", "HasAmmo"]
+      },
+      {
+        "Name": "Arcane Shot",
+        "Key": "8",
+        "MinMana": 15,
+        "WhenUsable": true,
+        "Requirements": ["HasRangedWeapon", "not InMeleeRange", "HasAmmo"]
+      },
+      {
+        "Name": "autoshoot",
+        "StopBeforeCast": true,
+        "Key": "3",
+        "Requirements": ["HasRangedWeapon", "not InMeleeRange", "HasAmmo"]
+      },
+      {
+        "Name": "Raptor Strike",
+        "Key": "4",
+        "WhenUsable": true,
+        "MinMana": 15,
+        "Requirement": "InMeleeRange"
+      },
+      {
+        "Name": "AutoAttack",
+        "Cooldown": 3,
+        "DelayAfterCast": 0,
+        "Requirements": ["InMeleeRange", "not AutoAttacking"]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Aspect of the Monkey",
+        "Key": "5",
+        "MinMana": 20,
+        "Requirement": "not Aspect of the Monkey"
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "StopBeforeCast": true,
+        "Key": "6",
+        "Requirement": "Health%<30",
+        "Cooldown": 10,
+        "Log": false
+      },
+      {
+        "Name": "Water",
+        "StopBeforeCast": true,
+        "Key": "7",
+        "Requirement": "Mana%<30",
+        "Cooldown": 10,
+        "Log": false
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Name": "Repair",
+        "Key": "C",
+        "Requirement": "Items Broken",
+        "PathFilename": "1_Gnome_Vendor.json",
+        "Cost": 6
+      },
+      {
+        "Name": "Sell",
+        "Key": "C",
+        "Requirement": "BagFull",
+        "PathFilename": "1_Gnome_Vendor.json",
+        "Cost": 6
+      }
+    ]
+  }
+}

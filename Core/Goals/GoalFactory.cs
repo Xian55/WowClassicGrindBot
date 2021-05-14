@@ -70,7 +70,9 @@ namespace Core
                     availableActions.Add(followRouteAction);
                     availableActions.Add(walkToCorpseAction);
                 }
-                availableActions.Add(new ApproachTargetGoal(logger, input, addonReader.PlayerReader, stopMoving,  stuckDetector));
+
+                if(addonReader.PlayerReader.PlayerClass != PlayerClassEnum.Hunter)
+                    availableActions.Add(new ApproachTargetGoal(logger, input, addonReader.PlayerReader, stopMoving,  stuckDetector));
 
                 if (classConfig.WrongZone.ZoneId > 0)
                 {

@@ -4,7 +4,7 @@
 
 <div class="card @(Hide ? "hide" : "")">
     <div class="card-header">
-        Player
+        Player -> @playerReader.MinRange - @playerReader.MaxRange
         <span class="float-right badge @CombatBadge()">@Core.GOAP.GoapKeyDescription.ToString(Core.GOAP.GoapKey.incombat, PlayerInCombat)</span>
     </div>
     <div class="card-body" style="padding-bottom: 0">

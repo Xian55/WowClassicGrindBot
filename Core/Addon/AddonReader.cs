@@ -38,8 +38,8 @@ namespace Core
             this.itemDb = new ItemDB(logger, dataConfig);
             this.creatureDb = new CreatureDB(logger, dataConfig);
 
-            this.BagReader = new BagReader(squareReader, 20, itemDb);
             this.equipmentReader = new EquipmentReader(squareReader, 30);
+            this.BagReader = new BagReader(squareReader, 20, itemDb, equipmentReader);
             this.ActionBarCostReader = new ActionBarCostReader(squareReader, 44);
             this.PlayerReader = new PlayerReader(squareReader, creatureDb);
             this.LevelTracker = new LevelTracker(PlayerReader);

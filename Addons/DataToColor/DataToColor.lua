@@ -385,7 +385,7 @@ function DataToColor:CreateFrames(n)
             MakePixelSquareArr(integerToColor(self:getManaMax("player")), 12) --10 Represents maximum amount of mana
             MakePixelSquareArr(integerToColor(self:getManaCurrent("player")), 13) --11 Represents current amount of mana
             MakePixelSquareArr(integerToColor(self:getPlayerLevel()), 14) --12 Represents character level
-            MakePixelSquareArr(integerToColor(self:isInRange()), 15) -- 15 Represents if target is within 20, 30, 35, or greater than 35 yards
+            MakePixelSquareArr(integerToColor(self:getRange()), 15) -- 15 Represents if target is within 0-5 5-15 15-20, 20-30, 30-35, or greater than 35 yards
             MakePixelSquareArr(integerToColor(self:GetTargetName(0)), 16) -- Characters 1-3 of target's name
             MakePixelSquareArr(integerToColor(self:GetTargetName(3)), 17) -- Characters 4-6 of target's name
             MakePixelSquareArr(integerToColor(self:getHealthMax("target")), 18) -- Return the maximum amount of health a target can have
@@ -425,7 +425,7 @@ function DataToColor:CreateFrames(n)
             end
             -- Worn inventory start.
             -- Starts at beginning once we have looked at all desired slots.
-            if equipNum - 19 == 0 then
+            if equipNum - 23 == 0 then
                 equipNum = 1
             end
 
@@ -586,16 +586,16 @@ function DataToColor:Base2Converter()
     self:MakeIndexBase2(self:GetEnemyStatus(), 1) + 
     self:MakeIndexBase2(self:deadOrAlive(), 2) +
     self:MakeIndexBase2(self:checkTalentPoints(), 3) + 
-    self:MakeIndexBase2(self:inInMeleeRange(), 4) + 
-    self:MakeIndexBase2(0, 5) +
+    self:MakeIndexBase2(0, 4) + 
+    self:MakeIndexBase2(self:targetHostile(), 5) +
     self:MakeIndexBase2(self:IsPetVisible(), 6) + 
     self:MakeIndexBase2(self:mainhandEnchantActive(), 7) + 
     self:MakeIndexBase2(self:offhandEnchantActive(), 8) +
     self:MakeIndexBase2(self:GetInventoryBroken(), 9) + 
     self:MakeIndexBase2(self:IsPlayerFlying(), 10) + 
     self:MakeIndexBase2(self:IsPlayerSwimming(), 11) +
-    self:MakeIndexBase2(0, 12) + 
-    self:MakeIndexBase2(0, 13) + 
+    self:MakeIndexBase2(self:petHappy(), 12) + 
+    self:MakeIndexBase2(self:hasAmmo(), 13) + 
     self:MakeIndexBase2(self:playerCombatStatus(), 14) +
     self:MakeIndexBase2(self:IsTargetOfTargetPlayer(), 15) + 
     self:MakeIndexBase2(0, 16) + 
@@ -648,6 +648,8 @@ function DataToColor:getBuffsForClass()
         self:MakeIndexBase2(self:GetBuffs("Shadow Trance"), 13);
     elseif CC == "SHAMAN" then
         class=class+self:MakeIndexBase2(self:GetBuffs("Lightning Shield"), 10);
+    elseif CC == "HUNTER" then
+        class=class+self:MakeIndexBase2(self:GetBuffs("Aspect of"), 10);
     end
     return class;
 end
@@ -740,6 +742,8 @@ function DataToColor:getDebuffsForTarget()
         self:MakeIndexBase2(self:GetDebuffs("Corruption"), 1) +
         self:MakeIndexBase2(self:GetDebuffs("Immolate"), 2) +
         self:MakeIndexBase2(self:GetDebuffs("Siphon Life"), 3);
+    elseif CC == "HUNTER" then
+        class=self:MakeIndexBase2(self:GetDebuffs("Serpect Sting"), 0);
     end
 
     return class;
@@ -834,31 +838,34 @@ function DataToColor:getMoneyTotal()
     return GetMoney()
 end
 
--- Finds if target is attackable with the fireball which is the longest distance spell.
--- Fireball or a spell with equivalent range must be in slot 2 for this to work
-function DataToColor:isInRange()
-    -- Assigns arbitrary value (50) to note the target is not within range
-    local range = 50
-    if IsActionInRange(2) then range = 35 end -- Checks Fireball Range, slot 2
-    if IsActionInRange(3) and self:getPlayerLevel() < 25 then range = 30 end -- Checks Frostbolt Range, slot 3
-    if IsActionInRange(10) then range = 30 end -- Checks Counterspell Range, slot 11. Useful for when after arctic reach is applied
-    if IsActionInRange(4) then range = 20 end -- Checks Fire Blast Range, slot 4
-    return range
+function DataToColor:targetHostile()
+    local hostile = UnitReaction("player", "target")
+    if hostile ~= nil and hostile <= 4 then
+        return 1
+    end
+    return 0
 end
 
-function DataToColor:inInMeleeRange()
-    -- local rc = LibStub("LibRangeCheck-2.0")
-    -- local minRange, maxRange = rc:GetRange('target')
-    -- local minRangeIfVisible, maxRangeIfVisible = rc:GetRange('target', true)
-        local target = GetUnitName("target")
-        if target ~= nil then
-            local min, max = Range:GetRange("target")
-            if min == 0 and max == 5 then
-                return 1
-            end
-        end
-        return 0
+function DataToColor:hasAmmo()
+    local ammoSlot = GetInventorySlotInfo("AmmoSlot");
+    local ammoCount = GetInventoryItemCount("player", ammoSlot);
+    if ammoCount > 0 then
+        return 1
     end
+    return 0;
+end
+
+function DataToColor:getRange()
+    local target = GetUnitName("target")
+    if target ~= nil then
+        local min, max = Range:GetRange("target")
+        if max == nil then
+            max = 99
+        end
+        return min * 100000 + max * 100
+    end
+    return 0
+end
 
 function DataToColor:targetNpcId()
     local unitType, _, _, _, _, npcID, guid = strsplit('-', UnitGUID("target") or ''); 
@@ -1051,6 +1058,7 @@ function DataToColor:areSpellsInRange()
         spellList = {
             "Raptor Strike", --1
             "Auto Shot", --2
+            "Serpent Sting" --3
         };        
     elseif CC == "WARLOCK" then
         spellList = {
@@ -1454,6 +1462,16 @@ function DataToColor:IsPetVisible()
         return 1
     else return 0
     end
+end
+
+function DataToColor:petHappy()
+    local happiness, damagePercentage, loyaltyRate = GetPetHappiness();
+
+    if happiness ~= nil then
+        return happiness == 3; -- (1 = unhappy, 2 = content, 3 = happy)
+    end
+
+    return 0
 end
 
 -- Returns 0 if target is unskinnable or if we have no target.

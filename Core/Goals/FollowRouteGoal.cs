@@ -128,6 +128,23 @@ namespace Core.Goals
         {
             SendActionEvent(new ActionEventArgs(GoapKey.fighting, false));
 
+            if (await AquireTarget())
+            {
+                await stopMoving.StopTurn();
+                
+                if (playerReader.PlayerClass == PlayerClassEnum.Hunter &&
+                    playerReader.PlayerBitValues.TargetCanBeHostile)
+                {
+                    await input.TapInteractKey("approach target as hunter");
+                }
+                else
+                {
+                    await input.TapClearTarget("not hostile");
+                }
+
+                return;
+            }
+
             await SwitchGatherType();
 
             await playerReader.WaitForNUpdate(1);
@@ -162,8 +179,6 @@ namespace Core.Goals
             }
 
             await RandomJump();
-
-            if (await AquireTarget()) { return; }
 
             var location = new WowPoint(playerReader.XCoord, playerReader.YCoord);
             var distance = WowPoint.DistanceTo(location, routeToWaypoint.Peek());

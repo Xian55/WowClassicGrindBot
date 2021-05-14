@@ -56,6 +56,8 @@ namespace Core
 
         public bool Hunter_AutoShoot { get => IsBitSet(1); }
 
+        public bool Hunter_SerpentSting { get => IsBitSet(2); }
+
         // Warlock
         public bool Warlock_ShadowBolt { get => IsBitSet(0); }
 
@@ -72,7 +74,7 @@ namespace Core
             PlayerClassEnum.Priest => Priest_ShadowWordPain,
             PlayerClassEnum.Druid => playerReader.Druid_ShapeshiftForm == ShapeshiftForm.Druid_Bear ? Druid_Bash : playerReader.Druid_ShapeshiftForm == ShapeshiftForm.Druid_Cat ? Druid_Rip : Druid_Wrath,
             PlayerClassEnum.Mage => (playerReader.PlayerLevel >= 4 && Mage_Frostbolt) || Mage_Fireball,
-            PlayerClassEnum.Hunter => Hunter_AutoShoot,
+            PlayerClassEnum.Hunter => (playerReader.PlayerLevel >=4 && Hunter_SerpentSting) || Hunter_AutoShoot,
             PlayerClassEnum.Warlock => Warlock_ShadowBolt,
             PlayerClassEnum.Shaman => (playerReader.PlayerLevel >= 4 && Shaman_EarthShock) || Shaman_LightningBolt,
             _ => true
@@ -86,7 +88,7 @@ namespace Core
             PlayerClassEnum.Druid => playerReader.Druid_ShapeshiftForm == ShapeshiftForm.Druid_Bear ? Druid_Bash : playerReader.Druid_ShapeshiftForm == ShapeshiftForm.Druid_Cat ? Druid_Rip : Druid_Wrath,
             PlayerClassEnum.Paladin => Paladin_Judgement,
             PlayerClassEnum.Mage => Mage_Frostbolt || Mage_Fireball,
-            PlayerClassEnum.Hunter => Hunter_AutoShoot || Hunter_RaptorStrike,
+            PlayerClassEnum.Hunter => Hunter_SerpentSting || Hunter_AutoShoot || Hunter_RaptorStrike,
             PlayerClassEnum.Warlock => Warlock_ShadowBolt,
             PlayerClassEnum.Shaman => Shaman_LightningBolt,
             _ => true

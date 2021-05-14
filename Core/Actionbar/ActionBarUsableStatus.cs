@@ -3,17 +3,11 @@ using System.Text;
 
 namespace Core
 {
-    public class ActionBarStatus
+    public class ActionBarUsableStatus
     {
-        private long value;
+        private readonly long value;
 
-        public ActionBarStatus(string name)
-        {
-            this.name = name;
-            this.value = 0;
-        }
-
-        public ActionBarStatus(long value)
+        public ActionBarUsableStatus(long value)
         {
             this.value = value;
         }
@@ -22,8 +16,6 @@ namespace Core
         {
             return (value & (1 << pos)) != 0;
         }
-
-        public string name { get; set; } = string.Empty;
 
         public bool HotKey1 { get => IsBitSet(0); }
         public bool HotKey2 { get => IsBitSet(1); }

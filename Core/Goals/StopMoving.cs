@@ -28,17 +28,23 @@ namespace Core.Goals
                 await Task.Delay(1);
             }
 
+            this.XCoord = playerReader.XCoord;
+            this.YCoord = playerReader.YCoord;
+
+            await StopTurn();
+        }
+
+        public async Task StopTurn()
+        {
             if (Direction != playerReader.Direction)
             {
-                input.SetKeyState(ConsoleKey.LeftArrow, false, false, "StopMoving");
+                input.SetKeyState(ConsoleKey.LeftArrow, false, false, "StopTurnLeft");
                 await Task.Delay(1);
-                input.SetKeyState(ConsoleKey.RightArrow, false, false, "StopMoving");
+                input.SetKeyState(ConsoleKey.RightArrow, false, false, "StopTurnRight");
                 await Task.Delay(1);
             }
 
             this.Direction = playerReader.Direction;
-            this.XCoord = playerReader.XCoord;
-            this.YCoord = playerReader.YCoord;
         }
     }
 }

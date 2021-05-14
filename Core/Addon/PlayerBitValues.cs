@@ -14,6 +14,7 @@
             return (value & (1 << pos)) != 0;
         }
 
+        public bool TargetCanBeHostile { get => IsBitSet(5); }
         public bool IsTagged { get => IsBitSet(22); }
         public bool TargetIsNormal { get => IsBitSet(21); }
         public bool IsAutoRepeatSpellOn_AutoAttack { get => IsBitSet(20); }
@@ -29,8 +30,9 @@
         public bool ItemsAreBroken { get => IsBitSet(9); }
 
         public bool HasPet { get => IsBitSet(6); }
+        public bool PetHappy { get => IsBitSet(12); }
 
-        public bool IsInMeleeRange { get => IsBitSet(4); }
+        public bool HasAmmo { get => IsBitSet(13); }
 
         public bool TalentPoints { get => IsBitSet(3); }
         public bool DeadStatus { get => IsBitSet(2); }

@@ -23,15 +23,21 @@ namespace Core
         Main_hand = 16,
         Off_hand = 17,
         Ranged = 18,
-        Tabard = 19
+        Tabard = 19,
+        Bag_0 = 20,
+        Bag_1 = 21,
+        Bag_2 = 22,
+        Bag_3 = 23
     }
 
     public class EquipmentReader
     {
+        private const int MAX_EQUIPMENT_COUNT = 24;
+
         private readonly int cellStart;
         private readonly ISquareReader reader;
 
-        private readonly long[] equipment = new long[20];
+        private readonly long[] equipment = new long[MAX_EQUIPMENT_COUNT];
 
         public EquipmentReader(ISquareReader reader, int cellStart)
         {
@@ -42,7 +48,7 @@ namespace Core
         public void Read()
         {
             var index = reader.GetLongAtCell(cellStart + 1);
-            if (index < 20 && index >= 0)
+            if (index < MAX_EQUIPMENT_COUNT && index >= 0)
             {
                 equipment[index] = reader.GetLongAtCell(cellStart);
             }
@@ -67,6 +73,11 @@ namespace Core
             }
 
             return false;
+        }
+
+        public int GetId(int slot)
+        {
+            return (int)equipment[slot];
         }
     }
 }

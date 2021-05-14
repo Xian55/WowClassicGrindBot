@@ -45,5 +45,8 @@
         public bool Corruption { get => IsBitSet(1); }
         public bool Immolate { get => IsBitSet(2); }
         public bool SiphonLife { get => IsBitSet(3); }
+
+        // Hunter
+        public bool SerpentSting { get => IsBitSet(0); }
     }
 }

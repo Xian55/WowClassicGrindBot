@@ -1,6 +1,6 @@
 {
   "ClassName": "Hunter",
-  "PathFilename": "1_Gnome.json",
+  "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\4-6_Dun Morogh.json",
   "Pull": {
     "Sequence": [
       {
@@ -17,6 +17,13 @@
   },
   "Combat": {
     "Sequence": [
+      {
+        "Name": "Serpent Sting",
+        "Key": "2",
+        "MinMana": 15,
+        "Cooldown": 15,
+        "Requirements": ["HasRangedWeapon", "not InMeleeRange", "not Serpent Sting", "HasAmmo"]
+      },
       {
         "Name": "autoshoot",
         "StopBeforeCast": true,
@@ -35,6 +42,36 @@
         "Cooldown": 3,
         "DelayAfterCast": 0,
         "Requirements": ["InMeleeRange", "not AutoAttacking"]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Aspect of the Monkey",
+        "Key": "5",
+        "MinMana": 20,
+        "Requirement": "not Aspect of the Monkey"
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "StopBeforeCast": true,
+        "Key": "6",
+        "Requirement": "Health%<30",
+        "Cooldown": 10,
+        "Log": false
+      },
+      {
+        "Name": "Water",
+        "StopBeforeCast": true,
+        "Key": "7",
+        "Requirement": "Mana%<30",
+        "Cooldown": 10,
+        "Log": false
       }
     ]
   },
