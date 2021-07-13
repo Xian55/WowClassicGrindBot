@@ -37,7 +37,7 @@ namespace Core
                 case NPCType.Neutral:
                     return pixel.R > 250 && pixel.G > 250 && pixel.B == 0;
                 case NPCType.Corpse:
-                    return pixel.R == 128 && pixel.G == 128 && pixel.B == 128;
+                    return (pixel.R > 120 && pixel.R < 140)&& (pixel.G > 120&& pixel.G < 140) && (pixel.B > 120 && pixel.G < 140 );
                 case NPCType.Enemy:
                 default:
                     return pixel.R > 240 && pixel.G <= 35 && pixel.B <= 35;
