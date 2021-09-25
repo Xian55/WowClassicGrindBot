@@ -13,6 +13,7 @@ namespace Core.Goals
         private readonly ILogger logger;
         private readonly ConfigurableInput input;
 
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         private readonly StopMoving stopMoving;
         private readonly CastingHandler castingHandler;
@@ -21,13 +22,16 @@ namespace Core.Goals
         private readonly ClassConfiguration classConfiguration;
         private DateTime lastPulled = DateTime.Now;
 
+        private readonly KeyAction defaultKeyAction = new KeyAction();
+
         private int lastKilledGuid;
 
-        public CombatGoal(ILogger logger, ConfigurableInput input, PlayerReader playerReader, StopMoving stopMoving,  ClassConfiguration classConfiguration, CastingHandler castingHandler)
+        public CombatGoal(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader, StopMoving stopMoving,  ClassConfiguration classConfiguration, CastingHandler castingHandler)
         {
             this.logger = logger;
             this.input = input;
 
+            this.wait = wait;
             this.playerReader = playerReader;
             this.stopMoving = stopMoving;
             
@@ -71,7 +75,7 @@ namespace Core.Goals
                     continue;
                 }
 
-                pressed = await this.castingHandler.CastIfReady(item);
+                pressed = await this.castingHandler.CastIfReady(item, item.DelayBeforeCast);
                 if (pressed)
                 {
                     break;
@@ -79,7 +83,7 @@ namespace Core.Goals
             }
             if (!pressed)
             {
-                await Task.Delay(20);
+                await Task.Delay(defaultKeyAction.PressDuration);
             }
 
             this.lastActive = DateTime.Now;
@@ -161,6 +165,7 @@ namespace Core.Goals
 
         private async Task KillCheck()
         {
+            await wait.Update(1);
             if (DidKilledACreature())
             {
                 if (!await CreatureTargetMeOrMyPet())
@@ -168,7 +173,6 @@ namespace Core.Goals
                     logger.LogInformation("Exit CombatGoal!!!");
                 }
             }
-            await Task.Delay(0);
         }
 
         private bool DidKilledACreature()
@@ -205,13 +209,13 @@ namespace Core.Goals
 
                 await input.TapTargetPet();
                 await input.TapTargetOfTarget();
-                
+                await wait.Update(1);
                 return playerReader.HasTarget;
             }
 
             // check for targets attacking me
             await input.TapNearestTarget();
-            await playerReader.WaitForNUpdate(1);
+            await wait.Update(1);
             if (this.playerReader.HasTarget && playerReader.PlayerBitValues.TargetInCombat)
             {
                 if (this.playerReader.PlayerBitValues.TargetOfTargetIsPlayer)
@@ -220,16 +224,18 @@ namespace Core.Goals
 
                     logger.LogWarning("---- Somebody is attacking me!");
                     await input.TapInteractKey("Found new target to attack");
+                    await wait.Update(1);
                     return true;
                 }
             }
 
-            if (await Wait(200, () => playerReader.HasTarget))
+            if (await wait.Interrupt(200, () => playerReader.HasTarget))
             {
                 return true;
             }
 
             await input.TapClearTarget();
+            await wait.Update(1);
             logger.LogWarning("---- No Threat has been found!");
 
             return false;

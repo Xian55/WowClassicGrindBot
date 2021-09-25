@@ -14,6 +14,7 @@ namespace Core.Goals
         private ILogger logger;
         private readonly ConfigurableInput input;
 
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         private readonly StopMoving stopMoving;
         private readonly BagReader bagReader;
@@ -23,11 +24,12 @@ namespace Core.Goals
 
         private long lastLoot;
 
-        public SkinningGoal(ILogger logger, ConfigurableInput input, PlayerReader playerReader, BagReader bagReader, EquipmentReader equipmentReader, StopMoving stopMoving,  NpcNameFinder npcNameFinder, CombatUtil combatUtil)
+        public SkinningGoal(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader, BagReader bagReader, EquipmentReader equipmentReader, StopMoving stopMoving,  NpcNameFinder npcNameFinder, CombatUtil combatUtil)
         {
             this.logger = logger;
             this.input = input;
 
+            this.wait = wait;
             this.playerReader = playerReader;
             this.stopMoving = stopMoving;
             this.bagReader = bagReader;
@@ -81,7 +83,7 @@ namespace Core.Goals
             if (foundCursor)
             {
                 Log("Found corpse - interacted with right click");
-                await playerReader.WaitForNUpdate(1);
+                await wait.Update(1);
 
                 (bool foundTarget, bool moved) = await combatUtil.FoundTargetWhileMoved();
                 if (foundTarget)
@@ -94,33 +96,22 @@ namespace Core.Goals
                 if (moved)
                 {
                     await input.TapInteractKey($"{GetType().Name}: Had to move so interact again");
+                    await wait.Update(1);
                 }
 
                 //this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
 
                 // wait until start casting
-                await Wait(500, () => playerReader.IsCasting);
+                await wait.Interrupt(500, () => playerReader.IsCasting);
                 Log("Started casting...");
 
-                // wait until cast ends
-                do
-                {
-                    await playerReader.WaitForNUpdate(1);
-                    if (await combatUtil.EnteredCombat())
-                    {
-                        if(await combatUtil.AquiredTarget())
-                        {
-                            EmergencyExit();
-                            return;
-                        }
-                    }
-                } while (playerReader.IsCasting);
+                await wait.Interrupt(3000, () => !playerReader.IsCasting);
                 Log("Cast finished!");
 
                 // Wait for to update the LastUIErrorMessage
-                await playerReader.WaitForNUpdate(2);
-                var lastError = this.playerReader.LastUIErrorMessage;
-                if (lastError != UI_ERROR.ERR_SPELL_FAILED_S && lastLoot != playerReader.LastLootTime)
+                await wait.Update(1);
+                var lastError = playerReader.LastUIErrorMessage;
+                if (lastError != UI_ERROR.ERR_SPELL_FAILED_S /*&& lastLoot != playerReader.LastLootTime*/)
                 {
                     this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
                     Log("Skinning Successful!");
@@ -140,7 +131,7 @@ namespace Core.Goals
 
         private async Task GoalExit()
         {
-            if (!await Wait(500, () => lastLoot != playerReader.LastLootTime))
+            if (!await wait.Interrupt(1000, () => lastLoot != playerReader.LastLootTime))
             {
                 Log($"Skin-Loot Successfull");
             }
@@ -157,7 +148,7 @@ namespace Core.Goals
             if (playerReader.HasTarget && playerReader.PlayerBitValues.TargetIsDead)
             {
                 await input.TapClearTarget();
-                await playerReader.WaitForNUpdate(1);
+                await wait.Update(1);
             }
         }
 

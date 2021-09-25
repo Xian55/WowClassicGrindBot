@@ -156,6 +156,7 @@ namespace BlazorServer
             BulkRename(FinalAddonPath, DefaultAddonName, addonConfig.Title);
             EditToc();
             EditMainLua();
+            EditModulesLua();
         }
 
         private static void BulkRename(string fPath, string match, string fNewName)
@@ -202,8 +203,8 @@ namespace BlazorServer
 
         private void EditMainLua()
         {
-            string tocPath = Path.Join(FinalAddonPath, addonConfig.Title + ".lua");
-            string text = File.ReadAllText(tocPath);
+            string mainLuaPath = Path.Join(FinalAddonPath, addonConfig.Title + ".lua");
+            string text = File.ReadAllText(mainLuaPath);
             text = text.Replace(DefaultAddonName, addonConfig.Title);
 
             //edit slash command
@@ -211,7 +212,23 @@ namespace BlazorServer
             text = text.Replace("dc", addonConfig.Command);
             text = text.Replace("DC", addonConfig.Command);
 
-            File.WriteAllText(tocPath, text);
+            File.WriteAllText(mainLuaPath, text);
+        }
+
+        private void EditModulesLua()
+        {
+            FileInfo[] files = new DirectoryInfo(FinalAddonPath).GetFiles();
+            foreach (var f in files)
+            {
+                if (f.Extension.Contains("lua"))
+                {
+                    string path = f.FullName;
+                    string text = File.ReadAllText(path);
+                    text = text.Replace(DefaultAddonName, addonConfig.Title);
+
+                    File.WriteAllText(path, text);
+                }
+            }
         }
 
         public void Delete()
@@ -351,6 +368,9 @@ namespace BlazorServer
         private static Version? GetVersion(string path, string fileName)
         {
             string tocPath = Path.Join(path, fileName + ".toc");
+
+            if (!File.Exists(tocPath))
+                return null;
 
             string begin = "## Version: ";
             var line = File

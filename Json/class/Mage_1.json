@@ -53,18 +53,20 @@
       },
       {
         "Name": "Food",
-        "HasCastBar": true,
         "StopBeforeCast": true,
-        "Key": "-",
+        "AfterCastWaitBuff": true,
+        "DelayAfterCast": 0,
+        "Key": "=",
         "Requirement": "Health%<30",
         "Cooldown": 15,
         "Log": false
       },
       {
         "Name": "Water",
-        "HasCastBar": true,
         "StopBeforeCast": true,
-        "Key": "0",
+        "DelayAfterCast": 0,
+        "AfterCastWaitBuff": true,
+        "Key": "-",
         "Requirement": "Mana%<30",
         "Cooldown": 15,
         "Log": false

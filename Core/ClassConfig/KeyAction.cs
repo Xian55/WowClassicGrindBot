@@ -37,6 +37,9 @@ namespace Core
 
         public bool Log { get; set; } = true;
         public int DelayAfterCast { get; set; } = 1450; // GCD 1500 - but spell queue window 400 ms
+
+        public bool AfterCastWaitBuff = false;
+
         public bool DelayUntilCombat { get; set; } = false;
         public int DelayBeforeCast { get; set; } = 0;
         public float Cost { get; set; } = 18;
@@ -234,7 +237,7 @@ namespace Core
                         break;
                 }
 
-                logger.LogInformation($"Updated {tuple.Item1} cost of {this.Name} to {tuple.Item2} from {oldValue}");
+                logger.LogInformation($"[{Name}] Update {tuple.Item1} cost to {tuple.Item2} from {oldValue}");
             }
         }
 

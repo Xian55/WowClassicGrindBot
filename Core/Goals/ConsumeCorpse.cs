@@ -12,12 +12,14 @@ namespace Core.Goals
         public override float CostOfPerformingAction { get => 4.7f; }
 
         private readonly ILogger logger;
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         private DateTime lastActive = DateTime.Now;
 
-        public ConsumeCorpse(ILogger logger, PlayerReader playerReader)
+        public ConsumeCorpse(ILogger logger, Wait wait, PlayerReader playerReader)
         {
             this.logger = logger;
+            this.wait = wait;
             this.playerReader = playerReader;
 
             AddPrecondition(GoapKey.incombat, false);
@@ -33,7 +35,9 @@ namespace Core.Goals
 
         public override async Task PerformAction()
         {
-            if((DateTime.Now - lastActive).TotalSeconds > 0.25f)
+            await wait.Update(1);
+
+            if ((DateTime.Now - lastActive).TotalSeconds > 0.25f)
             {
                 playerReader.DecrementKillCount();
                 logger.LogInformation("----- Consumed a corpse. Remaining:" + playerReader.LastCombatKillCount);
@@ -43,8 +47,6 @@ namespace Core.Goals
 
                 lastActive = DateTime.Now;
             }
-
-            await Task.Delay(0);
         }
     }
 }

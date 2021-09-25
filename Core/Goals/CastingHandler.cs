@@ -11,6 +11,7 @@ namespace Core.Goals
         private readonly ILogger logger;
         private readonly ConfigurableInput input;
 
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         
         private ConsoleKey lastKeyPressed = ConsoleKey.Escape;
@@ -19,11 +20,17 @@ namespace Core.Goals
         private readonly NpcNameFinder npcNameFinder;
         private readonly StopMoving stopMoving;
 
-        public CastingHandler(ILogger logger, ConfigurableInput input, PlayerReader playerReader, ClassConfiguration classConfig, IPlayerDirection direction, NpcNameFinder npcNameFinder, StopMoving stopMoving)
+        private readonly KeyAction defaultKeyAction = new KeyAction();
+        private const int MaxWaitTimeMs = 300;
+        private const int MaxCastTimeMs = 15000;
+        private const int GCD = 1500;
+
+        public CastingHandler(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader, ClassConfiguration classConfig, IPlayerDirection direction, NpcNameFinder npcNameFinder, StopMoving stopMoving)
         {
             this.logger = logger;
             this.input = input;
 
+            this.wait = wait;
             this.playerReader = playerReader;
             
             this.classConfig = classConfig;
@@ -94,91 +101,125 @@ namespace Core.Goals
                 return false;
             }
 
-            if (this.playerReader.IsShooting)
+            if (playerReader.IsShooting)
             {
                 await input.TapStopAttack("Stop casting Shoot");
-                await Task.Delay(1500); // wait for shooting to end
+                var shootWait = await wait.InterruptTask(GCD, () => playerReader.ActionBarUsable.ActionUsable(item.Name));
+                if (!shootWait.Item1)
+                {
+                    item.LogInformation($" waited to end shooting {shootWait.Item2}ms");
+                }
             }
 
             if (sleepBeforeCast > 0)
             {
-                item.LogInformation($" Wait before {sleepBeforeCast}.");
+                item.LogInformation($" Wait {sleepBeforeCast}ms before press.");
                 await Task.Delay(sleepBeforeCast);
             }
 
-            await PressKey(item.ConsoleKey, item.Name, item.PressDuration);
+            long beforeBuff = playerReader.Buffs.Value;
+            bool beforeHasTarget = playerReader.HasTarget;
 
+            await PressKey(item.ConsoleKey, item.Name, item.PressDuration);
             item.SetClicked();
 
             if (!item.HasCastBar)
             {
-                var result = await WaitInterrupt(item.DelayAfterCast,
-                    () => playerReader.PlayerBitValues.TargetIsDead || playerReader.TargetHealthPercentage < 5);
+                var result = await wait.InterruptTask(item.DelayAfterCast, () => beforeHasTarget != playerReader.HasTarget);
                 item.LogInformation($" ... no castbar delay after cast {result.Item2}ms");
+                if (!result.Item1)
+                {
+                    item.LogInformation($" .... wait interrupted {result.Item2}ms");
+                }
+
+                if (item.AfterCastWaitBuff)
+                {
+                    var result1 = await wait.InterruptTask(MaxWaitTimeMs, () => beforeBuff != playerReader.Buffs.Value);
+                    if (!result1.Item1)
+                    {
+                        item.LogInformation($"AfterCastWaitBuff .... wait interrupted {result1.Item2}ms");
+                    }
+
+                    logger.LogInformation($"AfterCastWaitBuff: Interrupted: {result1.Item1} | Delay: {result1.Item2}ms");
+                }
+
                 await InteractOnUIError();
             }
             else
             {
-                await playerReader.WaitForNUpdate(1);
-                if (!this.playerReader.IsCasting && this.playerReader.HasTarget)
+                var startedCasting = await wait.InterruptTask(MaxWaitTimeMs, () => playerReader.IsCasting);
+                if (!startedCasting.Item1)
                 {
-                    await this.InteractOnUIError();
+                    item.LogInformation($" start casting after {startedCasting.Item2}ms");
+                }
+
+                if (!playerReader.IsCasting && playerReader.HasTarget)
+                {
+                    await InteractOnUIError();
 
                     if(item.StopBeforeCast)
                         await stopMoving.Stop();
 
                     item.LogInformation($"Not casting, pressing it again");
+
                     await PressKey(item.ConsoleKey, item.Name, item.PressDuration);
-                    await playerReader.WaitForNUpdate(1);
-                    if (!this.playerReader.IsCasting && this.playerReader.HasTarget)
+                    await wait.InterruptTask(MaxWaitTimeMs, () => playerReader.IsCasting);
+
+                    if (!playerReader.IsCasting && playerReader.HasTarget)
                     {
                         item.LogInformation($"Still not casting !");
-                        await this.InteractOnUIError();
+                        await InteractOnUIError();
                         return false;
                     }
                 }
 
                 item.LogInformation(" waiting for cast bar to end.");
-                for (int i = 0; i < 15000; i += 100)
+                await wait.InterruptTask(MaxCastTimeMs, () => !playerReader.IsCasting);
+
+                if (item.DelayAfterCast != defaultKeyAction.DelayAfterCast)
                 {
-                    if (!this.playerReader.IsCasting)
+                    if (item.DelayUntilCombat) // stop waiting if the mob is targetting me
                     {
-                        await playerReader.WaitForNUpdate(1);
-                        break;
-                    }
+                        item.LogInformation($" ... delay after cast {item.DelayAfterCast}ms");
 
-                    // wait after cast if the delay is different to the default value
-                    if (item.DelayAfterCast != new KeyAction().DelayAfterCast)
-                    {
-                        item.LogInformation($" ... delay after cast {item.DelayAfterCast}");
-
-                        if (item.DelayUntilCombat) // stop waiting if the mob is targetting me
+                        var sw = new Stopwatch();
+                        sw.Start();
+                        while (sw.ElapsedMilliseconds < item.DelayAfterCast)
                         {
-                            var sw = new Stopwatch();
-                            sw.Start();
-                            while (sw.ElapsedMilliseconds < item.DelayAfterCast)
+                            await wait.Update(1);
+                            if (playerReader.PlayerBitValues.TargetOfTargetIsPlayer)
                             {
-                                await Task.Delay(10);
-                                if (this.playerReader.PlayerBitValues.TargetOfTargetIsPlayer)
-                                {
-                                    break;
-                                }
+                                break;
                             }
                         }
-                        else
+                    }
+                    else
+                    {
+                        item.LogInformation($" ... castbar delay after cast {item.DelayAfterCast}ms");
+                        var result = await wait.InterruptTask(item.DelayAfterCast, () => beforeHasTarget != playerReader.HasTarget);
+                        if (!result.Item1)
                         {
-                            var result = await WaitInterrupt(item.DelayAfterCast,
-                                () => playerReader.PlayerBitValues.TargetIsDead || playerReader.TargetHealthPercentage < 5);
-                            item.LogInformation($" ... castbar delay after cast {result.Item2}ms");
+                            item.LogInformation($" .... wait interrupted {result.Item2}ms");
                         }
                     }
-                    
-                    await playerReader.WaitForNUpdate(1);
+                }
+
+                if (item.AfterCastWaitBuff)
+                {
+                    var result = await wait.InterruptTask(MaxWaitTimeMs, () => beforeBuff != playerReader.Buffs.Value);
+                    logger.LogInformation($"AfterCastWaitBuff: Interrupted: {result.Item1} | Delay: {result.Item2}ms");
                 }
             }
+
             if (item.StepBackAfterCast > 0)
             {
-                await this.input.KeyPress(ConsoleKey.DownArrow, item.StepBackAfterCast , $"Step back for {item.StepBackAfterCast}ms");
+                input.SetKeyState(ConsoleKey.DownArrow, true, false, $"Step back for {item.StepBackAfterCast}ms");
+                var stepbackResult = await wait.InterruptTask(item.StepBackAfterCast, () => beforeHasTarget != playerReader.HasTarget);
+                if(!stepbackResult.Item1)
+                {
+                    item.LogInformation($" .... interrupted wait stepback {stepbackResult.Item2}ms");
+                }
+                input.SetKeyState(ConsoleKey.DownArrow, false, false);
             }
 
             item.ConsumeCharge();
@@ -219,7 +260,7 @@ namespace Core.Goals
                     logger.LogInformation($"Stop moving: We have moved since the last interact: {distance}");
                     await input.TapStopKey();
                     classConfig.Interact.SetClicked();
-                    await playerReader.WaitForNUpdate(1);
+                    await wait.Update(1);
                 }
             }
 
@@ -252,7 +293,7 @@ namespace Core.Goals
                     if (lastError == UI_ERROR.ERR_SPELL_FAILED_S)
                     {
                         await input.TapInteractKey($"{GetType().Name} InteractOnUIError by ERR_SPELL_FAILED_S");
-                        await playerReader.WaitForNUpdate(1); //3
+                        await wait.Update(1); //3
                         if (this.playerReader.LastUIErrorMessage == UI_ERROR.ERR_BADATTACKPOS && this.playerReader.Direction == facing)
                         {
                             var desiredDirection = facing + Math.PI;
@@ -264,21 +305,6 @@ namespace Core.Goals
                     this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
                     break;
             }
-        }
-
-        protected async Task<Tuple<bool, int>> WaitInterrupt(int durationMs, Func<bool> exit)
-        {
-            int elapsedMs = 0;
-            while (elapsedMs < durationMs)
-            {
-                await playerReader.WaitForNUpdate(1);
-                elapsedMs += 100;
-
-                if (exit())
-                    return Tuple.Create(false, elapsedMs);
-            }
-
-            return Tuple.Create(true, elapsedMs);
         }
     }
 }

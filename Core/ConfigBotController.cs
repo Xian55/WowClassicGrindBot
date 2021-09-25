@@ -32,6 +32,8 @@ namespace Core
 
         public ActionBarPopulator? ActionBarPopulator { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
+        public ExecGameCommand ExecGameCommand { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
         public event EventHandler? ProfileLoaded;
         public event EventHandler<bool>? StatusChanged;
 

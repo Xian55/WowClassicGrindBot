@@ -14,7 +14,7 @@ namespace Core
 
         public bool IsBitSet(int pos)
         {
-            return (value & (1 << pos)) != 0;
+            return (value & (1 << (pos % 24))) != 0;
         }
 
         public bool HotKey1 { get => IsBitSet(0); }

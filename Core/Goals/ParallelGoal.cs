@@ -1,8 +1,10 @@
 ﻿using Core.GOAP;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Core.Extensions;
 
 namespace Core.Goals
 {
@@ -14,84 +16,86 @@ namespace Core.Goals
         private readonly ConfigurableInput input;
 
         private readonly StopMoving stopMoving;
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         
         private readonly CastingHandler castingHandler;
 
-        public ParallelGoal(ILogger logger, ConfigurableInput input, PlayerReader playerReader, StopMoving stopMoving, List<KeyAction> keysConfig, CastingHandler castingHandler)
+        public ParallelGoal(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader, StopMoving stopMoving, List<KeyAction> keysConfig, CastingHandler castingHandler)
         {
             this.logger = logger;
             this.input = input;
 
             this.stopMoving = stopMoving;
+            this.wait = wait;
             this.playerReader = playerReader;
             
             this.castingHandler = castingHandler;
 
             AddPrecondition(GoapKey.incombat, false);
 
-            keysConfig.ForEach(key => this.Keys.Add(key));
+            keysConfig.ForEach(key => Keys.Add(key));
         }
 
         public override bool CheckIfActionCanRun()
         {
-            return this.Keys.Any(key => key.CanRun());
+            return Keys.Any(key => key.CanRun());
         }
 
         public override async Task PerformAction()
         {
-            if (this.Keys.Any(k => k.StopBeforeCast))
+            if (Keys.Any(k => k.StopBeforeCast))
             {
-                await this.stopMoving.Stop();
+                await stopMoving.Stop();
+                await wait.Update(1);
 
                 if (playerReader.PlayerBitValues.IsMounted)
                 {
                     await input.TapDismount();
+                    await wait.Update(1);
+                    //if (!await Wait(1000, () => playerReader.PlayerBitValues.PlayerInCombat)) return; // vanilla after dismout GCD
                 }
-                if (!await Wait(1000, () => playerReader.PlayerBitValues.PlayerInCombat)) return;
             }
 
-            this.Keys.ForEach(async key =>
+            await AsyncExt.Loop(Keys, async (KeyAction key) =>
             {
-                var pressed = await this.castingHandler.CastIfReady(key);
+                var pressed = await castingHandler.CastIfReady(key, key.DelayBeforeCast);
                 key.ResetCooldown();
                 key.SetClicked();
             });
 
-            if (!await Wait(400, () => playerReader.PlayerBitValues.PlayerInCombat)) return;
+            bool wasDrinkingOrEating = playerReader.Buffs.Drinking || playerReader.Buffs.Eating;
 
-            bool wasDrinkingOrEating = this.playerReader.Buffs.Drinking || this.playerReader.Buffs.Eating;
-            int ticks = 0;
+            logger.LogInformation($"Waiting for {Name}");
 
-            this.logger.LogInformation($"Waiting for {Name}");
-            while ((this.playerReader.Buffs.Drinking || this.playerReader.Buffs.Eating || this.playerReader.IsCasting) && !this.playerReader.PlayerBitValues.PlayerInCombat)
+            DateTime startTime = DateTime.Now;
+            while ((playerReader.Buffs.Drinking || playerReader.Buffs.Eating || playerReader.IsCasting) && !playerReader.PlayerBitValues.PlayerInCombat)
             {
-                if (!await Wait(100, () => playerReader.PlayerBitValues.PlayerInCombat)) return;
-                ticks++;
+                await wait.Update(1);
 
-                if (this.playerReader.Buffs.Drinking && this.playerReader.Buffs.Eating)
+                if (playerReader.Buffs.Drinking && playerReader.Buffs.Eating)
                 {
-                    if (this.playerReader.ManaPercentage > 98 && this.playerReader.HealthPercent > 98) { break; }
+                    if (playerReader.ManaPercentage > 98 && playerReader.HealthPercent > 98) { break; }
                 }
-                else if (this.playerReader.Buffs.Drinking)
+                else if (playerReader.Buffs.Drinking)
                 {
-                    if (this.playerReader.ManaPercentage > 98) { break; }
+                    if (playerReader.ManaPercentage > 98) { break; }
                 }
-                else if (this.playerReader.Buffs.Eating)
+                else if (playerReader.Buffs.Eating)
                 {
-                    if (this.playerReader.HealthPercent > 98) { break; }
+                    if (playerReader.HealthPercent > 98) { break; }
                 }
 
-                if (ticks > 250)
+                if ((DateTime.Now - startTime).TotalSeconds >= 25)
                 {
-                    this.logger.LogInformation($"Waited long enough for {Name}");
+                    logger.LogInformation($"Waited (25s) long enough for {Name}");
                     break;
                 }
             }
 
             if (wasDrinkingOrEating)
             {
-                await input.TapStandUpKey(); // stand up
+                await input.TapStandUpKey();
             }
         }
     }

@@ -11,16 +11,20 @@ namespace Game
 {
     public class InputSimulator : IInput
     {
-        private const int MAX_DELAY = 200;
-        private const int MAX_MOUSE_DELAY = 75;
+        private readonly int MIN_DELAY;
+        private readonly int MAX_DELAY;
 
         private readonly Random random = new Random();
         private readonly GregsStack.InputSimulatorStandard.InputSimulator simulator;
         private readonly Process process;
 
-        public InputSimulator(Process process)
+        public InputSimulator(Process process, int minDelay, int maxDelay)
         {
             this.process = process;
+
+            MIN_DELAY = minDelay;
+            MAX_DELAY = maxDelay;
+
             simulator = new GregsStack.InputSimulatorStandard.InputSimulator();
         }
 
@@ -62,18 +66,16 @@ namespace Game
         public async Task LeftClickMouse(Point p)
         {
             SetCursorPosition(p);
-            await Delay(MAX_MOUSE_DELAY);
             simulator.Mouse.LeftButtonDown();
-            await Delay(MAX_MOUSE_DELAY);
+            await Delay(MIN_DELAY);
             simulator.Mouse.LeftButtonUp();
-            await Delay(MAX_MOUSE_DELAY);
         }
 
         public async Task RightClickMouse(Point p)
         {
             SetCursorPosition(p);
             simulator.Mouse.RightButtonDown();
-            await Delay(MAX_MOUSE_DELAY);
+            await Delay(MIN_DELAY);
             simulator.Mouse.RightButtonUp();
         }
 

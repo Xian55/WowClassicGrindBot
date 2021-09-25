@@ -11,17 +11,20 @@ namespace Game
 {
     public class InputWindowsNative : IInput
     {
-        private const int MAX_DELAY = 180;
-        private const int MIN_MOUSE_DELAY = 10;
+        private readonly int MIN_DELAY;
+        private readonly int MAX_DELAY;
 
         private readonly Process process;
         private readonly Random random = new Random();
 
         private readonly IEnumerable<ConsoleKey> consoleKeys = (IEnumerable<ConsoleKey>)Enum.GetValues(typeof(ConsoleKey));
 
-        public InputWindowsNative(Process process)
+        public InputWindowsNative(Process process, int minDelay, int maxDelay)
         {
             this.process = process;
+
+            MIN_DELAY = minDelay;
+            MAX_DELAY = maxDelay;
         }
 
         private async Task Delay(int milliseconds)
@@ -55,6 +58,8 @@ namespace Game
 
         public async Task LeftClickMouse(Point p)
         {
+            SetCursorPosition(p);
+
             var pp = new PInvoke.POINT
             {
                 x = p.X,
@@ -63,13 +68,26 @@ namespace Game
             NativeMethods.ScreenToClient(process.MainWindowHandle, ref pp);
             int lparam = NativeMethods.MakeLParam(pp.x, pp.y);
 
-            NativeMethods.PostMessage(process.MainWindowHandle, NativeMethods.WM_LBUTTONDOWN, NativeMethods.VK_LBUTTON, lparam);
-            await Delay(MIN_MOUSE_DELAY);
+            NativeMethods.PostMessage(process.MainWindowHandle, NativeMethods.WM_LBUTTONDOWN, 0, lparam);
+
+            await Delay(MIN_DELAY);
+
+            NativeMethods.GetCursorPos(out p);
+            pp = new PInvoke.POINT
+            {
+                x = p.X,
+                y = p.Y
+            };
+            NativeMethods.ScreenToClient(process.MainWindowHandle, ref pp);
+            lparam = NativeMethods.MakeLParam(pp.x, pp.y);
+
             NativeMethods.PostMessage(process.MainWindowHandle, NativeMethods.WM_LBUTTONUP, 0, lparam);
         }
 
         public async Task RightClickMouse(Point p)
         {
+            SetCursorPosition(p);
+
             var pp = new PInvoke.POINT
             {
                 x = p.X,
@@ -78,8 +96,19 @@ namespace Game
             NativeMethods.ScreenToClient(process.MainWindowHandle, ref pp);
             int lparam = NativeMethods.MakeLParam(pp.x, pp.y);
 
-            NativeMethods.PostMessage(process.MainWindowHandle, NativeMethods.WM_RBUTTONDOWN, NativeMethods.VK_RBUTTON, lparam);
-            await Delay(MIN_MOUSE_DELAY);
+            NativeMethods.PostMessage(process.MainWindowHandle, NativeMethods.WM_RBUTTONDOWN, 0, lparam);
+
+            await Delay(MIN_DELAY);
+
+            NativeMethods.GetCursorPos(out p);
+            pp = new PInvoke.POINT
+            {
+                x = p.X,
+                y = p.Y
+            };
+            NativeMethods.ScreenToClient(process.MainWindowHandle, ref pp);
+            lparam = NativeMethods.MakeLParam(pp.x, pp.y);
+
             NativeMethods.PostMessage(process.MainWindowHandle, NativeMethods.WM_RBUTTONUP, 0, lparam);
         }
 

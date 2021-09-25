@@ -2,22 +2,22 @@
 {
     public class BuffStatus
     {
-        private long value;
+        public long Value { get; private set; }
 
         public BuffStatus(string name)
         {
             this.name = name;
-            this.value = 0;
+            this.Value = 0;
         }
 
         public BuffStatus(long value)
         {
-            this.value = value;
+            this.Value = value;
         }
 
         public bool IsBitSet(int pos)
         {
-            return (value & (1 << pos)) != 0;
+            return (Value & (1 << pos)) != 0;
         }
 
         public string name { get; set; } = string.Empty;
@@ -54,6 +54,8 @@
         public bool IceBarrier { get => IsBitSet(12); }
         public bool Ward { get => IsBitSet(13); }
         public bool FirePower { get => IsBitSet(14); }
+
+        public bool ManaShield { get => IsBitSet(15); }
 
         // Rogue
         public bool SliceAndDice { get => IsBitSet(10); }

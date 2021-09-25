@@ -10,6 +10,9 @@ namespace Game
 {
     public class WowProcessInput : IMouseInput
     {
+        private const int MIN_DELAY = 25;
+        private const int MAX_DELAY = 55;
+
         private readonly ILogger logger;
         private readonly WowProcess wowProcess;
         private readonly IInput nativeInput;
@@ -24,8 +27,8 @@ namespace Game
             this.logger = logger;
             this.wowProcess = wowProcess;
 
-            this.nativeInput = new InputWindowsNative(wowProcess.WarcraftProcess);
-            this.simulatorInput = new InputSimulator(wowProcess.WarcraftProcess);
+            this.nativeInput = new InputWindowsNative(wowProcess.WarcraftProcess, MIN_DELAY, MAX_DELAY);
+            this.simulatorInput = new InputSimulator(wowProcess.WarcraftProcess, MIN_DELAY, MAX_DELAY);
         }
 
         private void KeyDown(ConsoleKey key, string description = "")

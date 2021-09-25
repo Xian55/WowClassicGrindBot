@@ -25,10 +25,9 @@ namespace SharedLib
 
         public int frames { private set; get; }
 
-        public Size EstimatedSize()
+        public Size EstimatedSize(Rectangle screenRect)
         {
-            var size = new SizeF(frames * (this.size + spacing), rows * (this.size + spacing));
-            size *= 1.3f; // error rate
+            SizeF size = new SizeF(screenRect.Width, rows * (this.size + spacing) * 2);
             return size.ToSize();
         }
 

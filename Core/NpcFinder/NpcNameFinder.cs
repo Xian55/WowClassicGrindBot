@@ -14,6 +14,8 @@ namespace Core
 {
     public class NpcNameFinder
     {
+        private const int MOUSE_DELAY = 40;
+
         public enum NPCType
         {
             Enemy,
@@ -57,7 +59,7 @@ namespace Core
         private float scaleToRefHeight = 1;
 
         public List<Point> locTargetingAndClickNpc { get; private set; }
-        private readonly List<Point> locFindByCursorType;
+        public List<Point> locFindByCursorType { get; private set; }
 
         public List<NpcPosition> Npcs { get; private set; } = new List<NpcPosition>();
         public int NpcCount => npcs.Count;
@@ -80,11 +82,15 @@ namespace Core
             locFindByCursorType = new List<Point>
             {
                 new Point(0, 0),
-                new Point(0, 20).Scale(scaleToRefWidth, scaleToRefHeight),
-                new Point(0, 60).Scale(scaleToRefWidth, scaleToRefHeight),
-                new Point(-10, 45).Scale(scaleToRefWidth, scaleToRefHeight),
-                new Point(10, 45).Scale(scaleToRefWidth, scaleToRefHeight),
+                new Point(0, 25).Scale(scaleToRefWidth, scaleToRefHeight),
+                new Point(-25, 50).Scale(scaleToRefWidth, scaleToRefHeight),
+                new Point(25, 50).Scale(scaleToRefWidth, scaleToRefHeight),
+                new Point(0, 90).Scale(scaleToRefWidth, scaleToRefHeight),
+                new Point(0, 130).Scale(scaleToRefWidth, scaleToRefHeight),
+                new Point(0, 160).Scale(scaleToRefWidth, scaleToRefHeight),
             };
+
+            locFindByCursorType.Reverse();
         }
 
         private float ScaleWidth(int value)
@@ -119,7 +125,7 @@ namespace Core
                     {
                         var clickPostion = bitmapProvider.DirectBitmap.ToScreenCoordinates(npc.ClickPoint.X + location.X, npc.ClickPoint.Y + location.Y);
                         mouseInput.SetCursorPosition(clickPostion);
-                        await Task.Delay(100);
+                        await Task.Delay(MOUSE_DELAY);
                         CursorClassifier.Classify(out var cls).Dispose();
                         if (cls == CursorClassification.Kill)
                         {
@@ -152,7 +158,7 @@ namespace Core
                 {
                     var clickPostion = bitmapProvider.DirectBitmap.ToScreenCoordinates(npc.ClickPoint.X + location.X, npc.ClickPoint.Y + location.Y);
                     mouseInput.SetCursorPosition(clickPostion);
-                    await Task.Delay(75);
+                    await Task.Delay(MOUSE_DELAY);
                     CursorClassifier.Classify(out var cls).Dispose();
                     if (cursor.Contains(cls))
                     {
@@ -325,6 +331,16 @@ namespace Core
                 using (var whitePen = new Pen(Color.White, 3))
                 {
                     Npcs.ForEach(n => gr.DrawRectangle(whitePen, new Rectangle(n.Min, new Size(n.Width, n.Height))));
+
+                    /*
+                    Npcs.ForEach(n =>
+                    {
+                        locFindByCursorType.ForEach(l =>
+                        {
+                            gr.DrawEllipse(whitePen, l.X + n.ClickPoint.X, l.Y + n.ClickPoint.Y, 5, 5);
+                        });
+                    });
+                    */
                 }
             }
         }

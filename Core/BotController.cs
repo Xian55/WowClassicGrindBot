@@ -63,6 +63,8 @@ namespace Core
 
         public ActionBarPopulator? ActionBarPopulator { get; set; }
 
+        public ExecGameCommand ExecGameCommand { get; set; }
+
         private bool Enabled = true;
 
         public event EventHandler? ProfileLoaded;
@@ -79,6 +81,8 @@ namespace Core
             wowProcess = new WowProcess();
             WowScreen = new WowScreen(logger, wowProcess);
             WowProcessInput = new WowProcessInput(logger, wowProcess);
+
+            ExecGameCommand = new ExecGameCommand(logger, WowProcessInput);
 
             GrindSessionHandler = new LocalGrindSessionHandler(dataConfig.History);
             GrindSession = new GrindSession(this, GrindSessionHandler);
@@ -137,7 +141,7 @@ namespace Core
             {
                 this.AddonReader.AddonRefresh();
                 this.GoapAgent?.UpdateWorldState();
-                System.Threading.Thread.Sleep(10);
+                System.Threading.Thread.Sleep(5);
             }
             this.logger.LogInformation("Addon thread stoppped!");
         }
@@ -246,11 +250,12 @@ namespace Core
         private void Initialize(ClassConfiguration config)
         {
             ConfigurableInput = new ConfigurableInput(logger, wowProcess, config);
-            ActionBarPopulator = new ActionBarPopulator(logger, wowProcess, ConfigurableInput, config, AddonReader);
+
+            ActionBarPopulator = new ActionBarPopulator(logger, config, AddonReader, ExecGameCommand);
 
             var blacklist = config.Mode != Mode.Grind ? new NoBlacklist() : (IBlacklist)new Blacklist(AddonReader.PlayerReader, config.NPCMaxLevels_Above, config.NPCMaxLevels_Below, config.Blacklist, logger);
 
-            var actionFactory = new GoalFactory(logger, AddonReader, ConfigurableInput, DataConfig, npcNameFinder, pather);
+            var actionFactory = new GoalFactory(logger, AddonReader, ConfigurableInput, DataConfig, npcNameFinder, pather, areaDb);
             var availableActions = actionFactory.CreateGoals(config, blacklist);
             RouteInfo = actionFactory.RouteInfo;
 

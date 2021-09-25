@@ -11,6 +11,10 @@
 
         Class Profile
 
+        <button class="btn btn-sm btn-primary " @onclick="LoadState">
+            <span>Init State</span>
+        </button>
+
         <select name="listbox" id="listbox" @onchange="OnListBoxChanged" runat="server">
             @foreach (var item in files)
             {
@@ -70,6 +74,12 @@
         if(!string.IsNullOrEmpty(selectedProfile)) {
             botController.LoadClassProfile(selectedProfile);
         }
+    }
+
+    private async Task LoadState()
+    {
+        var config = AddonConfig.Load();
+        await botController.ExecGameCommand.Run("/" + config.Command + "flush");
     }
 
     private void OnListBoxChanged(ChangeEventArgs changeEventArgs)

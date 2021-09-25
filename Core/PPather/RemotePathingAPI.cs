@@ -15,15 +15,21 @@ namespace Core
     {
         private readonly ILogger logger;
 
-        private string api = $"http://localhost:5001/api/PPather/";
+        private string host = "localhost";
+
+        private int port = 5001;
+
+        private string api => $"http://{host}:{port}/api/PPather/";
 
         private List<LineArgs> lineArgs = new List<LineArgs>();
 
         private int targetMapId = 0;
 
-        public RemotePathingAPI(ILogger logger)
+        public RemotePathingAPI(ILogger logger, string host="", int port=0)
         {
             this.logger = logger;
+            this.host = host;
+            this.port = port;
         }
 
         public async Task DrawLines(List<LineArgs> lineArgs)

@@ -1,21 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Text;
+﻿using System.Drawing;
 using Core;
 using Microsoft.Extensions.Logging;
 using SharedLib;
 
 namespace CoreTests
 {
-    public class Test_NpcNameFinder
+    public class Test_NpcNameFinderTarget
     {
         private readonly ILogger logger;
         private readonly NpcNameFinder npcNameFinder;
         private readonly RectProvider rectProvider;
         private readonly DirectBitmapCapturer capturer;
 
-        public Test_NpcNameFinder(ILogger logger)
+        public Test_NpcNameFinderTarget(ILogger logger)
         {
             this.logger = logger;
 
@@ -74,7 +71,7 @@ namespace CoreTests
 
             logger.LogInformation("\n");
 
-            bitmap.Save("names.png");
+            bitmap.Save("target_names.png");
         }
     }
 }

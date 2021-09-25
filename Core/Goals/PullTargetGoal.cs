@@ -13,6 +13,7 @@ namespace Core.Goals
         private ILogger logger;
         private readonly ConfigurableInput input;
 
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         private readonly NpcNameFinder npcNameFinder;
         private readonly StopMoving stopMoving;
@@ -23,11 +24,12 @@ namespace Core.Goals
         private DateTime PullStartTime = DateTime.Now;
         private DateTime LastActive = DateTime.Now;
 
-        public PullTargetGoal(ILogger logger, ConfigurableInput input, PlayerReader playerReader, NpcNameFinder npcNameFinder, StopMoving stopMoving, CastingHandler castingHandler, StuckDetector stuckDetector, ClassConfiguration classConfiguration)
+        public PullTargetGoal(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader, NpcNameFinder npcNameFinder, StopMoving stopMoving, CastingHandler castingHandler, StuckDetector stuckDetector, ClassConfiguration classConfiguration)
         {
             this.logger = logger;
             this.input = input;
 
+            this.wait = wait;
             this.playerReader = playerReader;
             this.npcNameFinder = npcNameFinder;
             this.stopMoving = stopMoving;
@@ -74,16 +76,6 @@ namespace Core.Goals
                 await input.TapDismount();
             }
 
-            if (ShouldStopBeforePull)
-            {
-                logger.LogInformation($"Stop approach");
-                await this.stopMoving.Stop();
-                await input.TapStopAttack();
-                await input.TapStopKey();
-            }
-
-
-
             bool pulled = await Pull();
             if (!pulled)
             {
@@ -118,7 +110,7 @@ namespace Core.Goals
                 }
 
                 await Interact();
-                await this.playerReader.WaitForNUpdate(1);
+                await wait.Update(1);
             }
             else
             {
@@ -145,38 +137,45 @@ namespace Core.Goals
             }
         }
 
-        protected async Task WaitForWithinMelleRange()
+        protected async Task WaitForWithinMeleeRange(KeyAction item)
         {
-            this.logger.LogInformation("Waiting for Mellee range");
-            for (int i = 0; i < 50; i++)
+            this.logger.LogInformation("Waiting for Melee range - max 10s");
+
+            var start = DateTime.Now;
+
+            while (playerReader.HasTarget && !playerReader.IsInMeleeRange && (DateTime.Now - start).TotalSeconds < 10)
             {
-                await Task.Delay(100);
-                if (playerReader.WithInCombatRange || (!this.playerReader.PlayerBitValues.PlayerInCombat && i > 20))
+                await wait.Update(1);
+
+                if (!item.StopBeforeCast)
                 {
-                    return;
+                    await Interact();
                 }
             }
         }
-
-        public bool ShouldStopBeforePull => this.classConfiguration.Pull.Sequence.Count > 0;
 
         public async Task<bool> Pull()
         {
             bool hasCast = false;
 
-            //stop combat
-            //await this.wowProcess.KeyPress(ConsoleKey.F10, 50);
             await input.TapStopAttack();
             this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
 
-            if(playerReader.PlayerBitValues.HasPet)
-            {
-                await input.TapPetAttack();
-            }
-
             foreach (var item in this.Keys)
             {
-                var sleepBeforeFirstCast = item.StopBeforeCast && !hasCast && 150 > item.DelayBeforeCast ? 150 : item.DelayBeforeCast;
+                if (item.StopBeforeCast)
+                {
+                    await this.stopMoving.Stop();
+                    await input.TapStopAttack();
+                    await input.TapStopKey();
+                }
+
+                if (playerReader.PlayerBitValues.HasPet && !playerReader.PetHasTarget)
+                {
+                    await input.TapPetAttack();
+                }
+
+                var sleepBeforeFirstCast = (item.StopBeforeCast && !hasCast && 150 > item.DelayBeforeCast) ? 150 : item.DelayBeforeCast;
 
                 var success = await this.castingHandler.CastIfReady(item, sleepBeforeFirstCast);
                 hasCast = hasCast || success;
@@ -188,7 +187,7 @@ namespace Core.Goals
 
                 if (hasCast && item.WaitForWithinMelleRange)
                 {
-                    await this.WaitForWithinMelleRange();
+                    await this.WaitForWithinMeleeRange(item);
                 }
             }
 

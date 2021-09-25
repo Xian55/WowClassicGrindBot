@@ -1,0 +1,69 @@
+{
+  "ClassName": "Druid",
+  "Loot": true,
+  "PathFilename": "_pack\\1-20\\Night elf\\01-04_Teldrassil_Shadowglen.json",
+  "PathReduceSteps": true,
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Wrath",
+        "Key": "2",
+        "StopBeforeCast": true,
+        "HasCastBar": true
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Healing Touch",
+        "Key": "3",
+        "StopBeforeCast": true,
+        "HasCastBar": true,
+        "Requirement": "Health%<50",
+        "Cooldown": 5
+      },
+      {
+        "Name": "Wrath",
+        "Key": "2",
+        "StopBeforeCast": true,
+        "HasCastBar": true
+      },
+      {
+        "Name": "Approach",
+        "Cooldown": 5
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Water",
+        "Key": "-",
+        "StopBeforeCast": true,
+        "AfterCastWaitBuff": true,
+        "DelayAfterCast": 0,
+        "Requirement": "Mana%<30",
+        "Cooldown": 10
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Name": "Repair",
+        "Key": "C",
+        "Requirement": "Items Broken",
+        "PathFilename": "1_NightElf_Vendor.json",
+        "Cost": 6
+      },
+      {
+        "Name": "Sell",
+        "Key": "C",
+        "Requirement": "BagFull",
+        "PathFilename": "1_NightElf_Vendor.json",
+        "Cost": 6
+      }
+    ]
+  }
+}

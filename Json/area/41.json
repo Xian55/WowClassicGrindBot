@@ -1,1 +1,1 @@
-{"flightmaster":null,"innkeeper":null,"repair":null,"vendor":null,"trainer":null}
+{"flightmaster":null,"innkeeper":null,"repair":null,"vendor":[{"coords":[[47.0,75.4]],"level":0,"name":"Apprentice Darius","type":1,"id":18255,"reacthorde":1,"reactalliance":1,"description":null,"points":[{"X":47.0,"Y":75.4}]}],"trainer":null,"skinnable":[]}

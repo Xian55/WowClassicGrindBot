@@ -11,14 +11,16 @@ namespace Core.Goals
         private readonly ConfigurableInput input;
 
         private readonly ClassConfiguration classConfiguration;
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         
         public override float CostOfPerformingAction { get => 4.3f; }
 
-        public LastTargetLoot(ILogger logger, ConfigurableInput input, PlayerReader playerReader,  ClassConfiguration classConfiguration)
+        public LastTargetLoot(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader,  ClassConfiguration classConfiguration)
         {
             this.logger = logger;
             this.input = input;
+            this.wait = wait;
             this.playerReader = playerReader;
             
             this.classConfiguration = classConfiguration;
@@ -42,14 +44,14 @@ namespace Core.Goals
             {
                 logger.LogInformation("wait till the player become stil!");
                 lastPosition = playerReader.PlayerLocation;
-                if (!await Wait(100, () => playerReader.HealthCurrent < lastHealth)) { return; }
+                if (!await wait.Interrupt(100, () => playerReader.HealthCurrent < lastHealth)) { return; }
             }
 
-            if (!await Wait(100, () => playerReader.HealthCurrent < lastHealth)) { return; }
+            if (!await wait.Interrupt(100, () => playerReader.HealthCurrent < lastHealth)) { return; }
             await input.TapInteractKey("Looting...");
 
             // wait grabbing the loot
-            if (!await Wait(200, () => playerReader.HealthCurrent < lastHealth)) { return; }
+            if (!await wait.Interrupt(200, () => playerReader.HealthCurrent < lastHealth)) { return; }
 
             logger.LogDebug("Loot was Successfull");
             SendActionEvent(new ActionEventArgs(GoapKey.shouldloot, false));

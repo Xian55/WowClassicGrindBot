@@ -31,7 +31,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Game", "Game\Game.csproj", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{91A5C224-1F88-42AE-90D2-23573AB93FF7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlazorServer.Test", "BlazorServer.Test\BlazorServer.Test.csproj", "{8F340D60-AF40-4000-B7B6-98507A9C95A3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazorServer.Test", "BlazorServer.Test\BlazorServer.Test.csproj", "{8F340D60-AF40-4000-B7B6-98507A9C95A3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -54,7 +54,6 @@ Global
 		{36189519-32D6-4650-87CC-A525D99A0363}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{36189519-32D6-4650-87CC-A525D99A0363}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{36189519-32D6-4650-87CC-A525D99A0363}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{36189519-32D6-4650-87CC-A525D99A0363}.Release|Any CPU.Build.0 = Release|Any CPU
 		{841D6DAD-AB21-47CF-98C2-F1DE3CABF59A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{841D6DAD-AB21-47CF-98C2-F1DE3CABF59A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{841D6DAD-AB21-47CF-98C2-F1DE3CABF59A}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -86,7 +85,6 @@ Global
 		{8F340D60-AF40-4000-B7B6-98507A9C95A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8F340D60-AF40-4000-B7B6-98507A9C95A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8F340D60-AF40-4000-B7B6-98507A9C95A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8F340D60-AF40-4000-B7B6-98507A9C95A3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

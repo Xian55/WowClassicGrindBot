@@ -53,8 +53,9 @@
       "Sequence": [
         {
           "Name": "Food",
-          "HasCastBar": true,
           "StopBeforeCast": true,
+          "AfterCastWaitBuff": true,
+          "DelayAfterCast": 0,
           "Key": "6",
           "Requirement": "Health%<50",
           "Cooldown": 10,
@@ -62,8 +63,9 @@
         },
         {
           "Name": "Water",
-          "HasCastBar": true,
           "StopBeforeCast": true,
+          "AfterCastWaitBuff": true,
+          "DelayAfterCast": 0,
           "Key": "7",
           "Requirement": "Mana%<50",
           "Cooldown": 10,

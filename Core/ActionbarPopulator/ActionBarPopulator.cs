@@ -1,12 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using TextCopy;
-using SharedLib;
-using WinAPI;
-using Game;
 
 namespace Core
 {
@@ -20,18 +15,16 @@ namespace Core
         }
 
         private readonly ILogger logger;
-        private readonly WowProcess wowProcess;
-        private readonly WowProcessInput wowProcessInput;
         private readonly ClassConfiguration config;
         private readonly AddonReader addonReader;
+        private readonly ExecGameCommand execGameCommand;
 
-        public ActionBarPopulator(ILogger logger, WowProcess wowProcess, WowProcessInput wowProcessInput, ClassConfiguration config, AddonReader addonReader)
+        public ActionBarPopulator(ILogger logger, ClassConfiguration config, AddonReader addonReader, ExecGameCommand execGameCommand)
         {
             this.logger = logger;
-            this.wowProcess = wowProcess;
-            this.wowProcessInput = wowProcessInput;
             this.config = config;
             this.addonReader = addonReader;
+            this.execGameCommand = execGameCommand;
         }
 
         private readonly List<ActionBarSource> sources = new List<ActionBarSource>();
@@ -77,25 +70,10 @@ namespace Core
 
         private async Task Run()
         {
-            NativeMethods.SetForegroundWindow(wowProcess.WarcraftProcess.MainWindowHandle);
             foreach(var a in sources)
             {
                 var content = ScriptBuilder(a);
-                logger.LogInformation(content);
-
-                ClipboardService.SetText(content);
-                await Task.Delay(50);
-                
-                // Open chat inputbox
-                await wowProcessInput.KeyPress(ConsoleKey.Enter, 50);
-
-                // Send Paste keys
-                wowProcessInput.PasteFromClipboard();
-                await Task.Delay(250);
-
-                //
-                await wowProcessInput.KeyPress(ConsoleKey.Enter, 50);
-                await Task.Delay(250);
+                await execGameCommand.Run(content);
             }
         }
 
@@ -158,15 +136,19 @@ namespace Core
             if (a.Key.StartsWith(KeyReader.BL))
                 return CalculateActionNumber(a.Key, KeyReader.BL, KeyReader.BLIdx);
 
-            return CalculateActionNumber(a.Key, "",  0);
+            // "-" "=" keys
+            if (KeyReader.ActionBarSlotMap.ContainsKey(a.Key))
+                return CalculateActionNumber(KeyReader.ActionBarSlotMap[a.Key].ToString(), "", 0);
+
+            return CalculateActionNumber(a.Key, "", 0);
         }
 
-        private static string CalculateActionNumber(string key, string prefix,  int offset)
+        private static string CalculateActionNumber(string key, string prefix, int offset)
         {
-            if(!string.IsNullOrEmpty(prefix))
+            if (!string.IsNullOrEmpty(prefix))
                 key = key.Replace(prefix, "");
 
-            if (int.TryParse(key, out var hotkey))
+            if (int.TryParse(key, out int hotkey))
             {
                 if (hotkey == 0)
                     return (offset + 10).ToString();

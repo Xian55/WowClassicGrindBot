@@ -48,6 +48,9 @@ namespace WinAPI
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SetCursorPos(int x, int y);
 
+        [DllImport("user32.dll")]
+        public static extern bool GetCursorPos(out Point p);
+
         public const UInt32 WM_KEYDOWN = 0x0100;
         public const UInt32 WM_KEYUP = 0x0101;
         public const UInt32 WM_LBUTTONDOWN = 0x201;

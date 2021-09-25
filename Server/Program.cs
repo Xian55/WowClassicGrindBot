@@ -67,7 +67,8 @@ namespace Server
                 Log.Logger.Information("Enter Addon Configure mode!");
             }
 
-            var size = dataFrameMeta.EstimatedSize();
+            wowScreen.GetRectangle(out var rect);
+            var size = dataFrameMeta.EstimatedSize(rect);
             var screenshot = wowScreen.GetBitmap(size.Width, size.Height);
             var dataFrames = DataFrameConfiguration.CreateFrames(dataFrameMeta, screenshot);
 
@@ -79,7 +80,6 @@ namespace Server
                 Log.Logger.Information($"Size missmatch {dataFrames.Count} != {dataFrameMeta.frames}");
             }
 
-            wowScreen.GetRectangle(out var rect);
             DataFrameConfiguration.SaveConfiguration(rect, null, dataFrameMeta, dataFrames);
             Log.Logger.Information("DataFrameConfiguration Saved!");
             Log.Logger.Information("Leave Addon Configure mode!");

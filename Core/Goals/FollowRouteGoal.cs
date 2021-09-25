@@ -17,6 +17,7 @@ namespace Core.Goals
         private readonly ILogger logger;
         private readonly ConfigurableInput input;
 
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         private readonly IPlayerDirection playerDirection;
         private readonly StopMoving stopMoving;
@@ -25,6 +26,8 @@ namespace Core.Goals
         private readonly ClassConfiguration classConfiguration;
         private readonly IPPather pather;
         private readonly MountHandler mountHandler;
+
+        private const int MinDistance = 8;
 
         private double lastDistance = 999;
         public DateTime LastActive { get; set; } = DateTime.Now.AddDays(-1);
@@ -55,11 +58,12 @@ namespace Core.Goals
         private double avgDistance = 0;
         private bool firstLoad = true;
 
-        public FollowRouteGoal(ILogger logger, ConfigurableInput input, PlayerReader playerReader,  IPlayerDirection playerDirection, List<WowPoint> points, StopMoving stopMoving, NpcNameFinder npcNameFinder, IBlacklist blacklist, StuckDetector stuckDetector, ClassConfiguration classConfiguration, IPPather pather, MountHandler mountHandler)
+        public FollowRouteGoal(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader,  IPlayerDirection playerDirection, List<WowPoint> points, StopMoving stopMoving, NpcNameFinder npcNameFinder, IBlacklist blacklist, StuckDetector stuckDetector, ClassConfiguration classConfiguration, IPPather pather, MountHandler mountHandler)
         {
             this.logger = logger;
             this.input = input;
 
+            this.wait = wait;
             this.playerReader = playerReader;
             this.playerDirection = playerDirection;
             this.stopMoving = stopMoving;
@@ -130,7 +134,7 @@ namespace Core.Goals
         {
             SendActionEvent(new ActionEventArgs(GoapKey.fighting, false));
 
-            if (await AquireTarget())
+            if (playerReader.HasTarget || await AquireTarget())
             {
                 await stopMoving.StopTurn();
                 return;
@@ -156,12 +160,15 @@ namespace Core.Goals
             else
             {
                 var playerLocation = new WowPoint(playerReader.XCoord, playerReader.YCoord);
-                var distanceToRoute = WowPoint.DistanceTo(playerLocation, routeToWaypoint.Peek());
-                if (routeToWaypoint.Count <= 1 && distanceToRoute > 200)
+                if(routeToWaypoint.Count > 0)
                 {
-                    logger.LogError("wtf too far away kekw");
-                    routeToWaypoint.Pop();
-                    return;
+                    var distanceToRoute = WowPoint.DistanceTo(playerLocation, routeToWaypoint.Peek());
+                    if (routeToWaypoint.Count <= 1 && distanceToRoute > 200)
+                    {
+                        logger.LogError($"No route To Waypoint or too far {distanceToRoute}>200");
+                        routeToWaypoint.Pop();
+                        return;
+                    }
                 }
 
                 //wowProcess.SetKeyState(ConsoleKey.UpArrow, true, false, "FollowRouteAction 1");
@@ -186,7 +193,7 @@ namespace Core.Goals
             {
                 // stuck so jump
                 input.SetKeyState(ConsoleKey.UpArrow, true, false, "FollowRouteAction 2");
-                await Task.Delay(100);
+                await wait.Update(1);
                 if (HasBeenActiveRecently())
                 {
                     await this.stuckDetector.Unstick();
@@ -194,7 +201,7 @@ namespace Core.Goals
                 }
                 else
                 {
-                    await Task.Delay(100);
+                    await wait.Update(1);
                     logger.LogInformation("Resuming movement");
                 }
             }
@@ -205,13 +212,11 @@ namespace Core.Goals
 
             lastDistance = distance;
 
-            //if (distance < PointReachedDistance((int)(avgDistance / 2)))
-            //if (distance < PointReachedDistance(5))
-            if (distance < PointReachedDistance(10))
+            if (distance < PointReachedDistance(MinDistance))
             {
                 Log($"Move to next point");
 
-                ReduceRouteByDistance();
+                ReduceRouteByDistance(MinDistance);
 
                 lastDistance = 999;
                 if (routeToWaypoint.Count == 0)
@@ -259,12 +264,12 @@ namespace Core.Goals
                         if (this.playerReader.HasTarget && !playerReader.PlayerBitValues.TargetIsDead)
                         {
                             logger.LogInformation("Has target!");
-                            await Task.Delay(20);
                             return true;
                         }
                         else
                         {
                             await input.TapClearTarget("Target is dead!");
+                            await wait.Update(1);
                         }
                     }
                 }
@@ -299,13 +304,13 @@ namespace Core.Goals
             }
         }
 
-        private void ReduceRouteByDistance()
+        private void ReduceRouteByDistance(int minDistance)
         {
             if (routeToWaypoint.Any())
             {
                 var location = new WowPoint(playerReader.XCoord, playerReader.YCoord);
                 var distance = WowPoint.DistanceTo(location, routeToWaypoint.Peek());
-                while (distance < PointReachedDistance(15) && routeToWaypoint.Any())
+                while (distance < PointReachedDistance(minDistance - 1) && routeToWaypoint.Any())
                 {
                     routeToWaypoint.Pop();
                     if (routeToWaypoint.Any())
@@ -318,7 +323,7 @@ namespace Core.Goals
 
         private void SimplyfyRouteToWaypoint()
         {
-            var simple = PathSimplify.Simplify(routeToWaypoint.ToArray(), 0.1f);
+            var simple = PathSimplify.Simplify(routeToWaypoint.ToArray(), 0.01f);
             simple.Reverse();
             routeToWaypoint = new Stack<WowPoint>(simple);
         }
@@ -412,6 +417,7 @@ namespace Core.Goals
                     if(npcNameFinder.NpcCount > 0)
                     {
                         await this.npcNameFinder.TargetingAndClickNpc(0, true);
+                        await wait.Update(1);
                     }
                 }
             }

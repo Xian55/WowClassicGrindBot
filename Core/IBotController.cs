@@ -23,6 +23,8 @@ namespace Core
         ClassConfiguration? ClassConfig { get; set; }
         IImageProvider? MinimapImageFinder { get; set; }
 
+        ExecGameCommand ExecGameCommand { get; set; }
+
         ActionBarPopulator? ActionBarPopulator { get; set; }
         public IGrindSession GrindSession { get; set; }
 

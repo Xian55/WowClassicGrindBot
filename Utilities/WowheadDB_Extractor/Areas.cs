@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace WowheadDB_Extractor
@@ -8,15 +9,18 @@ namespace WowheadDB_Extractor
     {
         public static string GetUrl(string key)
         {
-            _ = Classic.TryGetValue(key, out int link);
-            return $"https://wow.zamimg.com/images/wow/classic/maps/enus/zoom/{link}.jpg";
+            if (classic.TryGetValue(key, out int cl))
+                return "https://wow.zamimg.com/images/wow/classic/maps/enus/zoom/" + cl + ".jpg";
+
+            if (tbc.TryGetValue(key, out int tbcl))
+                return "https://wow.zamimg.com/images/wow/tbc/maps/enus/zoom/" + tbcl + ".jpg";
+
+            return string.Empty;
         }
 
-        public static Dictionary<string, int> Classic = new Dictionary<string, int>
+        private static Dictionary<string, int> classic = new Dictionary<string, int>
         {
         // EK
-        { " ---------------------- Eastern Kingdom ----------------------", 0 },
-
         { "Alterac Mountains", 36 },
         { "Arathi Highlands", 45 },
         { "Badlands", 3 },
@@ -44,8 +48,6 @@ namespace WowheadDB_Extractor
         { "Wetlands", 11 },
 
         // Kalimdor
-        { " ---------------------- Kalimdor ----------------------", 0 },
-
         { "Ashenvale", 331 },
         { "Azshara", 16 },
         { "Darkshore", 148 },
@@ -68,5 +70,33 @@ namespace WowheadDB_Extractor
         { "Un'Goro Crater", 490 },
         { "Winterspring", 618 }
     };
+
+        private static Dictionary<string, int> tbc = new Dictionary<string, int>
+        {
+            { "Azuremyst Isle", 3524 },
+            { "Blade's Edge Mountains", 3522 },
+            { "Bloodmyst Isle", 3525 },
+            { "Eversong Woods", 3430 },
+            { "Ghostlands", 3433 },
+            { "Hellfire Peninsula", 3483 },
+            { "Isle of Quel'Danas", 4080 },
+            { "Nagrand", 3518 },
+            { "Netherstorm", 3523 },
+            { "Terokkar Forest", 3519 },
+            { "Shadowmoon Valley", 3520 },
+            { "Zangarmarsh", 3521 },
+        };
+
+        public static Dictionary<string, int> List = classic.Union(tbc).ToDictionary(k => k.Key, v => v.Value);
+
+        public static bool IsClassic(int id)
+        {
+            return classic.ContainsValue(id);
+        }
+
+        public static bool IsTbc(int id)
+        {
+            return tbc.ContainsValue(id);
+        }
     }
 }

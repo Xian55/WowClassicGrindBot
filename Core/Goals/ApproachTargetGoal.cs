@@ -13,6 +13,7 @@ namespace Core.Goals
         private ILogger logger;
         private readonly ConfigurableInput input;
 
+        private readonly Wait wait;
         private readonly PlayerReader playerReader;
         private readonly StopMoving stopMoving;
         private readonly StuckDetector stuckDetector;
@@ -37,11 +38,12 @@ namespace Core.Goals
             }
         }
 
-        public ApproachTargetGoal(ILogger logger, ConfigurableInput input, PlayerReader playerReader, StopMoving stopMoving,  StuckDetector stuckDetector)
+        public ApproachTargetGoal(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader, StopMoving stopMoving,  StuckDetector stuckDetector)
         {
             this.logger = logger;
             this.input = input;
 
+            this.wait = wait;
             this.playerReader = playerReader;
             this.stopMoving = stopMoving;
             
@@ -95,14 +97,14 @@ namespace Core.Goals
             }
 
             await this.TapInteractKey("");
-            await this.playerReader.WaitForNUpdate(1);
+            await wait.Update(1);
 
             var newLocation = playerReader.PlayerLocation;
             if ((location.X == newLocation.X && location.Y == newLocation.Y && SecondsSinceLastFighting > 5) ||
                 this.playerReader.LastUIErrorMessage == UI_ERROR.ERR_AUTOFOLLOW_TOO_FAR)
             {
                 input.SetKeyState(ConsoleKey.UpArrow, true, false, $"{GetType().Name}: ");
-                await Wait(100, () => false);
+                await wait.InterruptTask(100, () => false);
                 await input.TapJump();
                 this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
             }

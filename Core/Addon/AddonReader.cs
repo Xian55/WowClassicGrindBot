@@ -1,10 +1,9 @@
 ﻿using Core.Database;
 using Microsoft.Extensions.Logging;
-using SharedLib;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
-using System.Linq;
+using Cyotek.Collections;
+using Cyotek.Collections.Generic;
 
 namespace Core
 {
@@ -29,6 +28,13 @@ namespace Core
         private readonly ItemDB itemDb;
         private readonly CreatureDB creatureDb;
 
+
+        private int seq = 0;
+
+        private long lastGlobalTime = 0;
+        private DateTime lastGlobalTimeChange = DateTime.Now;
+        private readonly CircularBuffer<double> UpdateLatencys;
+
         public AddonReader(ILogger logger, DataConfig dataConfig, AreaDB areaDb, IAddonDataProvider addonDataProvider)
         {
             this.logger = logger;
@@ -47,9 +53,9 @@ namespace Core
 
             this.areaDb = areaDb;
             this.WorldMapAreaDb = new WorldMapAreaDB(logger, dataConfig);
-        }
 
-        private int seq = 0;
+            UpdateLatencys = new CircularBuffer<double>(10);
+        }
 
         public void AddonRefresh()
         {
@@ -75,10 +81,25 @@ namespace Core
 
             seq++;
 
-            if (seq >= 10)
+            if (PlayerReader.GlobalTime != lastGlobalTime)
+            {
+                UpdateLatencys.Put((DateTime.Now - lastGlobalTimeChange).TotalMilliseconds);
+
+                lastGlobalTime = PlayerReader.GlobalTime;
+                lastGlobalTimeChange = DateTime.Now;
+            }
+
+            if (seq >= 50) // Thread 10ms delay => 500ms
             {
                 seq = 0;
                 AddonDataChanged?.Invoke(this, new EventArgs());
+
+                PlayerReader.AvgUpdateLatency = 0;
+                for (int i = 0; i < UpdateLatencys.Size; i++)
+                {
+                    PlayerReader.AvgUpdateLatency += UpdateLatencys.PeekAt(i);
+                }
+                PlayerReader.AvgUpdateLatency /= UpdateLatencys.Size;
             }
         }
 

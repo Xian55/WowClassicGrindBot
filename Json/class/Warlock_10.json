@@ -87,6 +87,8 @@
       {
         "Name": "Food",
         "StopBeforeCast": true,
+        "AfterCastWaitBuff": true,
+        "DelayAfterCast": 0,
         "Key": "N1",
         "Requirement": "Health%<50",
         "Cooldown": 20,
@@ -95,6 +97,8 @@
       {
         "Name": "Water",
         "StopBeforeCast": true,
+        "AfterCastWaitBuff": true,
+        "DelayAfterCast": 0,
         "Key": "N2",
         "Requirement": "Mana%<40",
         "Cooldown": 20,

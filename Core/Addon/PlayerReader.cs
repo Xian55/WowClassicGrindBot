@@ -1,4 +1,5 @@
-﻿using Core.Database;
+﻿using System;
+using Core.Database;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -16,14 +17,16 @@ namespace Core
             this.creatureDb = creatureDb;
         }
 
+        public double AvgUpdateLatency = 0;
+
         public int Sequence { get; private set; } = 0;
         public List<CombatCreature> TargetHistory { get; } = new List<CombatCreature>();
         public List<CombatCreature> CombatCreatures { get; } = new List<CombatCreature>();
 
         public WowPoint PlayerLocation => new WowPoint(XCoord, YCoord);
 
-        public double XCoord => reader.GetFixedPointAtCell(1) * 100;
-        public double YCoord => reader.GetFixedPointAtCell(2) * 100;
+        public double XCoord => reader.GetFixedPointAtCell(1) * 10;
+        public double YCoord => reader.GetFixedPointAtCell(2) * 10;
         public double Direction => reader.GetFixedPointAtCell(3);
 
         public string Zone => reader.GetStringAtCell(4) + reader.GetStringAtCell(5); // Checks current geographic zone
@@ -226,23 +229,5 @@ namespace Core
                 LastUIErrorMessage = (UI_ERROR)UIErrorMessage;
             }
         }
-
-        internal async Task WaitForUpdate()
-        {
-            var s = this.Sequence;
-            while (this.Sequence == s)
-            {
-                await Task.Delay(100);
-            }
-        }
-        public async Task WaitForNUpdate(int n)
-        {
-            var s = this.Sequence;
-            while (this.Sequence <= s + n)
-            {
-                await Task.Delay(100);
-            }
-        }
-
     }
 }

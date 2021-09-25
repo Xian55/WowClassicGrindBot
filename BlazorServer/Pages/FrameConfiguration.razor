@@ -229,11 +229,11 @@ else
 
                 if (dataFrameMeta != DataFrameMeta.Empty)
                 {
-                    var size = dataFrameMeta.EstimatedSize();
                     wowScreen.GetRectangle(out var rect);
+                    var size = dataFrameMeta.EstimatedSize(rect);
 
-                    if (size.Width < rect.Size.Width &&
-                        size.Height < rect.Size.Height && !size.IsEmpty)
+                    if (size.Width <= rect.Size.Width &&
+                    size.Height <= rect.Size.Height && !size.IsEmpty)
                     {
                         var screenshot = wowScreen.GetBitmap(size.Width, size.Height);
                         if (screenshot != null)
@@ -345,7 +345,10 @@ else
 
         meta = GetDataFrameMeta();
 
-        var size = meta.EstimatedSize();
+        if (wowScreen == null) return;
+        wowScreen.GetRectangle(out var rect);
+
+        var size = meta.EstimatedSize(rect);
         var screenshot = wowScreen?.GetBitmap(size.Width, size.Height);
         if (screenshot == null) return;
 
@@ -367,8 +370,6 @@ else
 
         await Wait();
 
-        if (wowScreen == null) return;
-        wowScreen.GetRectangle(out var rect);
         DataFrameConfiguration.SaveConfiguration(rect, version, meta, dataFrames);
         saved = true;
 

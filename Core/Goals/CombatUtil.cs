@@ -9,16 +9,18 @@ namespace Core
         private readonly ILogger logger;
         private readonly PlayerReader playerReader;
         private readonly ConfigurableInput input;
+        private readonly Wait wait;
 
         private readonly bool debug = true;
 
         private bool outOfCombat;
         private WowPoint lastPosition;
 
-        public CombatUtil(ILogger logger, ConfigurableInput input, PlayerReader playerReader)
+        public CombatUtil(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader)
         {
             this.logger = logger;
             this.input = input;
+            this.wait = wait;
             this.playerReader = playerReader;
 
             outOfCombat = !playerReader.PlayerBitValues.PlayerInCombat;
@@ -34,7 +36,7 @@ namespace Core
 
         public async Task<bool> EnteredCombat()
         {
-            await Task.Delay(1);
+            await wait.Update(1);
             if (!outOfCombat && !playerReader.PlayerBitValues.PlayerInCombat)
             {
                 Log("Combat Leave");
@@ -67,7 +69,7 @@ namespace Core
                 }
 
                 await input.TapNearestTarget();
-                await playerReader.WaitForNUpdate(1);
+                await wait.Update(1);
                 if (this.playerReader.HasTarget && playerReader.PlayerBitValues.TargetInCombat &&
                     playerReader.PlayerBitValues.TargetOfTargetIsPlayer)
                 {
@@ -81,7 +83,7 @@ namespace Core
                 }
 
                 await input.TapClearTarget($"{GetType().Name}.AquiredTarget: No target found");
-                await playerReader.WaitForNUpdate(1);
+                await wait.Update(1);
             }
             return false;
         }
@@ -95,10 +97,11 @@ namespace Core
         public async Task<Tuple<bool, bool>> FoundTargetWhileMoved()
         {
             bool hadToMove = false;
-            if (IsPlayerMoving(lastPosition))
+            var startedMoving = await wait.InterruptTask(200, () => lastPosition != playerReader.PlayerLocation);
+            if (!startedMoving.Item1)
             {
+                Log($"Goto corpse({startedMoving.Item2}ms) - Wait till player become stil!");
                 hadToMove = true;
-                Log("Goto corpse - Wait till player become stil!");
             }
 
             while (IsPlayerMoving(lastPosition))
@@ -111,14 +114,6 @@ namespace Core
                 }
             }
 
-            if (hadToMove)
-            {
-                if (!await Wait(200, EnteredCombat()))
-                {
-                    if (await AquiredTarget())
-                        return Tuple.Create(true, hadToMove);
-                }
-            }
 
             return Tuple.Create(false, hadToMove);
         }

@@ -1,5 +1,6 @@
 ﻿using Serilog;
 using Serilog.Extensions.Logging;
+using System.Threading.Tasks;
 
 namespace CoreTests
 {
@@ -17,12 +18,21 @@ namespace CoreTests
             logger = new SerilogLoggerProvider(Log.Logger).CreateLogger(nameof(Program));
         }
 
-        static void Main(string[] args)
+        public static void Main()
         {
             CreateLogger();
 
-            var test = new Test_NpcNameFinder(logger);
+            //var test = new Test_NpcNameFinderTarget(logger);
+            var test = new Test_NpcNameFinderLoot(logger);
             test.Execute();
+
+            //MainAsync().GetAwaiter().GetResult();
+        }
+
+        private static async Task MainAsync()
+        {
+            var test = new Test_MouseClicks(logger);
+            await test.Execute();
         }
     }
 }

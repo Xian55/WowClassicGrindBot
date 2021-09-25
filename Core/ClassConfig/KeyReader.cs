@@ -73,8 +73,8 @@ namespace Core
             {"8", 8 },
             {"9", 9 },
             {"0", 10 },
-            //11 - unused
-            //12 - unused
+            {"-", 11 }, // English keyboard layout required
+            {"=", 12 }, // English keyboard layout required
 
             // ActionBar page 2: slots 13 to 24
             // ActionBar page 3 (Right ActionBar): slots 25 to 36
@@ -132,6 +132,9 @@ namespace Core
 
                 key.ConsoleKey = consoleKey;
             }
+
+            if(!string.IsNullOrEmpty(key.Name))
+                logger.LogInformation($"[{key.Name}] uses \"{key.Key}\" -> {key.ConsoleKey}");
 
             return true;
         }

@@ -11,5 +11,7 @@ namespace WowheadDB
         public List<NPC> repair;
         public List<NPC> vendor;
         public List<NPC> trainer;
+
+        public List<int> skinnable;
     }
 }
