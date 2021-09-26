@@ -122,7 +122,7 @@ namespace Game
         public void SetKeyState(ConsoleKey key, bool pressDown, bool forceClick, string description = "")
         {
             if (!string.IsNullOrEmpty(description))
-                Log($"SetKeyState: {description}");
+                description = "SetKeyState-" + description;
 
             if (pressDown) { KeyDown(key, description); } else { KeyUp(key, forceClick); }
         }

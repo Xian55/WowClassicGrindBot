@@ -236,6 +236,8 @@ namespace Core.Goals
             await MountIfRequired(jumped);
 
             LastActive = DateTime.Now;
+
+            await Task.Delay(10);
         }
 
         private async Task SwitchGatherType()

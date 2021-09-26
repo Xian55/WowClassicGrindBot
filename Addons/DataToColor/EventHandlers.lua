@@ -6,8 +6,6 @@ local ignoreErrorList = {
     "ERR_OUT_OF_RAGE",
     "ERR_NO_ATTACK_TARGET",
     "ERR_OUT_OF_MANA",
-    "ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS", 
-    "ERR_SPELL_COOLDOWN", 
     "ERR_SPELL_FAILED_SHAPESHIFT_FORM_S",
     "ERR_GENERIC_NO_TARGET",
     "ERR_ATTACK_PREVENTED_BY_MECHANIC_S",
@@ -16,11 +14,14 @@ local ignoreErrorList = {
 }
 
 local errorList = {
-    "ERR_BADATTACKFACING", --1
-    "ERR_SPELL_FAILED_S", --2
-    "ERR_SPELL_OUT_OF_RANGE", --3
-    "ERR_BADATTACKPOS", --4
-    "ERR_AUTOFOLLOW_TOO_FAR", --5
+    "ERR_BADATTACKFACING", --1 "You are facing the wrong way!";
+    "ERR_SPELL_FAILED_S", --2 -- like a printf 
+    "ERR_SPELL_OUT_OF_RANGE", --3 "Out of range.";
+    "ERR_BADATTACKPOS", --4 "You are too far away!";
+    "ERR_AUTOFOLLOW_TOO_FAR", --5 "Target is too far away.";
+    "SPELL_FAILED_MOVING", --6 "Can't do that while moving";
+    "ERR_SPELL_COOLDOWN",  --7 "Spell is not ready yet."
+    "ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS", --8 "Another action is in progress"
 };
 
 function DataToColor:RegisterEvents()
@@ -47,6 +48,16 @@ function DataToColor:OnUIErrorMessage(event, messageType, message)
         for i = 1, table.getn(errorList), 1 do
             if errorList[i]==errorName then
                 DataToColor.uiErrorMessage = i;
+
+                if errorName==errorList[2] then -- ERR_SPELL_FAILED_S
+                    if message==SPELL_FAILED_UNIT_NOT_INFRONT then
+                        DataToColor.uiErrorMessage = 1
+                        message = message.." ("..ERR_BADATTACKFACING..")"
+                    elseif message==SPELL_FAILED_MOVING then
+                        DataToColor.uiErrorMessage = 6
+                    end
+                end
+                
                 foundMessage=true;
                 UIErrorsFrame:AddMessage(message, 0, 1, 0) -- show as green messasge
             end

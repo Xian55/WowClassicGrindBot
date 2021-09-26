@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
 using System.Linq;
@@ -120,6 +120,7 @@ namespace Core.Goals
             long beforeBuff = playerReader.Buffs.Value;
             bool beforeHasTarget = playerReader.HasTarget;
 
+            playerReader.LastUIErrorMessage = UI_ERROR.NONE;
             await PressKey(item.ConsoleKey, item.Name, item.PressDuration);
             item.SetClicked();
 
@@ -143,32 +144,36 @@ namespace Core.Goals
                     logger.LogInformation($"AfterCastWaitBuff: Interrupted: {result1.Item1} | Delay: {result1.Item2}ms");
                 }
 
-                await InteractOnUIError();
+                await ReactToLastUIErrorMessage($"{GetType().Name}: CastIfReady-NoHasCastBar");
             }
             else
             {
-                var startedCasting = await wait.InterruptTask(MaxWaitTimeMs, () => playerReader.IsCasting);
+                var startedCasting = await wait.InterruptTask(MaxWaitTimeMs, () => playerReader.IsCasting || playerReader.LastUIErrorMessage != UI_ERROR.NONE);
                 if (!startedCasting.Item1)
                 {
-                    item.LogInformation($" start casting after {startedCasting.Item2}ms");
+                    item.LogInformation($" input registered after {startedCasting.Item2}ms");
                 }
 
                 if (!playerReader.IsCasting && playerReader.HasTarget)
                 {
-                    await InteractOnUIError();
+                    await ReactToLastUIErrorMessage($"{GetType().Name}: CastIfReady-HasCastBar-NotCasting-HasTarget");
 
-                    if(item.StopBeforeCast)
+                    if (item.StopBeforeCast)
+                    {
                         await stopMoving.Stop();
+                        await wait.Update(1);
+                    }
 
                     item.LogInformation($"Not casting, pressing it again");
 
+                    playerReader.LastUIErrorMessage = UI_ERROR.NONE;
                     await PressKey(item.ConsoleKey, item.Name, item.PressDuration);
-                    await wait.InterruptTask(MaxWaitTimeMs, () => playerReader.IsCasting);
+                    await wait.InterruptTask(MaxWaitTimeMs, () => playerReader.IsCasting || playerReader.LastUIErrorMessage != UI_ERROR.NONE);
 
                     if (!playerReader.IsCasting && playerReader.HasTarget)
                     {
                         item.LogInformation($"Still not casting !");
-                        await InteractOnUIError();
+                        await ReactToLastUIErrorMessage($"{GetType().Name}: CastIfReady-HasCastBar-NotCasting-HasTarget-2ndTime");
                         return false;
                     }
                 }
@@ -269,41 +274,60 @@ namespace Core.Goals
             lastKeyPressed = key;
         }
 
-        public virtual async Task InteractOnUIError()
+        public virtual async Task ReactToLastUIErrorMessage(string source)
         {
-            var lastError = this.playerReader.LastUIErrorMessage;
-            switch (this.playerReader.LastUIErrorMessage)
+            //var lastError = playerReader.LastUIErrorMessage;
+            switch (playerReader.LastUIErrorMessage)
             {
-                case UI_ERROR.ERR_BADATTACKFACING:
-                case UI_ERROR.ERR_SPELL_FAILED_S:
-                case UI_ERROR.ERR_SPELL_OUT_OF_RANGE:
-                case UI_ERROR.ERR_BADATTACKPOS:
-                case UI_ERROR.ERR_AUTOFOLLOW_TOO_FAR:
-
-                    await input.TapStopAttack($"{GetType().Name}: " + this.playerReader.LastUIErrorMessage.ToString());
-                    var facing = this.playerReader.Direction;
-                    var location = this.playerReader.PlayerLocation;
-
-                    if (this.classConfig.Interact.MillisecondsSinceLastClick > 500)
-                    {
-                        await input.TapInteractKey($"{GetType().Name} InteractOnUIError by Timer");
-                        await Task.Delay(50);
-                    }
-
-                    if (lastError == UI_ERROR.ERR_SPELL_FAILED_S)
-                    {
-                        await input.TapInteractKey($"{GetType().Name} InteractOnUIError by ERR_SPELL_FAILED_S");
-                        await wait.Update(1); //3
-                        if (this.playerReader.LastUIErrorMessage == UI_ERROR.ERR_BADATTACKPOS && this.playerReader.Direction == facing)
-                        {
-                            var desiredDirection = facing + Math.PI;
-                            desiredDirection = desiredDirection > Math.PI * 2 ? desiredDirection - Math.PI * 2 : desiredDirection;
-                            await this.direction.SetDirection(desiredDirection, new WowPoint(0, 0), "InteractOnUIError Turning 180 as I have not moved!");
-                        }
-                    }
-
-                    this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+                case UI_ERROR.NONE:
                     break;
+                case UI_ERROR.ERR_SPELL_OUT_OF_RANGE:
+                    logger.LogInformation($"React to {UI_ERROR.ERR_SPELL_OUT_OF_RANGE} -- Start moving forward -- {source}");
+
+                    input.SetKeyState(ConsoleKey.UpArrow, true, false, "");
+                    playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+                    break;
+                case UI_ERROR.ERR_BADATTACKFACING:
+
+                    if (playerReader.IsInMeleeRange)
+                    {
+                        logger.LogInformation($"React to {UI_ERROR.ERR_BADATTACKFACING} -- Interact! -- {source}");
+                        await input.TapInteractKey("");
+                    }
+                    else
+                    {
+                        logger.LogInformation($"React to {UI_ERROR.ERR_BADATTACKFACING} -- Turning 180! -- {source}");
+
+                        double desiredDirection = playerReader.Direction + Math.PI;
+                        desiredDirection = desiredDirection > Math.PI * 2 ? desiredDirection - (Math.PI * 2) : desiredDirection;
+                        await direction.SetDirection(desiredDirection, new WowPoint(0, 0), "");
+                    }
+
+                    playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+                    break;
+                case UI_ERROR.SPELL_FAILED_MOVING:
+                    logger.LogInformation($"React to {UI_ERROR.SPELL_FAILED_MOVING} -- Stop moving! -- {source}");
+
+                    await stopMoving.Stop();
+                    await wait.Update(1);
+                    playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+                    break;
+                case UI_ERROR.ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS:
+                    logger.LogInformation($"React to {UI_ERROR.ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS} -- Wait till casting! -- {source}");
+                    await wait.While(() => playerReader.IsCasting);
+                    break;
+                case UI_ERROR.ERR_SPELL_COOLDOWN:
+                    logger.LogInformation($"Cant react to {UI_ERROR.ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS} -- {source}");
+                    break;
+                default:
+                    logger.LogInformation($"Didn't know how to React to {playerReader.LastUIErrorMessage} -- {source}");
+                    break;
+                //case UI_ERROR.ERR_SPELL_FAILED_S:
+                //case UI_ERROR.ERR_BADATTACKPOS:
+                //case UI_ERROR.ERR_SPELL_OUT_OF_RANGE:
+                //case UI_ERROR.ERR_AUTOFOLLOW_TOO_FAR:
+                //    this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+                //    break;
             }
         }
     }

@@ -10,7 +10,7 @@ namespace Core.Goals
         private readonly WowProcessInput input;
         private readonly PlayerReader playerReader;
 
-        private const double MinDist = 0.1;
+        private const double MinDist = 0.01;
 
         private double XCoord = 0;
         private double YCoord = 0;
@@ -33,9 +33,9 @@ namespace Core.Goals
             if (XCoord != playerReader.XCoord || YCoord != playerReader.YCoord)
             {
                 if (!input.IsKeyDown(ConsoleKey.DownArrow) && !input.IsKeyDown(ConsoleKey.UpArrow) &&
-                    (Math.Abs(XCoord - playerReader.XCoord) > MinDist || Math.Abs(XCoord - playerReader.XCoord) > MinDist))
+                    (Math.Abs(XCoord - playerReader.XCoord) > MinDist || Math.Abs(YCoord - playerReader.YCoord) > MinDist))
                 {
-                    input.SetKeyState(ConsoleKey.DownArrow, true, false, $"StopForward - Cancel interact dx:{Math.Abs(XCoord - playerReader.XCoord),6} dy:{Math.Abs(XCoord - playerReader.XCoord),6}");
+                    input.SetKeyState(ConsoleKey.UpArrow, true, false, "StopForward - Cancel interact");
                     await Task.Delay(1);
                 }
 

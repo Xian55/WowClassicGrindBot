@@ -80,7 +80,7 @@ namespace Core
                     availableActions.Add(walkToCorpseAction);
                 }
 
-                availableActions.Add(new ApproachTargetGoal(logger, input, wait, addonReader.PlayerReader, stopMoving,  stuckDetector));
+                availableActions.Add(new ApproachTargetGoal(logger, input, wait, addonReader.PlayerReader, classConfig, stopMoving));
 
                 if (classConfig.WrongZone.ZoneId > 0)
                 {
@@ -108,7 +108,7 @@ namespace Core
                 {
                     var genericCombat = new CombatGoal(logger, input, wait, addonReader.PlayerReader, stopMoving, classConfig, castingHandler);
                     availableActions.Add(genericCombat);
-                    availableActions.Add(new PullTargetGoal(logger, input, wait, addonReader.PlayerReader, npcNameFinder, stopMoving, castingHandler, stuckDetector, classConfig));
+                    availableActions.Add(new PullTargetGoal(logger, input, wait, addonReader.PlayerReader, stopMoving, castingHandler, stuckDetector, classConfig));
 
                     availableActions.Add(new CreatureKilledGoal(logger, addonReader.PlayerReader, classConfig));
                     availableActions.Add(new ConsumeCorpse(logger, wait, addonReader.PlayerReader));

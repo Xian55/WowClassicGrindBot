@@ -10,33 +10,37 @@ namespace Core.Goals
     {
         public override float CostOfPerformingAction { get => 7f; }
 
-        private ILogger logger;
+        private readonly ILogger logger;
         private readonly ConfigurableInput input;
 
         private readonly Wait wait;
         private readonly PlayerReader playerReader;
-        private readonly NpcNameFinder npcNameFinder;
         private readonly StopMoving stopMoving;
         private readonly StuckDetector stuckDetector;
         private readonly ClassConfiguration classConfiguration;
         
         private readonly CastingHandler castingHandler;
-        private DateTime PullStartTime = DateTime.Now;
-        private DateTime LastActive = DateTime.Now;
 
-        public PullTargetGoal(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader, NpcNameFinder npcNameFinder, StopMoving stopMoving, CastingHandler castingHandler, StuckDetector stuckDetector, ClassConfiguration classConfiguration)
+        private readonly Random random = new Random(DateTime.Now.Millisecond);
+
+        private DateTime pullStart = DateTime.Now;
+
+        private int SecondsSincePullStarted => (int)(DateTime.Now - pullStart).TotalSeconds;
+
+        public PullTargetGoal(ILogger logger, ConfigurableInput input, Wait wait, PlayerReader playerReader, StopMoving stopMoving, CastingHandler castingHandler, StuckDetector stuckDetector, ClassConfiguration classConfiguration)
         {
             this.logger = logger;
             this.input = input;
 
             this.wait = wait;
             this.playerReader = playerReader;
-            this.npcNameFinder = npcNameFinder;
             this.stopMoving = stopMoving;
             
             this.castingHandler = castingHandler;
             this.stuckDetector = stuckDetector;
             this.classConfiguration = classConfiguration;
+
+            classConfiguration.Pull.Sequence.Where(k => k != null).ToList().ForEach(key => Keys.Add(key));
 
             AddPrecondition(GoapKey.targetisalive, true);
             AddPrecondition(GoapKey.incombat, false);
@@ -44,53 +48,45 @@ namespace Core.Goals
             AddPrecondition(GoapKey.pulled, false);
             AddPrecondition(GoapKey.withinpullrange, true);
             AddPrecondition(GoapKey.isswimming, false);
-            AddEffect(GoapKey.pulled, true);
 
-            this.classConfiguration.Pull.Sequence.Where(k => k != null).ToList().ForEach(key => this.Keys.Add(key));
+            AddEffect(GoapKey.pulled, true);
         }
 
-        public override async Task PerformAction()
+        public override async Task OnEnter()
         {
-            await input.TapStopAttack();
-            this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
-
-            if ((DateTime.Now - LastActive).TotalSeconds > 5)
-            {
-                PullStartTime = DateTime.Now;
-            }
-            LastActive = DateTime.Now;
-
-            /*
-            if ((DateTime.Now - PullStartTime).TotalSeconds > 30)
-            {
-                //await wowProcess.KeyPress(ConsoleKey.F3, 50); // clear target
-                await wowProcess.TapClearTarget();
-                await this.wowProcess.KeyPress(ConsoleKey.RightArrow, 1000, "Turn after pull timeout");
-                return; 
-            }
-            */
-            SendActionEvent(new ActionEventArgs(GoapKey.fighting, true));
+            await base.OnEnter();
 
             if (playerReader.PlayerBitValues.IsMounted)
             {
                 await input.TapDismount();
             }
 
-            bool pulled = await Pull();
-            if (!pulled)
+            pullStart = DateTime.Now;
+        }
+
+        public override async Task PerformAction()
+        {
+            if (SecondsSincePullStarted > 7)
+            {
+                await input.TapClearTarget();
+                await input.KeyPress(random.Next(2) == 0 ? ConsoleKey.LeftArrow : ConsoleKey.RightArrow, 1000, "Too much time to pull!");
+                return;
+            }
+
+            SendActionEvent(new ActionEventArgs(GoapKey.fighting, true));
+
+            if (!await Pull())
             {
                 if (HasPickedUpAnAdd)
                 {
-                    logger.LogInformation($"Combat={this.playerReader.PlayerBitValues.PlayerInCombat}, Is Target targetting me={this.playerReader.PlayerBitValues.TargetOfTargetIsPlayer}");
-                    logger.LogInformation($"Add on approach");
+                    Log($"Combat={this.playerReader.PlayerBitValues.PlayerInCombat}, Is Target targetting me={this.playerReader.PlayerBitValues.TargetOfTargetIsPlayer}");
+                    Log($"Add on approach");
 
-                    await this.stopMoving.Stop();
-                    await input.TapStopKey();
-
-                    //await wowProcess.KeyPress(ConsoleKey.F3, 50); // clear target
-                    //await wowProcess.TapClearTarget();
+                    await stopMoving.Stop();
 
                     await input.TapNearestTarget();
+                    await wait.Update(1);
+
                     if (this.playerReader.HasTarget && playerReader.PlayerBitValues.TargetInCombat)
                     {
                         if (this.playerReader.TargetTarget == TargetTargetEnum.TargetIsTargettingMe)
@@ -100,33 +96,36 @@ namespace Core.Goals
                     }
 
                     await input.TapClearTarget();
+                    await wait.Update(1);
+
                     return;
                 }
-                
 
-                if (!this.stuckDetector.IsMoving())
+                if (!stuckDetector.IsMoving())
                 {
-                    await this.stuckDetector.Unstick();
+                    await stuckDetector.Unstick();
                 }
 
-                await Interact();
+                await Interact("No pulled!");
                 await wait.Update(1);
             }
             else
             {
-                this.SendActionEvent(new ActionEventArgs(GoapKey.pulled, true));
-                this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+                SendActionEvent(new ActionEventArgs(GoapKey.pulled, true));
+                playerReader.LastUIErrorMessage = UI_ERROR.NONE;
             }
         }
 
-        private async Task Interact()
+        private async Task Interact(string source)
         {
-            if (this.classConfiguration.Interact.GetCooldownRemaining() == 0)
+            if (classConfiguration.Interact.GetCooldownRemaining() == 0)
             {
-                await input.TapInteractKey("PullTargetAction");
-            }
+                playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+                await input.TapInteractKey($"{GetType().Name} {source}");
+                await wait.Update(1);
 
-            await this.castingHandler.InteractOnUIError();
+                await castingHandler.ReactToLastUIErrorMessage($"{GetType().Name}-Interact: ");
+            }
         }
 
         protected bool HasPickedUpAnAdd
@@ -139,7 +138,7 @@ namespace Core.Goals
 
         protected async Task WaitForWithinMeleeRange(KeyAction item)
         {
-            this.logger.LogInformation("Waiting for Melee range - max 10s");
+            Log("Waiting for Melee range - max 10s");
 
             var start = DateTime.Now;
 
@@ -149,66 +148,60 @@ namespace Core.Goals
 
                 if (!item.StopBeforeCast)
                 {
-                    await Interact();
+                    await Interact("");
                 }
             }
         }
 
         public async Task<bool> Pull()
         {
-            bool hasCast = false;
+            if (Keys.Count != 0)
+            {
+                await input.TapStopAttack();
+                await wait.Update(1);
 
-            await input.TapStopAttack();
-            this.playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+                playerReader.LastUIErrorMessage = UI_ERROR.NONE;
+            }
 
-            foreach (var item in this.Keys)
+            if (playerReader.PlayerBitValues.HasPet && !playerReader.PetHasTarget)
+            {
+                await input.TapPetAttack();
+            }
+
+            foreach (var item in Keys)
             {
                 if (item.StopBeforeCast)
                 {
-                    await this.stopMoving.Stop();
-                    await input.TapStopAttack();
-                    await input.TapStopKey();
+                    await stopMoving.Stop();
+                    await wait.Update(1);
                 }
 
-                if (playerReader.PlayerBitValues.HasPet && !playerReader.PetHasTarget)
-                {
-                    await input.TapPetAttack();
-                }
+                var success = await castingHandler.CastIfReady(item, item.DelayBeforeCast);
 
-                var sleepBeforeFirstCast = (item.StopBeforeCast && !hasCast && 150 > item.DelayBeforeCast) ? 150 : item.DelayBeforeCast;
-
-                var success = await this.castingHandler.CastIfReady(item, sleepBeforeFirstCast);
-                hasCast = hasCast || success;
-
-                if (!this.playerReader.HasTarget)
+                if (!playerReader.HasTarget)
                 {
                     return false;
                 }
 
-                if (hasCast && item.WaitForWithinMelleRange)
+                if (item.WaitForWithinMelleRange)
                 {
-                    await this.WaitForWithinMeleeRange(item);
+                    await WaitForWithinMeleeRange(item);
                 }
             }
 
             // Wait for combat
-            if (hasCast)
+            (bool interrupted, double elapsedMs) = await wait.InterruptTask(1000, () => playerReader.PlayerBitValues.PlayerInCombat);
+            if (!interrupted)
             {
-                for (int i = 0; i < 40; i++)
-                {
-                    // wait for combat, for mob to be targetting me or have suffered damage or 2 seconds to have elapsed.
-                    // sometimes after casting a ranged attack, we can be in combat before the attack has landed.
-                    if (this.playerReader.PlayerBitValues.PlayerInCombat &&
-                        (this.playerReader.PlayerBitValues.TargetOfTargetIsPlayer || this.playerReader.TargetHealthPercentage < 99 || i > 20))
-                    {
-                        return true;
-                    }
-
-                    await Task.Delay(100);
-                }
+                Log($"Entered combat after {elapsedMs}ms");
             }
 
-            return this.playerReader.PlayerBitValues.PlayerInCombat;
+            return playerReader.PlayerBitValues.PlayerInCombat;
+        }
+
+        private void Log(string s)
+        {
+            logger.LogInformation($"{GetType().Name}: {s}");
         }
     }
 }

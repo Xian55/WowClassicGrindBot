@@ -49,8 +49,18 @@ namespace Core.Goals
                     {
                         this.currentGoal?.DoReset();
                         this.currentGoal = newGoal;
+
                         logger.LogInformation("---------------------------------");
                         logger.LogInformation($"New Plan= {newGoal.GetType().Name}");
+                        
+                        try
+                        {
+                            await this.currentGoal.OnEnter();
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogError(ex, $"OnEnter on {newGoal.GetType().Name}");
+                        }
                     }
                     else if(!this.currentGoal.Repeatable)
                     {

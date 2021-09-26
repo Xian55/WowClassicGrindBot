@@ -1,0 +1,72 @@
+{
+  "ClassName": "Paladin",
+  "PathFilename": "_p2\\10-17_westfall.json",
+  "Pull": {
+    "Sequence":[
+      {
+        "Name": "Seal of the Crusader",
+        "Key": "3",
+        "DelayAfterCast": 0
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Holy Light",
+        "HasCastBar": true,
+        "StopBeforeCast": true,
+        "Key": "6",
+        "Requirement": "Health%<60",
+        "Cooldown": 5
+      },
+      {
+        "Name": "Judgement",
+        "WhenUsable": true,
+        "DelayAfterCast": 0,
+        "Key": "1"
+      },
+      {
+        "Name": "Seal of the Righteousness",
+        "Key": "2",
+        "Requirement": "not Seal"
+      },
+      {
+        "Name": "Approach"
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Retribution Aura",
+        "Key": "8",
+        "Requirement": "not Aura",
+        "Cooldown": 5
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Water",
+        "StopBeforeCast": true,
+        "AfterCastWaitBuff": true,
+        "DelayAfterCast": 0,
+        "Key": "-",
+        "Requirement": "Mana%<35",
+        "Cooldown": 5
+      },
+      {
+        "Name": "Food",
+        "StopBeforeCast": true,
+        "AfterCastWaitBuff": true,
+        "DelayAfterCast": 0,
+        "Key": "=",
+        "Requirement": "Health%<35",
+        "Cooldown": 5
+      }
+
+    ]
+  }
+}

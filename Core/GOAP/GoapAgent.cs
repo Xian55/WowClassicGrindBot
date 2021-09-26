@@ -27,7 +27,9 @@ namespace Core.GOAP
         public HashSet<KeyValuePair<GoapKey, object>> WorldState { get; private set; } = new HashSet<KeyValuePair<GoapKey, object>>();
         private IBlacklist blacklist;
 
-        public GoapAgent(ILogger logger, WowProcess wowProcess, ConfigurableInput input, PlayerReader playerReader, HashSet<GoapGoal> availableGoals, IBlacklist blacklist,  ClassConfiguration classConfiguration, BagReader bagReader)
+        private readonly Wait wait;
+
+        public GoapAgent(ILogger logger, WowProcess wowProcess, ConfigurableInput input, PlayerReader playerReader, HashSet<GoapGoal> availableGoals, IBlacklist blacklist,  ClassConfiguration classConfiguration, BagReader bagReader, Wait wait)
         {
             this.logger = logger;
             this.wowProcess = wowProcess;
@@ -40,6 +42,8 @@ namespace Core.GOAP
             this.planner = new GoapPlanner(logger);
             this.classConfiguration = classConfiguration;
             this.bagReader = bagReader;
+
+            this.wait = wait;
         }
 
         public void UpdateWorldState()
@@ -69,9 +73,15 @@ namespace Core.GOAP
             {
                 logger.LogInformation($"Target Health: {playerReader.TargetHealth}, max {playerReader.TargetMaxHealth}, dead {playerReader.PlayerBitValues.TargetIsDead}");
 
-                if (this.classConfiguration.Mode != Mode.AttendedGrind)
+                if (classConfiguration.Mode != Mode.AttendedGrind)
                 {
                     await input.TapNearestTarget("GoapAgent");
+                    await wait.Update(1);
+                    if (playerReader.HasTarget && !playerReader.PlayerBitValues.TargetOfTargetIsPlayer)
+                    {
+                        await input.TapClearTarget("GoapAgent");
+                        await wait.Update(1);
+                    }
                 }
             }
 

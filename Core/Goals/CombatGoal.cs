@@ -1,4 +1,4 @@
-﻿using Core.GOAP;
+using Core.GOAP;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
@@ -156,16 +156,29 @@ namespace Core.Goals
 
             SendActionEvent(new ActionEventArgs(GoapKey.fighting, true));
 
-            await this.castingHandler.InteractOnUIError();
+            //await castingHandler.ReactToLastUIErrorMessage($"{GetType().Name}-PerformAction: ");
+
+            bool hasTarget = playerReader.HasTarget;
 
             await Fight();
-            await KillCheck();
+            await KillCheck(hasTarget);
             lastActive = DateTime.Now;
+
+            await Task.Delay(10);
         }
 
-        private async Task KillCheck()
+        private async Task KillCheck(bool hasTarget)
         {
-            await wait.Update(1);
+            if (hasTarget != playerReader.HasTarget)
+            {
+                (bool lastkilledGuidNotChanged, double elapsedMs) = await wait.InterruptTask(300, 
+                    () => lastKilledGuid != playerReader.LastKilledGuid);
+                if (!lastkilledGuidNotChanged)
+                {
+                    logger.LogInformation($"Target Death detected after {elapsedMs}ms");
+                }
+            }
+
             if (DidKilledACreature())
             {
                 if (!await CreatureTargetMeOrMyPet())
@@ -179,7 +192,7 @@ namespace Core.Goals
         {
             if (lastKilledGuid != playerReader.LastKilledGuid)
             {
-                logger.LogInformation($"----- A mob just died {playerReader.LastKilledGuid}");
+                //logger.LogInformation($"----- A mob just died {playerReader.LastKilledGuid}");
 
                 if ((playerReader.CombatCreatures.Any(x => x.CreatureId == playerReader.LastKilledGuid) || // creature dealt damage to me or my pet
                 playerReader.TargetHistory.Any(x => x.CreatureId == playerReader.LastKilledGuid)))     // has ever targeted by the player)

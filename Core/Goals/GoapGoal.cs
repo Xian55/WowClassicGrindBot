@@ -87,6 +87,11 @@ namespace Core.Goals
             return true;
         }
 
+        public virtual async Task OnEnter()
+        {
+            await Task.Delay(0);
+        }
+
         public abstract Task PerformAction();
 
         public virtual async Task Abort()

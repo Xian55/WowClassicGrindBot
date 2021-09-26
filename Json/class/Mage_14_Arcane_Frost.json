@@ -1,7 +1,7 @@
 {
   "ClassName": "Mage",
   "Loot": true,
-  "PathFilename": "10_Gnome.json",
+  "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\10-12_Loch Modan.json",
   "PathThereAndBack": true,
   "PathReduceSteps": false,
 

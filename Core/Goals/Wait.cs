@@ -52,8 +52,7 @@ namespace Core
         public async Task<bool> Interrupt(int durationMs, Task<bool> exit)
         {
             DateTime start = DateTime.Now;
-            double elapsedMs;
-            while ((elapsedMs = (DateTime.Now - start).TotalMilliseconds) < durationMs)
+            while ((DateTime.Now - start).TotalMilliseconds < durationMs)
             {
                 await Update(1);
                 if (await exit)
@@ -61,6 +60,14 @@ namespace Core
             }
 
             return true;
+        }
+
+        public async Task While(Func<bool> condition)
+        {
+            while (condition())
+            {
+                await Update(1);
+            }
         }
     }
 }

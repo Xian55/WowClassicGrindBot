@@ -141,7 +141,8 @@ namespace Core
             {
                 this.AddonReader.AddonRefresh();
                 this.GoapAgent?.UpdateWorldState();
-                System.Threading.Thread.Sleep(5);
+                int update = (int)(AddonReader.PlayerReader.AvgUpdateLatency / 2);
+                System.Threading.Thread.Sleep(update);
             }
             this.logger.LogInformation("Addon thread stoppped!");
         }
@@ -259,7 +260,9 @@ namespace Core
             var availableActions = actionFactory.CreateGoals(config, blacklist);
             RouteInfo = actionFactory.RouteInfo;
 
-            this.GoapAgent = new GoapAgent(logger, wowProcess, ConfigurableInput, AddonReader.PlayerReader, availableActions, blacklist, config, AddonReader.BagReader);
+            Wait wait = new Wait(AddonReader.PlayerReader);
+
+            this.GoapAgent = new GoapAgent(logger, wowProcess, ConfigurableInput, AddonReader.PlayerReader, availableActions, blacklist, config, AddonReader.BagReader, wait);
 
             this.actionThread = new GoalThread(logger, ConfigurableInput, AddonReader.PlayerReader, GoapAgent);
 

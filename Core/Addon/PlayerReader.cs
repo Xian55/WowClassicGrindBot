@@ -17,7 +17,7 @@ namespace Core
             this.creatureDb = creatureDb;
         }
 
-        public double AvgUpdateLatency = 0;
+        public double AvgUpdateLatency = 5;
 
         public int Sequence { get; private set; } = 0;
         public List<CombatCreature> TargetHistory { get; } = new List<CombatCreature>();
