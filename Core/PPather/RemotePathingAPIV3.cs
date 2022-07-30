@@ -112,6 +112,12 @@ namespace Core
                     result.Add(worldMapAreaDB.ToLocal(path[i], area.MapID, uiMapId));
                 }
 
+                //fix, the returning path did not include the final destination, we should add here
+                if (result.Count > 0)
+                {
+                    result.Add(end);
+                }
+
                 return new ValueTask<List<Vector3>>(result);
             }
             catch (Exception ex)
