@@ -23,7 +23,7 @@ namespace Core
             this.talentDB = talentDB;
         }
 
-        public void Read(IAddonDataProvider reader)
+        public void Read(AddonDataProvider reader)
         {
             int data = reader.GetInt(cTalent);
             if (data == 0 || Talents.ContainsKey(data)) return;
