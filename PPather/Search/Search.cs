@@ -45,26 +45,24 @@ namespace PPather
 
         private float GetZValueAt(float x, float y, int[] allowedModels)
         {
-            float z0 = float.MinValue, z1;
+            float z0 = float.MinValue;
             int flags;
 
-            if (allowedModels != null)
-            {
-                PathGraph.triangleWorld.FindStandableAt1(x, y, -1000, 2000, out z1, out flags, toonHeight, toonSize, true, null);
-            }
-
-            if (PathGraph.triangleWorld.FindStandableAt1(x, y, -1000, 2000, out z1, out flags, toonHeight, toonSize, true, allowedModels))
+            if (allowedModels != null &&
+                PathGraph.triangleWorld.FindStandableAt1(x, y, -1000, 2000, out float z1, out flags, toonHeight, toonSize, true, null))
             {
                 z0 = z1;
-                // try to find a standable just under where we are just in case we are on top of a building.
-                if (PathGraph.triangleWorld.FindStandableAt1(x, y, -1000, z0 - toonHeight - 1, out z1, out flags, toonHeight, toonSize, true, allowedModels))
-                {
-                    z0 = z1;
-                }
             }
-            else
+
+            if (z0 == float.MinValue &&
+                PathGraph.triangleWorld.FindStandableAt1(x, y, -1000, 2000, out float z2, out flags, toonHeight, toonSize, true, allowedModels))
             {
-                return float.MinValue;
+                z0 = z2;
+                // try to find a standable just under where we are just in case we are on top of a building.
+                if (PathGraph.triangleWorld.FindStandableAt1(x, y, -1000, z0 - toonHeight - 1, out float z3, out flags, toonHeight, toonSize, true, allowedModels))
+                {
+                    z0 = z3;
+                }
             }
 
             return z0;
@@ -93,7 +91,7 @@ namespace PPather
             {
                 return PathGraph.CreatePath(locationFrom.AsVector3(), locationTo.AsVector3(), 5, null);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 logger.LogError(ex.Message);
                 return null;
