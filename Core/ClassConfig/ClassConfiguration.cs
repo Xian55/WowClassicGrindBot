@@ -50,6 +50,8 @@ namespace Core
         public int NPCMaxLevels_Below { get; set; } = 7;
 
         public bool CheckTargetGivesExp { get; set; }
+        public bool AllowTargetingAbnormal { get; set; }
+
         public string[] Blacklist { get; init; } = Array.Empty<string>();
 
         public Dictionary<int, SchoolMask[]> ImmunityBlacklist { get; } = new();

@@ -13,6 +13,7 @@ namespace Core
         private readonly int above;
         private readonly int below;
         private readonly bool checkTargetGivesExp;
+        private readonly bool allowTargetingAbnormal;
 
         private int lastGuid;
 
@@ -25,6 +26,7 @@ namespace Core
             this.below = classConfig.NPCMaxLevels_Below;
 
             this.checkTargetGivesExp = classConfig.CheckTargetGivesExp;
+            this.allowTargetingAbnormal = classConfig.AllowTargetingAbnormal;
 
             this.blacklist = classConfig.Blacklist;
 
@@ -55,7 +57,7 @@ namespace Core
                 return false;
             }
 
-            if (!playerReader.Bits.TargetIsNormal())
+            if (!playerReader.Bits.TargetIsNormal() && !allowTargetingAbnormal)
             {
                 if (lastGuid != playerReader.TargetGuid)
                 {
