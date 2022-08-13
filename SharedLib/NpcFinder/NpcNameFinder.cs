@@ -55,7 +55,7 @@ namespace SharedLib.NpcFinder
     public partial class NpcNameFinder : IDisposable
     {
         private const SearchMode searchMode = SearchMode.Simple;
-        private NpcNames nameType = NpcNames.Enemy | NpcNames.Neutral;
+        public NpcNames nameType { get; set; } = NpcNames.Enemy | NpcNames.Neutral;
 
         private readonly ILogger logger;
         private readonly IBitmapProvider bitmapProvider;
@@ -118,31 +118,31 @@ namespace SharedLib.NpcFinder
 
         #region Colors
 
-        private const byte fE_R = 250;
-        private const byte fE_G = 5;
-        private const byte fE_B = 5;
+        public const byte fE_R = 250;
+        public const byte fE_G = 5;
+        public const byte fE_B = 5;
 
-        private const byte fF_R = 5;
-        private const byte fF_G = 250;
-        private const byte fF_B = 5;
+        public const byte fF_R = 5;
+        public const byte fF_G = 250;
+        public const byte fF_B = 5;
 
-        private const byte fN_R = 250;
-        private const byte fN_G = 250;
-        private const byte fN_B = 5;
+        public const byte fN_R = 250;
+        public const byte fN_G = 250;
+        public const byte fN_B = 5;
 
-        private const byte fC_RGB = 128;
+        public const byte fC_RGB = 128;
 
-        private const byte sE_R = 240;
-        private const byte sE_G = 35;
-        private const byte sE_B = 35;
+        public const byte sE_R = 240;
+        public const byte sE_G = 35;
+        public const byte sE_B = 35;
 
-        private const byte sF_R = 0;
-        private const byte sF_G = 250;
-        private const byte sF_B = 0;
+        public const byte sF_R = 0;
+        public const byte sF_G = 250;
+        public const byte sF_B = 0;
 
-        private const byte sN_R = 250;
-        private const byte sN_G = 250;
-        private const byte sN_B = 0;
+        public const byte sN_R = 250;
+        public const byte sN_G = 250;
+        public const byte sN_B = 0;
 
         #endregion
 

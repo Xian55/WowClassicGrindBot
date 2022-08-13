@@ -15,6 +15,10 @@ using SharedLib.NpcFinder;
 using Cyotek.Collections.Generic;
 using PPather.Data;
 using Core.Environment;
+using GameOverlay.Windows;
+using System.Drawing;
+using GameOverlay.Drawing;
+using SharedLib.Extensions;
 
 namespace Core
 {
@@ -87,6 +91,16 @@ namespace Core
         }
         private readonly CircularBuffer<double> NPCLatencys;
 
+
+        //game overlay
+        private readonly GameOverlay.Windows.GraphicsWindow _window;
+        private readonly GameOverlay.Drawing.Graphics _graphics;
+
+        private readonly Dictionary<string, GameOverlay.Drawing.SolidBrush> _brushes;
+        private readonly Dictionary<string, GameOverlay.Drawing.Font> _fonts;
+        private readonly Dictionary<string, GameOverlay.Drawing.Image> _images;
+        private bool DebugNameFinderOverlay { get; set; } = true;
+
         public BotController(ILogger logger, IEnvironment env, StartupClientVersion scv,
             CancellationTokenSource cts,
             IPPather pather, IGrindSessionDAO grindSessionDAO, DataConfig dataConfig,
@@ -142,13 +156,152 @@ namespace Core
             WowScreen.AddDrawAction(npcNameFinder.ShowNames);
             WowScreen.AddDrawAction(npcNameTargeting.ShowClickPositions);
 
-            screenshotThread = new(ScreenshotThread);
-            screenshotThread.Start();
-
-            if (pather is RemotePathingAPI)
+            //game overlay
+            if (DebugNameFinderOverlay)
             {
-                remotePathing = new(RemotePathingThread);
-                remotePathing.Start();
+                _brushes = new Dictionary<string, GameOverlay.Drawing.SolidBrush>();
+                _fonts = new Dictionary<string, GameOverlay.Drawing.Font>();
+                _images = new Dictionary<string, GameOverlay.Drawing.Image>();
+
+                _graphics = new GameOverlay.Drawing.Graphics()
+                {
+                    MeasureFPS = true,
+                    PerPrimitiveAntiAliasing = true,
+                    TextAntiAliasing = true,
+                    UseMultiThreadedFactories = false,
+                    VSync = false,
+                    WindowHandle = IntPtr.Zero
+                };
+                IntPtr ip = wowProcess.Process.MainWindowHandle; //System.Diagnostics.Process.GetProcessesByName("WoWClassicT")[0].MainWindowHandle;
+                _window = new StickyWindow(ip, _graphics)
+                {
+                    FPS = 60,
+                    AttachToClientArea = true,
+                    BypassTopmost = true,
+                };
+
+
+                screenshotThread = new(ScreenshotThread);
+                screenshotThread.Start();
+
+                if (pather is RemotePathingAPI)
+                {
+                    remotePathing = new(RemotePathingThread);
+                    remotePathing.Start();
+                }
+
+                _window.SetupGraphics += _window_SetupGraphics;
+                _window.DestroyGraphics += _window_DestroyGraphics;
+                _window.DrawGraphics += _window_DrawGraphics;
+
+                _window.Create();
+            }
+
+        }
+
+        private void _window_SetupGraphics(object sender, SetupGraphicsEventArgs e)
+        {
+            var gfx = e.Graphics;
+
+            _brushes["black"] = gfx.CreateSolidBrush(0, 0, 0);
+            _brushes["white"] = gfx.CreateSolidBrush(255, 255, 255);
+            _brushes["background"] = gfx.CreateSolidBrush(0, 0x27, 0x31, 255.0f * 0.0f);
+
+            Console.WriteLine(_window.Handle.ToString("X"));
+
+            // fonts don't need to be recreated since they are owned by the font factory and not the drawing device
+            if (e.RecreateResources) return;
+
+            _fonts.Add("arial", gfx.CreateFont("Arial", 14));
+        }
+
+        private void _window_DestroyGraphics(object sender, DestroyGraphicsEventArgs e)
+        {
+            foreach (var pair in _brushes) pair.Value.Dispose();
+            foreach (var pair in _fonts) pair.Value.Dispose();
+            foreach (var pair in _images) pair.Value.Dispose();
+        }
+
+        private void _window_DrawGraphics(object sender, DrawGraphicsEventArgs e)
+        {
+            var gfx = e.Graphics;
+
+            gfx.ClearScene(_brushes["background"]);
+            GameOverlay.Drawing.SolidBrush brushOL = _brushes["white"];
+            //the Overlay is drawing at correct position
+            gfx.DrawText(_fonts["arial"], 22, brushOL, 0, 0, $"Overlay FPS: {gfx.FPS}");
+
+            if (npcNameFinder.Npcs.Any())
+            {
+
+                //None = 0,
+                //Enemy = 1,
+                //Friendly = 2,
+                //Neutral = 4,
+                //Corpse = 8
+                //use white by default, otherwise would confuse the npcname finder
+                //if (npcNameFinder.nameType.HasFlag(NpcNames.Neutral))
+                //{
+                //    brushOL = gfx.CreateSolidBrush(NpcNameFinder.sN_R, NpcNameFinder.sN_G, NpcNameFinder.sN_B);
+                //}
+                //if (npcNameFinder.nameType.HasFlag(NpcNames.Enemy))
+                //{
+                //    brushOL = gfx.CreateSolidBrush(NpcNameFinder.sE_R, NpcNameFinder.sE_G, NpcNameFinder.sE_B);
+                //}
+                //if (npcNameFinder.nameType.HasFlag(NpcNames.Friendly))
+                //{
+                //    brushOL = gfx.CreateSolidBrush(NpcNameFinder.sF_R, NpcNameFinder.sF_G, NpcNameFinder.sF_B);
+                //}
+                //if (npcNameFinder.nameType.HasFlag(NpcNames.Corpse))
+                //{
+                //    brushOL = gfx.CreateSolidBrush(NpcNameFinder.fC_RGB, NpcNameFinder.fC_RGB, NpcNameFinder.fC_RGB);
+                //}
+
+                //the original image drawing from NPCNamefinder seems off, would be cool to remove this calculator someday.
+                int topoffset = 35;
+
+                gfx.DrawRectangle(brushOL, npcNameFinder.Area.Left, npcNameFinder.Area.Top - topoffset, npcNameFinder.Area.Right, npcNameFinder.Area.Bottom - topoffset, 2.0f);
+
+                //paint.DrawRectangle(whitePen, npcNameFinder.Area);
+
+                int j = 0;
+                foreach (var npc in npcNameFinder.Npcs)
+                {
+                    if (true)
+                    {
+
+                        foreach (var l in npcNameTargeting.locTargeting)
+                        {
+                            //paint.DrawEllipse(whitePen, l.X + npc.ClickPoint.X, l.Y + npc.ClickPoint.Y, 5, 5);
+                            gfx.DrawCircle(brushOL, l.X + npc.ClickPoint.X, l.Y + npc.ClickPoint.Y - topoffset, 5, 2);
+                        }
+                    }
+
+                    if (false)
+                    {
+                        int c = npcNameTargeting.locFindBy.Length;
+                        int ex = 3;
+                        System.Drawing.Point[] attemptPoints = new System.Drawing.Point[c + (c * ex)];
+                        for (int i = 0; i < c; i += ex)
+                        {
+                            System.Drawing.Point p = npcNameTargeting.locFindBy[i];
+                            attemptPoints[i] = p;
+                            attemptPoints[i + c] = new System.Drawing.Point(npc.Rect.Width / 2, p.Y).Scale(npcNameFinder.ScaleToRefWidth, npcNameFinder.ScaleToRefHeight);
+                            attemptPoints[i + c + 1] = new System.Drawing.Point(-npc.Rect.Width / 2, p.Y).Scale(npcNameFinder.ScaleToRefWidth, npcNameFinder.ScaleToRefHeight);
+                        }
+
+                        foreach (var l in attemptPoints)
+                        {
+                            gfx.DrawCircle(brushOL, l.X + npc.ClickPoint.X, l.Y + npc.ClickPoint.Y - topoffset, 5, 2);
+                        }
+                    }
+
+                    //paint.DrawRectangle(whitePen, npc.Rect);
+                    //paint.DrawString(j.ToString(), font, brushOL, new PointF(npc.Left - 20f, npc.Top));
+                    gfx.DrawRectangle(brushOL, npc.Rect.Left, npc.Rect.Top - topoffset, npc.Rect.Right, npc.Rect.Bottom - topoffset, 2);
+                    gfx.DrawText(_fonts["arial"], 10, brushOL, npc.Rect.Left - 20f, npc.Rect.Top - topoffset, j.ToString());
+                    j++;
+                }
             }
         }
 
