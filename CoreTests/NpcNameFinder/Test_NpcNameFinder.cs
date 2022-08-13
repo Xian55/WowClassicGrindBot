@@ -132,7 +132,7 @@ namespace CoreTests
             GameOverlay.Drawing.SolidBrush brushOL = _brushes["white"];
             //the Overlay is drawing at correct position
             gfx.DrawText(_fonts["arial"], 22, brushOL, 0, 0, $"Overlay FPS: {gfx.FPS}");
-
+            gfx.DrawText(_fonts["arial"], 22, brushOL, 1000, 740, $"LR");
             if (npcNameFinder.Npcs.Any())
             {
 
