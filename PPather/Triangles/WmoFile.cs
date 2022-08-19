@@ -653,7 +653,7 @@ namespace Wmo
                 }
                 else if (type == ChunkReader.MODF)
                 {
-                    HandleMODF(file, size);
+                    HandleMODF(file, wdt, wmomanager, size);
                 }
                 else if (type == ChunkReader.MWMO)
                 {
@@ -689,9 +689,7 @@ namespace Wmo
             if (logger.IsEnabled(LogLevel.Trace))
                 logger.LogTrace($"Reading adt: {filename}");
 
-            MapTile t = new();
-            _ = new MapTileFile(tempFile, t, wmomanager, modelmanager);
-            wdt.maptiles[x, y] = t;
+            wdt.maptiles[x, y] = MapTileFile.Read(tempFile, wmomanager, modelmanager);
         }
 
         private void HandleMWMO(BinaryReader file, uint size)
@@ -709,7 +707,7 @@ namespace Wmo
             }
         }
 
-        private void HandleMODF(BinaryReader file, uint size)
+        private static void HandleMODF(BinaryReader file, WDT wdt, WMOManager wmomanager, uint size)
         {
             // global wmo instance data
             wdt.gnWMO = (int)size / 64;
@@ -720,7 +718,7 @@ namespace Wmo
 
                 WMO wmo = wmomanager.AddAndLoadIfNeeded(path);
 
-                WMOInstance wmoi = new WMOInstance(wmo, file);
+                WMOInstance wmoi = new(wmo, file);
                 wdt.gwmois.Add(wmoi);
             }
         }
@@ -817,14 +815,18 @@ namespace Wmo
         public MapChunk[,] chunks = new MapChunk[16, 16];
     }
 
-    internal class MapTileFile // adt file
+    internal static class MapTileFile // adt file
     {
-        private LiquidData[] LiquidDataChunk; //256 elements
-        private readonly int[] mcnk_offsets = new int[256];
-        private readonly int[] mcnk_sizes = new int[256];
+        public static readonly MH2OData1 EmptyMH2OData1 = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-        public MapTileFile(string name, MapTile tile, WMOManager wmomanager, ModelManager modelmanager)
+        public static MapTile Read(string name, WMOManager wmomanager, ModelManager modelmanager)
         {
+            MapTile tile = new();
+
+            LiquidData[] LiquidDataChunk = Array.Empty<LiquidData>();
+            int[] mcnk_offsets = new int[256];
+            int[] mcnk_sizes = new int[256];
+
             using Stream stream = File.OpenRead(name);
             using BinaryReader file = new(stream);
 
@@ -837,7 +839,7 @@ namespace Wmo
                 if (type == ChunkReader.MVER)
                     HandleMVER(size);
                 if (type == ChunkReader.MCIN)
-                    HandleMCIN(file);
+                    HandleMCIN(file, mcnk_offsets, mcnk_sizes);
                 else if (type == ChunkReader.MTEX)
                     HandleMTEX(file, size);
                 else if (type == ChunkReader.MMDX && size != 0)
@@ -849,7 +851,7 @@ namespace Wmo
                 else if (type == ChunkReader.MODF)
                     HandleMODF(file, tile, wmomanager, size);
                 else if (type == ChunkReader.MH2O)
-                    HandleMH2O(file);
+                    HandleMH2O(file, LiquidDataChunk);
                 //else if(type==ChunkReader.MCNK)
                 //HandleMCNK(size);
                 //else
@@ -864,123 +866,156 @@ namespace Wmo
             {
                 for (int x = 0; x < 16; x++)
                 {
-                    int off = mcnk_offsets[y * 16 + x];
+                    int index = y * 16 + x;
+
+                    int off = mcnk_offsets[index];
                     file.BaseStream.Seek(off, SeekOrigin.Begin);
                     //logger.WriteLine("Chunk " + i + " " + j + " at off " + off);
 
-                    MapChunk chunk = new();
-                    ReadMapChunk(file, chunk);
+                    MapChunk chunk = ReadMapChunk(file);
 
-                    if (LiquidDataChunk != null) //not null means an MH2O chunk was found
+                    if (LiquidDataChunk.Length > 0) //not null means an MH2O chunk was found
                     {
                         //set liquid info from the MH2O chunk since the old MCLQ is no more
-                        chunk.haswater = (LiquidDataChunk[y * 16 + x].used & 1) == 1;
-                        if (LiquidDataChunk[y * 16 + x].data1 != null)
+                        chunk.haswater = (LiquidDataChunk[index].used & 1) == 1;
+                        if (LiquidDataChunk[index].offsetData1 != 0)
                         {
-                            chunk.water_height1 = LiquidDataChunk[y * 16 + x].data1.heightLevel1;
-                            chunk.water_height2 = LiquidDataChunk[y * 16 + x].data1.heightLevel2;
+                            chunk.water_height1 = LiquidDataChunk[index].data1.heightLevel1;
+                            chunk.water_height2 = LiquidDataChunk[index].data1.heightLevel2;
                         }
 
                         //TODO: set height map and flags, very important
-                        chunk.water_height = LiquidDataChunk[y * 16 + x].water_height;
-                        chunk.water_flags = LiquidDataChunk[y * 16 + x].water_flags;
+                        chunk.water_height = LiquidDataChunk[index].water_height;
+                        chunk.water_flags = LiquidDataChunk[index].water_flags;
                     }
                     tile.chunks[y, x] = chunk;
                 }
             }
+
+            return tile;
         }
 
-        public class LiquidData
+        public readonly struct LiquidData
         {
             public const int SIZE = 256;
 
-            public uint offsetData1;
-            public int used;
-            public uint offsetData2;
+            public readonly uint offsetData1;
+            public readonly int used;
+            public readonly uint offsetData2;
 
-            public MH2OData1 data1;
+            public readonly MH2OData1 data1;
 
-            public float[,] water_height = new float[9, 9];
-            public byte[,] water_flags = new byte[8, 8];
+            public readonly float[,] water_height = new float[9, 9];
+            public readonly byte[,] water_flags = new byte[8, 8];
+
+            public LiquidData(uint offsetData1, int used, uint offsetData2, MH2OData1 data1)
+            {
+                this.offsetData1 = offsetData1;
+                this.used = used;
+                this.offsetData2 = offsetData2;
+                this.data1 = data1;
+            }
         }
 
-        public class MH2OData1
+        public readonly struct MH2OData1
         {
-            public UInt16 flags; //0x1 might mean there is a height map @ data2b ??
-            public UInt16 type; //0 = normal/lake, 1 = lava, 2 = ocean
-            public float heightLevel1;
-            public float heightLevel2;
-            public byte xOffset;
-            public byte yOffset;
-            public byte Width;
-            public byte Height;
-            public uint offsetData2a;
-            public uint offsetData2b;
+            public readonly UInt16 flags;   //0x1 might mean there is a height map @ data2b ??
+            public readonly UInt16 type;    //0 = normal/lake, 1 = lava, 2 = ocean
+            public readonly float heightLevel1;
+            public readonly float heightLevel2;
+            public readonly byte xOffset;
+            public readonly byte yOffset;
+            public readonly byte Width;
+            public readonly byte Height;
+            public readonly uint offsetData2a;
+            public readonly uint offsetData2b;
             //public uint Data2bLength = 0;
+
+            public MH2OData1(UInt16 flags, UInt16 type, float heightLevel1,
+                float heightLevel2, byte xOffet, byte yOffset, byte width, byte height,
+                uint offsetData2a, uint offsetData2b)
+            {
+                this.flags = flags;
+                this.type = type;
+                this.heightLevel1 = heightLevel1;
+                this.heightLevel2 = heightLevel2;
+                this.xOffset = xOffet;
+                this.yOffset = yOffset;
+                this.Width = width;
+                this.Height = height;
+                this.offsetData2a = offsetData2a;
+                this.offsetData2b = offsetData2b;
+            }
         }
 
-        private void HandleMH2O(BinaryReader file)
+        private static void HandleMH2O(BinaryReader file, LiquidData[] liquid)
         {
+            liquid = new LiquidData[LiquidData.SIZE];
+
             long chunkStart = file.BaseStream.Position;
-            LiquidDataChunk = new LiquidData[LiquidData.SIZE];
-
             for (int i = 0; i < LiquidData.SIZE; i++)
             {
-                LiquidDataChunk[i] = new LiquidData
-                {
-                    offsetData1 = file.ReadUInt32(),
-                    used = file.ReadInt32(),
-                    offsetData2 = file.ReadUInt32()
-                };
-            }
+                uint offsetData1 = file.ReadUInt32();
+                int used = file.ReadInt32();
+                uint offsetData2 = file.ReadUInt32();
+                MH2OData1 data1 = EmptyMH2OData1;
 
-            for (int i = 0; i < LiquidData.SIZE; i++)
-            {
-                if (LiquidDataChunk[i].offsetData1 != 0)
+                if (offsetData1 != 0)
                 {
-                    file.BaseStream.Seek(chunkStart + LiquidDataChunk[i].offsetData1, SeekOrigin.Begin);
-                    LiquidDataChunk[i].data1 = new MH2OData1
-                    {
-                        flags = file.ReadUInt16(),
-                        type = file.ReadUInt16(),
-                        heightLevel1 = file.ReadSingle(),
-                        heightLevel2 = file.ReadSingle(),
-                        xOffset = file.ReadByte(),
-                        yOffset = file.ReadByte(),
-                        Width = file.ReadByte(),
-                        Height = file.ReadByte(),
-                        offsetData2a = file.ReadUInt32(),
-                        offsetData2b = file.ReadUInt32()
-                    };
+                    long lastPos = file.BaseStream.Position;
+
+                    file.BaseStream.Seek(chunkStart + offsetData1, SeekOrigin.Begin);
+                    data1 = new MH2OData1
+                    (
+                        file.ReadUInt16(),
+                        file.ReadUInt16(),
+                        file.ReadSingle(),
+                        file.ReadSingle(),
+                        file.ReadByte(),
+                        file.ReadByte(),
+                        file.ReadByte(),
+                        file.ReadByte(),
+                        file.ReadUInt32(),
+                        file.ReadUInt32()
+                    );
+
+                    file.BaseStream.Seek(lastPos, SeekOrigin.Begin);
                 }
-            }
 
-            for (int k = 0; k < LiquidData.SIZE; k++)
-            {
-                if ((LiquidDataChunk[k].used & 1) == 1 &&
-                    LiquidDataChunk[k].data1 != null &&
-                    LiquidDataChunk[k].data1.offsetData2b != 0 &&
-                    (LiquidDataChunk[k].data1.flags & 1) == 1)
+                LiquidData l = new
+                (
+                    offsetData1,
+                    used,
+                    offsetData2,
+                    data1
+                );
+                liquid[i] = l;
+
+                if ((l.used & 1) == 1 && l.offsetData1 != 0 && l.data1.offsetData2b != 0 && (l.data1.flags & 1) == 1)
                 {
-                    file.BaseStream.Seek(chunkStart + LiquidDataChunk[k].data1.offsetData2b, SeekOrigin.Begin);
+                    long lastPos = file.BaseStream.Position;
 
-                    for (int x = LiquidDataChunk[k].data1.xOffset; x <= LiquidDataChunk[k].data1.xOffset + LiquidDataChunk[k].data1.Width; x++)
+                    file.BaseStream.Seek(chunkStart + l.data1.offsetData2b, SeekOrigin.Begin);
+
+                    for (int x = l.data1.xOffset; x <= l.data1.xOffset + l.data1.Width; x++)
                     {
-                        for (int y = LiquidDataChunk[k].data1.yOffset; y <= LiquidDataChunk[k].data1.yOffset + LiquidDataChunk[k].data1.Height; y++)
+                        for (int y = l.data1.yOffset; y <= l.data1.yOffset + l.data1.Height; y++)
                         {
-                            LiquidDataChunk[k].water_height[x, y] = file.ReadSingle();
-                            if (float.IsNaN(LiquidDataChunk[k].water_height[x, y]))
-                            {
-                                throw new Exception("Major inconsistency in MH2O-handler.");
-                            }
+                            l.water_height[x, y] = file.ReadSingle();
+                            //if (float.IsNaN(l.water_height[x, y]))
+                            //{
+                            //    throw new Exception("Major inconsistency in MH2O-handler.");
+                            //}
                         }
                     }
 
-                    for (int x = LiquidDataChunk[k].data1.xOffset; x < LiquidDataChunk[k].data1.xOffset + LiquidDataChunk[k].data1.Width; x++)
+                    for (int x = l.data1.xOffset; x < l.data1.xOffset + l.data1.Width; x++)
                     {
-                        for (int y = LiquidDataChunk[k].data1.yOffset; y < LiquidDataChunk[k].data1.yOffset + LiquidDataChunk[k].data1.Height; y++)
-                            LiquidDataChunk[k].water_flags[x, y] = file.ReadByte();
+                        for (int y = l.data1.yOffset; y < l.data1.yOffset + l.data1.Height; y++)
+                            l.water_flags[x, y] = file.ReadByte();
                     }
+
+                    file.BaseStream.Seek(lastPos, SeekOrigin.Begin);
                 }
             }
         }
@@ -989,7 +1024,7 @@ namespace Wmo
         {
         }
 
-        private void HandleMCIN(BinaryReader file)
+        private static void HandleMCIN(BinaryReader file, int[] mcnk_offsets, int[] mcnk_sizes)
         {
             for (int i = 0; i < 256; i++)
             {
@@ -1057,55 +1092,56 @@ namespace Wmo
             }
         }
 
-        private static void ReadMapChunk(BinaryReader file, MapChunk chunk)
+        /* MapChunk */
+
+        private static MapChunk ReadMapChunk(BinaryReader file)
         {
+            MapChunk chunk = new();
+
             // Read away Magic and size
-            //uint crap_head = file.ReadUInt32();
-            //uint crap_size = file.ReadUInt32();
+            uint crap_head = file.ReadUInt32();
+            uint crap_size = file.ReadUInt32();
 
             //// Each map chunk has 9x9 vertices,
             //// and in between them 8x8 additional vertices, several texture layers, normal vectors, a shadow map, etc.
 
-            //uint flags = file.ReadUInt32();
-            //uint ix = file.ReadUInt32();
-            //uint iy = file.ReadUInt32();
-            //uint nLayers = file.ReadUInt32();
-            //uint nDoodadRefs = file.ReadUInt32();
-            //uint ofsHeight = file.ReadUInt32();
-            //uint ofsNormal = file.ReadUInt32();
-            //uint ofsLayer = file.ReadUInt32();
-            //uint ofsRefs = file.ReadUInt32();
-            //uint ofsAlpha = file.ReadUInt32();
-            //uint sizeAlpha = file.ReadUInt32();
-            //uint ofsShadow = file.ReadUInt32();
-            //uint sizeShadow = file.ReadUInt32();
-            file.BaseStream.Seek(15 * 4, SeekOrigin.Current);
+            uint flags = file.ReadUInt32();
+            uint ix = file.ReadUInt32();
+            uint iy = file.ReadUInt32();
+            uint nLayers = file.ReadUInt32();
+            uint nDoodadRefs = file.ReadUInt32();
+            uint ofsHeight = file.ReadUInt32();
+            uint ofsNormal = file.ReadUInt32();
+            uint ofsLayer = file.ReadUInt32();
+            uint ofsRefs = file.ReadUInt32();
+            uint ofsAlpha = file.ReadUInt32();
+            uint sizeAlpha = file.ReadUInt32();
+            uint ofsShadow = file.ReadUInt32();
+            uint sizeShadow = file.ReadUInt32();
 
             uint areaid = file.ReadUInt32();
             uint nMapObjRefs = file.ReadUInt32();
             uint holes = file.ReadUInt32();
 
-            //ushort s1 = file.ReadUInt16();
-            //ushort s2 = file.ReadUInt16();
-            //uint d1 = file.ReadUInt32();
-            //uint d2 = file.ReadUInt32();
-            //uint d3 = file.ReadUInt32();
-            //uint predTex = file.ReadUInt32();
-            //uint nEffectDoodad = file.ReadUInt32();
-            //uint ofsSndEmitters = file.ReadUInt32();
-            //uint nSndEmitters = file.ReadUInt32();
-            //uint ofsLiquid = file.ReadUInt32();
-            file.BaseStream.Seek((2 * 2) + (8 * 4), SeekOrigin.Current);
+            ushort s1 = file.ReadUInt16();
+            ushort s2 = file.ReadUInt16();
+            uint d1 = file.ReadUInt32();
+            uint d2 = file.ReadUInt32();
+            uint d3 = file.ReadUInt32();
+            uint predTex = file.ReadUInt32();
+            uint nEffectDoodad = file.ReadUInt32();
+            uint ofsSndEmitters = file.ReadUInt32();
+            uint nSndEmitters = file.ReadUInt32();
+            uint ofsLiquid = file.ReadUInt32();
 
             uint sizeLiquid = file.ReadUInt32();
             float zpos = file.ReadSingle();
             float xpos = file.ReadSingle();
             float ypos = file.ReadSingle();
 
-            //uint textureId = file.ReadUInt32();
-            //uint props = file.ReadUInt32();
-            //uint effectId = file.ReadUInt32();
-            file.BaseStream.Seek(3 * 4, SeekOrigin.Current);
+            uint textureId = file.ReadUInt32();
+            uint props = file.ReadUInt32();
+            uint effectId = file.ReadUInt32();
 
             chunk.areaID = areaid;
 
@@ -1190,11 +1226,8 @@ namespace Wmo
 
                 file.BaseStream.Seek(curpos + size, SeekOrigin.Begin);
             } while (file.BaseStream.Position < file.BaseStream.Length);
-        }
 
-        private static void HandleChunkMCNR(MapChunk chunk, uint size)
-        {
-            // Normals
+            return chunk;
         }
 
         private static void HandleChunkMCVT(BinaryReader file, MapChunk chunk, uint size)
