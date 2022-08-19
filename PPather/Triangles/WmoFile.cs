@@ -53,54 +53,22 @@ namespace Wmo
         public static readonly uint MODF = ToBin(nameof(MODF));
         public static readonly uint MAIN = ToBin(nameof(MAIN));
         public static readonly uint MPHD = ToBin(nameof(MPHD));
-
-        public static readonly uint CBDW = ToBin(nameof(CBDW));
-
         public static readonly uint MVER = ToBin(nameof(MVER));
         public static readonly uint MOGI = ToBin(nameof(MOGI));
         public static readonly uint MOHD = ToBin(nameof(MOHD));
-        public static readonly uint MOTX = ToBin(nameof(MOTX));
-        public static readonly uint MOMT = ToBin(nameof(MOMT));
-        public static readonly uint MOGN = ToBin(nameof(MOGN));
-        public static readonly uint MOLT = ToBin(nameof(MOLT));
         public static readonly uint MODN = ToBin(nameof(MODN));
         public static readonly uint MODS = ToBin(nameof(MODS));
         public static readonly uint MODD = ToBin(nameof(MODD));
-        public static readonly uint MOSB = ToBin(nameof(MOSB));
-        public static readonly uint MOPV = ToBin(nameof(MOPV));
-        public static readonly uint MOPR = ToBin(nameof(MOPR));
-        public static readonly uint MFOG = ToBin(nameof(MFOG));
-
-        public static readonly uint MOGP = ToBin(nameof(MOGP));
         public static readonly uint MOPY = ToBin(nameof(MOPY));
         public static readonly uint MOVI = ToBin(nameof(MOVI));
-
         public static readonly uint MOVT = ToBin(nameof(MOVT));
-        public static readonly uint MONR = ToBin(nameof(MONR));
-        public static readonly uint MOLR = ToBin(nameof(MOLR));
-        public static readonly uint MODR = ToBin(nameof(MODR));
-        public static readonly uint MOBA = ToBin(nameof(MOBA));
-        public static readonly uint MOCV = ToBin(nameof(MOCV));
-        public static readonly uint MLIQ = ToBin(nameof(MLIQ));
-        public static readonly uint MOBN = ToBin(nameof(MOBN));
-        public static readonly uint MOBR = ToBin(nameof(MOBR));
-
         public static readonly uint MCIN = ToBin(nameof(MCIN));
-        public static readonly uint MTEX = ToBin(nameof(MTEX));
         public static readonly uint MMDX = ToBin(nameof(MMDX));
-
         public static readonly uint MDDF = ToBin(nameof(MDDF));
-        public static readonly uint MCNK = ToBin(nameof(MCNK));
-
         public static readonly uint MCNR = ToBin(nameof(MCNR));
-        public static readonly uint MCRF = ToBin(nameof(MCRF));
         public static readonly uint MCVT = ToBin(nameof(MCVT));
-        public static readonly uint MCLY = ToBin(nameof(MCLY));
-        public static readonly uint MCSH = ToBin(nameof(MCSH));
-        public static readonly uint MCAL = ToBin(nameof(MCAL));
         public static readonly uint MCLQ = ToBin(nameof(MCLQ));
         public static readonly uint MH2O = ToBin(nameof(MH2O));
-        public static readonly uint MCSE = ToBin(nameof(MCSE));
     }
 
     public static class Unique
@@ -502,7 +470,7 @@ namespace Wmo
 
         public readonly bool[] maps = new bool[SIZE * SIZE];
         public readonly MapTile[] maptiles = new MapTile[SIZE * SIZE];
-
+        public readonly bool[] loaded = new bool[SIZE * SIZE];
         public WMOInstance[] gwmois = Array.Empty<WMOInstance>();
     }
 
@@ -591,6 +559,7 @@ namespace Wmo
                 logger.LogTrace($"Reading adt: {filename}");
 
             wdt.maptiles[index] = MapTileFile.Read(tempFile, wmomanager, modelmanager);
+            wdt.loaded[index] = true;
         }
 
         private static void HandleMWMO(BinaryReader file, List<string> gwmos, uint size)
@@ -700,15 +669,23 @@ namespace Wmo
         }
     }
 
-    internal class MapTile
+    internal readonly struct MapTile
     {
         public const int SIZE = 16;
 
-        public ModelInstance[] modelis = Array.Empty<ModelInstance>();
-        public WMOInstance[] wmois = Array.Empty<WMOInstance>();
+        public readonly ModelInstance[] modelis;
+        public readonly WMOInstance[] wmois;
 
-        public readonly MapChunk[] chunks = new MapChunk[SIZE * SIZE];
-        public readonly bool[] hasChunk = new bool[SIZE * SIZE];
+        public readonly MapChunk[] chunks;
+        public readonly bool[] hasChunk;
+
+        public MapTile(ModelInstance[] modelis, WMOInstance[] wmois, MapChunk[] chunks, bool[] hasChunk)
+        {
+            this.modelis = modelis;
+            this.wmois = wmois;
+            this.chunks = chunks;
+            this.hasChunk = hasChunk;
+        }
     }
 
     internal static class MapTileFile // adt file
@@ -721,8 +698,6 @@ namespace Wmo
 
         public static MapTile Read(string name, WMOManager wmomanager, ModelManager modelmanager)
         {
-            MapTile tile = new();
-
             LiquidData[] LiquidDataChunk = Array.Empty<LiquidData>();
             int[] mcnk_offsets = new int[MapTile.SIZE * MapTile.SIZE];
             int[] mcnk_sizes = new int[MapTile.SIZE * MapTile.SIZE];
@@ -732,6 +707,12 @@ namespace Wmo
 
             using Stream stream = File.OpenRead(name);
             using BinaryReader file = new(stream);
+
+            WMOInstance[] wmois = Array.Empty<WMOInstance>();
+            ModelInstance[] modelis = Array.Empty<ModelInstance>();
+
+            MapChunk[] chunks = new MapChunk[MapTile.SIZE * MapTile.SIZE];
+            bool[] hasChunk = new bool[chunks.Length];
 
             do
             {
@@ -746,9 +727,9 @@ namespace Wmo
                 else if (type == ChunkReader.MWMO && size != 0)
                     HandleMWMO(file, wmos, size);
                 else if (type == ChunkReader.MDDF)
-                    HandleMDDF(file, tile, modelmanager, models, size);
+                    HandleMDDF(file, modelmanager, models, size, out modelis);
                 else if (type == ChunkReader.MODF)
-                    HandleMODF(file, tile, wmos, wmomanager, size);
+                    HandleMODF(file, wmos, wmomanager, size, out wmois);
                 else if (type == ChunkReader.MH2O)
                     HandleMH2O(file, out LiquidDataChunk);
 
@@ -763,12 +744,12 @@ namespace Wmo
                     int off = mcnk_offsets[index];
                     file.BaseStream.Seek(off, SeekOrigin.Begin);
 
-                    tile.chunks[index] = ReadMapChunk(file, LiquidDataChunk.Length > 0 ? LiquidDataChunk[index] : EmptyLiquidData);
-                    tile.hasChunk[index] = true;
+                    chunks[index] = ReadMapChunk(file, LiquidDataChunk.Length > 0 ? LiquidDataChunk[index] : EmptyLiquidData);
+                    hasChunk[index] = true;
                 }
             }
 
-            return tile;
+            return new(modelis, wmois, chunks, hasChunk);
         }
 
         public readonly struct LiquidData
@@ -941,32 +922,32 @@ namespace Wmo
             }
         }
 
-        private static void HandleMDDF(BinaryReader file, MapTile tile, ModelManager modelmanager, List<string> models, uint size)
+        private static void HandleMDDF(BinaryReader file, ModelManager modelmanager, List<string> models, uint size, out ModelInstance[] modelis)
         {
             int nMDX = (int)size / 36;
 
-            tile.modelis = new ModelInstance[nMDX];
+            modelis = new ModelInstance[nMDX];
             for (int i = 0; i < nMDX; i++)
             {
                 int id = file.ReadInt32();
 
                 string path = models[id];
                 Model model = modelmanager.AddAndLoadIfNeeded(path);
-                tile.modelis[i] = new(file, model);
+                modelis[i] = new(file, model);
             }
         }
 
-        private static void HandleMODF(BinaryReader file, MapTile tile, List<string> wmos, WMOManager wmomanager, uint size)
+        private static void HandleMODF(BinaryReader file, List<string> wmos, WMOManager wmomanager, uint size, out WMOInstance[] wmois)
         {
             int nWMO = (int)size / 64;
-            tile.wmois = new WMOInstance[nWMO];
+            wmois = new WMOInstance[nWMO];
 
             for (int i = 0; i < nWMO; i++)
             {
                 int id = file.ReadInt32();
                 WMO wmo = wmomanager.AddAndLoadIfNeeded(wmos[id]);
 
-                tile.wmois[i] = new(file, wmo);
+                wmois[i] = new(file, wmo);
             }
         }
 
@@ -1143,17 +1124,9 @@ namespace Wmo
                 uint size = file.ReadUInt32();
                 long curpos = file.BaseStream.Position;
 
-                if (type == ChunkReader.MVER)
-                {
-                    HandleMVER(size);
-                }
                 if (type == ChunkReader.MOHD)
                 {
                     HandleMOHD(file, wmo, size);
-                }
-                else if (type == ChunkReader.MOGP)
-                {
-                    HandleMOGP(size);
                 }
                 else if (type == ChunkReader.MOGI)
                 {
@@ -1176,10 +1149,6 @@ namespace Wmo
             } while (file.BaseStream.Position != file.BaseStream.Length);
         }
 
-        private static void HandleMVER(uint size)
-        {
-        }
-
         private static void HandleMOHD(BinaryReader file, WMO wmo, uint size)
         {
             file.ReadUInt32(); // uint nTextures
@@ -1197,12 +1166,6 @@ namespace Wmo
             wmo.v2 = new Vector3(file.ReadSingle(), file.ReadSingle(), file.ReadSingle());
 
             wmo.groups = new WMOGroup[nGroups];
-        }
-
-        private static void HandleMOGN(uint size)
-        {
-            // group name
-            // groupnames = ChunkReader.ReadString(file);
         }
 
         private static void HandleMODS(BinaryReader file, WMO wmo)
@@ -1270,10 +1233,6 @@ namespace Wmo
             // List of filenames for M2 (mdx) models that appear in this WMO.
         }
 
-        private static void HandleMOGP(uint size)
-        {
-        }
-
         private static void HandleMOGI(BinaryReader file, WMO wmo, uint size)
         {
             for (int i = 0; i < wmo.groups.Length; i++)
@@ -1314,11 +1273,6 @@ namespace Wmo
                 uint type = file.ReadUInt32();
                 uint size = file.ReadUInt32();
                 long curpos = file.BaseStream.Position;
-                //uint MVER = ChunkReader.ToBin("MVER");
-                if (type == ChunkReader.MVER)
-                {
-                    HandleMVER(size);
-                }
                 if (type == ChunkReader.MOPY)
                 {
                     HandleMOPY(file, g, size);
@@ -1331,49 +1285,9 @@ namespace Wmo
                 {
                     HandleMOVT(file, g, size);
                 }
-                else if (type == ChunkReader.MONR)
-                {
-                    HandleMONR(size);
-                }
-                else if (type == ChunkReader.MOLR)
-                {
-                    HandleMOLR(size);
-                }
-                else if (type == ChunkReader.MODR)
-                {
-                    HandleMODR(size);
-                }
-                else if (type == ChunkReader.MOBA)
-                {
-                    HandleMOBA(size);
-                }
-                else if (type == ChunkReader.MOCV)
-                {
-                    HandleMOCV(size);
-                }
-                else if (type == ChunkReader.MLIQ)
-                {
-                    HandleMLIQ(size);
-                }
-                else if (type == ChunkReader.MOBN)
-                {
-                    HandleMOBN(size);
-                }
-                else if (type == ChunkReader.MOBR)
-                {
-                    HandleMOBR(size);
-                }
-                else
-                {
-                    //logger.WriteLine("Group Unknown " + type);
-                    //done = true;
-                }
+
                 file.BaseStream.Seek(curpos + size, SeekOrigin.Begin);
             } while (file.BaseStream.Position != file.BaseStream.Length);
-        }
-
-        private static void HandleMVER(uint size)
-        {
         }
 
         private static void HandleMOPY(BinaryReader file, WMOGroup g, uint size)
@@ -1424,73 +1338,6 @@ namespace Wmo
                 g.vertices[off + 1] = file.ReadSingle();
                 g.vertices[off + 2] = file.ReadSingle();
             }
-        }
-
-        private static void HandleMONR(uint size)
-        {
-        }
-
-        private static void HandleMOLR(uint size)
-        {
-        }
-
-        private static void HandleMODR(uint size)
-        {
-        }
-
-        private static void HandleMOBA(uint size)
-        {
-        }
-
-        private static void HandleMOCV(uint size)
-        {
-        }
-
-        private static void HandleMLIQ(uint size)
-        {
-        }
-
-        /*
-		struct t_BSP_NODE
-		{
-			public UInt16 planetype;          // unsure
-			public Int16 child0;        // index of bsp child node(right in this array)
-			public Int16 child1;
-			public UInt16 numfaces;  // num of triangle faces
-			public UInt16 firstface; // index of the first triangle index(in  MOBR)
-			public UInt16 nUnk;	          // 0
-			public float fDist;
-		};*/
-
-        private static void HandleMOBN(uint size)
-        {
-            /*
-			t_BSP_NODE bsp;
-			uint items = size / 16;
-			for (int i = 0; i < items; i++)
-			{
-				bsp.planetype = file.ReadUInt16();
-				bsp.child0 = file.ReadInt16();
-				bsp.child1 = file.ReadInt16();
-				bsp.numfaces = file.ReadUInt16();
-				bsp.firstface = file.ReadUInt16();
-				bsp.nUnk = file.ReadUInt16();
-				bsp.fDist = file.ReadSingle();
-
-				logger.WriteLine("BSP node type: " + bsp.planetype);
-				if (bsp.child0 == -1)
-				{
-					logger.WriteLine("  faces: " + bsp.firstface + " " + bsp.numfaces);
-				}
-				else
-				{
-					logger.WriteLine("  children: " + bsp.child0 + " " + bsp.child1 + " dist "+ bsp.fDist);
-				}
-			}*/
-        }
-
-        private static void HandleMOBR(uint size)
-        {
         }
 
         private static void HandleMOGP(BinaryReader file, WMOGroup g, uint size)

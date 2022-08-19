@@ -85,7 +85,7 @@ namespace WowTriangles
             wdtf.LoadMapTile(chunk_x, chunk_y, index);
 
             MapTile mapTile = wdt.maptiles[index];
-            if (mapTile == null)
+            if (!wdt.loaded[index])
                 return;
 
             SparseMatrix3D<WMO> instances = new();
@@ -119,8 +119,7 @@ namespace WowTriangles
                 AddTriangles(triangles, mapTile.modelis[i]);
             }
 
-            // TODO:  whats this
-            wdt.maptiles[index] = null;
+            wdt.loaded[index] = false;
         }
 
         private void GetChunkCoord(float x, float y, out int chunk_x, out int chunk_y)
