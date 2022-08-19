@@ -92,9 +92,8 @@ namespace WowTriangles
                 {
                     for (int y = 0; y < 16; y++)
                     {
-                        MapChunk c = t.chunks[x, y];
-                        if (c != null)
-                            AddTriangles(triangles, c);
+                        if (t.hasChunk[x, y])
+                            AddTriangles(triangles, t.chunks[x, y]);
                     }
                 }
 
