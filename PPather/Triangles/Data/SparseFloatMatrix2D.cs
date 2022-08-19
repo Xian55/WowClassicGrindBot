@@ -43,9 +43,8 @@ namespace PPather.Triangles.Data
             {
                 for (int y = sy; y <= ey; y++)
                 {
-                    if (ContainsKey(x, y))
+                    if (base.TryGetValue(x, y, out T t))
                     {
-                        base.TryGetValue(x, y, out T t);
                         l[i++] = t ?? default;
                     }
                 }

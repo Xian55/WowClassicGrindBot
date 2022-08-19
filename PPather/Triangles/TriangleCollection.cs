@@ -18,8 +18,8 @@ namespace WowTriangles
     public class TriangleCollection
     {
         private readonly ILogger logger;
-        private readonly TrioArray<float> vertices = new();
-        private readonly QuadArray<int> triangles = new();
+        private readonly TrioArray<float> vertices;
+        private readonly QuadArray<int> triangles;
 
         private TriangleMatrix matrix;
 
@@ -45,6 +45,9 @@ namespace WowTriangles
         public TriangleCollection(ILogger logger)
         {
             this.logger = logger;
+
+            vertices = new TrioArray<float>();
+            triangles = new QuadArray<int>();
         }
 
         public bool HasTriangleMatrix => matrix != null;

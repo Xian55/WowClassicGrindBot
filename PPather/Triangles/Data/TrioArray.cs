@@ -1,7 +1,7 @@
 ﻿
 namespace PPather.Triangles.Data
 {
-    public class TrioArray<T>
+    public struct TrioArray<T>
     {
         private const int SIZE = 1024; // Max size if SIZE*SIZE = 16M
 
@@ -11,28 +11,29 @@ namespace PPather.Triangles.Data
         // SIZE*(SIZE*3)
         private T[][] arrays;
 
+        public TrioArray()
+        {
+            arrays = new T[SIZE][];
+        }
+
         private static void getIndices(int index, out int i0, out int i1)
         {
-            i1 = index % SIZE; index /= SIZE;
+            i1 = index % SIZE;
+            index /= SIZE;
             i0 = index % SIZE;
         }
 
         private void allocateAt(int i0)
         {
-            if (arrays == null)
-                arrays = new T[SIZE][];
-
             T[] a1 = arrays[i0];
             if (a1 == null)
             {
-                a1 = new T[SIZE * 3];
-                arrays[i0] = a1;
+                arrays[i0] = new T[SIZE * 3];
             }
         }
 
         public void SetSize(int new_size)
         {
-            if (arrays == null) return;
             getIndices(new_size, out int i0, out _);
             for (int i = i0 + 1; i < SIZE; i++)
                 arrays[i] = null;

@@ -1,6 +1,6 @@
 ﻿namespace PPather.Triangles.Data
 {
-    public class QuadArray<T>
+    public struct QuadArray<T>
     {
         private const int SIZE = 512 * 5; // Max size if SIZE*SIZE = 16M
 
@@ -10,6 +10,11 @@
         // SIZE*(SIZE*4)
         private T[][] arrays;
 
+        public QuadArray()
+        {
+            arrays = new T[SIZE][];
+        }
+
         private static void getIndices(int index, out int i0, out int i1)
         {
             i1 = index % SIZE; index /= SIZE;
@@ -18,15 +23,12 @@
 
         private void allocateAt(int i0, int i1)
         {
-            if (arrays == null) arrays = new T[SIZE][];
-
             T[] a1 = arrays[i0];
             if (a1 == null) { a1 = new T[SIZE * 5]; arrays[i0] = a1; }
         }
 
         public void SetSize(int new_size)
         {
-            if (arrays == null) return;
             getIndices(new_size, out int i0, out int i1);
             for (int i = i0 + 1; i < SIZE; i++)
                 arrays[i] = null;
