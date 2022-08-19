@@ -856,7 +856,7 @@ namespace Wmo
                 else if (type == ChunkReader.MODF)
                     HandleMODF(file, tile, wmomanager, size);
                 else if (type == ChunkReader.MH2O)
-                    HandleMH2O(file, LiquidDataChunk);
+                    HandleMH2O(file, out LiquidDataChunk);
                 //else if(type==ChunkReader.MCNK)
                 //HandleMCNK(size);
                 //else
@@ -942,7 +942,7 @@ namespace Wmo
             }
         }
 
-        private static void HandleMH2O(BinaryReader file, LiquidData[] liquid)
+        private static void HandleMH2O(BinaryReader file, out LiquidData[] liquid)
         {
             liquid = new LiquidData[LiquidData.SIZE];
 
@@ -989,7 +989,7 @@ namespace Wmo
                         for (int y = data1.yOffset; y <= data1.yOffset + data1.Height; y++)
                         {
                             water_height[x, y] = file.ReadSingle();
-                            //if (float.IsNaN(l.water_height[x, y]))
+                            //if (float.IsNaN(water_height[x, y]))
                             //{
                             //    throw new Exception("Major inconsistency in MH2O-handler.");
                             //}
