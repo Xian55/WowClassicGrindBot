@@ -102,40 +102,21 @@ namespace WowTriangles
                 for (int i = 0; i < t.wmois.Length; i++)
                 {
                     WMOInstance wi = t.wmois[i];
-                    if (wi.wmo != null)
-                    {
-                        string fn = wi.wmo.fileName;
-                        int last = fn.LastIndexOf('\\');
-                        fn = fn[(last + 1)..];
-                        // logger.WriteLine("    wmo: " + fn + " at " + wi.pos);
 
-                        if (fn != null)
-                        {
-                            WMO old = instances.Get((int)wi.pos.X, (int)wi.pos.Y, (int)wi.pos.Z);
-                            if (old == wi.wmo)
-                            {
-                                //logger.WriteLine("Already got " + fn);
-                            }
-                            else
-                            {
-                                instances.Add((int)wi.pos.X, (int)wi.pos.Y, (int)wi.pos.Z, wi.wmo);
-                                AddTriangles(triangles, wi);
-                            }
-                        }
+                    if (!instances.ContainsKey((int)wi.pos.X, (int)wi.pos.Y, (int)wi.pos.Z))
+                    {
+                        instances.Add((int)wi.pos.X, (int)wi.pos.Y, (int)wi.pos.Z, wi.wmo);
+                        AddTriangles(triangles, wi);
                     }
                 }
 
                 for (int i = 0; i < t.modelis.Length; i++)
                 {
-                    ModelInstance mi = t.modelis[i];
-                    //string fn = mi.model.fileName;
-                    //int last = fn.LastIndexOf('\\');
-                    // fn = fn.Substring(last + 1);
-                    //logger.WriteLine("    wmi: " + fn + " at " + mi.pos);
-                    AddTriangles(triangles, mi);
+                    AddTriangles(triangles, t.modelis[i]);
                 }
 
             }
+
             // TODO:  whats this
             wdt.maptiles[chunk_x, chunk_y] = null;
         }
@@ -170,8 +151,7 @@ namespace WowTriangles
             //logger.WriteLine("TotalMemory " + System.GC.GetTotalMemory(false)/(1024*1024) + " MB");
             for (int i = 0; i < wdt.gwmois.Length; i++)
             {
-                WMOInstance wi = wdt.gwmois[i];
-                AddTriangles(tc, wi);
+                AddTriangles(tc, wdt.gwmois[i]);
             }
 
             for (float x = min_x; x < max_x; x += ChunkReader.TILESIZE)
