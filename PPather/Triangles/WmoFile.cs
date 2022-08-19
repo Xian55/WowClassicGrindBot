@@ -24,7 +24,6 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using SharedLib.Data;
-using System.Reflection;
 
 namespace Wmo
 {
@@ -38,22 +37,6 @@ namespace Wmo
         public static uint ToBin(ReadOnlySpan<char> s)
         {
             return (uint)s[3] | ((uint)s[2] << 8) | ((uint)s[1] << 16) | ((uint)s[0] << 24);
-        }
-
-        public static string ReadString(BinaryReader file)
-        {
-            char[] bytes = new char[1024];
-            int len = 0;
-            sbyte b;
-            do
-            {
-                b = file.ReadSByte();
-                bytes[len] = (char)b;
-                len++;
-            } while (b != 0);
-
-            string s = new(bytes, 0, len - 1);
-            return s;
         }
 
         public static string ExtractString(byte[] b, int off)
@@ -142,21 +125,24 @@ namespace Wmo
             this.dataConfig = dataConfig;
         }
 
-        public override WMO Load(string path)
+        public override bool Load(string path, out WMO t)
         {
             string tempFile = Path.Join(dataConfig.PPather, $"{Unique.Index++}.tmp"); //wmo
             set.SFileExtractFile(path, tempFile);
             if (!File.Exists(tempFile))
-                return null;
+            {
+                t = default;
+                return false;
+            }
 
-            WMO w = new()
+            t = new()
             {
                 fileName = path
             };
 
-            _ = new WmoRootFile(tempFile, w, modelmanager);
+            _ = new WmoRootFile(tempFile, t, modelmanager);
 
-            for (int i = 0; i < w.groups.Length; i++)
+            for (int i = 0; i < t.groups.Length; i++)
             {
                 ReadOnlySpan<char> part = path[..^4].AsSpan();
                 string gf = string.Format("{0}_{1,3:000}.wmo", part.ToString(), i);
@@ -165,19 +151,19 @@ namespace Wmo
                 if (!File.Exists(tempFile))
                     continue;
 
-                _ = new WmoGroupFile(w.groups[i], tempFile);
+                _ = new WmoGroupFile(t.groups[i], tempFile);
             }
-            return w;
+            return true;
         }
     }
 
-    public class WMOInstance
+    public readonly struct WMOInstance
     {
         public readonly WMO wmo;
         public readonly int id;
         public readonly Vector3 pos, pos2, pos3;
         public readonly Vector3 dir;
-        public readonly int d2, d3;
+        public readonly int d2; //d3
         public readonly int doodadset;
 
         public WMOInstance(WMO wmo, BinaryReader file)
@@ -245,15 +231,14 @@ namespace Wmo
             items = new Dictionary<string, T>(maxItems);
         }
 
-        public abstract T Load(string path);
+        public abstract bool Load(string path, out T t);
 
         public T AddAndLoadIfNeeded(string path)
         {
             path = path.ToLower();
             if (!items.TryGetValue(path, out T t))
             {
-                t = Load(path);
-                if (t != null)
+                if (Load(path, out t))
                 {
                     items[path] = t;
                 }
@@ -274,7 +259,7 @@ namespace Wmo
             this.dataConfig = dataConfig;
         }
 
-        public override Model Load(string path)
+        public override bool Load(string path, out Model t)
         {
             // change .mdx to .m2
             //string file=path.Substring(0, path.Length-4)+".m2";
@@ -289,15 +274,13 @@ namespace Wmo
             string tempFile = Path.Join(dataConfig.PPather, $"{Unique.Index++}.tmp"); //model
             set.SFileExtractFile(file, tempFile);
             if (!File.Exists(tempFile))
-                return null;
-
-            Model w = new()
             {
-                fileName = file
-            };
-            _ = new ModelFile(tempFile, w);
+                t = default;
+                return false;
+            }
 
-            return w;
+            t = ModelFile.Read(tempFile, file);
+            return true;
         }
     }
 
@@ -310,10 +293,10 @@ namespace Wmo
         //bool w_is_set = false;
         public readonly float sc;
 
-        public ModelInstance(Model m, BinaryReader file)
+        public ModelInstance(BinaryReader file, Model m)
         {
             model = m;
-            uint d1 = file.ReadUInt32();
+            _ = file.ReadUInt32(); // uint d1
             pos = new(file.ReadSingle(), file.ReadSingle(), file.ReadSingle());
             dir = new(file.ReadSingle(), file.ReadSingle(), file.ReadSingle());
             w = 0;
@@ -332,102 +315,84 @@ namespace Wmo
         }
     }
 
-    public class ModelView
+    public readonly struct Model
     {
-        public UInt16[] indexList;
-        public uint offIndex;
+        public readonly string fileName;
+        public readonly float[] vertices;           // 3 per vertex
+        public readonly float[] boundingVertices;   // 3 per vertex
+        public readonly UInt16[] boundingTriangles;
 
-        public UInt16[] triangleList;
-        public uint offTriangle;
-    }
-
-    public class Model
-    {
-        public string fileName = "";
-        // 4 bytes Magic
-        // 4 bytes version
-        //uint model_name_length; // (including \0);
-        //uint model_name_offset;
-
-        public float[] vertices; // 3 per vertex
-
-        public ModelView[] view;
-
-        public float[] boundingVertices; // 3 per vertex
-        public UInt16[] boundingTriangles;
-    }
-
-    public class ModelFile
-    {
-        public ModelFile(string path, Model model)
+        public Model(string fileName, float[] vertices, UInt16[] boundingTriangles, float[] boundingVertices)
         {
-            try
-            {
-                using Stream model_stream = File.OpenRead(path);
-                using BinaryReader file = new(model_stream);
-
-                ReadHeader(file, model);
-            }
-            catch
-            {
-
-            }
+            this.fileName = fileName;
+            this.vertices = vertices;
+            this.boundingTriangles = boundingTriangles;
+            this.boundingVertices = boundingVertices;
         }
+    }
 
-        private static void ReadHeader(BinaryReader file, Model model)
+    public static class ModelFile
+    {
+        public static Model Read(string path, string fileName)
         {
+            using Stream model_stream = File.OpenRead(path);
+            using BinaryReader file = new(model_stream);
+
             // UPDATED FOR WOTLK 17.10.2008 by toblakai
             // SOURCE: http://www.madx.dk/wowdev/wiki/index.php?title=M2/WotLK
 
-            char[] Magic = file.ReadChars(4);
+            _ = file.ReadChars(4);
             //PPather.Debug("M2 MAGIC: {0}",new string(Magic));
-            uint version = file.ReadUInt32(); // (including \0);
-                                              // check that we have the new known WOTLK Magic 0x80100000
-                                              //PPather.Debug("M2 HEADER VERSION: 0x{0:x8}",
-                                              //    (uint) (version >> 24) | ((version << 8) & 0x00FF0000) | ((version >> 8) & 0x0000FF00) | (version << 24));
-            uint model_name_length = file.ReadUInt32(); // (including \0);
-            uint model_name_offset = file.ReadUInt32();
-            uint GlobalModelFlags = file.ReadUInt32(); // ? always 0, 1 or 3 (mostly 0);
-            uint nGlobalSequences = file.ReadUInt32(); //  - number of global sequences;
-            uint ofsGlobalSequences = file.ReadUInt32(); //  - offset to global sequences;
-            uint nAnimations = file.ReadUInt32(); //  - number of animation sequences;
-            uint ofsAnimations = file.ReadUInt32(); //  - offset to animation sequences;
-            uint nAnimationLookup = file.ReadUInt32();
-            uint ofsAnimationLookup = file.ReadUInt32(); // Mapping of global IDs to the entries in the Animation sequences block.
-                                                         // NOT IN WOTLK uint nD=file.ReadUInt32(); //  - always 201 or 203 depending on WoW client version;
-                                                         // NOT IN WOTLK uint ofsD=file.ReadUInt32();
-            uint nBones = file.ReadUInt32(); //  - number of bones;
-            uint ofsBones = file.ReadUInt32(); //  - offset to bones;
-            uint nKeyBoneLookup = file.ReadUInt32(); //  - bone lookup table;
-            uint ofsKeyBoneLookup = file.ReadUInt32();
+            _ = file.ReadUInt32(); // (including \0);
+                                   // check that we have the new known WOTLK Magic 0x80100000
+                                   //PPather.Debug("M2 HEADER VERSION: 0x{0:x8}",
+                                   //    (uint) (version >> 24) | ((version << 8) & 0x00FF0000) | ((version >> 8) & 0x0000FF00) | (version << 24));
+            _ = file.ReadUInt32(); // (including \0);
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32(); // ? always 0, 1 or 3 (mostly 0);
+            _ = file.ReadUInt32(); //  - number of global sequences;
+            _ = file.ReadUInt32(); //  - offset to global sequences;
+            _ = file.ReadUInt32(); //  - number of animation sequences;
+            _ = file.ReadUInt32(); //  - offset to animation sequences;
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32(); // Mapping of global IDs to the entries in the Animation sequences block.
+                                   // NOT IN WOTLK uint nD=file.ReadUInt32(); //  - always 201 or 203 depending on WoW client version;
+                                   // NOT IN WOTLK uint ofsD=file.ReadUInt32();
+            _ = file.ReadUInt32(); //  - number of bones;
+            _ = file.ReadUInt32(); //  - offset to bones;
+            _ = file.ReadUInt32(); //  - bone lookup table;
+            _ = file.ReadUInt32();
+
             uint nVertices = file.ReadUInt32(); //  - number of vertices;
             uint ofsVertices = file.ReadUInt32(); //  - offset to vertices;
-            uint nViews = file.ReadUInt32(); //  - number of views (LOD versions?) 4 for every model;
-                                             // NOT IN WOTLK (now in .skins) uint ofsViews=file.ReadUInt32(); //  - offset to views;
-            uint nColors = file.ReadUInt32(); //  - number of color definitions;
-            uint ofsColors = file.ReadUInt32(); //  - offset to color definitions;
-            uint nTextures = file.ReadUInt32(); //  - number of textures;
-            uint ofsTextures = file.ReadUInt32(); //  - offset to texture definitions;
-            uint nTransparency = file.ReadUInt32(); //  - number of transparency definitions;
-            uint ofsTransparency = file.ReadUInt32(); //  - offset to transparency definitions;
-            // NOT IN WOTLK uint nTexAnims = file.ReadUInt32(); //  - number of texture animations;
-            // NOT IN WOTLK uint ofsTexAnims = file.ReadUInt32(); //  - offset to texture animations;
-            uint nUnknown = file.ReadUInt32(); //  - always 0;
-            uint ofsUnknown = file.ReadUInt32();
-            uint nTexReplace = file.ReadUInt32();
-            uint ofsTexReplace = file.ReadUInt32();
-            uint nRenderFlags = file.ReadUInt32(); //  - number of blending mode definitions;
-            uint ofsRenderFlags = file.ReadUInt32(); //  - offset to blending mode definitions;
-            uint nBoneLookupTable = file.ReadUInt32(); //  - bone lookup table;
-            uint ofsBoneLookupTable = file.ReadUInt32();
-            uint nTexLookup = file.ReadUInt32(); //  - number of texture lookup table entries;
-            uint ofsTexLookup = file.ReadUInt32(); //  - offset to texture lookup table;
-            uint nTexUnits = file.ReadUInt32(); //  - texture unit definitions?;
-            uint ofsTexUnits = file.ReadUInt32();
-            uint nTransLookup = file.ReadUInt32(); //  - number of transparency lookup table entries;
-            uint ofsTransLookup = file.ReadUInt32(); //  - offset to transparency lookup table;
-            uint nTexAnimLookup = file.ReadUInt32(); //  - number of texture animation lookup table entries;
-            uint ofsTexAnimLookup = file.ReadUInt32(); //  - offset to texture animation lookup table;
+
+            _ = file.ReadUInt32(); //  - number of views (LOD versions?) 4 for every model;
+                                   // NOT IN WOTLK (now in .skins) uint ofsViews=file.ReadUInt32(); //  - offset to views;
+            _ = file.ReadUInt32(); //  - number of color definitions;
+            _ = file.ReadUInt32(); //  - offset to color definitions;
+            _ = file.ReadUInt32(); //  - number of textures;
+            _ = file.ReadUInt32(); //  - offset to texture definitions;
+            _ = file.ReadUInt32(); //  - number of transparency definitions;
+            _ = file.ReadUInt32(); //  - offset to transparency definitions;
+                                   // NOT IN WOTLK uint nTexAnims = file.ReadUInt32(); //  - number of texture animations;
+                                   // NOT IN WOTLK uint ofsTexAnims = file.ReadUInt32(); //  - offset to texture animations;
+            _ = file.ReadUInt32(); //  - always 0;
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32(); //  - number of blending mode definitions;
+            _ = file.ReadUInt32(); //  - offset to blending mode definitions;
+            _ = file.ReadUInt32(); //  - bone lookup table;
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32(); //  - number of texture lookup table entries;
+            _ = file.ReadUInt32(); //  - offset to texture lookup table;
+            _ = file.ReadUInt32(); //  - texture unit definitions?;
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32(); //  - number of transparency lookup table entries;
+            _ = file.ReadUInt32(); //  - offset to transparency lookup table;
+            _ = file.ReadUInt32(); //  - number of texture animation lookup table entries;
+            _ = file.ReadUInt32(); //  - offset to texture animation lookup table;
+
             float[] theFloats = new float[14]; // Noone knows. Meeh, they are here.
             for (int i = 0; i < 14; i++)
                 theFloats[i] = file.ReadSingle();
@@ -436,55 +401,56 @@ namespace Wmo
             uint ofsBoundingTriangles = file.ReadUInt32();
             uint nBoundingVertices = file.ReadUInt32();
             uint ofsBoundingVertices = file.ReadUInt32();
-            uint nBoundingNormals = file.ReadUInt32();
-            uint ofsBoundingNormals = file.ReadUInt32();
-            uint nAttachments = file.ReadUInt32();
-            uint ofsAttachments = file.ReadUInt32();
-            uint nAttachLookup = file.ReadUInt32();
-            uint ofsAttachLookup = file.ReadUInt32();
-            uint nAttachments_2 = file.ReadUInt32();
-            uint ofsAttachments_2 = file.ReadUInt32();
-            uint nLights = file.ReadUInt32(); //  - number of lights;
-            uint ofsLights = file.ReadUInt32(); //  - offset to lights;
-            uint nCameras = file.ReadUInt32(); //  - number of cameras;
-            uint ofsCameras = file.ReadUInt32(); //  - offset to cameras;
-            uint nCameraLookup = file.ReadUInt32();
-            uint ofsCameraLookup = file.ReadUInt32();
-            uint nRibbonEmitters = file.ReadUInt32(); //  - number of ribbon emitters;
-            uint ofsRibbonEmitters = file.ReadUInt32(); //  - offset to ribbon emitters;
-            uint nParticleEmitters = file.ReadUInt32(); //  - number of particle emitters;
-            uint ofsParticleEmitters = file.ReadUInt32(); //  - offset to particle emitters;
 
-            //model.views = new ModelView[nViews];
-            model.view = null;//ReadViews(nViews, ofsViews);
-                              //model.nVertices = nVertices;
-            model.vertices = ReadVertices(file, nVertices, ofsVertices);
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32(); //  - number of lights;
+            _ = file.ReadUInt32(); //  - offset to lights;
+            _ = file.ReadUInt32(); //  - number of cameras;
+            _ = file.ReadUInt32(); //  - offset to cameras;
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32();
+            _ = file.ReadUInt32(); //  - number of ribbon emitters;
+            _ = file.ReadUInt32(); //  - offset to ribbon emitters;
+            _ = file.ReadUInt32(); //  - number of particle emitters;
+            _ = file.ReadUInt32(); //  - offset to particle emitters;
 
-            //model.nBoundingTriangles = nBoundingTriangles;
-            model.boundingTriangles = ReadBoundingTriangles(file, nBoundingTriangles, ofsBoundingTriangles);
-            //model.nBoundingVertices = nBoundingVertices;
-            model.boundingVertices = ReadBoundingVertices(file, nBoundingVertices, ofsBoundingVertices);
+            return new(
+                fileName,
+                ReadVertices(file, nVertices, ofsVertices),
+                ReadBoundingTriangles(file, nBoundingTriangles, ofsBoundingTriangles),
+                ReadBoundingVertices(file, nBoundingVertices, ofsBoundingVertices));
         }
 
         private static float[] ReadBoundingVertices(BinaryReader file, uint nVertices, uint ofsVertices)
         {
             if (nVertices == 0)
-                return null;
+                return Array.Empty<float>();
+
             file.BaseStream.Seek(ofsVertices, SeekOrigin.Begin);
             float[] vertices = new float[nVertices * 3];
             for (int i = 0; i < vertices.Length; i++)
             {
                 vertices[i] = file.ReadSingle();
             }
+
             return vertices;
         }
 
         private static UInt16[] ReadBoundingTriangles(BinaryReader file, uint nTriangles, uint ofsTriangles)
         {
             if (nTriangles == 0)
-                return null;
+                return Array.Empty<UInt16>();
+
             file.BaseStream.Seek(ofsTriangles, SeekOrigin.Begin);
             UInt16[] triangles = new UInt16[nTriangles];
+
             for (int i = 0; i < triangles.Length; i++)
             {
                 triangles[i] = file.ReadUInt16();
@@ -495,75 +461,28 @@ namespace Wmo
         private static float[] ReadVertices(BinaryReader file, uint nVertices, uint ofcVertices)
         {
             float[] vertices = new float[nVertices * 3];
+
             file.BaseStream.Seek(ofcVertices, SeekOrigin.Begin);
             for (int i = 0; i < nVertices; i++)
             {
                 vertices[i * 3 + 0] = file.ReadSingle();
                 vertices[i * 3 + 1] = file.ReadSingle();
                 vertices[i * 3 + 2] = file.ReadSingle();
-                file.ReadUInt32();  // bone weights
-                file.ReadUInt32();  // bone indices
 
-                file.ReadSingle(); // normal *3
-                file.ReadSingle();
-                file.ReadSingle();
+                _ = file.ReadUInt32();  // bone weights
+                _ = file.ReadUInt32();  // bone indices
 
-                file.ReadSingle(); // texture coordinates
-                file.ReadSingle();
+                _ = file.ReadSingle(); // normal *3
+                _ = file.ReadSingle();
+                _ = file.ReadSingle();
 
-                file.ReadSingle(); // some crap
-                file.ReadSingle();
+                _ = file.ReadSingle(); // texture coordinates
+                _ = file.ReadSingle();
+
+                _ = file.ReadSingle(); // some crap
+                _ = file.ReadSingle();
             }
             return vertices;
-        }
-
-        private static ModelView[] ReadViews(BinaryReader file, uint nViews, uint offset)
-        {
-            file.BaseStream.Seek(offset, SeekOrigin.Begin);
-            ModelView[] views = new ModelView[nViews];
-            for (uint i = 0; i < nViews; i++)
-            {
-                views[i] = new ModelView();
-                uint nIndex = file.ReadUInt32();
-                uint offIndex = file.ReadUInt32();
-                views[i].offIndex = offIndex;
-                views[i].indexList = new UInt16[nIndex];
-
-                uint nTriangle = file.ReadUInt32();
-                uint offTriangle = file.ReadUInt32();
-                views[i].offTriangle = offTriangle;
-                views[i].triangleList = new UInt16[nTriangle];
-
-                uint nVertexProp = file.ReadUInt32();
-                uint offVertexProp = file.ReadUInt32();
-
-                uint nSubMesh = file.ReadUInt32();
-                uint offSubMesh = file.ReadUInt32();
-
-                uint nTexture = file.ReadUInt32();
-                uint offTexture = file.ReadUInt32();
-
-                file.ReadUInt32(); // some crap
-            }
-            for (uint i = 0; i < nViews; i++)
-            {
-                ReadView(file, views[i]);
-            }
-            return views;
-        }
-
-        private static void ReadView(BinaryReader file, ModelView view)
-        {
-            file.BaseStream.Seek(view.offIndex, SeekOrigin.Begin);
-            for (int i = 0; i < view.indexList.Length; i++)
-            {
-                view.indexList[i] = file.ReadUInt16();
-            }
-            file.BaseStream.Seek(view.offTriangle, SeekOrigin.Begin);
-            for (int i = 0; i < view.triangleList.Length; i++)
-            {
-                view.triangleList[i] = file.ReadUInt16();
-            }
         }
     }
 
@@ -598,13 +517,9 @@ namespace Wmo
 
     internal class WDT
     {
-        public bool[,] maps = new bool[64, 64];
-        public int gnWMO;
-        public int nMaps;
-        public List<string> gwmos = new();
-        public List<WMOInstance> gwmois = new();
-
-        public MapTile[,] maptiles = new MapTile[64, 64];
+        public readonly bool[,] maps = new bool[64, 64];
+        public WMOInstance[] gwmois = Array.Empty<WMOInstance>();
+        public readonly MapTile[,] maptiles = new MapTile[64, 64];
     }
 
     internal class WDTFile
@@ -640,6 +555,8 @@ namespace Wmo
             using Stream stream = File.OpenRead(tempFile);
             using BinaryReader file = new(stream);
 
+            List<string> gwmos = new();
+
             do
             {
                 uint type = file.ReadUInt32();
@@ -654,16 +571,15 @@ namespace Wmo
                 }
                 else if (type == ChunkReader.MODF)
                 {
-                    HandleMODF(file, wdt, wmomanager, size);
+                    HandleMODF(file, wdt, gwmos, wmomanager, size);
                 }
                 else if (type == ChunkReader.MWMO)
                 {
-                    HandleMWMO(file, size);
+                    HandleMWMO(file, gwmos, size);
                 }
                 else if (type == ChunkReader.MAIN)
                 {
-                    int cnt = HandleMAIN(file, size);
-                    //logger.WriteLine("Map Tiles available in " + wdtfile + " = " + cnt);
+                    HandleMAIN(file, size);
                 }
                 else
                 {
@@ -693,7 +609,7 @@ namespace Wmo
             wdt.maptiles[x, y] = MapTileFile.Read(tempFile, wmomanager, modelmanager);
         }
 
-        private void HandleMWMO(BinaryReader file, uint size)
+        private static void HandleMWMO(BinaryReader file, List<string> gwmos, uint size)
         {
             if (size != 0)
             {
@@ -703,48 +619,43 @@ namespace Wmo
                 {
                     string s = ChunkReader.ExtractString(raw, l);
                     l += s.Length + 1;
-                    wdt.gwmos.Add(s);
+                    gwmos.Add(s);
                 }
             }
         }
 
-        private static void HandleMODF(BinaryReader file, WDT wdt, WMOManager wmomanager, uint size)
+        private static void HandleMODF(BinaryReader file, WDT wdt, List<string> gwmos, WMOManager wmomanager, uint size)
         {
             // global wmo instance data
-            wdt.gnWMO = (int)size / 64;
-            for (uint i = 0; i < wdt.gnWMO; i++)
+            int gnWMO = (int)size / 64;
+            wdt.gwmois = new WMOInstance[gnWMO];
+
+            for (uint i = 0; i < gnWMO; i++)
             {
                 int id = file.ReadInt32();
-                string path = wdt.gwmos[id];
+                string path = gwmos[id];
 
                 WMO wmo = wmomanager.AddAndLoadIfNeeded(path);
-
-                WMOInstance wmoi = new(wmo, file);
-                wdt.gwmois.Add(wmoi);
+                wdt.gwmois[i] = new(wmo, file);
             }
         }
 
-        private int HandleMAIN(BinaryReader file, uint size)
+        private void HandleMAIN(BinaryReader file, uint size)
         {
             // global map objects
-            int cnt = 0;
-            for (int j = 0; j < 64; j++)
+            for (int y = 0; y < 64; y++)
             {
-                for (int i = 0; i < 64; i++)
+                for (int x = 0; x < 64; x++)
                 {
                     int d = file.ReadInt32();
                     if (d != 0)
-                    {
-                        wdt.maps[i, j] = true;
-                        wdt.nMaps++;
-                        cnt++;
-                    }
+                        wdt.maps[x, y] = true;
                     else
-                        wdt.maps[i, j] = false;
+                        wdt.maps[x, y] = false;
+
                     file.ReadInt32(); // kasta
                 }
             }
-            return cnt;
         }
     }
 
@@ -808,13 +719,8 @@ namespace Wmo
 
     internal class MapTile
     {
-        // public int x, z; // matches maps in WDT
-
-        public List<ModelInstance> modelis = new();
-        public List<WMOInstance> wmois = new();
-
-        public List<string> wmos = new();
-        public List<string> models = new();
+        public ModelInstance[] modelis = Array.Empty<ModelInstance>();
+        public WMOInstance[] wmois = Array.Empty<WMOInstance>();
 
         public readonly MapChunk[,] chunks = new MapChunk[16, 16];
         public readonly bool[,] hasChunk = new bool[16, 16];
@@ -832,6 +738,9 @@ namespace Wmo
             int[] mcnk_offsets = new int[256];
             int[] mcnk_sizes = new int[256];
 
+            List<string> models = new();
+            List<string> wmos = new();
+
             using Stream stream = File.OpenRead(name);
             using BinaryReader file = new(stream);
 
@@ -841,29 +750,19 @@ namespace Wmo
                 uint size = file.ReadUInt32();
                 long curpos = file.BaseStream.Position;
 
-                if (type == ChunkReader.MVER)
-                    HandleMVER(size);
                 if (type == ChunkReader.MCIN)
                     HandleMCIN(file, mcnk_offsets, mcnk_sizes);
-                else if (type == ChunkReader.MTEX)
-                    HandleMTEX(file, size);
                 else if (type == ChunkReader.MMDX && size != 0)
-                    HandleMMDX(file, tile, size);
+                    HandleMMDX(file, models, size);
                 else if (type == ChunkReader.MWMO && size != 0)
-                    HandleMWMO(file, tile, size);
+                    HandleMWMO(file, wmos, size);
                 else if (type == ChunkReader.MDDF)
-                    HandleMDDF(file, tile, modelmanager, size);
+                    HandleMDDF(file, tile, modelmanager, models, size);
                 else if (type == ChunkReader.MODF)
-                    HandleMODF(file, tile, wmomanager, size);
+                    HandleMODF(file, tile, wmos, wmomanager, size);
                 else if (type == ChunkReader.MH2O)
                     HandleMH2O(file, out LiquidDataChunk);
-                //else if(type==ChunkReader.MCNK)
-                //HandleMCNK(size);
-                //else
-                //{
-                //logger.WriteLine("MapTile Unknown " + type);
-                //done = true;
-                //}
+
                 file.BaseStream.Seek(curpos + size, SeekOrigin.Begin);
             } while (file.BaseStream.Position < file.BaseStream.Length);
 
@@ -872,10 +771,8 @@ namespace Wmo
                 for (int x = 0; x < 16; x++)
                 {
                     int index = y * 16 + x;
-
                     int off = mcnk_offsets[index];
                     file.BaseStream.Seek(off, SeekOrigin.Begin);
-                    //logger.WriteLine("Chunk " + i + " " + j + " at off " + off);
 
                     tile.chunks[y, x] = ReadMapChunk(file, index, LiquidDataChunk);
                     tile.hasChunk[y, x] = true;
@@ -1017,13 +914,9 @@ namespace Wmo
             }
         }
 
-        private static void HandleMVER(uint size)
-        {
-        }
-
         private static void HandleMCIN(BinaryReader file, int[] mcnk_offsets, int[] mcnk_sizes)
         {
-            for (int i = 0; i < 256; i++)
+            for (int i = 0; i < mcnk_offsets.Length; i++)
             {
                 mcnk_offsets[i] = file.ReadInt32();
                 mcnk_sizes[i] = file.ReadInt32();
@@ -1032,11 +925,7 @@ namespace Wmo
             }
         }
 
-        private static void HandleMTEX(BinaryReader file, uint size)
-        {
-        }
-
-        private static void HandleMMDX(BinaryReader file, MapTile tile, uint size)
+        private static void HandleMMDX(BinaryReader file, List<string> models, uint size)
         {
             int l = 0;
             byte[] raw = file.ReadBytes((int)size);
@@ -1045,11 +934,11 @@ namespace Wmo
                 string s = ChunkReader.ExtractString(raw, l);
                 l += s.Length + 1;
 
-                tile.models.Add(s);
+                models.Add(s);
             }
         }
 
-        private static void HandleMWMO(BinaryReader file, MapTile tile, uint size)
+        private static void HandleMWMO(BinaryReader file, List<string> wmos, uint size)
         {
             int l = 0;
             byte[] raw = file.ReadBytes((int)size);
@@ -1058,34 +947,36 @@ namespace Wmo
                 string s = ChunkReader.ExtractString(raw, l);
                 l += s.Length + 1;
 
-                tile.wmos.Add(s);
+                wmos.Add(s);
             }
         }
 
-        private static void HandleMDDF(BinaryReader file, MapTile tile, ModelManager modelmanager, uint size)
+        private static void HandleMDDF(BinaryReader file, MapTile tile, ModelManager modelmanager, List<string> models, uint size)
         {
             int nMDX = (int)size / 36;
 
+            tile.modelis = new ModelInstance[nMDX];
             for (int i = 0; i < nMDX; i++)
             {
                 int id = file.ReadInt32();
 
-                string path = tile.models[id];
+                string path = models[id];
                 Model model = modelmanager.AddAndLoadIfNeeded(path);
-                tile.modelis.Add(new ModelInstance(model, file));
+                tile.modelis[i] = new(file, model);
             }
         }
 
-        private static void HandleMODF(BinaryReader file, MapTile tile, WMOManager wmomanager, uint size)
+        private static void HandleMODF(BinaryReader file, MapTile tile, List<string> wmos, WMOManager wmomanager, uint size)
         {
             int nWMO = (int)size / 64;
+            tile.wmois = new WMOInstance[nWMO];
+
             for (int i = 0; i < nWMO; i++)
             {
                 int id = file.ReadInt32();
-                WMO wmo = wmomanager.AddAndLoadIfNeeded(tile.wmos[id]);
+                WMO wmo = wmomanager.AddAndLoadIfNeeded(wmos[id]);
 
-                WMOInstance wi = new(wmo, file);
-                tile.wmois.Add(wi);
+                tile.wmois[i] = new(wmo, file);
             }
         }
 

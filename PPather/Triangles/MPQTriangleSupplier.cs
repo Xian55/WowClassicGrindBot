@@ -99,10 +99,10 @@ namespace WowTriangles
 
                 // World objects
 
-                for (int i = 0; i < t.wmois.Count; i++)
+                for (int i = 0; i < t.wmois.Length; i++)
                 {
                     WMOInstance wi = t.wmois[i];
-                    if (wi != null && wi.wmo != null)
+                    if (wi.wmo != null)
                     {
                         string fn = wi.wmo.fileName;
                         int last = fn.LastIndexOf('\\');
@@ -125,19 +125,14 @@ namespace WowTriangles
                     }
                 }
 
-                for (int i = 0; i < t.modelis.Count; i++)
+                for (int i = 0; i < t.modelis.Length; i++)
                 {
                     ModelInstance mi = t.modelis[i];
-                    if (/*mi != null &&*/ mi.model != null)
-                    {
-                        string fn = mi.model.fileName;
-                        int last = fn.LastIndexOf('\\');
-                        // fn = fn.Substring(last + 1);
-                        //logger.WriteLine("    wmi: " + fn + " at " + mi.pos);
-                        AddTriangles(triangles, mi);
-
-                        //logger.WriteLine("    model: " + fn);
-                    }
+                    //string fn = mi.model.fileName;
+                    //int last = fn.LastIndexOf('\\');
+                    // fn = fn.Substring(last + 1);
+                    //logger.WriteLine("    wmi: " + fn + " at " + mi.pos);
+                    AddTriangles(triangles, mi);
                 }
 
             }
@@ -173,7 +168,7 @@ namespace WowTriangles
         public void GetTriangles(TriangleCollection tc, float min_x, float min_y, float max_x, float max_y)
         {
             //logger.WriteLine("TotalMemory " + System.GC.GetTotalMemory(false)/(1024*1024) + " MB");
-            for (int i = 0; i < wdt.gwmois.Count; i++)
+            for (int i = 0; i < wdt.gwmois.Length; i++)
             {
                 WMOInstance wi = wdt.gwmois[i];
                 AddTriangles(tc, wi);
@@ -448,8 +443,6 @@ namespace WowTriangles
             float dir_z = -mi.dir.X;
 
             Model m = mi.model;
-            if (m == null)
-                return;
 
             if (m.boundingTriangles == null)
             {
