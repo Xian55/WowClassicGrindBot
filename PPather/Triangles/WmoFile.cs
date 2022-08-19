@@ -30,26 +30,23 @@ namespace Wmo
     internal unsafe class ChunkReader
     {
         public const float TILESIZE = 533.33333f;
-        public const float ZEROPOINT = (32.0f * (TILESIZE));
-        public const float CHUNKSIZE = ((TILESIZE) / 16.0f);
-        public const float UNITSIZE = (CHUNKSIZE / 8.0f);
+        public const float ZEROPOINT = 32.0f * TILESIZE;
+        public const float CHUNKSIZE = TILESIZE / 16.0f;
+        public const float UNITSIZE = CHUNKSIZE / 8.0f;
 
         public static uint ToBin(ReadOnlySpan<char> s)
         {
             return (uint)s[3] | ((uint)s[2] << 8) | ((uint)s[1] << 16) | ((uint)s[0] << 24);
         }
 
-        public static string ExtractString(byte[] b, int off)
+        public static string ExtractString(byte[] buff, int off)
         {
-            string s;
-            fixed (byte* bp = b)
+            fixed (byte* bp = buff)
             {
                 sbyte* sp = (sbyte*)bp;
                 sp += off;
-                s = new string(sp);
+                return new string(sp);
             }
-
-            return s;
         }
 
         public static readonly uint MWMO = ToBin(nameof(MWMO));
@@ -166,7 +163,7 @@ namespace Wmo
         public readonly int d2; //d3
         public readonly int doodadset;
 
-        public WMOInstance(WMO wmo, BinaryReader file)
+        public WMOInstance(BinaryReader file, WMO wmo)
         {
             // read X bytes from file
             this.wmo = wmo;
@@ -179,7 +176,7 @@ namespace Wmo
 
             d2 = file.ReadInt32();
             doodadset = file.ReadInt16();
-            short crap = file.ReadInt16();
+            _ = file.ReadInt16();
         }
     }
 
@@ -204,18 +201,6 @@ namespace Wmo
 
         public DoodadSet[] doodads;
         public ModelInstance[] doodadInstances;
-
-        //List<string> textures;
-        //List<string> models;
-        //Vector<ModelInstance> modelis;
-
-        //Vector<WMOLight> lights;
-        //List<WMOPV> pvs;
-        //List<WMOPR> prs;
-
-        //Vector<WMOFog> fogs;
-
-        //Vector<WMODoodadSet> doodadsets;
     }
 
     public abstract class Manager<T>
@@ -270,7 +255,6 @@ namespace Wmo
                 file = Path.ChangeExtension(path, ".m2");
             }
 
-            //Console.Out.WriteLine("Load model " + path);
             string tempFile = Path.Join(dataConfig.PPather, $"{Unique.Index++}.tmp"); //model
             set.SFileExtractFile(file, tempFile);
             if (!File.Exists(tempFile))
@@ -290,18 +274,16 @@ namespace Wmo
         public readonly Vector3 pos;
         public readonly Vector3 dir;
         public readonly float w;
-        //bool w_is_set = false;
-        public readonly float sc;
+        public readonly float scale;
 
-        public ModelInstance(BinaryReader file, Model m)
+        public ModelInstance(BinaryReader file, Model model)
         {
-            model = m;
+            this.model = model;
             _ = file.ReadUInt32(); // uint d1
             pos = new(file.ReadSingle(), file.ReadSingle(), file.ReadSingle());
             dir = new(file.ReadSingle(), file.ReadSingle(), file.ReadSingle());
             w = 0;
-            uint scale = file.ReadUInt32();
-            sc = scale / 1024.0f;
+            scale = file.ReadUInt32() / 1024.0f;
         }
 
         public ModelInstance(Model m, Vector3 pos, Vector3 dir, float sc, float w)
@@ -309,9 +291,8 @@ namespace Wmo
             this.model = m;
             this.pos = pos;
             this.dir = dir;
-            this.sc = sc;
+            this.scale = sc;
             this.w = w;
-            //w_is_set = true;
         }
     }
 
@@ -335,8 +316,8 @@ namespace Wmo
     {
         public static Model Read(string path, string fileName)
         {
-            using Stream model_stream = File.OpenRead(path);
-            using BinaryReader file = new(model_stream);
+            using Stream stream = File.OpenRead(path);
+            using BinaryReader file = new(stream);
 
             // UPDATED FOR WOTLK 17.10.2008 by toblakai
             // SOURCE: http://www.madx.dk/wowdev/wiki/index.php?title=M2/WotLK
@@ -517,9 +498,12 @@ namespace Wmo
 
     internal class WDT
     {
-        public readonly bool[,] maps = new bool[64, 64];
+        public const int SIZE = 64;
+
+        public readonly bool[] maps = new bool[SIZE * SIZE];
+        public readonly MapTile[] maptiles = new MapTile[SIZE * SIZE];
+
         public WMOInstance[] gwmois = Array.Empty<WMOInstance>();
-        public readonly MapTile[,] maptiles = new MapTile[64, 64];
     }
 
     internal class WDTFile
@@ -592,9 +576,9 @@ namespace Wmo
             loaded = true;
         }
 
-        public void LoadMapTile(int x, int y)
+        public void LoadMapTile(int x, int y, int index)
         {
-            if (!wdt.maps[x, y])
+            if (!wdt.maps[index])
                 return;
 
             string filename = Path.Join("World", "Maps", pathName, $"{pathName}_{x}_{y}.adt");
@@ -606,7 +590,7 @@ namespace Wmo
             if (logger.IsEnabled(LogLevel.Trace))
                 logger.LogTrace($"Reading adt: {filename}");
 
-            wdt.maptiles[x, y] = MapTileFile.Read(tempFile, wmomanager, modelmanager);
+            wdt.maptiles[index] = MapTileFile.Read(tempFile, wmomanager, modelmanager);
         }
 
         private static void HandleMWMO(BinaryReader file, List<string> gwmos, uint size)
@@ -636,22 +620,21 @@ namespace Wmo
                 string path = gwmos[id];
 
                 WMO wmo = wmomanager.AddAndLoadIfNeeded(path);
-                wdt.gwmois[i] = new(wmo, file);
+                wdt.gwmois[i] = new(file, wmo);
             }
         }
 
         private void HandleMAIN(BinaryReader file, uint size)
         {
             // global map objects
-            for (int y = 0; y < 64; y++)
+            for (int y = 0; y < WDT.SIZE; y++)
             {
-                for (int x = 0; x < 64; x++)
+                for (int x = 0; x < WDT.SIZE; x++)
                 {
+                    int index = y * WDT.SIZE + x;
+
                     int d = file.ReadInt32();
-                    if (d != 0)
-                        wdt.maps[x, y] = true;
-                    else
-                        wdt.maps[x, y] = false;
+                    wdt.maps[index] = d != 0;
 
                     file.ReadInt32(); // kasta
                 }
@@ -676,8 +659,8 @@ namespace Wmo
 
         public readonly float water_height1;
         public readonly float water_height2;
-        public readonly float[,] water_height;
-        public readonly byte[,] water_flags;
+        public readonly float[] water_height;
+        public readonly byte[] water_flags;
 
 
         private static readonly int[] holetab_h = new int[] { 0x1111, 0x2222, 0x4444, 0x8888 };
@@ -699,7 +682,7 @@ namespace Wmo
 
         public MapChunk(float xbase, float ybase, float zbase,
             uint areaID, bool haswater, uint holes, float[] vertices,
-            float water_height1, float water_height2, float[,] water_height, byte[,] water_flags)
+            float water_height1, float water_height2, float[] water_height, byte[] water_flags)
         {
             this.xbase = xbase;
             this.ybase = ybase;
@@ -719,24 +702,30 @@ namespace Wmo
 
     internal class MapTile
     {
+        public const int SIZE = 16;
+
         public ModelInstance[] modelis = Array.Empty<ModelInstance>();
         public WMOInstance[] wmois = Array.Empty<WMOInstance>();
 
-        public readonly MapChunk[,] chunks = new MapChunk[16, 16];
-        public readonly bool[,] hasChunk = new bool[16, 16];
+        public readonly MapChunk[] chunks = new MapChunk[SIZE * SIZE];
+        public readonly bool[] hasChunk = new bool[SIZE * SIZE];
     }
 
     internal static class MapTileFile // adt file
     {
-        public static readonly MH2OData1 EmptyMH2OData1 = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        public static readonly MH2OData1 eMH2OData1 = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        public static ref readonly MH2OData1 EmptyMH2OData1 => ref eMH2OData1;
+
+        public static readonly LiquidData eLiquidData = new(0, 0, 0, EmptyMH2OData1, Array.Empty<float>(), Array.Empty<byte>());
+        public static ref readonly LiquidData EmptyLiquidData => ref eLiquidData;
 
         public static MapTile Read(string name, WMOManager wmomanager, ModelManager modelmanager)
         {
             MapTile tile = new();
 
             LiquidData[] LiquidDataChunk = Array.Empty<LiquidData>();
-            int[] mcnk_offsets = new int[256];
-            int[] mcnk_sizes = new int[256];
+            int[] mcnk_offsets = new int[MapTile.SIZE * MapTile.SIZE];
+            int[] mcnk_sizes = new int[MapTile.SIZE * MapTile.SIZE];
 
             List<string> models = new();
             List<string> wmos = new();
@@ -766,16 +755,16 @@ namespace Wmo
                 file.BaseStream.Seek(curpos + size, SeekOrigin.Begin);
             } while (file.BaseStream.Position < file.BaseStream.Length);
 
-            for (int y = 0; y < 16; y++)
+            for (int y = 0; y < MapTile.SIZE; y++)
             {
-                for (int x = 0; x < 16; x++)
+                for (int x = 0; x < MapTile.SIZE; x++)
                 {
-                    int index = y * 16 + x;
+                    int index = y * MapTile.SIZE + x;
                     int off = mcnk_offsets[index];
                     file.BaseStream.Seek(off, SeekOrigin.Begin);
 
-                    tile.chunks[y, x] = ReadMapChunk(file, index, LiquidDataChunk);
-                    tile.hasChunk[y, x] = true;
+                    tile.chunks[index] = ReadMapChunk(file, LiquidDataChunk.Length > 0 ? LiquidDataChunk[index] : EmptyLiquidData);
+                    tile.hasChunk[index] = true;
                 }
             }
 
@@ -785,6 +774,8 @@ namespace Wmo
         public readonly struct LiquidData
         {
             public const int SIZE = 256;
+            public const int HEIGHT_SIZE = 9;
+            public const int FLAG_SIZE = 8;
 
             public readonly uint offsetData1;
             public readonly int used;
@@ -792,11 +783,11 @@ namespace Wmo
 
             public readonly MH2OData1 data1;
 
-            public readonly float[,] water_height;
-            public readonly byte[,] water_flags;
+            public readonly float[] water_height;
+            public readonly byte[] water_flags;
 
             public LiquidData(uint offsetData1, int used, uint offsetData2,
-                MH2OData1 data1, float[,] water_height, byte[,] water_flags)
+                MH2OData1 data1, float[] water_height, byte[] water_flags)
             {
                 this.offsetData1 = offsetData1;
                 this.used = used;
@@ -820,7 +811,6 @@ namespace Wmo
             public readonly byte Height;
             public readonly uint offsetData2a;
             public readonly uint offsetData2b;
-            //public uint Data2bLength = 0;
 
             public MH2OData1(UInt16 flags, UInt16 type, float heightLevel1,
                 float heightLevel2, byte xOffet, byte yOffset, byte width, byte height,
@@ -839,9 +829,9 @@ namespace Wmo
             }
         }
 
-        private static void HandleMH2O(BinaryReader file, out LiquidData[] liquid)
+        private static void HandleMH2O(BinaryReader file, out LiquidData[] liquidData)
         {
-            liquid = new LiquidData[LiquidData.SIZE];
+            liquidData = new LiquidData[LiquidData.SIZE];
 
             long chunkStart = file.BaseStream.Position;
             for (int i = 0; i < LiquidData.SIZE; i++)
@@ -873,8 +863,8 @@ namespace Wmo
                     file.BaseStream.Seek(lastPos, SeekOrigin.Begin);
                 }
 
-                float[,] water_height = new float[9, 9];
-                byte[,] water_flags = new byte[8, 8];
+                float[] water_height = new float[LiquidData.HEIGHT_SIZE * LiquidData.HEIGHT_SIZE];
+                byte[] water_flags = new byte[LiquidData.FLAG_SIZE * LiquidData.FLAG_SIZE];
 
                 if ((used & 1) == 1 && offsetData1 != 0 && data1.offsetData2b != 0 && (data1.flags & 1) == 1)
                 {
@@ -885,24 +875,24 @@ namespace Wmo
                     {
                         for (int y = data1.yOffset; y <= data1.yOffset + data1.Height; y++)
                         {
-                            water_height[x, y] = file.ReadSingle();
-                            //if (float.IsNaN(water_height[x, y]))
-                            //{
-                            //    throw new Exception("Major inconsistency in MH2O-handler.");
-                            //}
+                            int index = y * LiquidData.HEIGHT_SIZE + x;
+                            water_height[index] = file.ReadSingle();
                         }
                     }
 
                     for (int x = data1.xOffset; x < data1.xOffset + data1.Width; x++)
                     {
                         for (int y = data1.yOffset; y < data1.yOffset + data1.Height; y++)
-                            water_flags[x, y] = file.ReadByte();
+                        {
+                            int index = y * LiquidData.FLAG_SIZE + x;
+                            water_flags[index] = file.ReadByte();
+                        }
                     }
 
                     file.BaseStream.Seek(lastPos, SeekOrigin.Begin);
                 }
 
-                liquid[i] = new
+                liquidData[i] = new
                 (
                     offsetData1,
                     used,
@@ -976,13 +966,13 @@ namespace Wmo
                 int id = file.ReadInt32();
                 WMO wmo = wmomanager.AddAndLoadIfNeeded(wmos[id]);
 
-                tile.wmois[i] = new(wmo, file);
+                tile.wmois[i] = new(file, wmo);
             }
         }
 
         /* MapChunk */
 
-        private static MapChunk ReadMapChunk(BinaryReader file, int index, in LiquidData[] LiquidDataChunk)
+        private static MapChunk ReadMapChunk(BinaryReader file, in LiquidData liquidData)
         {
             // Read away Magic and size
             _ = file.ReadUInt32(); // uint crap_head
@@ -1038,8 +1028,8 @@ namespace Wmo
             bool haswater = false;
             float water_height1 = 0;
             float water_height2 = 0;
-            float[,] water_height = new float[9, 9];
-            byte[,] water_flags = new byte[8, 8];
+            float[] water_height = new float[LiquidData.HEIGHT_SIZE * LiquidData.HEIGHT_SIZE];
+            byte[] water_flags = new byte[LiquidData.FLAG_SIZE * LiquidData.FLAG_SIZE];
 
             //logger.WriteLine("  " + zpos + " " + xpos + " " + ypos);
             do
@@ -1064,7 +1054,6 @@ namespace Wmo
                     size = sizeLiquid;
                     if (sizeLiquid != 8)
                     {
-                        //chunk.haswater = true;
                         haswater = true;
                         HandleChunkMCLQ(file, out water_height1, out water_height2, water_height, water_flags);
                     }
@@ -1073,19 +1062,17 @@ namespace Wmo
                 file.BaseStream.Seek(curpos + size, SeekOrigin.Begin);
             } while (file.BaseStream.Position < file.BaseStream.Length);
 
-            if (LiquidDataChunk.Length > 0) //not null means an MH2O chunk was found
+            //set liquid info from the MH2O chunk since the old MCLQ is no more
+            if (liquidData.offsetData1 != 0)
             {
-                //set liquid info from the MH2O chunk since the old MCLQ is no more
-                haswater = (LiquidDataChunk[index].used & 1) == 1;
-                if (LiquidDataChunk[index].offsetData1 != 0)
-                {
-                    water_height1 = LiquidDataChunk[index].data1.heightLevel1;
-                    water_height2 = LiquidDataChunk[index].data1.heightLevel2;
-                }
+                haswater = (liquidData.used & 1) == 1;
+
+                water_height1 = liquidData.data1.heightLevel1;
+                water_height2 = liquidData.data1.heightLevel2;
 
                 //TODO: set height map and flags, very important
-                water_height = LiquidDataChunk[index].water_height;
-                water_flags = LiquidDataChunk[index].water_flags;
+                water_height = liquidData.water_height;
+                water_flags = liquidData.water_flags;
             }
 
             return new(xbase, ybase, zbase,
@@ -1117,37 +1104,29 @@ namespace Wmo
             }
         }
 
-        private static void HandleChunkMCLQ(BinaryReader file, out float water_height1, out float water_height2, float[,] water_height, byte[,] water_flags)
+        private static void HandleChunkMCLQ(BinaryReader file, out float water_height1, out float water_height2, float[] water_height, byte[] water_flags)
         {
             water_height1 = file.ReadSingle();
             water_height2 = file.ReadSingle();
 
-            for (int i = 0; i < 9; i++)
+            for (int y = 0; y < LiquidData.HEIGHT_SIZE; y++)
             {
-                for (int j = 0; j < 9; j++)
+                for (int x = 0; x < LiquidData.HEIGHT_SIZE; x++)
                 {
-                    _ = file.ReadUInt32(); // uint word1 
-                    // UInt32 word2 = file.ReadUInt32();
-                    //Int16 unk1 = file.ReadInt16(); // ??
-                    //Int16 unk2 = file.ReadInt16(); // ??
-                    water_height[i, j] = file.ReadSingle(); //  word1 + word2; //  file.ReadSingle();
-                    //PPather.Debug("HandleChunkMCLQ: CHUNK.WATIER_HEIGHT[{0}, {1}] = {2}", i, j, chunk.water_height[i, j]);
+                    int index = y * LiquidData.HEIGHT_SIZE + x;
+                    _ = file.ReadUInt32();
+                    water_height[index] = file.ReadSingle();
                 }
             }
 
-            for (int i = 0; i < 8; i++)
+            for (int y = 0; y < LiquidData.FLAG_SIZE; y++)
             {
-                for (int j = 0; j < 8; j++)
+                for (int x = 0; x < LiquidData.FLAG_SIZE; x++)
                 {
-                    water_flags[i, j] = file.ReadByte();
-                    //PPather.Debug("HandleChunkMCLQ: CHUNK.WATIER_FLAGS[{0}, {1}] = {2}", i, j, chunk.water_flags[i, j]);
+                    int index = y * LiquidData.FLAG_SIZE + x;
+                    water_flags[index] = file.ReadByte();
                 }
             }
-        }
-
-        private static void HandleChunkMCSE(MapChunk chunk, uint size)
-        {
-            // Sound emitters
         }
     }
 
