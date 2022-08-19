@@ -128,35 +128,6 @@ namespace Wmo
         public static int Index;
     }
 
-    public class DBC
-    {
-        public uint recordCount;
-        public uint fieldCount;
-        public uint recordSize;
-        public uint stringSize;
-
-        public uint[] rawRecords;
-        public byte[] strings;
-
-        public uint GetUint(int record, int id)
-        {
-            int recoff = (int)(record * fieldCount + id);
-            return rawRecords[recoff];
-        }
-
-        public int GetInt(int record, int id)
-        {
-            int recoff = (int)(record * fieldCount + id);
-            return (int)rawRecords[recoff];
-        }
-
-        public string GetString(int record, int id)
-        {
-            int recoff = (int)(record * fieldCount + id);
-            return ChunkReader.ExtractString(strings, (int)rawRecords[recoff]);
-        }
-    }
-
     public class WMOManager : Manager<WMO>
     {
         private readonly StormDll.ArchiveSet set;
@@ -776,59 +747,6 @@ namespace Wmo
                 }
             }
             return cnt;
-        }
-    }
-
-    internal class DBCFile
-    {
-        public DBCFile(string name, DBC dbc, ILogger logger)
-        {
-            using Stream stream = File.OpenRead(name);
-            using BinaryReader file = new(stream);
-
-            do
-            {
-                uint type = file.ReadUInt32();
-                //uint size = file.ReadUInt32();
-                //long curpos = file.BaseStream.Position;
-
-                if (type == ChunkReader.CBDW)
-                {
-                    HandleWDBC(file, dbc, logger);
-                }
-                else
-                {
-                    logger.LogWarning("DBC Unknown " + type);
-                }
-            } while (file.BaseStream.Position < file.BaseStream.Length);
-        }
-
-        private static void HandleWDBC(BinaryReader file, DBC dbc, ILogger logger)
-        {
-            dbc.recordCount = file.ReadUInt32();
-
-            dbc.fieldCount = file.ReadUInt32(); // words per record
-            dbc.recordSize = file.ReadUInt32();
-            dbc.stringSize = file.ReadUInt32();
-
-            if (dbc.fieldCount * 4 != dbc.recordSize)
-            {
-                // !!!
-                logger.LogWarning("WOOT");
-            }
-            int off = 0;
-            uint[] raw = new uint[dbc.fieldCount * dbc.recordCount];
-            for (uint i = 0; i < dbc.recordCount; i++)
-            {
-                for (int j = 0; j < dbc.fieldCount; j++)
-                {
-                    raw[off++] = file.ReadUInt32();
-                }
-            }
-            dbc.rawRecords = raw;
-
-            byte[] b = file.ReadBytes((int)dbc.stringSize);
-            dbc.strings = b;
         }
     }
 
