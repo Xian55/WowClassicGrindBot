@@ -34,10 +34,9 @@ namespace Wmo
         public const float CHUNKSIZE = ((TILESIZE) / 16.0f);
         public const float UNITSIZE = (CHUNKSIZE / 8.0f);
 
-        public static uint ToBin(string s)
+        public static uint ToBin(ReadOnlySpan<char> s)
         {
-            char[] ca = s.ToCharArray();
-            return (uint)ca[3] | ((uint)ca[2] << 8) | ((uint)ca[1] << 16) | ((uint)ca[0] << 24);
+            return (uint)s[3] | ((uint)s[2] << 8) | ((uint)s[1] << 16) | ((uint)s[0] << 24);
         }
 
         public static string ReadString(BinaryReader file)
@@ -69,58 +68,58 @@ namespace Wmo
             return s;
         }
 
-        public static uint MWMO = ToBin(nameof(MWMO));
-        public static uint MODF = ToBin(nameof(MODF));
-        public static uint MAIN = ToBin(nameof(MAIN));
-        public static uint MPHD = ToBin(nameof(MPHD));
+        public static readonly uint MWMO = ToBin(nameof(MWMO));
+        public static readonly uint MODF = ToBin(nameof(MODF));
+        public static readonly uint MAIN = ToBin(nameof(MAIN));
+        public static readonly uint MPHD = ToBin(nameof(MPHD));
 
-        public static uint CBDW = ToBin(nameof(CBDW));
+        public static readonly uint CBDW = ToBin(nameof(CBDW));
 
-        public static uint MVER = ToBin(nameof(MVER));
-        public static uint MOGI = ToBin(nameof(MOGI));
-        public static uint MOHD = ToBin(nameof(MOHD));
-        public static uint MOTX = ToBin(nameof(MOTX));
-        public static uint MOMT = ToBin(nameof(MOMT));
-        public static uint MOGN = ToBin(nameof(MOGN));
-        public static uint MOLT = ToBin(nameof(MOLT));
-        public static uint MODN = ToBin(nameof(MODN));
-        public static uint MODS = ToBin(nameof(MODS));
-        public static uint MODD = ToBin(nameof(MODD));
-        public static uint MOSB = ToBin(nameof(MOSB));
-        public static uint MOPV = ToBin(nameof(MOPV));
-        public static uint MOPR = ToBin(nameof(MOPR));
-        public static uint MFOG = ToBin(nameof(MFOG));
+        public static readonly uint MVER = ToBin(nameof(MVER));
+        public static readonly uint MOGI = ToBin(nameof(MOGI));
+        public static readonly uint MOHD = ToBin(nameof(MOHD));
+        public static readonly uint MOTX = ToBin(nameof(MOTX));
+        public static readonly uint MOMT = ToBin(nameof(MOMT));
+        public static readonly uint MOGN = ToBin(nameof(MOGN));
+        public static readonly uint MOLT = ToBin(nameof(MOLT));
+        public static readonly uint MODN = ToBin(nameof(MODN));
+        public static readonly uint MODS = ToBin(nameof(MODS));
+        public static readonly uint MODD = ToBin(nameof(MODD));
+        public static readonly uint MOSB = ToBin(nameof(MOSB));
+        public static readonly uint MOPV = ToBin(nameof(MOPV));
+        public static readonly uint MOPR = ToBin(nameof(MOPR));
+        public static readonly uint MFOG = ToBin(nameof(MFOG));
 
-        public static uint MOGP = ToBin(nameof(MOGP));
-        public static uint MOPY = ToBin(nameof(MOPY));
-        public static uint MOVI = ToBin(nameof(MOVI));
+        public static readonly uint MOGP = ToBin(nameof(MOGP));
+        public static readonly uint MOPY = ToBin(nameof(MOPY));
+        public static readonly uint MOVI = ToBin(nameof(MOVI));
 
-        public static uint MOVT = ToBin(nameof(MOVT));
-        public static uint MONR = ToBin(nameof(MONR));
-        public static uint MOLR = ToBin(nameof(MOLR));
-        public static uint MODR = ToBin(nameof(MODR));
-        public static uint MOBA = ToBin(nameof(MOBA));
-        public static uint MOCV = ToBin(nameof(MOCV));
-        public static uint MLIQ = ToBin(nameof(MLIQ));
-        public static uint MOBN = ToBin(nameof(MOBN));
-        public static uint MOBR = ToBin(nameof(MOBR));
+        public static readonly uint MOVT = ToBin(nameof(MOVT));
+        public static readonly uint MONR = ToBin(nameof(MONR));
+        public static readonly uint MOLR = ToBin(nameof(MOLR));
+        public static readonly uint MODR = ToBin(nameof(MODR));
+        public static readonly uint MOBA = ToBin(nameof(MOBA));
+        public static readonly uint MOCV = ToBin(nameof(MOCV));
+        public static readonly uint MLIQ = ToBin(nameof(MLIQ));
+        public static readonly uint MOBN = ToBin(nameof(MOBN));
+        public static readonly uint MOBR = ToBin(nameof(MOBR));
 
-        public static uint MCIN = ToBin(nameof(MCIN));
-        public static uint MTEX = ToBin(nameof(MTEX));
-        public static uint MMDX = ToBin(nameof(MMDX));
+        public static readonly uint MCIN = ToBin(nameof(MCIN));
+        public static readonly uint MTEX = ToBin(nameof(MTEX));
+        public static readonly uint MMDX = ToBin(nameof(MMDX));
 
-        public static uint MDDF = ToBin(nameof(MDDF));
-        public static uint MCNK = ToBin(nameof(MCNK));
+        public static readonly uint MDDF = ToBin(nameof(MDDF));
+        public static readonly uint MCNK = ToBin(nameof(MCNK));
 
-        public static uint MCNR = ToBin(nameof(MCNR));
-        public static uint MCRF = ToBin(nameof(MCRF));
-        public static uint MCVT = ToBin(nameof(MCVT));
-        public static uint MCLY = ToBin(nameof(MCLY));
-        public static uint MCSH = ToBin(nameof(MCSH));
-        public static uint MCAL = ToBin(nameof(MCAL));
-        public static uint MCLQ = ToBin(nameof(MCLQ));
-        public static uint MH2O = ToBin(nameof(MH2O));
-        public static uint MCSE = ToBin(nameof(MCSE));
+        public static readonly uint MCNR = ToBin(nameof(MCNR));
+        public static readonly uint MCRF = ToBin(nameof(MCRF));
+        public static readonly uint MCVT = ToBin(nameof(MCVT));
+        public static readonly uint MCLY = ToBin(nameof(MCLY));
+        public static readonly uint MCSH = ToBin(nameof(MCSH));
+        public static readonly uint MCAL = ToBin(nameof(MCAL));
+        public static readonly uint MCLQ = ToBin(nameof(MCLQ));
+        public static readonly uint MH2O = ToBin(nameof(MH2O));
+        public static readonly uint MCSE = ToBin(nameof(MCSE));
     }
 
     public static class Unique
@@ -264,8 +263,8 @@ namespace Wmo
 
     public class ModelManager : Manager<Model>
     {
-        private StormDll.ArchiveSet set;
-        private DataConfig dataConfig;
+        private readonly StormDll.ArchiveSet set;
+        private readonly DataConfig dataConfig;
 
         public ModelManager(StormDll.ArchiveSet set, int maxModels, DataConfig dataConfig)
             : base(maxModels)
