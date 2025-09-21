@@ -67,7 +67,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
     private PathState pathState = PathState.Finished;
 
-    private readonly bool tryFindClosestNPC;
+    private bool tryFindClosestNPC => key.Path.Length == 0;
     private Creature npc;
     private NpcSearchResult[] searchResult = [];
     private int searchCount;
@@ -138,8 +138,6 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         }
 
         Keys = [key];
-
-        tryFindClosestNPC = key.Path.Length == 0;
 
         npcSearchPatterns = Enum.GetValues<NpcFlags>().Select(static flag =>
         {

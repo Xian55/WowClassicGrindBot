@@ -1150,6 +1150,10 @@ function DataToColor:CreateFrames()
 
             Pixel(int, DataToColor.lastDamageDoneTime, 109)
 
+            -- minimap settings
+            Pixel(int, DataToColor:MiniMapSettings1(), 110)
+            Pixel(int, DataToColor:MiniMapSettings2(), 111)
+
             UpdateGlobalTime()
             -- NUMBER_OF_FRAMES - 1 reserved for validation
 

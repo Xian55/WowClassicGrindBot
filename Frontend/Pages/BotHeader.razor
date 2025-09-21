@@ -33,7 +33,7 @@
                 </div>
             </div>
             <div class="p-2 bd-highlight">
-                <InitButton /> <ToggleButton Disable="@(botController.ClassConfig?.Mode == Mode.AttendedGather)" />
+                <InitButton /> <ToggleButton Disable="@(botController.ClassConfig == null || botController.ClassConfig.GatheringMode)" />
             </div>
         </div>
     </CardHeader>
