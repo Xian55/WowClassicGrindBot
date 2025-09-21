@@ -60,6 +60,7 @@ public sealed partial class Navigation : IDisposable
     public event Action? OnWayPointReached;
     public event Action? OnDestinationReached;
     public event Action? OnAnyPointReached;
+    public event Action? OnNoPathFound;
 
     public bool SimplifyRouteToWaypoint { get; set; } = true;
 
@@ -408,6 +409,8 @@ public sealed partial class Navigation : IDisposable
                 failedAttempt = 0;
                 stuckDetector.SetTargetLocation(result.EndW);
                 stuckDetector.Update();
+
+                OnNoPathFound?.Invoke();
             }
             return;
         }
