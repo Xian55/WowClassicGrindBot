@@ -6,6 +6,8 @@ using Game;
 
 using Microsoft.Extensions.Logging;
 
+using SharedLib;
+
 using SharpGen.Runtime;
 
 using SixLabors.ImageSharp;
