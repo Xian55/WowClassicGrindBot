@@ -1,4 +1,5 @@
 using Core.Goals;
+using Core.GoalsComponent;
 using Core.GOAP;
 
 using Game;
