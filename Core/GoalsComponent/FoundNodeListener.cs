@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using SharedLib;
 using SharedLib.Extensions;
@@ -74,7 +74,7 @@ public sealed class FoundNodeListener : IDisposable
         float dy = node.Y - center.Y; // screen space
         dy = -dy;                     // flip Y to world space
 
-        Vector2 v = new(dx, dy);
+        Vector2 pixelOffset = new(dx, dy);
 
         // North-up means +Y. When minimap rotates, rotate by player direction.
         float angle = settings.RotateMinimap ? playerDirection : 0f;
@@ -82,15 +82,52 @@ public sealed class FoundNodeListener : IDisposable
         float cos = MathF.Cos(angle);
         float sin = MathF.Sin(angle);
 
-        Vector2 worldOffset = new(
-            v.X * cos - v.Y * sin,
-            v.X * sin + v.Y * cos);
+        // Rotate pixel offset to world-aligned offset
+        Vector2 worldOffsetPixels = new(
+            pixelOffset.X * cos - pixelOffset.Y * sin,
+            pixelOffset.X * sin + pixelOffset.Y * cos);
 
-        const float zoneDiameterYards = 10000f;
-        float mapUnitsPerPixel = yardsPerPixel / zoneDiameterYards * 100f;
-        worldOffset *= mapUnitsPerPixel;
+        // Convert pixel offset to yards offset
+        Vector2 worldOffsetYards = worldOffsetPixels * yardsPerPixel;
 
-        Vector3 pos = playerMapPos + new Vector3(worldOffset, 0);
+        // Get actual zone dimensions from WorldMapArea
+        // LocTop/LocBottom define X bounds (Top > Bottom in WoW coords)
+        // LocLeft/LocRight define Y bounds (Left > Right in WoW coords)
+        WorldMapArea wma = playerReader.WorldMapArea;
+        float zoneWidthYards = MathF.Abs(wma.LocTop - wma.LocBottom);
+        float zoneHeightYards = MathF.Abs(wma.LocLeft - wma.LocRight);
+
+        // Avoid division by zero for invalid/unloaded zones
+        if (zoneWidthYards < 1f || zoneHeightYards < 1f)
+        {
+            logger.LogWarning(
+                "Invalid zone dimensions: width={ZoneWidth}, height={ZoneHeight}, UIMapId={UIMapId}",
+                zoneWidthYards, zoneHeightYards, playerReader.UIMapId.Value);
+            return;
+        }
+
+        // Convert yards to map units (0-100 range per zone dimension)
+        // Handle non-square zones by calculating X and Y separately
+        float mapUnitsPerYardX = 100f / zoneWidthYards;
+        float mapUnitsPerYardY = 100f / zoneHeightYards;
+
+        Vector2 offsetMapUnits = new(
+            worldOffsetYards.X * mapUnitsPerYardX,
+            worldOffsetYards.Y * mapUnitsPerYardY);
+
+        Vector3 pos = playerMapPos + new Vector3(offsetMapUnits, 0);
+
+        // Clamp to valid map range and warn if out of bounds
+        if (pos.X < 0 || pos.X > 100 || pos.Y < 0 || pos.Y > 100)
+        {
+            logger.LogDebug(
+                "Node position out of bounds: ({PosX:F2}, {PosY:F2}), clamping to [0,100]",
+                pos.X, pos.Y);
+            pos = new Vector3(
+                Math.Clamp(pos.X, 0f, 100f),
+                Math.Clamp(pos.Y, 0f, 100f),
+                pos.Z);
+        }
 
         NodeFound?.Invoke(pos);
     }
