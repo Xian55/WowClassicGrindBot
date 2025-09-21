@@ -61,6 +61,9 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
     private readonly bool tryFindClosestNPC;
     private Creature npc;
+    private NpcSearchResult[] searchResult = [];
+    private int searchCount;
+    private int searchIndex;
 
     #region IRouteProvider
 
@@ -115,6 +118,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         this.navigation = navigation;
         navigation.OnDestinationReached += Navigation_OnDestinationReached;
         navigation.OnWayPointReached += Navigation_OnWayPointReached;
+        navigation.OnNoPathFound += Navigation_OnNoPathFound;
 
         if (bool.TryParse(key.InCombat, out bool result))
         {
@@ -247,6 +251,28 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             Span<Vector3> points = pathMap[closestIndex..];
             navigation.SetWayPoints(points);
         }
+    }
+
+    private void UpdateClosestNPC(NpcFlags npcFlag)
+    {
+        if (searchResult.Length == 0 || searchCount == 0)
+            return;
+
+        npc = searchResult[searchIndex].Creature;
+        Vector3 worldPos = searchResult[searchIndex].WorldPosition;
+        key.Path = [worldPos];
+
+        LogFoundCloesestNPCByType(logger, npc.Name, npcFlag.ToStringF(), worldPos);
+    }
+
+    private void Navigation_OnNoPathFound()
+    {
+        if (pathState != PathState.ApproachPathStart || token.IsCancellationRequested)
+            return;
+
+        logger.LogError("No path found!");
+
+        Resume();
     }
 
     private void Navigation_OnWayPointReached()
@@ -504,14 +530,39 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
                 logger.LogInformation($"Search for {npcFlag} like {string.Join(',', allowedNames)}");
         }
 
-        if (!areaDB.TryGetNearestNPC(playerReader.Faction, npcFlag, playerReader.WorldPos, allowedNames, out npc, out Vector3 worldPos))
+        if (searchResult.Length == 0)
         {
+            searchResult = new NpcSearchResult[8];
+
+            int found = areaDB.GetNearestNpcs(playerReader.Faction, npcFlag, playerReader.WorldPos, allowedNames, searchResult.AsSpan(), out searchCount);
+            if (found == 0 || searchCount == 0)
+            {
+                return false;
+            }
+
+            LogFoundPotentialNPCByType(logger, searchCount, npcFlag.ToStringF());
+            searchIndex = 0;
+        }
+        else
+        {
+            searchIndex++;
+        }
+
+        if (searchIndex >= searchCount)
+        {
+            pathState = PathState.Finished;
+            LogWarn("No more NPC to try!");
+
+            searchIndex = 0;
+            searchResult = [];
+            searchCount = 0;
+
             return false;
         }
 
-        key.Path = [worldPos];
+        LogWarn($"Try next closest NPC -- {searchIndex}");
 
-        LogFoundCloesestNPCByType(logger, npc.Name, npcFlag.ToStringF(), worldPos);
+        UpdateClosestNPC(npcFlag);
 
         return true;
     }
@@ -541,6 +592,12 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         Level = LogLevel.Information,
         Message = "Closest NPC found {type} {name} at {pos}")]
     static partial void LogFoundCloesestNPCByType(ILogger logger, string name, string type, Vector3 pos);
+
+    [LoggerMessage(
+        EventId = 0301,
+        Level = LogLevel.Information,
+        Message = "Found {count} potential {type} NPC.")]
+    static partial void LogFoundPotentialNPCByType(ILogger logger, int count, string type);
 
 
     #endregion

@@ -130,69 +130,82 @@ public sealed class AreaDB : IDisposable
         return CollectionsMarshal.AsSpan(npc);
     }
 
-    public bool TryGetNearestNPC(
+    public int GetNearestNpcs(
         PlayerFaction faction,
         NpcFlags type,
         Vector3 playerPosW,
         string[] allowedNames,
-        [MaybeNullWhen(false)] out Creature npc,
-        out Vector3 pos)
+        Span<NpcSearchResult> destination, // caller-provided buffer
+        out int written)
     {
-        npc = default;
-        pos = default;
-
-        float distance = float.MaxValue;
+        written = 0;
 
         ReadOnlySpan<Creature> npcs = GetByNpcFlag(type);
-        foreach (var n in npcs)
+        var pool = ArrayPool<NpcSearchResult>.Shared;
+        NpcSearchResult[] rented = pool.Rent(npcs.Length * 2); // worst case: multiple positions per npc
+        int count = 0;
+
+        try
         {
-            if (allowedNames.Length != 0 && !allowedNames.Contains(n.Name))
-                continue;
-
-            if (!NpcWorldLocations.TryGetValue(n.Entry, out Vector3[]? worldPos))
-                continue;
-
-            var firstWorldPos = worldPos[0];
-
-            float d = playerPosW.WorldDistanceXYTo(firstWorldPos);
-            if (d < distance && FriendlyToPlayer(n, faction, factionDB))
+            foreach (var n in npcs)
             {
-                pos = firstWorldPos;
-                distance = d;
-                npc = n;
+                if (allowedNames.Length != 0 && !allowedNames.Contains(n.Name))
+                    continue;
+
+                if (!NpcWorldLocations.TryGetValue(n.Entry, out Vector3[]? worldPos))
+                    continue;
+
+                foreach (var pos in worldPos)
+                {
+                    var mapPos = WorldMapAreaDB.ToMap_FlipXY(pos, Hitbox!.Value);
+                    if (mapPos.X <= 0 || mapPos.X >= 100 || mapPos.Y <= 0 || mapPos.Y >= 100)
+                        continue;
+
+                    if (!FriendlyToPlayer(n, faction, factionDB))
+                        continue;
+
+                    float d = playerPosW.WorldDistanceXYTo(pos);
+                    if (count < rented.Length)
+                    {
+                        rented[count++] = new NpcSearchResult(n, pos, d);
+                    }
+                }
             }
-        }
 
-        if (npc == default)
+            Array.Sort(rented, 0, count, Comparer<NpcSearchResult>.Create(
+                static (a, b) => a.Distance.CompareTo(b.Distance)));
+
+            int toCopy = Math.Min(count, destination.Length);
+            rented.AsSpan(0, toCopy).CopyTo(destination);
+            written = toCopy;
+
+            return count;
+        }
+        finally
         {
+            pool.Return(rented, clearArray: false);
+        }
+    }
+
+    static bool FriendlyToPlayer(Creature npc, PlayerFaction playerFaction, FactionTemplateDB factionDB)
+    {
+        if (!factionDB.Factions.TryGetValue(npc.Faction, out int friendGroup))
             return false;
-        }
 
-        var mapPos = WorldMapAreaDB.ToMap_FlipXY(pos, Hitbox!.Value);
+        const int AllPlayers = 1;
 
-        return
-            mapPos.X > 0 && mapPos.X < 100 &&
-            mapPos.Y > 0 && mapPos.Y < 100;
+        const int AlliancePlayers = 2;
+        int allianceOurMask = AllPlayers | AlliancePlayers;
 
-        static bool FriendlyToPlayer(Creature npc, PlayerFaction playerFaction, FactionTemplateDB factionDB)
+        const int HordePlayers = 4;
+        int hordeOurMask = AllPlayers | HordePlayers;
+
+        return playerFaction switch
         {
-            int friendGroup = factionDB.Factions[npc.Faction];
-
-            const int AllPlayers = 1;
-
-            const int AlliancePlayers = 2;
-            int allianceOurMask = AllPlayers | AlliancePlayers;
-
-            const int HordePlayers = 4;
-            int hordeOurMask = AllPlayers | HordePlayers;
-
-            return playerFaction switch
-            {
-                PlayerFaction.Alliance => (friendGroup & allianceOurMask) != 0,
-                PlayerFaction.Horde => (friendGroup & hordeOurMask) != 0,
-                _ => false
-            };
-        }
+            PlayerFaction.Alliance => (friendGroup & allianceOurMask) != 0,
+            PlayerFaction.Horde => (friendGroup & hordeOurMask) != 0,
+            _ => false
+        };
     }
 
     public (Creature, Vector3) FindClosestCreatureByNpcFlag(NpcFlags npcFlag, Vector3 position)
