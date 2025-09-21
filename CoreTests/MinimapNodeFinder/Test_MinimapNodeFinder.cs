@@ -66,6 +66,6 @@ internal sealed class Test_MinimapNodeFinder
 
     private void SaveImage()
     {
-        screen.MiniMapImage.SaveAsPng("minimap.png");
+        screen.MiniMapImage.SaveAsJpeg("minimap.jpg");
     }
 }

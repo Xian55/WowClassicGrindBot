@@ -96,7 +96,7 @@
             navItems.Insert(7, new() { Id = "7", Href = "/RawPlayerReader", Text = "Raw Values" });
         }
 
-        if (this.botController.ClassConfig?.Mode == Core.Mode.AttendedGather)
+        if (botController.ClassConfig == null || botController.ClassConfig.GatheringMode)
         {
             navItems.Insert(8, new() { Id = "8", Href = "/Gather", Text = "Gather" });
         }

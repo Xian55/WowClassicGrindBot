@@ -48,6 +48,11 @@ internal sealed class Program
             builder.ClearProviders().AddSerilog();
         });
 
+        //PPatherV2.PPatherV2 pPather = new(logger, DataConfig.Load(ClientVersion.SoM.ToStringF()));
+        //Environment.Exit(0);
+        //return;
+
+
         // its expected to have at least 2 DataFrame 
         DataFrame[] mockFrames =
         [
@@ -59,11 +64,11 @@ internal sealed class Program
         process = new(cts, Options.Create<StartupConfigPid>(new() { Id = -1 }));
         screen = new WowScreenDXGI(loggerFactory.CreateLogger<WowScreenDXGI>(), process, mockFrames);
 
-        Test_NPCNameFinder();
+        //Test_NPCNameFinder();
         //Test_Input();
         //Test_CursorGrabber();
         //Test_CursorCompare();
-        //Test_MinimapNodeFinder();
+        Test_MinimapNodeFinder();
         //Test_FindTargetByCursor();
 
         Environment.Exit(0);

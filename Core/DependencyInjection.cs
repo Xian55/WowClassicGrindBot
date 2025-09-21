@@ -90,6 +90,8 @@ public static class DependencyInjection
         s.ForwardSingleton<NpcNameFinder>(sp);
         s.ForwardSingleton<NpcNameTargetingLocations>(sp);
         s.ForwardSingleton<IWowScreen>(sp);
+        s.ForwardSingleton<IMinimapImageProvider>(sp);
+        s.ForwardSingleton<MinimapNodeFinder>(sp);
 
         s.ForwardSingleton<IPPather>(sp);
         s.ForwardSingleton<ExecGameCommand>(sp);

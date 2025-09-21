@@ -22,7 +22,8 @@ public enum Mode
     CorpseRun = 1,
     AttendedGather = 2,
     AttendedGrind = 3,
-    AssistFocus = 4
+    AssistFocus = 4,
+    AutoGather = 5
 }
 
 
@@ -52,6 +53,8 @@ public sealed partial class ClassConfiguration
     public PathSettings[] Paths { get; set; } = [];
 
     public Mode Mode { get; init; } = Mode.Grind;
+
+    public bool GatheringMode => Mode is Mode.AttendedGather or Mode.AutoGather;
 
     public BadZone WrongZone { get; } = new BadZone();
 
