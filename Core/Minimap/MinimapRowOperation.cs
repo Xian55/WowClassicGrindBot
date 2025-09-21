@@ -11,17 +11,13 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Core.Minimap;
+
 internal readonly struct MinimapRowOperation : IRowOperation<Point>
 {
     public const int SIZE = 100;
 
-    private const byte maxBlue = 34;
-    private const byte minRedGreen = 176;
-
-    private const int minX = 6;
-    private const int maxX = 170;
-    private const int minY = 36;
-    private readonly int maxY;
+    private const byte maxBlue = 80;
+    private const byte minRedGreen = 160;
 
     public readonly Rectangle rect;
     private readonly Point center;
@@ -31,18 +27,28 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
     private readonly Point[] points;
     private readonly ArrayCounter counter;
 
-    public MinimapRowOperation(Buffer2D<Bgra32> source,
-        Rectangle minimapRect, ArrayCounter counter, Point[] points)
+    public MinimapRowOperation(
+        Buffer2D<Bgra32> source,
+        MinimapSettings settings,
+        ArrayCounter counter,
+        Point[] points)
     {
         this.source = source;
         this.points = points;
         this.counter = counter;
 
-        maxY = minimapRect.Height - 6;
+        int size = settings.Width;
 
-        rect = new(minX, minY, maxX - minX, maxY - minY);
+        int x = source.Width - settings.RightOffset - size;
+        int y = settings.TopOffset;
+
+        rect = new Rectangle(x, y, size, size);
+
+        // circle center is always in the middle of the square
         center = rect.Centre();
-        radius = (maxX - minX) / 2f;
+
+        // radius is half size minus frame thickness
+        radius = (size / 2f) - 6;
     }
 
     public int GetRequiredBufferLength(Rectangle bounds)
@@ -54,10 +60,9 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
     public void Invoke(int y, Span<Point> span)
     {
         ReadOnlySpan<Bgra32> row = source.DangerousGetRowSpan(y);
-
         int i = 0;
 
-        for (int x = minX; x < maxX; x++)
+        for (int x = rect.Left; x < rect.Right; x++)
         {
             if (!IsValidSquareLocation(x, y, center, radius))
             {

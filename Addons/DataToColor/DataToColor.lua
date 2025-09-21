@@ -5,7 +5,7 @@
 -- Trigger between emitting game data and frame location data
 local SETUP_SEQUENCE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 108
+local NUMBER_OF_FRAMES = 110
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
@@ -962,6 +962,11 @@ function DataToColor:CreateFrames()
                 Pixel(int, 0, 105)
             end
 
+            -- minimap settings
+            Pixel(int, DataToColor:MiniMapSettings1(), 106)
+            Pixel(int, DataToColor:MiniMapSettings2(), 107)
+
+            -- 108 allocated
             UpdateGlobalTime()
             -- NUMBER_OF_FRAMES - 1 reserved for validation
 

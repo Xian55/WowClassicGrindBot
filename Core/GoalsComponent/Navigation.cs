@@ -108,6 +108,7 @@ public sealed partial class Navigation : IDisposable
 
         switch (classConfiguration.Mode)
         {
+            case Mode.AutoGather:
             case Mode.AttendedGather:
                 MaxDistance = OutDoorMinDistance;
                 SimplifyRouteToWaypoint = false;

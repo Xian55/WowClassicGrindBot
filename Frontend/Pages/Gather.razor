@@ -3,7 +3,7 @@
 @inject IBotController botController
 @inject IJSRuntime JSRuntime
 
-@if (botController.ClassConfig?.Mode != Core.Mode.AttendedGather)
+@if (botController.ClassConfig == null || !botController.ClassConfig.GatheringMode)
 {
     <h3>Attended gather mode is not enabled in the class config file.</h3>
     <p>
