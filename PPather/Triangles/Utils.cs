@@ -1,4 +1,4 @@
-/*
+﻿/*
   This file is part of ppather.
 
     PPather is free software: you can redistribute it and/or modify
@@ -38,61 +38,77 @@ public static class Utils
         in Vector3 t0, in Vector3 t1, in Vector3 t2,
         out Vector3 I)
     {
-        Vector3 u = t1 - t0; // triangle vector 1
-        Vector3 v = t2 - t0; // triangle vector 2
-        Vector3 n = Cross(u, v); // triangle normal
+        // Segment direction
+        Vector3 dir = p1 - p0;
 
-        Vector3 dir = p1 - p0; // ray direction vector
-        Vector3 w0 = p0 - t0;
-        float a = -Dot(n, w0);
-        float b = Dot(n, dir);
+        // Triangle edges
+        Vector3 e1 = t1 - t0;
+        Vector3 e2 = t2 - t0;
 
-        // Avoid repeating Dot(n, dir)
-        if (Abs(b) < float.Epsilon)
+        // Begin calculating determinant
+        Vector3 pvec = Cross(dir, e2);
+        float det = Dot(e1, pvec);
+
+        // If determinant is near zero → ray is parallel to triangle plane
+        if (Abs(det) < float.Epsilon)
         {
             I = default;
-            return false; // parallel
+            return false;
         }
 
-        // get intersect point of ray with triangle plane
-        float r = a / b;
-        if (r < 0.0f || r > 1.0f)
+        float invDet = 1.0f / det;
+
+        // Calculate distance from t0 to ray origin
+        Vector3 tvec = p0 - t0;
+
+        // Calculate u parameter and test bounds
+        float u = Dot(tvec, pvec) * invDet;
+        if (u is < 0.0f or > 1.0f)
         {
             I = default;
-            return false; // outside of segment bounds
+            return false;
         }
 
-        I = p0 + (dir * r); // intersect point of line and plane
+        // Prepare to test v parameter
+        Vector3 qvec = Cross(tvec, e1);
 
-        // Avoid re-calculating things by merging conditions
-        float uu = Dot(u, u);
-        float uv = Dot(u, v);
-        float vv = Dot(v, v);
-        Vector3 w = I - t0;
-        float wu = Dot(w, u);
-        float wv = Dot(w, v);
-        float D = uv * uv - uu * vv;
+        float v = Dot(dir, qvec) * invDet;
+        if (v < 0.0f || u + v > 1.0f)
+        {
+            I = default;
+            return false;
+        }
 
-        // Parametric coordinates test
-        float s = (uv * wv - vv * wu) / D;
-        if (s < 0.0f || s > 1.0f) return false;
+        // At this stage we know the line intersects the triangle
+        float t = Dot(e2, qvec) * invDet;
 
-        float t = (uv * wu - uu * wv) / D;
-        return !(t < 0.0f || (s + t) > 1.0f);
+        // For segment intersection: require t ∈ [0,1]
+        if (t is < 0.0f or > 1.0f)
+        {
+            I = default;
+            return false;
+        }
+
+        // Compute intersection point only now (after passing all tests)
+        I = p0 + (dir * t);
+        return true;
     }
 
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float PointDistanceToSegment(in Vector3 p0, in Vector3 x1, in Vector3 x2)
     {
-        Vector3 L = x2 - x1; // the segment vector
-        float l2 = Dot(L, L); // square length of the segment
-        Vector3 D = p0 - x1; // vector from point to segment start
-        float d = Dot(D, L); // projection factor [x2-x1].[p0-x1]lear
+        Vector3 L = x2 - x1;           // segment vector
+        float l2 = Dot(L, L);          // squared segment length
+        Vector3 D = p0 - x1;           // vector from point to x1
+        float d = Dot(D, L);           // projection scalar
 
-        // Optimized return for closest segment point
-        if (d < 0.0f) return D.Length();
-        return ((d > l2 ? D - L : D - (L * (d / l2))).Length());
+        // Clamp projection between [0, l2] without branching
+        float t = Math.Clamp(d, 0.0f, l2);
+
+        // Compute projection point and distance
+        Vector3 proj = D - (L * (t / l2));
+        return proj.Length();
     }
 
     [SkipLocalsInit]
