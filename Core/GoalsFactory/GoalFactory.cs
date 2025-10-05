@@ -110,7 +110,7 @@ public static class GoalFactory
             }
             else if (classConfig.Mode == Mode.AutoGather)
             {
-                ResolveGatheringAdhocNPCGoal(services);
+                ResolveAutoGatherGoal(services);
             }
 
             ResolveFollowRouteGoal(services, classConfig);
@@ -260,18 +260,17 @@ public static class GoalFactory
         }
     }
 
-    private static void ResolveGatheringAdhocNPCGoal(IServiceCollection services)
+    private static void ResolveAutoGatherGoal(IServiceCollection services)
     {
-        const string GatherKeyActionKey = "AutoGathering";
-
-        services.AddKeyedScoped<KeyAction>(GatherKeyActionKey, (sp, key) =>
+        services.AddKeyedScoped<KeyAction>(AutoGatherGoal.KeyActionName, (sp, key) =>
         {
             var keyAction = new KeyAction
             {
-                Name = GatherKeyActionKey
+                Name = AutoGatherGoal.KeyActionName
             };
 
-            keyAction.Init(sp.GetRequiredService<ILogger>(),
+            keyAction.Init(
+                sp.GetRequiredService<ILogger>(),
                 sp.GetRequiredService<ClassConfiguration>().Log,
                 sp.GetRequiredService<PlayerReader>(),
                 sp.GetRequiredService<AddonReader>().GlobalTime);
@@ -279,31 +278,8 @@ public static class GoalFactory
             return keyAction;
         });
 
-        services.AddScoped<FoundNodeListener>(services =>
-            new(services.CreateAsyncScope().ServiceProvider.GetRequiredService<ILogger<FoundNodeListener>>(),
-                services.GetRequiredService<IMinimapImageProvider>(),
-                services.GetRequiredService<PlayerReader>(),
-                services.GetRequiredService<AddonBits>(),
-                services.GetRequiredService<MinimapNodeFinder>(),
-                services.GetRequiredKeyedService<KeyAction>(GatherKeyActionKey)));
-
-        services.AddScoped<GoapGoal, AdhocNPCGoal>(x => new(
-            x.GetRequiredKeyedService<KeyAction>(GatherKeyActionKey),
-            x.GetRequiredService<ILogger<AdhocNPCGoal>>(),
-            x.GetRequiredService<ConfigurableInput>(),
-            x.GetRequiredService<Wait>(),
-            x.GetRequiredService<PlayerReader>(),
-            x.GetRequiredService<GossipReader>(),
-            x.GetRequiredService<AddonBits>(),
-            x.GetRequiredService<Navigation>(),
-            x.GetRequiredService<StopMoving>(),
-            x.GetRequiredService<AreaDB>(),
-            x.GetRequiredService<NpcNameTargeting>(),
-            x.GetRequiredService<ClassConfiguration>(),
-            x.GetRequiredService<BagReader>(),
-            x.GetRequiredService<IMountHandler>(),
-            x.GetRequiredService<ExecGameCommand>(),
-            x.GetRequiredService<CancellationTokenSource>()));
+        services.AddScoped<FoundNodeListener>();
+        services.AddScoped<GoapGoal, AutoGatherGoal>();
     }
 
     private static void ResolveWaitGoal(IServiceCollection services,
