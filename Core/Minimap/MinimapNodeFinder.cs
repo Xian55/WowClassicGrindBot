@@ -1,4 +1,4 @@
-﻿using Core.Minimap;
+using Core.Minimap;
 
 using Microsoft.Extensions.Logging;
 
@@ -17,7 +17,7 @@ public sealed class MinimapNodeFinder
     private readonly ILogger logger;
     private readonly IMinimapImageProvider provider;
     public event EventHandler<MinimapNodeEventArgs>? NodeEvent;
-    
+
     private Rectangle rect;
 
     private readonly ArrayCounter counter;
@@ -62,7 +62,7 @@ public sealed class MinimapNodeFinder
             operation.rect,
             in operation);
 
-        pooler.Return(points);
+        pooler.Return(points, clearArray: true);
 
         return points.AsSpan(0, counter.count);
     }

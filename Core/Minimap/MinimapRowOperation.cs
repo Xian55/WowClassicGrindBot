@@ -1,4 +1,4 @@
-﻿using SharedLib;
+using SharedLib;
 using SharedLib.Extensions;
 
 using SixLabors.ImageSharp;
@@ -95,24 +95,6 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
         static bool IsMatch(in Bgra32 p)
         {
             return p.R > minRedGreen && p.G > minRedGreen && p.B < maxBlue;
-
-            int r = p.R, g = p.G, b = p.B;
-            int max = Math.Max(r, Math.Max(g, b));
-            int min = Math.Min(r, Math.Min(g, b));
-            int delta = max - min;
-
-            // Skip very dark or very light gray pixels
-            if (max < 90 || delta < 25)
-                return false;
-
-            // Approximate hue in degrees
-            float hue = (max == r) ? 60f * ((g - b) / (float)delta)
-                      : (max == g) ? 60f * (2f + (b - r) / (float)delta)
-                      : 60f * (4f + (r - g) / (float)delta);
-            if (hue < 0) hue += 360f;
-
-            // Yellow hue range ~40–65°, high brightness
-            return hue >= 40f && hue <= 65f && max > 150 && g > 0.8f * r;
         }
     }
 }
