@@ -23,6 +23,7 @@ public sealed class MinimapNodeFinder
     private readonly ArrayCounter counter;
 
     private const int minScore = 2;
+    private const int size = 3;
 
     public MinimapNodeFinder(ILogger logger, IMinimapImageProvider provider)
     {
@@ -44,6 +45,8 @@ public sealed class MinimapNodeFinder
         var pooler = ArrayPool<Point>.Shared;
         Point[] points = pooler.Rent(MinimapRowOperation.SIZE);
 
+        points.AsSpan().Fill(Point.Empty);
+
         counter.count = 0;
 
         var settings = provider.MinimapSettings;
@@ -59,7 +62,7 @@ public sealed class MinimapNodeFinder
             operation.rect,
             in operation);
 
-        pooler.Return(points, clearArray: true);
+        pooler.Return(points);
 
         return points.AsSpan(0, counter.count);
     }
@@ -68,17 +71,10 @@ public sealed class MinimapNodeFinder
         in MinimapSettings settings,
         out Point best, out int amountAboveMin)
     {
-        const int baseSize = 5;
-
-        float zoomScale = (float)(settings.ZoomLevels - settings.Zoom) / settings.ZoomLevels;
-        int size = Math.Max(3, (int)MathF.Ceiling(baseSize * zoomScale));
-
+        best = Point.Empty;
         amountAboveMin = 0;
 
-        int totalX = 0;
-        int totalY = 0;
-
-        Span<int> scores = stackalloc int[points.Length];
+        Span<byte> scores = stackalloc byte[points.Length];
 
         for (int i = 0; i < points.Length; i++)
         {
@@ -86,7 +82,7 @@ public sealed class MinimapNodeFinder
             if (pi == Point.Empty)
                 continue;
 
-            int score = 0;
+            byte score = 0;
             for (int j = 0; j < points.Length; j++)
             {
                 if (i == j) continue;
@@ -103,20 +99,26 @@ public sealed class MinimapNodeFinder
             scores[i] = score;
         }
 
-        // Gather all points above threshold and compute center of mass
+
+        int sumX = 0, sumY = 0, sumW = 0;
+
         for (int i = 0; i < points.Length; i++)
         {
-            if (scores[i] > minScore)
-            {
-                amountAboveMin++;
-                totalX += points[i].X;
-                totalY += points[i].Y;
-            }
+            int w = scores[i];
+            if (w <= minScore)
+                continue;
+
+            sumX += points[i].X * w;
+            sumY += points[i].Y * w;
+            sumW += w;
+            amountAboveMin++;
         }
 
-        best = amountAboveMin > 0
-            ? new Point(totalX / amountAboveMin, totalY / amountAboveMin)
-            : Point.Empty;
+        if (sumW > 0)
+        {
+            best = new Point(sumX / sumW, sumY / sumW);
+        }
+
     }
 
 }
