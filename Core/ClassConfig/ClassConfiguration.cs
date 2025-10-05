@@ -61,8 +61,6 @@ public sealed partial class ClassConfiguration
 
     public bool GatheringMode => Mode is Mode.AttendedGather or Mode.AutoGather;
 
-    public bool GatheringMode => Mode is Mode.AttendedGather or Mode.AutoGather;
-
     public BadZone WrongZone { get; } = new BadZone();
 
     public int NPCMaxLevels_Above { get; set; } = 1;

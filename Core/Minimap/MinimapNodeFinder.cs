@@ -62,7 +62,7 @@ public sealed class MinimapNodeFinder
             operation.rect,
             in operation);
 
-        pooler.Return(points, clearArray: true);
+        pooler.Return(points);
 
         return points.AsSpan(0, counter.count);
     }
