@@ -14,7 +14,7 @@ namespace Core.Minimap;
 
 internal readonly struct MinimapRowOperation : IRowOperation<Point>
 {
-    public const int SIZE = 128;
+    public const int SIZE = 256;
 
     private const int EDGE_PIXEL = 10;
 
@@ -26,17 +26,17 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
     private readonly float radius;
 
     private readonly Buffer2D<Bgra32> source;
-    private readonly Point[] points;
+    private readonly Point[] output;
     private readonly ArrayCounter counter;
 
     public MinimapRowOperation(
         Buffer2D<Bgra32> source,
         MinimapSettings settings,
         ArrayCounter counter,
-        Point[] points)
+        Point[] output)
     {
         this.source = source;
-        this.points = points;
+        this.output = output;
         this.counter = counter;
 
         int size = settings.Width;
@@ -55,14 +55,14 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
 
     public int GetRequiredBufferLength(Rectangle bounds)
     {
-        return SIZE;
+        return SIZE / 2;
     }
 
     [SkipLocalsInit]
-    public void Invoke(int y, Span<Point> span)
+    public void Invoke(int y, Span<Point> threadLocalSpan)
     {
         ReadOnlySpan<Bgra32> row = source.DangerousGetRowSpan(y);
-        int i = 0;
+        int localCount = 0;
 
         for (int x = rect.Left; x < rect.Right; x++)
         {
@@ -74,19 +74,18 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
             ref readonly Bgra32 pixel = ref row[x];
             if (IsMatch(pixel))
             {
-                if (i >= SIZE)
+                if (localCount >= threadLocalSpan.Length)
                     break;
 
-                points[i++] = new(x, y);
+                threadLocalSpan[localCount++] = new(x, y);
             }
         }
 
-        if (i == 0)
+        if (localCount == 0)
             return;
 
-        Interlocked.Add(ref counter.count, i);
-
-        span[..i].CopyTo(points.AsSpan(counter.count, i));
+        int start = Interlocked.Add(ref counter.count, localCount) - localCount;
+        threadLocalSpan[..localCount].CopyTo(output.AsSpan(start, localCount));
 
         static bool IsValidSquareLocation(int x, int y, Point center, float width)
         {
@@ -96,6 +95,24 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
         static bool IsMatch(in Bgra32 p)
         {
             return p.R > minRedGreen && p.G > minRedGreen && p.B < maxBlue;
+
+            int r = p.R, g = p.G, b = p.B;
+            int max = Math.Max(r, Math.Max(g, b));
+            int min = Math.Min(r, Math.Min(g, b));
+            int delta = max - min;
+
+            // Skip very dark or very light gray pixels
+            if (max < 90 || delta < 25)
+                return false;
+
+            // Approximate hue in degrees
+            float hue = (max == r) ? 60f * ((g - b) / (float)delta)
+                      : (max == g) ? 60f * (2f + (b - r) / (float)delta)
+                      : 60f * (4f + (r - g) / (float)delta);
+            if (hue < 0) hue += 360f;
+
+            // Yellow hue range ~40–65°, high brightness
+            return hue >= 40f && hue <= 65f && max > 150 && g > 0.8f * r;
         }
     }
 }
