@@ -15,7 +15,6 @@ public sealed class FoundNodeListener : IDisposable
     private readonly PlayerReader playerReader;
     private readonly AddonBits addonBits;
     private readonly MinimapNodeFinder minimapNodeFinder;
-    private readonly KeyAction keyAction;
 
     private static readonly float[] OutdoorZoomDiametersYards =
         [233.33f, 116.67f, 58.33f, 29.17f, 14.58f, 7.29f];
@@ -23,22 +22,20 @@ public sealed class FoundNodeListener : IDisposable
     private static readonly float[] IndoorZoomDiametersYards =
         [133.33f, 66.67f, 33.33f, 16.67f, 8.33f, 4.17f];
 
-    private Vector3? lastNode;
+    public event Action<Vector3>? NodeFound;
 
     public FoundNodeListener(
         ILogger<FoundNodeListener> logger,
         IMinimapImageProvider provider,
         PlayerReader playerReader,
         AddonBits addonBits,
-        MinimapNodeFinder minimapNodeFinder,
-        KeyAction keyAction)
+        MinimapNodeFinder minimapNodeFinder)
     {
         this.logger = logger;
         this.provider = provider;
         this.addonBits = addonBits;
         this.playerReader = playerReader;
         this.minimapNodeFinder = minimapNodeFinder;
-        this.keyAction = keyAction;
 
         minimapNodeFinder.NodeEvent += MinimapNodeFinder_NodeEvent;
     }
@@ -50,8 +47,14 @@ public sealed class FoundNodeListener : IDisposable
 
     private void MinimapNodeFinder_NodeEvent(object? sender, MinimapNodeEventArgs e)
     {
+        if (e.Amount == 0)
+        {
+            NodeFound?.Invoke(default);
+            return;
+        }
+
         // have to convert minimap screen cordinates to map coordinates
-        Vector3 playerMapPos = playerReader.MapPos;
+        Vector3 playerMapPos = playerReader.MapPosNoZ;
         float playerDirection = playerReader.Direction;
 
         var settings = provider.MinimapSettings;
@@ -89,14 +92,6 @@ public sealed class FoundNodeListener : IDisposable
 
         Vector3 pos = playerMapPos + new Vector3(worldOffset, 0);
 
-        if (lastNode.HasValue && Vector3.Distance(lastNode.Value, pos) < 0.01f)
-        {
-            return;
-        }
-
-        lastNode = pos;
-
-        logger.LogWarning($"Found node at {pos.X:F4} {pos.Y:F4} -- {settings.Zoom}");
-        keyAction.Path = [pos];
+        NodeFound?.Invoke(pos);
     }
 }
