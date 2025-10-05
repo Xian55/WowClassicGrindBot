@@ -17,8 +17,11 @@ public sealed class FoundNodeListener : IDisposable
     private readonly MinimapNodeFinder minimapNodeFinder;
     private readonly KeyAction keyAction;
 
-    private static readonly float[] OutdoorZoomDiameters = [233.333f, 116.666f, 58.333f, 29.166f, 14.583f, 7.291f];
-    private static readonly float[] IndoorZoomDiameters = [133.333f, 66.666f, 33.333f, 16.666f, 8.333f, 4.166f];
+    private static readonly float[] OutdoorZoomDiametersYards =
+        [233.33f, 116.67f, 58.33f, 29.17f, 14.58f, 7.29f];
+
+    private static readonly float[] IndoorZoomDiametersYards =
+        [133.33f, 66.67f, 33.33f, 16.67f, 8.33f, 4.17f];
 
     private Vector3? lastNode;
 
@@ -53,25 +56,25 @@ public sealed class FoundNodeListener : IDisposable
 
         var settings = provider.MinimapSettings;
 
-        var array = addonBits.Indoors() ? IndoorZoomDiameters : OutdoorZoomDiameters;
+        // Choose the proper yard-based zoom scale
+        var diametersYards = addonBits.Indoors()
+            ? IndoorZoomDiametersYards
+            : OutdoorZoomDiametersYards;
 
-        float metersPerPixel = array[settings.Zoom] / settings.Width;
+        float yardsPerPixel = diametersYards[settings.Zoom] / settings.Width;
 
-        Vector2 node = new(e.X, e.Y);
         Vector2 center = e.Rect.Centre();
 
-        float dx = node.X - center.X;
-        float dy = center.Y - node.Y; // invert Y
+        Vector2 node = new(e.X, e.Y);
 
-        dy = -dy;
+        float dx = node.X - center.X;
+        float dy = node.Y - center.Y; // screen space
+        dy = -dy;                     // flip Y to world space
 
         Vector2 v = new(dx, dy);
 
-        float angle = 0f; // north-up
-        if (settings.RotateMinimap)
-        {
-            angle = -playerDirection; // de-rotate so north = +Y
-        }
+        // North-up means +Y. When minimap rotates, rotate by player direction.
+        float angle = settings.RotateMinimap ? playerDirection : 0f;
 
         float cos = MathF.Cos(angle);
         float sin = MathF.Sin(angle);
@@ -80,24 +83,20 @@ public sealed class FoundNodeListener : IDisposable
             v.X * cos - v.Y * sin,
             v.X * sin + v.Y * cos);
 
-        worldOffset *= metersPerPixel;
+        const float zoneDiameterYards = 10000f;
+        float mapUnitsPerPixel = yardsPerPixel / zoneDiameterYards * 100f;
+        worldOffset *= mapUnitsPerPixel;
 
         Vector3 pos = playerMapPos + new Vector3(worldOffset, 0);
 
-        if (pos.X < 0 || pos.X > 100 || pos.Y < 0 || pos.Y > 100)
+        if (lastNode.HasValue && Vector3.Distance(lastNode.Value, pos) < 0.01f)
         {
-            return;
-        }
-
-        if (lastNode.HasValue && Vector3.Distance(lastNode.Value, pos) < 0.5f)
-        {
-            // same node within 0.5 world units → ignore
             return;
         }
 
         lastNode = pos;
 
-        logger.LogWarning($"Found node at {pos.X}/{pos.Y}");
+        logger.LogWarning($"Found node at {pos.X:F4} {pos.Y:F4} -- {settings.Zoom}");
         keyAction.Path = [pos];
     }
 }
