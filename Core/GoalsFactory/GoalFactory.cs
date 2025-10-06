@@ -1,17 +1,14 @@
-using Core.Database;
 using Core.Goals;
 using Core.GoalsComponent;
 using Core.GOAP;
 using Core.Session;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 using SharedLib;
 
 using System;
 using System.Numerics;
-using System.Threading;
 
 using static Core.BlacklistSourceType;
 using static Newtonsoft.Json.JsonConvert;
@@ -220,16 +217,8 @@ public static class GoalFactory
         for (int i = 0; i < classConfig.Adhoc.Sequence.Length; i++)
         {
             KeyAction keyAction = classConfig.Adhoc.Sequence[i];
-            services.AddScoped<GoapGoal, AdhocGoal>(x => new(keyAction,
-                x.GetRequiredService<Microsoft.Extensions.Logging.ILogger>(),
-                x.GetRequiredService<ConfigurableInput>(),
-                x.GetRequiredService<Wait>(),
-                x.GetRequiredService<PlayerReader>(),
-                x.GetRequiredService<StopMoving>(),
-                x.GetRequiredService<CastingHandler>(),
-                x.GetRequiredService<IMountHandler>(),
-                x.GetRequiredService<AddonBits>(),
-                x.GetRequiredService<CombatLog>()));
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<AdhocGoal>(sp, keyAction));
         }
     }
 
@@ -241,22 +230,8 @@ public static class GoalFactory
             KeyAction keyAction = classConfig.NPC.Sequence[i];
             keyAction.Path = GetPath(keyAction, dataConfig);
 
-            services.AddScoped<GoapGoal, AdhocNPCGoal>(x => new(keyAction,
-                x.GetRequiredService<ILogger<AdhocNPCGoal>>(),
-                x.GetRequiredService<ConfigurableInput>(),
-                x.GetRequiredService<Wait>(),
-                x.GetRequiredService<PlayerReader>(),
-                x.GetRequiredService<GossipReader>(),
-                x.GetRequiredService<AddonBits>(),
-                x.GetRequiredService<Navigation>(),
-                x.GetRequiredService<StopMoving>(),
-                x.GetRequiredService<AreaDB>(),
-                x.GetRequiredService<NpcNameTargeting>(),
-                x.GetRequiredService<ClassConfiguration>(),
-                x.GetRequiredService<BagReader>(),
-                x.GetRequiredService<IMountHandler>(),
-                x.GetRequiredService<ExecGameCommand>(),
-                x.GetRequiredService<CancellationTokenSource>()));
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<AdhocNPCGoal>(sp, keyAction));
         }
     }
 
@@ -289,10 +264,8 @@ public static class GoalFactory
         {
             KeyAction keyAction = classConfig.Wait.Sequence[i];
 
-            services.AddScoped<GoapGoal, ConditionalWaitGoal>(x => new(
-                keyAction,
-                x.GetRequiredService<ILogger<ConditionalWaitGoal>>(),
-                x.GetRequiredService<Wait>()));
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<ConditionalWaitGoal>(sp, keyAction));
         }
     }
 
@@ -326,20 +299,10 @@ public static class GoalFactory
                     sp.GetRequiredService<ClassConfiguration>().Paths[(int)key!],
                     sp.GetRequiredService<DataConfig>()));
 
-            services.AddScoped<GoapGoal, FollowRouteGoal>(x => new(
-                cost,
-                x.GetRequiredKeyedService<PathSettings>(index),
-                x.GetRequiredService<ILogger<FollowRouteGoal>>(),
-                x.GetRequiredService<ConfigurableInput>(),
-                x.GetRequiredService<Wait>(),
-                x.GetRequiredService<PlayerReader>(),
-                x.GetRequiredService<AddonBits>(),
-                x.GetRequiredService<ClassConfiguration>(),
-                x.GetRequiredService<Navigation>(),
-                x.GetRequiredService<IMountHandler>(),
-                x.GetRequiredService<TargetFinder>(),
-                x.GetRequiredService<IBlacklist>()
-                ));
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<FollowRouteGoal>(sp,
+                    cost,
+                    sp.GetRequiredKeyedService<PathSettings>(index)));
         }
     }
 
