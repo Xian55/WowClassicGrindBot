@@ -15,7 +15,6 @@ namespace Core;
 public sealed class AddonReader : IAddonReader
 {
     private readonly IAddonDataProvider reader;
-    private readonly ManualResetEventSlim resetEvent;
 
     private readonly PlayerReader playerReader;
     private readonly CreatureDB creatureDb;
@@ -25,6 +24,8 @@ public sealed class AddonReader : IAddonReader
     private readonly ImmutableArray<IReader> readers;
 
     public event Action? AddonDataChanged;
+
+    public ManualResetEventSlim DataReady { get; }
 
     public RecordInt GlobalTime { get; }
 
@@ -44,10 +45,10 @@ public sealed class AddonReader : IAddonReader
         IServiceProvider sp)
     {
         this.reader = reader;
-        this.resetEvent = resetEvent;
         this.creatureDb = creatureDb;
         this.combatLog = combatLog;
         this.playerReader = playerReader;
+        DataReady = resetEvent;
 
         GlobalTime = new(frames.Length - 2);
 
@@ -97,7 +98,7 @@ public sealed class AddonReader : IAddonReader
                 : string.Empty;
         }
 
-        resetEvent.Set();
+        DataReady.Set();
     }
 
     public void SessionReset()
