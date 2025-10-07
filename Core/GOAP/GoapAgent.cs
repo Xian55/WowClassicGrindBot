@@ -37,7 +37,7 @@ public sealed partial class GoapAgent : IDisposable
 
     private readonly Thread goapThread;
     private readonly CancellationTokenSource<GoapAgent> cts;
-    private readonly ManualResetEventSlim manualReset;
+    private readonly ManualResetEventSlim sessionPauseEvent;
 
     private readonly IScreenCapture screenCapture;
     private readonly IBagChangeTracker bagChangeTracker;
@@ -51,7 +51,7 @@ public sealed partial class GoapAgent : IDisposable
             active = value;
             if (!active)
             {
-                manualReset.Reset();
+                sessionPauseEvent.Reset();
 
                 foreach (IGoapEventListener goal in AvailableGoals.OfType<IGoapEventListener>())
                 {
@@ -78,7 +78,7 @@ public sealed partial class GoapAgent : IDisposable
                     listener.OnGoapEvent(new ResumeEvent());
                 }
 
-                manualReset.Set();
+                sessionPauseEvent.Set();
 
                 if (classConfig.Mode is Mode.AttendedGrind or Mode.Grind)
                 {
@@ -170,7 +170,7 @@ public sealed partial class GoapAgent : IDisposable
             }
         }
 
-        manualReset = new(false);
+        sessionPauseEvent = new(false);
         goapThread = new(GoapThread);
         goapThread.Start();
     }
@@ -178,7 +178,7 @@ public sealed partial class GoapAgent : IDisposable
     public void Dispose()
     {
         cts.Cancel();
-        manualReset.Set();
+        sessionPauseEvent.Set();
 
         foreach (GoapGoal a in AvailableGoals)
         {
@@ -199,7 +199,12 @@ public sealed partial class GoapAgent : IDisposable
     {
         bool wasEmpty = false;
 
-        manualReset.Wait();
+        sessionPauseEvent.Wait();
+
+        WaitHandle[] waitHandles = [
+            addonReader.DataReady.WaitHandle,
+            cts.Token.WaitHandle
+        ];
 
         while (!cts.IsCancellationRequested)
         {
@@ -224,8 +229,8 @@ public sealed partial class GoapAgent : IDisposable
                 wasEmpty = true;
             }
 
-            Thread.Sleep(1);
-            manualReset.Wait();
+            WaitHandle.WaitAny(waitHandles);
+            sessionPauseEvent.Wait(cts.Token);
         }
 
         if (logger.IsEnabled(LogLevel.Debug))
@@ -325,21 +330,20 @@ public sealed partial class GoapAgent : IDisposable
 
     private void OnKillCredit()
     {
-        if (Active)
-        {
-            SessionStat.Kills++;
-
-            State.LastCombatKillCount++;
-            State.ConsumableCorpseCount++;
-
-            BroadcastGoapEvent(GoapKey.producedcorpse, true);
-
-            LogActiveKillDetected(logger, SessionStat.Kills, State.LastCombatKillCount, combatLog.DamageTakenCount());
-        }
-        else
+        if (!Active)
         {
             LogInactiveKillDetected(logger);
+            return;
         }
+
+        SessionStat.Kills++;
+
+        State.LastCombatKillCount++;
+        State.ConsumableCorpseCount++;
+
+        BroadcastGoapEvent(GoapKey.producedcorpse, true);
+
+        LogActiveKillDetected(logger, SessionStat.Kills, State.LastCombatKillCount, combatLog.DamageTakenCount());
     }
 
     public void PlayerDied()

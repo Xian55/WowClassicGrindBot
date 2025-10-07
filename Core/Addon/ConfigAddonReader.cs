@@ -6,17 +6,18 @@ namespace Core.Addon;
 public sealed class ConfigAddonReader : IAddonReader
 {
     private readonly IAddonDataProvider reader;
-    private readonly ManualResetEventSlim autoResetEvent;
 
     public double AvgUpdateLatency => throw new NotImplementedException();
     public string TargetName => throw new NotImplementedException();
 
+    public ManualResetEventSlim DataReady { get; }
+
     public event Action? AddonDataChanged;
 
-    public ConfigAddonReader(IAddonDataProvider reader, ManualResetEventSlim autoResetEvent)
+    public ConfigAddonReader(IAddonDataProvider reader, ManualResetEventSlim resetEvent)
     {
         this.reader = reader;
-        this.autoResetEvent = autoResetEvent;
+        DataReady = resetEvent;
     }
 
     public void FullReset()
@@ -27,7 +28,7 @@ public sealed class ConfigAddonReader : IAddonReader
     public void Update()
     {
         reader.UpdateData();
-        autoResetEvent.Set();
+        DataReady.Set();
     }
 
     public void UpdateUI()

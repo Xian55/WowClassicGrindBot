@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 
 namespace Core;
 
@@ -9,6 +10,8 @@ public interface IAddonReader
     string TargetName { get; }
 
     event Action? AddonDataChanged;
+
+    ManualResetEventSlim DataReady { get; }
 
     void FullReset();
 
