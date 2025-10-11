@@ -162,8 +162,9 @@ public sealed partial class BotController : IBotController, IDisposable
             addonReader.Update();
 
             AvgScreenLatency = Average(times);
-
             tickCount++;
+
+            Thread.Sleep(2);
         }
         logger.LogWarning("Addon thread stopped!");
 
