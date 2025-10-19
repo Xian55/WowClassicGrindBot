@@ -1,5 +1,4 @@
-## Interface-BCC: 20502
-## Interface-WOTLKC: 30400
+## Interface: 30300
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors

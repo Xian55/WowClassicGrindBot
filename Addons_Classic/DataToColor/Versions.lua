@@ -47,9 +47,7 @@ end
 
 
 local LibClassicCasterino
-if DataToColor.IsClassic() then
-  LibClassicCasterino = _G.LibStub("LibClassicCasterino")
-end
+
 
 local Som140 = DataToColor.IsClassic() and select(4, GetBuildInfo()) == 11400
 local TBC253 = DataToColor.IsClassic_BCC() and select(4, GetBuildInfo()) >= 20503

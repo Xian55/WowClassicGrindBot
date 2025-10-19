@@ -75,12 +75,16 @@ local IsSwimming = IsSwimming
 local IsFalling = IsFalling
 local IsFlying = IsFlying
 local IsIndoors = IsIndoors
-local IsStealthed = IsStealthed
+function DataToColor:UnitIsTapDenied(unit)
+    if UnitExists(unit) and not UnitIsPlayer(unit) then
+        return not UnitCanAttack("player", unit) and UnitHealth(unit) < UnitHealthMax(unit)
+    end
+    return false
+end
 local GetMirrorTimerInfo = GetMirrorTimerInfo
 local IsMounted = IsMounted
 local IsInGroup = IsInGroup
 
-local UnitIsTapDenied = UnitIsTapDenied
 local IsAutoRepeatSpell = IsAutoRepeatSpell
 local IsCurrentSpell = IsCurrentSpell
 local UnitIsVisible = UnitIsVisible
@@ -88,17 +92,15 @@ local GetPetHappiness = GetPetHappiness
 
 local ammoSlot = GetInventorySlotInfo("AmmoSlot")
 
--- Use Astrolabe function to get current player position
 function DataToColor:GetPosition()
-    if not DataToColor.map then
-        return 0, 0
-    end
+    SetMapToCurrentZone();
+    local x, y = GetPlayerMapPosition("player");
 
-    local pos = C_Map.GetPlayerMapPosition(DataToColor.map, DataToColor.C.unitPlayer)
-    if pos then
-        return pos:GetXY()
+    if x and y then
+        return x, y;
+    else
+        return nil;
     end
-    return 0, 0
 end
 
 -- Base 2 converter for up to 24 boolean values to a single pixel square.
@@ -130,7 +132,7 @@ function DataToColor:Bits1()
         (IsAutoRepeatSpell(DataToColor.C.Spell.ShootId) and 2 or 0) ^ 19 +
         (IsCurrentSpell(DataToColor.C.Spell.AttackId) and 2 or 0) ^ 20 +
         (UnitIsPlayer(DataToColor.C.unitTarget) and 2 or 0) ^ 21 +
-        (UnitIsTapDenied(DataToColor.C.unitTarget) and 2 or 0) ^ 22 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitTarget) and 2 or 0) ^ 22 +
         (IsFalling() and 2 or 0) ^ 23
 end
 
@@ -150,7 +152,7 @@ function DataToColor:Bits2()
         (IsStealthed() and 2 or 0) ^ 10 +
         (UnitIsTrivial(DataToColor.C.unitTarget) and 2 or 0) ^ 11 +
         (UnitIsTrivial(DataToColor.C.unitmouseover) and 2 or 0) ^ 12 +
-        (UnitIsTapDenied(DataToColor.C.unitmouseover) and 2 or 0) ^ 13 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitmouseover) and 2 or 0) ^ 13 +
         (DataToColor:IsUnitHostile(DataToColor.C.unitPlayer, DataToColor.C.unitmouseover) and 2 or 0) ^ 14 +
         (UnitIsPlayer(DataToColor.C.unitmouseover) and 2 or 0) ^ 15 +
         (DataToColor:IsUnitsTargetIsPlayerOrPet(DataToColor.C.unitmouseover, DataToColor.C.unitmouseovertarget) and 2 or 0) ^ 16 +
@@ -169,7 +171,7 @@ function DataToColor:Bits3()
         (UnitIsDead(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 1 +
         (UnitIsDeadOrGhost(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 2 +
         (UnitIsPlayer(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 3 +
-        (UnitIsTapDenied(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 4 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 4 +
         (UnitAffectingCombat(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 5 +
         (DataToColor:IsUnitHostile(DataToColor.C.unitPlayer, DataToColor.C.unitSoftInteract) and 2 or 0) ^ 6 +
         (DataToColor.channeling and 2 or 0) ^ 7 +
@@ -179,9 +181,9 @@ function DataToColor:Bits3()
 end
 
 function DataToColor:CustomTrigger(t)
-    local v = t[0]
+    local v = t[0] or 0
     for i = 1, 23 do
-        v = v + (t[i] ^ i)
+        v = v + ((t[i] or 0) ^ i)
     end
     return v
 end
@@ -336,18 +338,26 @@ function DataToColor:getGuidFromUnit(unit)
     if not UnitExists(unit) then
         return 0
     end
-
-    -- Player-4731-02AAD4FF
-    -- Creature-0-4488-530-222-19350-000005C0D70
-    -- Pet-0-4448-530-222-22123-15004E200E
-    return DataToColor:uniqueGuid(select(-2, strsplit('-', UnitGUID(unit))))
+    local guid = UnitGUID(unit)
+    if not guid then
+        return 0
+    end
+    local _, _, _, _, _, npcId, spawn = strsplit("-", guid)
+    if not spawn then
+        return 0
+    end
+    return DataToColor:uniqueGuid(tonumber(npcId), spawn)
 end
 
 function DataToColor:getGuidFromUUID(uuid)
     if not uuid then
         return 0
     end
-    return DataToColor:uniqueGuid(select(-2, strsplit('-', uuid)))
+    local _, _, _, _, _, npcId, spawn = strsplit("-", uuid)
+    if not spawn then
+        return 0
+    end
+    return DataToColor:uniqueGuid(tonumber(npcId), spawn)
 end
 
 function DataToColor:getNpcIdFromUUID(uuid)
@@ -462,7 +472,7 @@ function DataToColor:isActionUseable(min, max)
         local texture = GetActionTexture(i)
         local spellName = DataToColor.S.playerSpellBookName[texture]
 
-        if start == 0 and (isUsable == true and notEnough == false or IsUsableSpell(spellName)) and texture ~= 134400 then -- red question mark texture
+        if start == 0 and (isUsable == true and notEnough == false )then--or IsUsableSpell(spellName)) and texture ~= 134400 then -- red question mark texture
             isUsableBits = isUsableBits + (2 ^ (i - min))
         end
 

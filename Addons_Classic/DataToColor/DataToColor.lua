@@ -1,3 +1,56 @@
+--[[
+    DataToColor.lua
+
+    This is the main file for the DataToColor addon.
+    It has been rewritten for World of Warcraft 3.3.5.
+]]
+
+-- Compatibility layer for modern WoW features
+local bit = {
+    band = function(a, b)
+        a = tonumber(a) or 0
+        b = tonumber(b) or 0
+        local result = 0
+        local p = 1
+        while a > 0 and b > 0 do
+            result = result + (p * ((a % 2) * (b % 2)))
+            a = math.floor(a / 2)
+            b = math.floor(b / 2)
+            p = p * 2
+        end
+        return result
+    end,
+    rshift = function(a, bits)
+        a = tonumber(a) or 0
+        return math.floor(a / (2 ^ bits))
+    end
+}
+
+local PowerType = {
+    Mana = 0,
+    Rage = 1,
+    Focus = 2,
+    Energy = 3,
+    ComboPoints = 4,
+    Runes = 5,
+    RunicPower = 6,
+    SoulShards = 7,
+    LunarPower = 8,
+    HolyPower = 9,
+    Alternate = 10,
+    Maelstrom = 11,
+    Chi = 12,
+    Insanity = 13,
+    Obsolete = 14,
+    Obsolete2 = 15,
+    ArcaneCharges = 16,
+    Fury = 17,
+    Pain = 18,
+    NumPowerTypes = 19
+}
+
+-- End of compatibility layer
+
 ----------------------------------------------------------------------------
 --  DataToColor
 ----------------------------------------------------------------------------
@@ -9,7 +62,7 @@ local NUMBER_OF_FRAMES = 108
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
-local CELL_SIZE = 1 -- 1-9
+local CELL_SIZE = 9-- 1-9
 -- Spacing in px between data squares.
 local CELL_SPACING = 1 -- 0 or 1
 
@@ -37,8 +90,6 @@ local floor = floor
 local GetTime = GetTime
 
 local UIParent = UIParent
-local BackdropTemplateMixin = BackdropTemplateMixin
-local C_Map = C_Map
 
 local GetNetStats = GetNetStats
 
@@ -78,8 +129,6 @@ local UnitExists = UnitExists
 local UnitGUID = UnitGUID
 local UnitClassification = UnitClassification
 
-local PowerType = Enum.PowerType
-
 local GetMoney = GetMoney
 
 local GetContainerNumSlots = DataToColor.GetContainerNumSlots
@@ -89,7 +138,7 @@ local NUM_BAG_SLOTS = NUM_BAG_SLOTS
 
 local ContainerIDToInventoryID = DataToColor.ContainerIDToInventoryID
 local GetContainerItemLink = DataToColor.GetContainerItemLink
-local PickupContainerItem = DataToColor.PickupContainerItem
+local PickupContainerItem = PickupContainerItem
 local GetInventoryItemLink = GetInventoryItemLink
 local DeleteCursorItem = DeleteCursorItem
 local GetMerchantItemLink = GetMerchantItemLink
@@ -139,7 +188,7 @@ DataToColor.globalTime = 0
 DataToColor.lastLoot = 0
 DataToColor.lastLootResetStart = 0
 
-DataToColor.map = C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
+DataToColor.map = 0 -- C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
 DataToColor.uiMapId = 0
 DataToColor.uiErrorMessage = 0
 DataToColor.uiErrorMessageTime = 0
@@ -202,7 +251,7 @@ DataToColor.customTrigger1 = {}
 
 DataToColor.sessionKillCount = 0
 
-local SpellQueueWindow = min(tonumber(GetCVar(DataToColor.C.SpellQueueWindow)) or 0, 999)
+local SpellQueueWindow = 0 -- min(tonumber(GetCVar(DataToColor.C.SpellQueueWindow)) or 0, 999)
 
 function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
@@ -231,32 +280,48 @@ end
 
 -- This function runs when addon is initialized/player logs in
 function DataToColor:OnInitialize()
+    DataToColor:Print("Welcome. Using ")
     DataToColor:CreateConstants()
+    
     DataToColor:SetupRequirements()
     DataToColor:CreateFrames()
+
     DataToColor:RegisterSlashCommands()
+    
 
     DataToColor:PopulateSpellBookInfo()
     DataToColor:InitStorage()
+    
 
     UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
-
+    
+    DataToColor:RegisterEvent("PLAYER_LOGIN", "OnPlayerLogin")
     DataToColor:RegisterEvents()
+    
+    DataToColor:InitUpdateQueues()
+    
+    
+    DataToColor:InitTrigger(DataToColor.customTrigger1)
 
+    
+end
+
+function DataToColor:OnPlayerLogin()
+    DataToColor:InitializeErrorLists()
+    
     local version = GetAddOnMetadata('DataToColor', 'Version')
     DataToColor:Print("Welcome. Using " .. version)
 
-    DataToColor:InitUpdateQueues()
-    DataToColor:InitTrigger(DataToColor.customTrigger1)
+    DataToColor:UnregisterEvent("PLAYER_LOGIN", "OnPlayerLogin")
 end
 
 function DataToColor:SetupRequirements()
     SetCVar("autoInteract", 1)
     SetCVar("autoLootDefault", 1)
     -- /run SetCVar("cameraSmoothStyle", 2) -- always
-    SetCVar('Contrast', 50, '[]')
-    SetCVar('Brightness', 50, '[]')
-    SetCVar('Gamma', 1, '[]')
+    --SetCVar('Contrast', 50, '[]')
+    --SetCVar('Brightness', 50, '[]')
+    --SetCVar('Gamma', 1, '[]')
 end
 
 function DataToColor:CreateConstants()
@@ -274,7 +339,7 @@ function DataToColor:Reset()
 
     DataToColor.playerGUID = UnitGUID(DataToColor.C.unitPlayer)
     DataToColor.petGUID = UnitGUID(DataToColor.C.unitPet)
-    DataToColor.map = C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
+    DataToColor.map = 0 -- C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
 
     DataToColor.eligibleKillCredit = {}
 
@@ -352,6 +417,7 @@ function DataToColor:InitUpdateQueues()
     DataToColor:InitActionBarCostQueue()
     DataToColor:InitSpellBookQueue()
     DataToColor:InitTalentQueue()
+
 end
 
 function DataToColor:InitEquipmentQueue()
@@ -416,51 +482,31 @@ function DataToColor:InitActionBarCostQueue()
     end
 end
 
+function getRaceID()
+    local a,b ,c = UnitRace("player")
+    return c
+end
+
+
 function DataToColor:PopulateSpellBookInfo()
-    local num, type = 1, 1
-    if not GetNumSpellTabs then
-        while true do
-            local name, _, id = GetSpellBookItemName(num, type)
-            if not name then
-                break
-            end
-
-            if id then
-                local texture = GetSpellBookItemTexture(num, type)
-                DataToColor.S.playerSpellBookId[id] = true
-                DataToColor.S.playerSpellBookName[texture] = name
-                DataToColor.S.playerSpellBookIconToId[texture] = id
-
-                if not DataToColor.S.playerSpellBookIdHighest[texture] or id > DataToColor.S.playerSpellBookIdHighest[texture] then
-                    DataToColor.S.playerSpellBookIdHighest[texture] = id
-                end
-
-                num = num + 1
-            end
+    local num, type = 1, "spell"
+    while true do
+        local name, _, id = GetSpellName(num, type)
+        if not name then
+            break
         end
-    else
-        -- Cataclysm Classic
-        for i = 1, GetNumSpellTabs() do
-            local offset, numSlots = select(3, GetSpellTabInfo(i))
-            for j = offset + 1, offset + numSlots do
-                local name, _, id = GetSpellBookItemName(j, type)
-                if not name then
-                    break
-                end
 
-                if id and IsSpellKnown(id) then
-                    local texture = GetSpellBookItemTexture(j, type)
-                    DataToColor.S.playerSpellBookId[id] = true
-                    DataToColor.S.playerSpellBookName[texture] = name
-                    DataToColor.S.playerSpellBookIconToId[texture] = id
+        if id then
+            local texture = GetSpellBookItemTexture(num, type)
+            DataToColor.S.playerSpellBookId[id] = true
+            DataToColor.S.playerSpellBookName[texture] = name
+            DataToColor.S.playerSpellBookIconToId[texture] = id
 
-                    if not DataToColor.S.playerSpellBookIdHighest[texture] or id > DataToColor.S.playerSpellBookIdHighest[texture] then
-                        DataToColor.S.playerSpellBookIdHighest[texture] = id
-                    end
-
-                    num = num + 1
-                end
+            if not DataToColor.S.playerSpellBookIdHighest[texture] or id > DataToColor.S.playerSpellBookIdHighest[texture] then
+                DataToColor.S.playerSpellBookIdHighest[texture] = id
             end
+
+            num = num + 1
         end
     end
 end
@@ -493,6 +539,7 @@ end
 
 -- Function to mass generate all of the initial frames for the pixel reader
 function DataToColor:CreateFrames()
+    
     local valueCache = {}
     local frames = {}
     local updateCount = {}
@@ -709,7 +756,7 @@ function DataToColor:CreateFrames()
             Pixel(int, GetMoney() % 1000000, 44) -- Represents amount of money held (in copper)
             Pixel(int, floor(GetMoney() / 1000000), 45) -- Represents amount of money held (in gold) 
 
-            Pixel(int, DataToColor.C.CHARACTER_RACE_ID * 10000 + DataToColor.C.CHARACTER_CLASS_ID * 100 + DataToColor.ClientVersion, 46)
+            Pixel(int, 1 * 10000 + 1 * 100 + 30300, 46)
             Pixel(int, DataToColor.uiErrorMessageTime, 47)
             Pixel(int, DataToColor:shapeshiftForm(), 48) -- Shapeshift id https://wowwiki.fandom.com/wiki/API_GetShapeshiftForm
             Pixel(int, DataToColor:getRange(), 49) -- Represents minRange-maxRange ex. 0-5 5-15
@@ -720,7 +767,7 @@ function DataToColor:CreateFrames()
             DataToColor.uiErrorMessage = 0
 
             Pixel(int, DataToColor:CastingInfoSpellId(DataToColor.C.unitPlayer), 53)                                                                                                                                                                               -- SpellId being cast
-            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, Enum.PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
+            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
 
             local playerBuffCount = DataToColor:populateAuraTimer(UnitBuff, DataToColor.C.unitPlayer, DataToColor.playerBuffTime)
             local playerDebuffCount = DataToColor:populateAuraTimer(UnitDebuff, DataToColor.C.unitPlayer, DataToColor.playerDebuffTime)
@@ -894,7 +941,8 @@ function DataToColor:CreateFrames()
                 local _, _, lagHome, lagWorld = GetNetStats()
 
                 -- artificially increase lagWorld to avoid skipping timers
-                lagWorld = max(lagWorld, 10)
+                lagHome = lagHome or 0
+                lagWorld = max(lagWorld or 0, 10)
 
                 local lag = min(max(lagHome, lagWorld), 9999)
 
@@ -967,9 +1015,11 @@ function DataToColor:CreateFrames()
 
             DataToColor:ConsumeChanges()
 
+
             DataToColor:HandlePlayerInteractionEvents()
 
             DataToColor:Update()
+            
         elseif not SETUP_SEQUENCE then
             if globalTick < initPhase then
                 for i = 1, NUMBER_OF_FRAMES - 1 do
@@ -994,7 +1044,8 @@ function DataToColor:CreateFrames()
     end
 
     local function genFrame(name, x, y)
-        local f = CreateFrame("Frame", name, UIParent, BackdropTemplateMixin and "BackdropTemplate") or CreateFrame("Frame", name, UIParent)
+        local f = CreateFrame("Frame", name, UIParent)
+        DataToColor:Print("Frames")
 
         local xx = x * floor(CELL_SIZE + CELL_SPACING)
         local yy = floor(-y * (CELL_SIZE + CELL_SPACING))

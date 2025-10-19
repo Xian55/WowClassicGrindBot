@@ -10,8 +10,8 @@
 -- make into AceSerializer.
 -- @class file
 -- @name AceSerializer-3.0
--- @release $Id: AceSerializer-3.0.lua 1135 2015-09-19 20:39:16Z nevcairiel $
-local MAJOR,MINOR = "AceSerializer-3.0", 5
+-- @release $Id: AceSerializer-3.0.lua 910 2010-02-11 21:54:24Z mikk $
+local MAJOR,MINOR = "AceSerializer-3.0", 3
 local AceSerializer, oldminor = LibStub:NewLibrary(MAJOR, MINOR)
 
 if not AceSerializer then return end
@@ -24,11 +24,9 @@ local pairs, select, frexp = pairs, select, math.frexp
 local tconcat = table.concat
 
 -- quick copies of string representations of wonky numbers
-local inf = math.huge
-
-local serNaN  -- can't do this in 4.3, see ace3 ticket 268
-local serInf, serInfMac = "1.#INF", "inf"
-local serNegInf, serNegInfMac = "-1.#INF", "-inf"
+local serNaN = tostring(0/0)
+local serInf = tostring(1/0)
+local serNegInf = tostring(-1/0)
 
 
 -- Serialization functions
@@ -62,14 +60,10 @@ local function SerializeValue(v, res, nres)
 	
 	elseif t=="number" then	-- ^N = number (just tostring()ed) or ^F (float components)
 		local str = tostring(v)
-		if tonumber(str)==v  --[[not in 4.3 or str==serNaN]] then
+		if tonumber(str)==v  or str==serNaN or str==serInf or str==serNegInf then
 			-- translates just fine, transmit as-is
 			res[nres+1] = "^N"
 			res[nres+2] = str
-			nres=nres+2
-		elseif v == inf or v == -inf then
-			res[nres+1] = "^N"
-			res[nres+2] = v == inf and serInf or serNegInf
 			nres=nres+2
 		else
 			local m,e = frexp(v)
@@ -149,12 +143,12 @@ local function DeserializeStringHelper(escape)
 end
 
 local function DeserializeNumberHelper(number)
-	--[[ not in 4.3 if number == serNaN then
+	if number == serNaN then
 		return 0/0
-	else]]if number == serNegInf or number == serNegInfMac then
-		return -inf
-	elseif number == serInf or number == serInfMac then
-		return inf
+	elseif number == serNegInf then
+		return -1/0
+	elseif number == serInf then
+		return 1/0
 	else
 		return tonumber(number)
 	end
