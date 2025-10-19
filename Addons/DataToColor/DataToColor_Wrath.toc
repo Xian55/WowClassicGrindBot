@@ -8,6 +8,7 @@
 ## SavedVariables:
 
 embeds-ace3-v12.xml
+embeds.xml
 
 init.lua
 

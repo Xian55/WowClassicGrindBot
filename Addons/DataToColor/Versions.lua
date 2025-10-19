@@ -9,7 +9,7 @@ local UnitLevel = UnitLevel
 local UnitChannelInfo = UnitChannelInfo
 local UnitCastingInfo = UnitCastingInfo
 
-local WOW_PROJECT_ID = WOW_PROJECT_ID or -1  -- -1 = Legacy client (old retail)
+local WOW_PROJECT_ID = WOW_PROJECT_ID or -1 -- -1 = Legacy client (old retail)
 local WOW_PROJECT_CLASSIC = WOW_PROJECT_CLASSIC
 local WOW_PROJECT_BURNING_CRUSADE_CLASSIC = WOW_PROJECT_BURNING_CRUSADE_CLASSIC
 local WOW_PROJECT_WRATH_CLASSIC = WOW_PROJECT_WRATH_CLASSIC
@@ -61,7 +61,6 @@ end
 function DataToColor.IsClassicPreCata()
   return DataToColor.IsClassic() or DataToColor.IsClassic_BCC() or DataToColor.IsClassic_Wrath()
 end
-
 
 local LibClassicCasterino
 if DataToColor.IsClassic() then
@@ -160,6 +159,32 @@ else
   end
 end
 
+-- define your safe version under a different name
+local function UnitIsTapDenied_Fallback(unit)
+  if not UnitExists(unit) then
+    return false
+  end
+  if UnitIsUnit(unit, "pet") then
+    return false
+  end
+  if UnitIsTapped(unit) and not UnitIsTappedByPlayer(unit) then
+    return true
+  end
+  return false
+end
+
+-- if Blizzard’s version exists and works, use it; otherwise use the fallback
+local function SafeUnitIsTapDenied(unit)
+  local ok, result = pcall(UnitIsTapDenied, unit)
+  if ok then
+    return result
+  else
+    return UnitIsTapDenied_Fallback(unit)
+  end
+end
+
+DataToColor.UnitIsTapDenied = SafeUnitIsTapDenied
+
 --------------------------------------------------------------------------------
 -- CONTAINER API COMPATIBILITY (Bag changes from 10.0)
 -- Legacy clients use old API, newer clients may use C_Container
@@ -170,7 +195,8 @@ DataToColor.GetContainerItemInfo = GetContainerItemInfo or
     function(bagID, slot)
       local o = C_Container.GetContainerItemInfo(bagID, slot)
       if o == nil then return nil end
-      return o.iconFileID, o.stackCount, o.isLocked, o.quality, o.isReadable, o.hasLoot, o.hyperlink, o.isFiltered, o.hasNoValue, o.itemID, o.isBound
+      return o.iconFileID, o.stackCount, o.isLocked, o.quality, o.isReadable, o.hasLoot, o.hyperlink, o.isFiltered,
+          o.hasNoValue, o.itemID, o.isBound
     end
 
 DataToColor.GetContainerNumFreeSlots = GetContainerNumFreeSlots or C_Container.GetContainerNumFreeSlots
