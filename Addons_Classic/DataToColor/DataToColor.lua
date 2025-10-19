@@ -62,7 +62,7 @@ local NUMBER_OF_FRAMES = 108
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
-local CELL_SIZE = 9-- 1-9
+local CELL_SIZE = 9 -- 1-9
 -- Spacing in px between data squares.
 local CELL_SPACING = 1 -- 0 or 1
 
@@ -257,7 +257,18 @@ function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
     DataToColor:RegisterChatCommand('dccpu', 'GetCPUImpact')
     DataToColor:RegisterChatCommand('dcflush', 'FushState')
+    DataToColor:RegisterChatCommand('dcdbg', 'Dbg')
 end
+
+function DataToColor:Dbg()
+    DataToColor:Print("DataToColor:Dbg")
+    DataToColor:Print("DataToColor.C.CHARACTER_RACE " .. DataToColor.C.CHARACTER_RACE)
+    DataToColor:Print("DataToColor.C.CHARACTER_RACE_ID " .. DataToColor.C.CHARACTER_RACE_ID)
+    DataToColor:Print("DataToColor.C.CHARACTER_CLASS " .. DataToColor.C.CHARACTER_CLASS)
+    DataToColor:Print("DataToColor.C.CHARACTER_CLASS_ID " .. DataToColor.C.CHARACTER_CLASS_ID)
+    DataToColor:Print("DataToColor.C.CLIENT_VERSION " .. DataToColor.C.CLIENT_VERSION)
+end
+
 
 function DataToColor:StartSetup()
     if not SETUP_SEQUENCE then
@@ -491,7 +502,7 @@ end
 function DataToColor:PopulateSpellBookInfo()
     local num, type = 1, "spell"
     while true do
-        local name, _, id = GetSpellName(num, type)
+        local name, _, id = GetSpellBookItemName(num, type)
         if not name then
             break
         end
@@ -756,7 +767,8 @@ function DataToColor:CreateFrames()
             Pixel(int, GetMoney() % 1000000, 44) -- Represents amount of money held (in copper)
             Pixel(int, floor(GetMoney() / 1000000), 45) -- Represents amount of money held (in gold) 
 
-            Pixel(int, 1 * 10000 + 1 * 100 + 30300, 46)
+            -- Pixel(int, 7 * 10000 + 8 * 100 + 5, 46)
+            Pixel(int, DataToColor.C.CHARACTER_RACE_ID * 10000 + DataToColor.C.CHARACTER_CLASS_ID * 100 + DataToColor.C.CLIENT_VERSION, 46)
             Pixel(int, DataToColor.uiErrorMessageTime, 47)
             Pixel(int, DataToColor:shapeshiftForm(), 48) -- Shapeshift id https://wowwiki.fandom.com/wiki/API_GetShapeshiftForm
             Pixel(int, DataToColor:getRange(), 49) -- Represents minRange-maxRange ex. 0-5 5-15

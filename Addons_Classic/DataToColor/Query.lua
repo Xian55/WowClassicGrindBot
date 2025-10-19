@@ -113,7 +113,7 @@ function DataToColor:Bits1()
         (UnitAffectingCombat(DataToColor.C.unitTarget) and 1 or 0) +
         (UnitIsDead(DataToColor.C.unitTarget) and 2 or 0) ^ 1 +
         (UnitIsDeadOrGhost(DataToColor.C.unitPlayer) and 2 or 0) ^ 2 +
-        (UnitCharacterPoints(DataToColor.C.unitPlayer) > 0 and 2 or 0) ^ 3 +
+        (0 > 0 and 2 or 0) ^ 3 + -- UnitCharacterPoints(DataToColor.C.unitPlayer)
         (UnitExists(DataToColor.C.unitmouseover) and 2 or 0) ^ 4 +
         (DataToColor:IsUnitHostile(DataToColor.C.unitPlayer, DataToColor.C.unitTarget) and 2 or 0) ^ 5 +
         (UnitIsVisible(DataToColor.C.unitPet) and not UnitIsDead(DataToColor.C.unitPet) and 2 or 0) ^ 6 +
@@ -607,12 +607,13 @@ end
 
 function DataToColor:HasAmmo()
     -- After Cataclysm, ammo slot was removed
-    if DataToColor:IsClassicPreCata() == false then
-        return true
-    end
+    -- if DataToColor:IsClassicPreCata() == false then
+    --     return true
+    -- end
 
-    local count = GetInventoryItemCount(DataToColor.C.unitPlayer, ammoSlot)
-    return count > 0
+    -- local count = GetInventoryItemCount(DataToColor.C.unitPlayer, ammoSlot)
+    -- return count > 0
+    return true
 end
 
 function DataToColor:PetHappy()
@@ -621,7 +622,8 @@ function DataToColor:PetHappy()
         return true
     end
 
-    return GetPetHappiness() == 3
+    -- return GetPetHappiness() == 3
+    return true
 end
 
 function DataToColor:SoftTargetInteractEnabled()

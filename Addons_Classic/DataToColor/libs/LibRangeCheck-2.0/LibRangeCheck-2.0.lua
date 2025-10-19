@@ -330,7 +330,7 @@ local tinsert = tinsert
 local tremove = tremove
 local BOOKTYPE_SPELL = BOOKTYPE_SPELL
 local GetSpellInfo = GetSpellInfo
-local GetSpellName = GetSpellName
+local GetSpellBookItemName = GetSpellBookItemName
 local GetItemInfo = GetItemInfo
 local UnitCanAttack = UnitCanAttack
 local UnitCanAssist = UnitCanAssist
@@ -437,7 +437,7 @@ end
 local function findSpellIdx(spellName)
     local i = 1
     while true do
-        local spell, rank = GetSpellName(i, BOOKTYPE_SPELL)
+        local spell, rank = GetSpellBookItemName(i, BOOKTYPE_SPELL)
         if not spell then return nil end
         if spell == spellName then return i end
         i = i + 1

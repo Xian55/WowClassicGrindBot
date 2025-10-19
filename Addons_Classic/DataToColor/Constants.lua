@@ -40,8 +40,49 @@ DataToColor.C.SpellQueueWindow = "SpellQueueWindow"
 -- Character's name
 DataToColor.C.CHARACTER_NAME = UnitName(DataToColor.C.unitPlayer)
 DataToColor.C.CHARACTER_GUID = UnitGUID(DataToColor.C.unitPlayer)
-_, DataToColor.C.CHARACTER_CLASS, DataToColor.C.CHARACTER_CLASS_ID = UnitClass(DataToColor.C.unitPlayer)
-_, _, DataToColor.C.CHARACTER_RACE_ID = UnitRace(DataToColor.C.unitPlayer)
+_, DataToColor.C.CHARACTER_CLASS = UnitClass(DataToColor.C.unitPlayer)
+_, DataToColor.C.CHARACTER_RACE = UnitRace(DataToColor.C.unitPlayer)
+
+-- UnitClass and UnitRace were not returning an ID for my cata client, so we gonna just map them out
+
+DataToColor.C.CHARACTER_CLASS_MAP = {
+    ["None"] = 0,
+    ["Warrior"] = 1,
+    ["Paladin"] = 2,
+    ["Hunter"] = 3,
+    ["Rogue"] = 4,
+    ["Priest"] = 5,
+    ["DeathKnight"] = 6,
+    ["Shaman"] = 7,
+    ["Mage"] = 8,
+    ["Warlock"] = 9,
+    ["Monk"] = 10,
+    ["Druid"] = 11,
+    ["DemonHunter"] = 12
+}
+
+DataToColor.C.CHARACTER_CLASS_ID = DataToColor.C.CHARACTER_CLASS_MAP[ DataToColor.C.CHARACTER_CLASS ]
+
+DataToColor.C.CHARACTER_RACE_MAP = {
+    ["None"] = 0,
+    ["Human"] = 1,
+    ["Orc"] = 2,
+    ["Dwarf"] = 3,
+    ["NightElf"] = 4,
+    ["Undead"] = 5,
+    ["Tauren"] = 6,
+    ["Gnome"] = 7,
+    ["Troll"] = 8,
+    ["Goblin"] = 9,
+    ["BloodElf"] = 10,
+    ["Draenei"] = 11,
+    ["Worgen"] = 22
+}
+
+DataToColor.C.CHARACTER_RACE_ID = DataToColor.C.CHARACTER_RACE_MAP[ DataToColor.C.CHARACTER_RACE ]
+
+
+DataToColor.C.CLIENT_VERSION = 5
 
 -- Spells
 DataToColor.C.Spell.AutoShotId = 75
