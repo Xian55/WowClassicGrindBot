@@ -1,0 +1,30 @@
+## Interface-BCC: 20502
+## Interface-WOTLKC: 30400
+## Title: DataToColor
+## Author: FreeHongKongMMO
+## Notes: Displays data as colors
+## Version: 1.7.70
+## RequiredDeps:
+## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
+## SavedVariables:
+
+embeds.xml
+
+init.lua
+
+Collections.lua
+
+Versions.lua
+
+Constants.lua
+Query.lua
+
+Storage.lua
+
+Diagnostics.lua
+
+EventHandlers.lua
+
+DataToColor.lua
+
+SellJunk.lua
