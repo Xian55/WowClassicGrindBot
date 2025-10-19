@@ -34,7 +34,8 @@ do
 	E:AddLib('AceAddon', AceAddon, AceAddonMinor)
 
 	local ver = select(4, GetBuildInfo())
-	if ver <= 11400 then
+	-- TODO: make this better version aware
+	if ver <= 11400 or ver == 40300 then
 		--print('load 2.0')
 		E:AddLib('RangeCheck', 'LibRangeCheck-2.0')
 	else

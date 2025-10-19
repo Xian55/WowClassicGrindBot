@@ -1,13 +1,13 @@
-## Interface: 40300
+## Interface: 30403
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
-## Notes: Displays data as colors (Legacy Cataclysm 4.3.0)
+## Notes: Displays data as colors (Wrath Classic)
 ## Version: 1.7.70
 ## RequiredDeps:
-## OptionalDeps: Ace3, LibRangeCheck
+## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:
 
-embeds-ace3-v5.xml
+embeds-ace3-v12.xml
 
 init.lua
 

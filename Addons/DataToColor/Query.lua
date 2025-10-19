@@ -28,7 +28,10 @@ local UnitGUID = UnitGUID
 
 local GetActionInfo = GetActionInfo
 local GetMacroSpell = GetMacroSpell
-local GetSpellPowerCost = GetSpellPowerCost
+local GetSpellPowerCost = GetSpellPowerCost or function(spellID)
+    local cost, powerType = select(4, GetSpellInfo(spellID)), select(5, GetSpellInfo(spellID))
+    return { cost = cost, powerType = powerType }
+end
 local GetSpellBaseCooldown = GetSpellBaseCooldown
 local GetInventoryItemLink = GetInventoryItemLink
 local IsSpellInRange = IsSpellInRange
@@ -39,7 +42,7 @@ local GetActionTexture = GetActionTexture
 local IsCurrentAction = IsCurrentAction
 local IsAutoRepeatAction = IsAutoRepeatAction
 
-local IsUsableSpell = IsUsableSpell
+local IsUsableSpell = IsUsableSpell or C_Spell.IsUsableSpell
 
 local GetNumSkillLines = GetNumSkillLines
 local GetSkillLineInfo = GetSkillLineInfo
@@ -63,7 +66,18 @@ local UnitIsDead = UnitIsDead
 local UnitIsPlayer = UnitIsPlayer
 local UnitName = UnitName
 local UnitIsDeadOrGhost = UnitIsDeadOrGhost
-local UnitCharacterPoints = UnitCharacterPoints
+local UnitCharacterPoints = UnitCharacterPoints or function(unit)
+  if not UnitExists(unit) then
+    return 0
+  end
+  if UnitIsUnit(unit, "pet") then
+    return GetUnspentTalentPoints(false, true)
+  elseif UnitIsUnit(unit, "player") then
+    return GetUnspentTalentPoints(false)
+  else
+    return 0
+  end
+end
 local UnitPlayerControlled = UnitPlayerControlled
 local GetShapeshiftForm = GetShapeshiftForm
 local GetShapeshiftFormInfo = GetShapeshiftFormInfo
@@ -80,7 +94,6 @@ local GetMirrorTimerInfo = GetMirrorTimerInfo
 local IsMounted = IsMounted
 local IsInGroup = IsInGroup
 
-local UnitIsTapDenied = UnitIsTapDenied
 local IsAutoRepeatSpell = IsAutoRepeatSpell
 local IsCurrentSpell = IsCurrentSpell
 local UnitIsVisible = UnitIsVisible
@@ -130,7 +143,7 @@ function DataToColor:Bits1()
         (IsAutoRepeatSpell(DataToColor.C.Spell.ShootId) and 2 or 0) ^ 19 +
         (IsCurrentSpell(DataToColor.C.Spell.AttackId) and 2 or 0) ^ 20 +
         (UnitIsPlayer(DataToColor.C.unitTarget) and 2 or 0) ^ 21 +
-        (UnitIsTapDenied(DataToColor.C.unitTarget) and 2 or 0) ^ 22 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitTarget) and 2 or 0) ^ 22 +
         (IsFalling() and 2 or 0) ^ 23
 end
 
@@ -150,7 +163,7 @@ function DataToColor:Bits2()
         (IsStealthed() and 2 or 0) ^ 10 +
         (UnitIsTrivial(DataToColor.C.unitTarget) and 2 or 0) ^ 11 +
         (UnitIsTrivial(DataToColor.C.unitmouseover) and 2 or 0) ^ 12 +
-        (UnitIsTapDenied(DataToColor.C.unitmouseover) and 2 or 0) ^ 13 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitmouseover) and 2 or 0) ^ 13 +
         (DataToColor:IsUnitHostile(DataToColor.C.unitPlayer, DataToColor.C.unitmouseover) and 2 or 0) ^ 14 +
         (UnitIsPlayer(DataToColor.C.unitmouseover) and 2 or 0) ^ 15 +
         (DataToColor:IsUnitsTargetIsPlayerOrPet(DataToColor.C.unitmouseover, DataToColor.C.unitmouseovertarget) and 2 or 0) ^ 16 +
@@ -169,7 +182,7 @@ function DataToColor:Bits3()
         (UnitIsDead(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 1 +
         (UnitIsDeadOrGhost(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 2 +
         (UnitIsPlayer(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 3 +
-        (UnitIsTapDenied(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 4 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 4 +
         (UnitAffectingCombat(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 5 +
         (DataToColor:IsUnitHostile(DataToColor.C.unitPlayer, DataToColor.C.unitSoftInteract) and 2 or 0) ^ 6 +
         (DataToColor.channeling and 2 or 0) ^ 7 +
@@ -179,9 +192,9 @@ function DataToColor:Bits3()
 end
 
 function DataToColor:CustomTrigger(t)
-    local v = t[0]
+    local v = t[0] or 0
     for i = 1, 23 do
-        v = v + (t[i] ^ i)
+        v = v + ((t[i] or 0) ^ i)
     end
     return v
 end
@@ -462,8 +475,10 @@ function DataToColor:isActionUseable(min, max)
         local texture = GetActionTexture(i)
         local spellName = DataToColor.S.playerSpellBookName[texture]
 
-        if start == 0 and (isUsable == true and notEnough == false or IsUsableSpell(spellName)) and texture ~= 134400 then -- red question mark texture
-            isUsableBits = isUsableBits + (2 ^ (i - min))
+        if spellName ~= nil then
+            if start == 0 and (isUsable == true and notEnough == false or IsUsableSpell(spellName)) and texture ~= 134400 then -- red question mark texture
+                isUsableBits = isUsableBits + (2 ^ (i - min))
+            end
         end
 
         local _, spellId = GetActionInfo(i)
