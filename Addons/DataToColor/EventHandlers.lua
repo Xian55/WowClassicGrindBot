@@ -30,7 +30,24 @@ local RepopMe = RepopMe
 local RetrieveCorpse = RetrieveCorpse
 local GetCorpseRecoveryDelay = GetCorpseRecoveryDelay
 
-local UnitIsTapDenied = UnitIsTapDenied
+DataToColor.UnitIsTapDenied = UnitIsTapDenied or function(unit)
+  -- Validate the unit exists
+  if not UnitExists(unit) then
+    return false
+  end
+
+  -- Your own pet should never be tap denied
+  if UnitIsUnit(unit, "pet") then
+    return false
+  end
+
+  -- Tapped but not by you/your group
+  if UnitIsTapped(unit) and not UnitIsTappedByPlayer(unit) then
+    return true
+  end
+
+  return false
+end
 
 local ContainerIDToInventoryID = DataToColor.ContainerIDToInventoryID
 local NUM_BAG_SLOTS = NUM_BAG_SLOTS
@@ -149,23 +166,48 @@ function DataToColor:RegisterEvents()
         DataToColor:RegisterEvent('UNIT_SPELLCAST_SUCCEEDED', 'SoM_OnCastSuccess')
         DataToColor:RegisterEvent('UNIT_SPELLCAST_FAILED', 'SoM_OnCastFailed')
     end
+end
 
+-- Initialize error message lookup tables
+-- This must be called after global strings are available (PLAYER_LOGIN or equivalent)
+function DataToColor:InitializeErrorLists()
     for i = 1, #ignoreErrorList do
         local text = _G[ignoreErrorList[i]]
-        ignoreErrorListMessages[text] = i
+        if text then
+            ignoreErrorListMessages[text] = i
+        end
     end
 
     for i = 1, #errorList do
         local text = _G[errorList[i]]
-        errorListMessages[text] = i
+        if text then
+            errorListMessages[text] = i
+        end
     end
 
     for key, value in pairs(spellFailedErrors) do
         local text = _G[key]
-        errorListMessages[text] = value
+        if text then
+            errorListMessages[text] = value
+        end
     end
 
-    specialErrorS[strsplit('%s', ERR_USE_LOCKED_WITH_SPELL_S, 2)] = 17
+    if _G['ERR_USE_LOCKED_WITH_SPELL_S'] then
+        specialErrorS[strsplit('%s', _G['ERR_USE_LOCKED_WITH_SPELL_S'], 2)] = 17
+    end
+end
+
+-- Called by PLAYER_LOGIN event when it exists
+function DataToColor:OnPlayerLogin()
+    DataToColor:InitializeErrorLists()
+
+    local version = GetAddOnMetadata('DataToColor', 'Version')
+    DataToColor:Print("Welcome. Using " .. version)
+
+    -- Unregister to avoid being called again
+    pcall(function()
+        DataToColor:UnregisterEvent("PLAYER_LOGIN")
+    end)
 end
 
 function DataToColor:OnUIErrorMessage(_, _, message)
@@ -230,8 +272,9 @@ local miss_type = {
     ["RESIST"] = 10
 }
 
-function DataToColor:UnfilteredCombatEvent()
-    DataToColor:OnCombatEvent(CombatLogGetCurrentEventInfo())
+function DataToColor:UnfilteredCombatEvent(...)
+    --DataToColor:OnCombatEvent(CombatLogGetCurrentEventInfo())
+    DataToColor:OnCombatEvent(...)
 end
 
 local COMBATLOG_OBJECT_TYPE_NPC = COMBATLOG_OBJECT_TYPE_NPC
@@ -298,7 +341,7 @@ function DataToColor:OnCombatEvent(...)
         --DataToColor:Print("Damage Taken ", sourceGUID)
 
         local targetGuid = UnitGUID(DataToColor.C.unitTarget)
-        if targetGuid == sourceGUID and not UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[sourceGUID] == nil then
+        if targetGuid == sourceGUID and not DataToColor:UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[sourceGUID] == nil then
             DataToColor.eligibleKillCredit[sourceGUID] = true
             --DataToColor:Print("Kill Credit added(take): ", sourceGUID)
         end
@@ -401,7 +444,7 @@ function DataToColor:OnCombatEvent(...)
             --DataToColor:Print(subEvent, " ", destGUID)
 
             local targetGuid = UnitGUID(DataToColor.C.unitTarget)
-            if targetGuid == destGUID and not UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[destGUID] == nil then
+            if targetGuid == destGUID and not DataToColor:UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[destGUID] == nil then
                 DataToColor.eligibleKillCredit[destGUID] = true
                 --DataToColor:Print("Kill Credit added(done): ", destGUID)
             end

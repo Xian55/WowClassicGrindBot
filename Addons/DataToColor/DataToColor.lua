@@ -17,6 +17,57 @@ local GLOBAL_TIME_CELL = NUMBER_OF_FRAMES - 2
 
 -- Dont modify values below
 
+-- Compatibility layer for older WoW versions
+if not bit then
+	bit = {
+		band = function(a, b)
+			a = tonumber(a) or 0
+			b = tonumber(b) or 0
+			local result = 0
+			local p = 1
+			while a > 0 and b > 0 do
+				result = result + (p * ((a % 2) * (b % 2)))
+				a = math.floor(a / 2)
+				b = math.floor(b / 2)
+				p = p * 2
+			end
+			return result
+		end,
+		rshift = function(a, bits)
+			a = tonumber(a) or 0
+			return math.floor(a / (2 ^ bits))
+		end
+	}
+end
+
+if not Enum or not Enum.PowerType then
+	PowerType = {
+		Mana = 0,
+		Rage = 1,
+		Focus = 2,
+		Energy = 3,
+		ComboPoints = 4,
+		Runes = 5,
+		RunicPower = 6,
+		SoulShards = 7,
+		LunarPower = 8,
+		HolyPower = 9,
+		Alternate = 10,
+		Maelstrom = 11,
+		Chi = 12,
+		Insanity = 13,
+		Obsolete = 14,
+		Obsolete2 = 15,
+		ArcaneCharges = 16,
+		Fury = 17,
+		Pain = 18,
+		NumPowerTypes = 19
+	}
+else
+	PowerType = Enum.PowerType
+end
+-- End of compatibility layer
+
 local Load = select(2, ...)
 local DataToColor = unpack(Load)
 
@@ -78,8 +129,6 @@ local UnitExists = UnitExists
 local UnitGUID = UnitGUID
 local UnitClassification = UnitClassification
 
-local PowerType = Enum.PowerType
-
 local GetMoney = GetMoney
 
 local GetContainerNumSlots = DataToColor.GetContainerNumSlots
@@ -139,7 +188,7 @@ DataToColor.globalTime = 0
 DataToColor.lastLoot = 0
 DataToColor.lastLootResetStart = 0
 
-DataToColor.map = C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
+DataToColor.map = DataToColor.GetBestMapForUnit(DataToColor.C.unitPlayer)
 DataToColor.uiMapId = 0
 DataToColor.uiErrorMessage = 0
 DataToColor.uiErrorMessageTime = 0
@@ -202,12 +251,49 @@ DataToColor.customTrigger1 = {}
 
 DataToColor.sessionKillCount = 0
 
-local SpellQueueWindow = min(tonumber(GetCVar(DataToColor.C.SpellQueueWindow)) or 0, 999)
+local SpellQueueWindow = min(tonumber(DataToColor.SafeGetCVar(DataToColor.C.SpellQueueWindow, "0")) or 0, 999)
 
 function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
     DataToColor:RegisterChatCommand('dccpu', 'GetCPUImpact')
     DataToColor:RegisterChatCommand('dcflush', 'FushState')
+    DataToColor:RegisterChatCommand('dcdbg', 'Dbg')
+end
+
+function DataToColor:Dbg()
+    DataToColor:Print("=== DataToColor Debug Info ===")
+
+    -- Client Type
+    if DataToColor.IsLegacy() then
+        DataToColor:Print("Client Type: LEGACY (Old Retail)")
+        if DataToColor.IsLegacyCataclysm() then
+            DataToColor:Print("  └─ Legacy Cataclysm 4.3.4")
+        end
+    elseif DataToColor.IsClassicEra() then
+        DataToColor:Print("Client Type: CLASSIC-ERA")
+        if DataToColor.IsClassic() then
+            DataToColor:Print("  └─ Classic Era (Vanilla)")
+        elseif DataToColor.IsClassic_BCC() then
+            DataToColor:Print("  └─ Burning Crusade Classic")
+        elseif DataToColor.IsClassic_Wrath() then
+            DataToColor:Print("  └─ Wrath of the Lich King Classic")
+        elseif DataToColor.IsClassic_Cata() then
+            DataToColor:Print("  └─ Cataclysm Classic")
+        elseif DataToColor.IsRetail() then
+            DataToColor:Print("  └─ Retail (Mainline)")
+        end
+    end
+
+    -- Version Info
+    local _, _, _, buildVersion = GetBuildInfo()
+    DataToColor:Print("Build Version: " .. buildVersion)
+    DataToColor:Print("Client Version ID: " .. (DataToColor.ClientVersion or 0))
+
+    -- Character Info
+    DataToColor:Print("Character Race: " .. (DataToColor.C.CHARACTER_RACE or "unknown"))
+    DataToColor:Print("Character Race ID: " .. (DataToColor.C.CHARACTER_RACE_ID or 0))
+    DataToColor:Print("Character Class: " .. (DataToColor.C.CHARACTER_CLASS or "unknown"))
+    DataToColor:Print("Character Class ID: " .. (DataToColor.C.CHARACTER_CLASS_ID or 0))
 end
 
 function DataToColor:StartSetup()
@@ -243,20 +329,30 @@ function DataToColor:OnInitialize()
 
     DataToColor:RegisterEvents()
 
-    local version = GetAddOnMetadata('DataToColor', 'Version')
-    DataToColor:Print("Welcome. Using " .. version)
+    -- Try to register PLAYER_LOGIN event for initializing error lists
+    -- If PLAYER_LOGIN doesn't exist (legacy clients), initialize error lists immediately
+    local playerLoginRegistered = pcall(function()
+        DataToColor:RegisterEvent("PLAYER_LOGIN", "OnPlayerLogin")
+    end)
+
+    if not playerLoginRegistered then
+        -- Legacy client without PLAYER_LOGIN event
+        DataToColor:InitializeErrorLists()
+        local version = GetAddOnMetadata('DataToColor', 'Version')
+        DataToColor:Print("Welcome. Using " .. version)
+    end
 
     DataToColor:InitUpdateQueues()
     DataToColor:InitTrigger(DataToColor.customTrigger1)
 end
 
 function DataToColor:SetupRequirements()
-    SetCVar("autoInteract", 1)
-    SetCVar("autoLootDefault", 1)
-    -- /run SetCVar("cameraSmoothStyle", 2) -- always
-    SetCVar('Contrast', 50, '[]')
-    SetCVar('Brightness', 50, '[]')
-    SetCVar('Gamma', 1, '[]')
+    DataToColor.SafeSetCVar("autoInteract", 1)
+    DataToColor.SafeSetCVar("autoLootDefault", 1)
+    -- /run DataToColor.SafeSetCVar("cameraSmoothStyle", 2) -- always
+    DataToColor.SafeSetCVar('Contrast', 50, '[]')
+    DataToColor.SafeSetCVar('Brightness', 50, '[]')
+    DataToColor.SafeSetCVar('Gamma', 1, '[]')
 end
 
 function DataToColor:CreateConstants()
@@ -274,7 +370,7 @@ function DataToColor:Reset()
 
     DataToColor.playerGUID = UnitGUID(DataToColor.C.unitPlayer)
     DataToColor.petGUID = UnitGUID(DataToColor.C.unitPet)
-    DataToColor.map = C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
+    DataToColor.map = DataToColor.GetBestMapForUnit(DataToColor.C.unitPlayer)
 
     DataToColor.eligibleKillCredit = {}
 
@@ -417,7 +513,7 @@ function DataToColor:InitActionBarCostQueue()
 end
 
 function DataToColor:PopulateSpellBookInfo()
-    local num, type = 1, 1
+    local num, type = 1, "spell"
     if not GetNumSpellTabs then
         while true do
             local name, _, id = GetSpellBookItemName(num, type)
@@ -430,6 +526,8 @@ function DataToColor:PopulateSpellBookInfo()
                 DataToColor.S.playerSpellBookId[id] = true
                 DataToColor.S.playerSpellBookName[texture] = name
                 DataToColor.S.playerSpellBookIconToId[texture] = id
+
+                --DataToColor:Print(id, texture, name)
 
                 if not DataToColor.S.playerSpellBookIdHighest[texture] or id > DataToColor.S.playerSpellBookIdHighest[texture] then
                     DataToColor.S.playerSpellBookIdHighest[texture] = id
@@ -463,6 +561,8 @@ function DataToColor:PopulateSpellBookInfo()
             end
         end
     end
+
+    DataToColor:Print("Loaded " .. num .. " spell")
 end
 
 function DataToColor:InitSpellBookQueue()
@@ -720,7 +820,7 @@ function DataToColor:CreateFrames()
             DataToColor.uiErrorMessage = 0
 
             Pixel(int, DataToColor:CastingInfoSpellId(DataToColor.C.unitPlayer), 53)                                                                                                                                                                               -- SpellId being cast
-            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, Enum.PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
+            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
 
             local playerBuffCount = DataToColor:populateAuraTimer(UnitBuff, DataToColor.C.unitPlayer, DataToColor.playerBuffTime)
             local playerDebuffCount = DataToColor:populateAuraTimer(UnitDebuff, DataToColor.C.unitPlayer, DataToColor.playerDebuffTime)
