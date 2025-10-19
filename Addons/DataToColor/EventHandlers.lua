@@ -30,25 +30,6 @@ local RepopMe = RepopMe
 local RetrieveCorpse = RetrieveCorpse
 local GetCorpseRecoveryDelay = GetCorpseRecoveryDelay
 
-DataToColor.UnitIsTapDenied = UnitIsTapDenied or function(unit)
-  -- Validate the unit exists
-  if not UnitExists(unit) then
-    return false
-  end
-
-  -- Your own pet should never be tap denied
-  if UnitIsUnit(unit, "pet") then
-    return false
-  end
-
-  -- Tapped but not by you/your group
-  if UnitIsTapped(unit) and not UnitIsTappedByPlayer(unit) then
-    return true
-  end
-
-  return false
-end
-
 local ContainerIDToInventoryID = DataToColor.ContainerIDToInventoryID
 local NUM_BAG_SLOTS = NUM_BAG_SLOTS
 
