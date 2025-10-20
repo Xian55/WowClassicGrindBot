@@ -7,7 +7,8 @@ public enum ClientVersion
     SoM,
     TBC,
     Wrath,
-    Cata
+    Cata,
+    Mop
 }
 
 public static class ClientVersion_Extension
@@ -20,6 +21,7 @@ public static class ClientVersion_Extension
         ClientVersion.TBC => nameof(ClientVersion.TBC),
         ClientVersion.Wrath => nameof(ClientVersion.Wrath),
         ClientVersion.Cata => nameof(ClientVersion.Cata),
+        ClientVersion.Mop => nameof(ClientVersion.Mop),
         _ => nameof(ClientVersion.None)
     };
 }

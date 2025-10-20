@@ -74,7 +74,7 @@ public sealed class Startup
 
         string exp = configuration["exp"]
             ?? Environment.GetEnvironmentVariable("exp")
-            ?? "som";
+            ?? ClientVersion.SoM.ToString().ToLower(System.Globalization.CultureInfo.InvariantCulture);
 
         Log.Information($"Expansion: {exp}");
 
