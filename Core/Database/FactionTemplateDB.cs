@@ -1,6 +1,9 @@
-﻿using SharedLib;
+﻿using Microsoft.Extensions.Logging;
+
+using SharedLib;
 using SharedLib.Data;
 
+using System;
 using System.Collections.Frozen;
 
 using static Newtonsoft.Json.JsonConvert;
@@ -13,12 +16,28 @@ public sealed class FactionTemplateDB
 {
     public FrozenDictionary<int, int> Factions { get; }
 
-    public FactionTemplateDB(DataConfig dataConfig)
-    {
-        FactionTemplate[] data = DeserializeObject<FactionTemplate[]>(
-            ReadAllText(Join(dataConfig.ExpDbc, "factiontemplates.json")))!;
+    public const string FileName = "factiontemplates.json";
 
-        Factions = data
-            .ToFrozenDictionary(c => c.Id, c => c.FriendGroup);
+    public FactionTemplateDB(ILogger<FactionTemplateDB> logger, DataConfig dataConfig)
+    {
+        string path = Join(dataConfig.ExpDbc, FileName);
+
+        FactionTemplate[] data = [];
+
+        try
+        {
+            string json = ReadAllText(path);
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                data = DeserializeObject<FactionTemplate[]>(json) ?? [];
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning($"Failed to load {FileName}: {ex.Message}");
+            logger.LogWarning("AdhocNPC profiles with 'Auto NPC Route' features will not work properly!");
+        }
+
+        Factions = data.ToFrozenDictionary(c => c.Id, c => c.FriendGroup);
     }
 }
