@@ -28,11 +28,12 @@ internal sealed class Program
     private const Locale locale = Locale.enUS;
     private const string path = "../../../data/";
     // SoM 1.14.4.51829
+    // SoD 1.15.8.63829
     // TBCC 2.5.4.44833
-    // WOTLK 3.4.3.52237
-    // SoD 1.15.4.56493
-    // Cata 4.4.1.56464
-    private const string build = "1.15.7.60000";
+    // WOTLK 3.4.5.63697
+    // Cata 4.4.2.60895
+    // Mop 5.5.1.63698
+    private const string build = "1.15.8.63829";
 
     public static void Main()
     {
