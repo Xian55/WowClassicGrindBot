@@ -8,7 +8,9 @@
     "LocTop": 39.6232,
     "LocBottom": -452.953,
     "UIMapId": 213,
-    "Continent": "OrgrimmarInstance"
+    "Continent": "OrgrimmarInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 209,
@@ -19,7 +21,9 @@
     "LocTop": 2052.083,
     "LocBottom": 1129.167,
     "UIMapId": 219,
-    "Continent": "TanarisInstance"
+    "Continent": "TanarisInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 109,
@@ -30,7 +34,9 @@
     "LocTop": -255.166,
     "LocBottom": -718.519,
     "UIMapId": 220,
-    "Continent": "SunkenTemple"
+    "Continent": "SunkenTemple",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 48,
@@ -41,7 +47,9 @@
     "LocTop": -87.667,
     "LocBottom": -677.147,
     "UIMapId": 221,
-    "Continent": "Blackfathom"
+    "Continent": "Blackfathom",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 48,
@@ -52,7 +60,9 @@
     "LocTop": -337.66696,
     "LocBottom": -927.147,
     "UIMapId": 222,
-    "Continent": "Blackfathom"
+    "Continent": "Blackfathom",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 48,
@@ -63,7 +73,9 @@
     "LocTop": -687.66565,
     "LocBottom": -877.1483,
     "UIMapId": 223,
-    "Continent": "Blackfathom"
+    "Continent": "Blackfathom",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 34,
@@ -74,7 +86,9 @@
     "LocTop": 220.633,
     "LocBottom": -31.4695,
     "UIMapId": 225,
-    "Continent": "StormwindJail"
+    "Continent": "StormwindJail",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 90,
@@ -85,7 +99,9 @@
     "LocTop": -180.888,
     "LocBottom": -694.0,
     "UIMapId": 226,
-    "Continent": "GnomeragonInstance"
+    "Continent": "GnomeragonInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 90,
@@ -96,7 +112,9 @@
     "LocTop": -200.888,
     "LocBottom": -714.0,
     "UIMapId": 227,
-    "Continent": "GnomeragonInstance"
+    "Continent": "GnomeragonInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 90,
@@ -107,7 +125,9 @@
     "LocTop": -387.555,
     "LocBottom": -967.333,
     "UIMapId": 228,
-    "Continent": "GnomeragonInstance"
+    "Continent": "GnomeragonInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 90,
@@ -118,7 +138,9 @@
     "LocTop": -357.554,
     "LocBottom": -937.334,
     "UIMapId": 229,
-    "Continent": "GnomeragonInstance"
+    "Continent": "GnomeragonInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 70,
@@ -129,7 +151,9 @@
     "LocTop": 204.306,
     "LocBottom": -391.473,
     "UIMapId": 230,
-    "Continent": "Uldaman"
+    "Continent": "Uldaman",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 70,
@@ -140,7 +164,9 @@
     "LocTop": 270.607,
     "LocBottom": -57.7735,
     "UIMapId": 231,
-    "Continent": "Uldaman"
+    "Continent": "Uldaman",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 409,
@@ -151,7 +177,9 @@
     "LocTop": 1303.06,
     "LocBottom": 459.861,
     "UIMapId": 232,
-    "Continent": "MoltenCore"
+    "Continent": "MoltenCore",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 309,
@@ -162,7 +190,9 @@
     "LocTop": -11308.333,
     "LocBottom": -12560.416,
     "UIMapId": 233,
-    "Continent": "Zul'gurub"
+    "Continent": "Zul'gurub",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 429,
@@ -173,7 +203,9 @@
     "LocTop": 1050.0,
     "LocBottom": 200.0,
     "UIMapId": 235,
-    "Continent": "DireMaul"
+    "Continent": "DireMaul",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 429,
@@ -184,7 +216,9 @@
     "LocTop": 200.0,
     "LocBottom": -150.0,
     "UIMapId": 236,
-    "Continent": "DireMaul"
+    "Continent": "DireMaul",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 429,
@@ -195,7 +229,9 @@
     "LocTop": 175.0,
     "LocBottom": -150.0,
     "UIMapId": 237,
-    "Continent": "DireMaul"
+    "Continent": "DireMaul",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 429,
@@ -206,7 +242,9 @@
     "LocTop": 250.0,
     "LocBottom": -250.0,
     "UIMapId": 238,
-    "Continent": "DireMaul"
+    "Continent": "DireMaul",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 429,
@@ -217,7 +255,9 @@
     "LocTop": 251.667,
     "LocBottom": -281.667,
     "UIMapId": 239,
-    "Continent": "DireMaul"
+    "Continent": "DireMaul",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 429,
@@ -228,7 +268,9 @@
     "LocTop": 450.0,
     "LocBottom": -200.0,
     "UIMapId": 240,
-    "Continent": "DireMaul"
+    "Continent": "DireMaul",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 230,
@@ -239,7 +281,9 @@
     "LocTop": 1186.6804,
     "LocBottom": 248.63966,
     "UIMapId": 242,
-    "Continent": "BlackrockDepths"
+    "Continent": "BlackrockDepths",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 230,
@@ -250,7 +294,9 @@
     "LocTop": 1500.0103,
     "LocBottom": 495.30283,
     "UIMapId": 243,
-    "Continent": "BlackrockDepths"
+    "Continent": "BlackrockDepths",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 540,
@@ -261,7 +307,9 @@
     "LocTop": 617.417,
     "LocBottom": -91.748,
     "UIMapId": 246,
-    "Continent": "HellfireMilitary"
+    "Continent": "HellfireMilitary",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 509,
@@ -272,7 +320,9 @@
     "LocTop": -8233.333,
     "LocBottom": -9908.333,
     "UIMapId": 247,
-    "Continent": "AhnQiraj"
+    "Continent": "AhnQiraj",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 249,
@@ -283,7 +333,9 @@
     "LocTop": 98.2458,
     "LocBottom": -223.833,
     "UIMapId": 248,
-    "Continent": "OnyxiaLairInstance"
+    "Continent": "OnyxiaLairInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 229,
@@ -294,7 +346,9 @@
     "LocTop": 304.398,
     "LocBottom": -286.828,
     "UIMapId": 250,
-    "Continent": "BlackRockSpire"
+    "Continent": "BlackRockSpire",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 229,
@@ -305,7 +359,9 @@
     "LocTop": 304.398,
     "LocBottom": -286.828,
     "UIMapId": 251,
-    "Continent": "BlackRockSpire"
+    "Continent": "BlackRockSpire",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 229,
@@ -316,7 +372,9 @@
     "LocTop": 304.398,
     "LocBottom": -286.828,
     "UIMapId": 252,
-    "Continent": "BlackRockSpire"
+    "Continent": "BlackRockSpire",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 229,
@@ -327,7 +385,9 @@
     "LocTop": 304.398,
     "LocBottom": -286.828,
     "UIMapId": 253,
-    "Continent": "BlackRockSpire"
+    "Continent": "BlackRockSpire",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 229,
@@ -338,7 +398,9 @@
     "LocTop": 304.398,
     "LocBottom": -286.828,
     "UIMapId": 254,
-    "Continent": "BlackRockSpire"
+    "Continent": "BlackRockSpire",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 229,
@@ -349,7 +411,9 @@
     "LocTop": 304.398,
     "LocBottom": -286.828,
     "UIMapId": 255,
-    "Continent": "BlackRockSpire"
+    "Continent": "BlackRockSpire",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 558,
@@ -360,7 +424,9 @@
     "LocTop": 354.951,
     "LocBottom": -140.076,
     "UIMapId": 256,
-    "Continent": "AuchindounDraenei"
+    "Continent": "AuchindounDraenei",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 558,
@@ -371,7 +437,9 @@
     "LocTop": 334.951,
     "LocBottom": -210.076,
     "UIMapId": 257,
-    "Continent": "AuchindounDraenei"
+    "Continent": "AuchindounDraenei",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 556,
@@ -382,7 +450,9 @@
     "LocTop": 173.654,
     "LocBottom": -295.343,
     "UIMapId": 258,
-    "Continent": "AuchindounDemon"
+    "Continent": "AuchindounDemon",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 556,
@@ -393,7 +463,9 @@
     "LocTop": 173.654,
     "LocBottom": -295.343,
     "UIMapId": 259,
-    "Continent": "AuchindounDemon"
+    "Continent": "AuchindounDemon",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 555,
@@ -404,7 +476,9 @@
     "LocTop": 62.7969,
     "LocBottom": -498.218,
     "UIMapId": 260,
-    "Continent": "AuchindounShadow"
+    "Continent": "AuchindounShadow",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 542,
@@ -415,7 +489,9 @@
     "LocTop": 603.136,
     "LocBottom": -65.8767,
     "UIMapId": 261,
-    "Continent": "HellfireDemon"
+    "Continent": "HellfireDemon",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 546,
@@ -426,7 +502,9 @@
     "LocTop": 423.73517,
     "LocBottom": -172.87819,
     "UIMapId": 262,
-    "Continent": "CoilfangMarsh"
+    "Continent": "CoilfangMarsh",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 545,
@@ -437,7 +515,9 @@
     "LocTop": 158.56721,
     "LocBottom": -425.9422,
     "UIMapId": 263,
-    "Continent": "CoilfangPumping"
+    "Continent": "CoilfangPumping",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 545,
@@ -448,7 +528,9 @@
     "LocTop": 158.56721,
     "LocBottom": -425.9422,
     "UIMapId": 264,
-    "Continent": "CoilfangPumping"
+    "Continent": "CoilfangPumping",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 547,
@@ -459,7 +541,9 @@
     "LocTop": 201.72003,
     "LocBottom": -391.65204,
     "UIMapId": 265,
-    "Continent": "CoilfangDraenei"
+    "Continent": "CoilfangDraenei",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 553,
@@ -470,7 +554,9 @@
     "LocTop": 248.025,
     "LocBottom": -256.91,
     "UIMapId": 266,
-    "Continent": "TempestKeepAtrium"
+    "Continent": "TempestKeepAtrium",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 554,
@@ -481,7 +567,9 @@
     "LocTop": 349.9862,
     "LocBottom": -100.8392,
     "UIMapId": 267,
-    "Continent": "TempestKeepFactory"
+    "Continent": "TempestKeepFactory",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 554,
@@ -492,7 +580,9 @@
     "LocTop": 412.98602,
     "LocBottom": -37.839344,
     "UIMapId": 268,
-    "Continent": "TempestKeepFactory"
+    "Continent": "TempestKeepFactory",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 552,
@@ -503,7 +593,9 @@
     "LocTop": 384.36502,
     "LocBottom": -75.42433,
     "UIMapId": 269,
-    "Continent": "TempestKeepArcane"
+    "Continent": "TempestKeepArcane",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 552,
@@ -514,7 +606,9 @@
     "LocTop": 408.032,
     "LocBottom": 44.0,
     "UIMapId": 270,
-    "Continent": "TempestKeepArcane"
+    "Continent": "TempestKeepArcane",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 552,
@@ -525,7 +619,9 @@
     "LocTop": 575.289,
     "LocBottom": 150.83298,
     "UIMapId": 271,
-    "Continent": "TempestKeepArcane"
+    "Continent": "TempestKeepArcane",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 557,
@@ -536,7 +632,9 @@
     "LocTop": 90.0708,
     "LocBottom": -458.786,
     "UIMapId": 272,
-    "Continent": "AuchindounEthereal"
+    "Continent": "AuchindounEthereal",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 269,
@@ -547,7 +645,9 @@
     "LocTop": -1500.0,
     "LocBottom": -2225.0,
     "UIMapId": 273,
-    "Continent": "CavernsOfTime"
+    "Continent": "CavernsOfTime",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 560,
@@ -558,7 +658,9 @@
     "LocTop": 3127.0833,
     "LocBottom": 1572.9166,
     "UIMapId": 274,
-    "Continent": "HillsbradPast"
+    "Continent": "HillsbradPast",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 43,
@@ -569,7 +671,9 @@
     "LocTop": 214.17033,
     "LocBottom": -410.14633,
     "UIMapId": 279,
-    "Continent": "WailingCaverns"
+    "Continent": "WailingCaverns",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 349,
@@ -580,7 +684,9 @@
     "LocTop": 1200.0,
     "LocBottom": 550.0,
     "UIMapId": 280,
-    "Continent": "Mauradon"
+    "Continent": "Mauradon",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 349,
@@ -591,7 +697,9 @@
     "LocTop": 883.333,
     "LocBottom": -208.333,
     "UIMapId": 281,
-    "Continent": "Mauradon"
+    "Continent": "Mauradon",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 469,
@@ -602,7 +710,9 @@
     "LocTop": -7394.12,
     "LocBottom": -7727.07,
     "UIMapId": 287,
-    "Continent": "BlackwingLair"
+    "Continent": "BlackwingLair",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 469,
@@ -613,7 +723,9 @@
     "LocTop": -7344.12,
     "LocBottom": -7777.07,
     "UIMapId": 288,
-    "Continent": "BlackwingLair"
+    "Continent": "BlackwingLair",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 469,
@@ -624,7 +736,9 @@
     "LocTop": -7324.12,
     "LocBottom": -7757.07,
     "UIMapId": 289,
-    "Continent": "BlackwingLair"
+    "Continent": "BlackwingLair",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 469,
@@ -635,7 +749,9 @@
     "LocTop": -7204.12,
     "LocBottom": -7637.07,
     "UIMapId": 290,
-    "Continent": "BlackwingLair"
+    "Continent": "BlackwingLair",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 36,
@@ -646,7 +762,9 @@
     "LocTop": 35.3335,
     "LocBottom": -337.509,
     "UIMapId": 291,
-    "Continent": "DeadminesInstance"
+    "Continent": "DeadminesInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 36,
@@ -657,7 +775,9 @@
     "LocTop": 65.3333,
     "LocBottom": -267.509,
     "UIMapId": 292,
-    "Continent": "DeadminesInstance"
+    "Continent": "DeadminesInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 129,
@@ -668,7 +788,9 @@
     "LocTop": 2682.55,
     "LocBottom": 2209.85,
     "UIMapId": 300,
-    "Continent": "RazorfenDowns"
+    "Continent": "RazorfenDowns",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 47,
@@ -679,7 +801,9 @@
     "LocTop": 2349.64,
     "LocBottom": 1858.68,
     "UIMapId": 301,
-    "Continent": "RazorfenKraulInstance"
+    "Continent": "RazorfenKraulInstance",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 189,
@@ -690,7 +814,9 @@
     "LocTop": 2030.1814,
     "LocBottom": 1616.8586,
     "UIMapId": 302,
-    "Continent": "MonasteryInstances"
+    "Continent": "MonasteryInstances",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 189,
@@ -701,7 +827,9 @@
     "LocTop": 307.366,
     "LocBottom": 93.9055,
     "UIMapId": 303,
-    "Continent": "MonasteryInstances"
+    "Continent": "MonasteryInstances",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 189,
@@ -712,7 +840,9 @@
     "LocTop": 2009.1,
     "LocBottom": 1600.64,
     "UIMapId": 304,
-    "Continent": "MonasteryInstances"
+    "Continent": "MonasteryInstances",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 189,
@@ -723,7 +853,9 @@
     "LocTop": 1281.2904,
     "LocBottom": 812.4237,
     "UIMapId": 305,
-    "Continent": "MonasteryInstances"
+    "Continent": "MonasteryInstances",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 289,
@@ -734,7 +866,9 @@
     "LocTop": 317.698,
     "LocBottom": 104.333,
     "UIMapId": 306,
-    "Continent": "SchoolofNecromancy"
+    "Continent": "SchoolofNecromancy",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 289,
@@ -745,7 +879,9 @@
     "LocTop": 337.699,
     "LocBottom": 44.3326,
     "UIMapId": 307,
-    "Continent": "SchoolofNecromancy"
+    "Continent": "SchoolofNecromancy",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 289,
@@ -756,7 +892,9 @@
     "LocTop": 307.707,
     "LocBottom": 34.3212,
     "UIMapId": 308,
-    "Continent": "SchoolofNecromancy"
+    "Continent": "SchoolofNecromancy",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 289,
@@ -767,7 +905,9 @@
     "LocTop": 287.707,
     "LocBottom": -66.3212,
     "UIMapId": 309,
-    "Continent": "SchoolofNecromancy"
+    "Continent": "SchoolofNecromancy",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 33,
@@ -778,7 +918,9 @@
     "LocTop": -84.9296,
     "LocBottom": -319.883,
     "UIMapId": 310,
-    "Continent": "Shadowfang"
+    "Continent": "Shadowfang",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 33,
@@ -789,7 +931,9 @@
     "LocTop": -161.597,
     "LocBottom": -303.215,
     "UIMapId": 311,
-    "Continent": "Shadowfang"
+    "Continent": "Shadowfang",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 33,
@@ -800,7 +944,9 @@
     "LocTop": -91.59607,
     "LocBottom": -193.21603,
     "UIMapId": 312,
-    "Continent": "Shadowfang"
+    "Continent": "Shadowfang",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 33,
@@ -811,7 +957,9 @@
     "LocTop": -91.5903,
     "LocBottom": -193.215,
     "UIMapId": 313,
-    "Continent": "Shadowfang"
+    "Continent": "Shadowfang",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 33,
@@ -822,7 +970,9 @@
     "LocTop": -91.5903,
     "LocBottom": -193.215,
     "UIMapId": 314,
-    "Continent": "Shadowfang"
+    "Continent": "Shadowfang",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 33,
@@ -833,7 +983,9 @@
     "LocTop": -50.25939,
     "LocBottom": -182.54602,
     "UIMapId": 315,
-    "Continent": "Shadowfang"
+    "Continent": "Shadowfang",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 33,
@@ -844,7 +996,9 @@
     "LocTop": -96.59607,
     "LocBottom": -278.21603,
     "UIMapId": 316,
-    "Continent": "Shadowfang"
+    "Continent": "Shadowfang",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 329,
@@ -855,7 +1009,9 @@
     "LocTop": 3809.45,
     "LocBottom": 3338.97,
     "UIMapId": 317,
-    "Continent": "Stratholme"
+    "Continent": "Stratholme",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 329,
@@ -866,7 +1022,9 @@
     "LocTop": 4169.45,
     "LocBottom": 3498.97,
     "UIMapId": 318,
-    "Continent": "Stratholme"
+    "Continent": "Stratholme",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 531,
@@ -877,7 +1035,9 @@
     "LocTop": -7659.287,
     "LocBottom": -9510.983,
     "UIMapId": 319,
-    "Continent": "AhnQirajTemple"
+    "Continent": "AhnQirajTemple",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 531,
@@ -888,7 +1048,9 @@
     "LocTop": -8051.7964,
     "LocBottom": -8703.503,
     "UIMapId": 320,
-    "Continent": "AhnQirajTemple"
+    "Continent": "AhnQirajTemple",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 531,
@@ -899,7 +1061,9 @@
     "LocTop": -8335.13,
     "LocBottom": -8720.17,
     "UIMapId": 321,
-    "Continent": "AhnQirajTemple"
+    "Continent": "AhnQirajTemple",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 534,
@@ -910,7 +1074,9 @@
     "LocTop": 6145.833,
     "LocBottom": 4479.1665,
     "UIMapId": 329,
-    "Continent": "HyjalPast"
+    "Continent": "HyjalPast",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 565,
@@ -921,7 +1087,9 @@
     "LocTop": 337.5,
     "LocBottom": -12.5,
     "UIMapId": 330,
-    "Continent": "GruulsLair"
+    "Continent": "GruulsLair",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 544,
@@ -932,7 +1100,9 @@
     "LocTop": 255.33334,
     "LocBottom": -115.33335,
     "UIMapId": 331,
-    "Continent": "HellfireRaid"
+    "Continent": "HellfireRaid",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 548,
@@ -943,7 +1113,9 @@
     "LocTop": 650.002,
     "LocBottom": -400.0,
     "UIMapId": 332,
-    "Continent": "CoilfangRaid"
+    "Continent": "CoilfangRaid",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 568,
@@ -954,7 +1126,9 @@
     "LocTop": 568.75,
     "LocBottom": -277.0833,
     "UIMapId": 333,
-    "Continent": "ZulAman"
+    "Continent": "ZulAman",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 550,
@@ -965,7 +1139,9 @@
     "LocTop": 950.0,
     "LocBottom": -100.0,
     "UIMapId": 334,
-    "Continent": "TempestKeepRaid"
+    "Continent": "TempestKeepRaid",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 580,
@@ -976,7 +1152,9 @@
     "LocTop": 2012.5,
     "LocBottom": 1408.33,
     "UIMapId": 335,
-    "Continent": "SunwellPlateau"
+    "Continent": "SunwellPlateau",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 580,
@@ -987,7 +1165,9 @@
     "LocTop": 1890.0,
     "LocBottom": 1580.0,
     "UIMapId": 336,
-    "Continent": "SunwellPlateau"
+    "Continent": "SunwellPlateau",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 564,
@@ -998,7 +1178,9 @@
     "LocTop": 949.99994,
     "LocBottom": 427.0833,
     "UIMapId": 339,
-    "Continent": "BlackTemple"
+    "Continent": "BlackTemple",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 543,
@@ -1009,7 +1191,9 @@
     "LocTop": -1029.44,
     "LocBottom": -1492.48,
     "UIMapId": 347,
-    "Continent": "HellfireRampart"
+    "Continent": "HellfireRampart",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1020,7 +1204,9 @@
     "LocTop": -10822.9,
     "LocBottom": -11189.6,
     "UIMapId": 350,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1031,7 +1217,9 @@
     "LocTop": -11017.097,
     "LocBottom": -11189.003,
     "UIMapId": 351,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1042,7 +1230,9 @@
     "LocTop": -10836.2,
     "LocBottom": -11066.3,
     "UIMapId": 352,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1053,7 +1243,9 @@
     "LocTop": -10772.9,
     "LocBottom": -11119.6,
     "UIMapId": 353,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1064,7 +1256,9 @@
     "LocTop": -10813.2,
     "LocBottom": -10969.3,
     "UIMapId": 354,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1075,7 +1269,9 @@
     "LocTop": -10802.9,
     "LocBottom": -11190.6,
     "UIMapId": 355,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1086,7 +1282,9 @@
     "LocTop": -10987.9,
     "LocBottom": -11115.6,
     "UIMapId": 356,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1097,7 +1295,9 @@
     "LocTop": -11012.3,
     "LocBottom": -11105.2,
     "UIMapId": 357,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1108,7 +1308,9 @@
     "LocTop": -10952.9,
     "LocBottom": -11459.6,
     "UIMapId": 358,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1119,7 +1321,9 @@
     "LocTop": -11086.167,
     "LocBottom": -11386.333,
     "UIMapId": 359,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1130,7 +1334,9 @@
     "LocTop": -11104.4,
     "LocBottom": -11285.1,
     "UIMapId": 360,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1141,7 +1347,9 @@
     "LocTop": -11047.9,
     "LocBottom": -11444.6,
     "UIMapId": 361,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1152,7 +1360,9 @@
     "LocTop": -10986.4,
     "LocBottom": -11339.1,
     "UIMapId": 362,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1163,7 +1373,9 @@
     "LocTop": -10979.5,
     "LocBottom": -11143.0,
     "UIMapId": 363,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1174,7 +1386,9 @@
     "LocTop": -10972.867,
     "LocBottom": -11113.633,
     "UIMapId": 364,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1185,7 +1399,9 @@
     "LocTop": -11029.5,
     "LocBottom": -11097.0,
     "UIMapId": 365,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 532,
@@ -1196,7 +1412,9 @@
     "LocTop": -10874.5,
     "LocBottom": -11102.0,
     "UIMapId": 366,
-    "Continent": "Karazahn"
+    "Continent": "Karazahn",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1207,7 +1425,9 @@
     "LocTop": 12266.7,
     "LocBottom": -12800.0,
     "UIMapId": 947,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1218,7 +1438,9 @@
     "LocTop": 1808.3333,
     "LocBottom": -1716.6666,
     "UIMapId": 1411,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1229,7 +1451,9 @@
     "LocTop": -272.91666,
     "LocBottom": -3697.9165,
     "UIMapId": 1412,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1240,7 +1464,9 @@
     "LocTop": 1612.4999,
     "LocBottom": -5143.75,
     "UIMapId": 1413,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1251,7 +1477,9 @@
     "LocTop": 12799.9,
     "LocBottom": -11733.3,
     "UIMapId": 1414,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1262,7 +1490,9 @@
     "LocTop": 11176.344,
     "LocBottom": -15973.344,
     "UIMapId": 1415,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1273,7 +1503,9 @@
     "LocTop": 1500.0,
     "LocBottom": -366.66666,
     "UIMapId": 1416,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1284,7 +1516,9 @@
     "LocTop": -133.33333,
     "LocBottom": -2533.3333,
     "UIMapId": 1417,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1295,7 +1529,9 @@
     "LocTop": -5889.583,
     "LocBottom": -7547.9165,
     "UIMapId": 1418,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1306,7 +1542,9 @@
     "LocTop": -10566.666,
     "LocBottom": -12800.0,
     "UIMapId": 1419,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1317,7 +1555,9 @@
     "LocTop": 3837.4998,
     "LocBottom": 824.99994,
     "UIMapId": 1420,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1328,7 +1568,9 @@
     "LocTop": 1666.6666,
     "LocBottom": -1133.3333,
     "UIMapId": 1421,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1339,7 +1581,9 @@
     "LocTop": 3366.6665,
     "LocBottom": 499.99997,
     "UIMapId": 1422,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1350,7 +1594,9 @@
     "LocTop": 3799.9998,
     "LocBottom": 1218.75,
     "UIMapId": 1423,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1361,7 +1607,9 @@
     "LocTop": 400.0,
     "LocBottom": -1733.3333,
     "UIMapId": 1424,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1372,7 +1620,9 @@
     "LocTop": 1466.6666,
     "LocBottom": -1100.0,
     "UIMapId": 1425,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1383,7 +1633,9 @@
     "LocTop": -3877.0833,
     "LocBottom": -7160.4165,
     "UIMapId": 1426,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1394,7 +1646,9 @@
     "LocTop": -6100.0,
     "LocBottom": -7587.4995,
     "UIMapId": 1427,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1405,7 +1659,9 @@
     "LocTop": -7031.2495,
     "LocBottom": -8983.333,
     "UIMapId": 1428,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1416,7 +1672,9 @@
     "LocTop": -7939.583,
     "LocBottom": -10254.166,
     "UIMapId": 1429,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1427,7 +1685,9 @@
     "LocTop": -9866.666,
     "LocBottom": -11533.333,
     "UIMapId": 1430,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1438,7 +1698,9 @@
     "LocTop": -9716.666,
     "LocBottom": -11516.666,
     "UIMapId": 1431,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1449,7 +1711,9 @@
     "LocTop": -4487.5,
     "LocBottom": -6327.083,
     "UIMapId": 1432,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1460,7 +1724,9 @@
     "LocTop": -8575.0,
     "LocBottom": -10022.916,
     "UIMapId": 1433,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1471,7 +1737,9 @@
     "LocTop": -11168.75,
     "LocBottom": -15422.916,
     "UIMapId": 1434,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1482,7 +1750,9 @@
     "LocTop": -9620.833,
     "LocBottom": -11150.0,
     "UIMapId": 1435,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1493,7 +1763,9 @@
     "LocTop": -9400.0,
     "LocBottom": -11733.333,
     "UIMapId": 1436,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1504,7 +1776,9 @@
     "LocTop": -2147.9165,
     "LocBottom": -4904.1665,
     "UIMapId": 1437,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1515,7 +1789,9 @@
     "LocTop": 11831.25,
     "LocBottom": 8437.5,
     "UIMapId": 1438,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1526,7 +1802,9 @@
     "LocTop": 8333.333,
     "LocBottom": 3966.6665,
     "UIMapId": 1439,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1537,7 +1815,9 @@
     "LocTop": 4672.9165,
     "LocBottom": 829.1666,
     "UIMapId": 1440,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1548,7 +1828,9 @@
     "LocTop": -3966.6665,
     "LocBottom": -6899.9995,
     "UIMapId": 1441,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1559,7 +1841,9 @@
     "LocTop": 2916.6665,
     "LocBottom": -339.5833,
     "UIMapId": 1442,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1570,7 +1854,9 @@
     "LocTop": 452.0833,
     "LocBottom": -2545.8333,
     "UIMapId": 1443,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1581,7 +1867,9 @@
     "LocTop": -2366.6665,
     "LocBottom": -6999.9995,
     "UIMapId": 1444,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1592,7 +1880,9 @@
     "LocTop": -2033.3333,
     "LocBottom": -5533.333,
     "UIMapId": 1445,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1603,7 +1893,9 @@
     "LocTop": -5875.0,
     "LocBottom": -10475.0,
     "UIMapId": 1446,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1614,7 +1906,9 @@
     "LocTop": 5341.6665,
     "LocBottom": 1960.4166,
     "UIMapId": 1447,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1625,7 +1919,9 @@
     "LocTop": 7133.333,
     "LocBottom": 3299.9998,
     "UIMapId": 1448,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1636,7 +1932,9 @@
     "LocTop": -5966.6665,
     "LocBottom": -8433.333,
     "UIMapId": 1449,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1647,7 +1945,9 @@
     "LocTop": 8491.666,
     "LocBottom": 6952.083,
     "UIMapId": 1450,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1658,7 +1958,9 @@
     "LocTop": -5958.334,
     "LocBottom": -8281.25,
     "UIMapId": 1451,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 1,
@@ -1669,7 +1971,9 @@
     "LocTop": 8533.333,
     "LocBottom": 3799.9998,
     "UIMapId": 1452,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 0,
@@ -1680,7 +1984,9 @@
     "LocTop": -8278.851,
     "LocBottom": -9175.205,
     "UIMapId": 1453,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 10
   },
   {
     "MapID": 1,
@@ -1691,7 +1997,9 @@
     "LocTop": 2273.8772,
     "LocBottom": 1338.4606,
     "UIMapId": 1454,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 10
   },
   {
     "MapID": 0,
@@ -1702,7 +2010,9 @@
     "LocTop": -4569.241,
     "LocBottom": -5096.8457,
     "UIMapId": 1455,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 10
   },
   {
     "MapID": 1,
@@ -1713,7 +2023,9 @@
     "LocTop": -849.99994,
     "LocBottom": -1545.8333,
     "UIMapId": 1456,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 10
   },
   {
     "MapID": 1,
@@ -1724,7 +2036,9 @@
     "LocTop": 10238.316,
     "LocBottom": 9532.587,
     "UIMapId": 1457,
-    "Continent": "Kalimdor"
+    "Continent": "Kalimdor",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 10
   },
   {
     "MapID": 0,
@@ -1735,7 +2049,9 @@
     "LocTop": 1877.9453,
     "LocBottom": 1237.8412,
     "UIMapId": 1458,
-    "Continent": "Azeroth"
+    "Continent": "Azeroth",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 10
   },
   {
     "MapID": 30,
@@ -1746,7 +2062,9 @@
     "LocTop": 1085.4166,
     "LocBottom": -1739.5833,
     "UIMapId": 1459,
-    "Continent": "PVPZone01"
+    "Continent": "PVPZone01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 489,
@@ -1757,7 +2075,9 @@
     "LocTop": 1627.0833,
     "LocBottom": 862.49994,
     "UIMapId": 1460,
-    "Continent": "PVPZone03"
+    "Continent": "PVPZone03",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 529,
@@ -1768,7 +2088,9 @@
     "LocTop": 1508.3333,
     "LocBottom": 337.5,
     "UIMapId": 1461,
-    "Continent": "PVPZone04"
+    "Continent": "PVPZone04",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1779,7 +2101,9 @@
     "LocTop": 11041.666,
     "LocBottom": 7758.333,
     "UIMapId": 1941,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1790,7 +2114,9 @@
     "LocTop": 8266.666,
     "LocBottom": 6066.6665,
     "UIMapId": 1942,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1801,7 +2127,9 @@
     "LocTop": -2793.75,
     "LocBottom": -5508.333,
     "UIMapId": 1943,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1812,7 +2140,9 @@
     "LocTop": 1481.25,
     "LocBottom": -1962.4999,
     "UIMapId": 1944,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1823,7 +2153,9 @@
     "LocTop": 5821.3594,
     "LocBottom": -5821.3594,
     "UIMapId": 1945,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1834,7 +2166,9 @@
     "LocTop": 1935.4166,
     "LocBottom": -1416.6666,
     "UIMapId": 1946,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1845,7 +2179,9 @@
     "LocTop": -3609.6833,
     "LocBottom": -4314.371,
     "UIMapId": 1947,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 10
   },
   {
     "MapID": 530,
@@ -1856,7 +2192,9 @@
     "LocTop": -1947.9166,
     "LocBottom": -5614.583,
     "UIMapId": 1948,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1867,7 +2205,9 @@
     "LocTop": 4408.333,
     "LocBottom": 791.6666,
     "UIMapId": 1949,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1878,7 +2218,9 @@
     "LocTop": -758.3333,
     "LocBottom": -2933.3333,
     "UIMapId": 1950,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1889,7 +2231,9 @@
     "LocTop": 41.666664,
     "LocBottom": -3641.6665,
     "UIMapId": 1951,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1900,7 +2244,9 @@
     "LocTop": -999.99994,
     "LocBottom": -4600.0,
     "UIMapId": 1952,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1911,7 +2257,9 @@
     "LocTop": 5456.25,
     "LocBottom": 1739.5833,
     "UIMapId": 1953,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1922,7 +2270,9 @@
     "LocTop": 10153.709,
     "LocBottom": 9346.938,
     "UIMapId": 1954,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 10
   },
   {
     "MapID": 530,
@@ -1933,7 +2283,9 @@
     "LocTop": -1473.9545,
     "LocBottom": -2344.7878,
     "UIMapId": 1955,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 566,
@@ -1944,7 +2296,9 @@
     "LocTop": 2918.75,
     "LocBottom": 1404.1666,
     "UIMapId": 1956,
-    "Continent": "NetherstormBG"
+    "Continent": "NetherstormBG",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 0
   },
   {
     "MapID": 530,
@@ -1955,6 +2309,8 @@
     "LocTop": 13568.749,
     "LocBottom": 11350.0,
     "UIMapId": 1957,
-    "Continent": "Expansion01"
+    "Continent": "Expansion01",
+    "ParentAreaId": 0,
+    "ExplorationLevel": 70
   }
 ]
