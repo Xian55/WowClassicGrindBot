@@ -229,6 +229,7 @@ public sealed partial class GoapAgent : IDisposable
                 wasEmpty = true;
             }
 
+            Thread.Sleep(2);
             WaitHandle.WaitAny(waitHandles);
             sessionPauseEvent.Wait(cts.Token);
         }
