@@ -40,7 +40,7 @@ License: MIT
 -- @class file
 -- @name LibRangeCheck-3.0
 local MAJOR_VERSION = "LibRangeCheck-3.0"
-local MINOR_VERSION = 27
+local MINOR_VERSION = 28
 
 ---@class lib
 local lib, oldminor = LibStub:NewLibrary(MAJOR_VERSION, MINOR_VERSION)
@@ -69,6 +69,12 @@ local setmetatable = setmetatable
 local BOOKTYPE_SPELL = BOOKTYPE_SPELL or Enum.SpellBookSpellBank.Player
 local GetSpellBookItemName = GetSpellBookItemName or C_SpellBook.GetSpellBookItemName
 local C_Item = C_Item
+-- Compatibility shim for Classic WoW
+if not C_Item or not C_Item.GetItemInfo then
+  C_Item = C_Item or {}
+  C_Item.GetItemInfo = _G.GetItemInfo
+  C_Item.IsItemInRange = _G.IsItemInRange
+end
 local UnitCanAttack = UnitCanAttack
 local UnitCanAssist = UnitCanAssist
 local UnitExists = UnitExists
@@ -206,6 +212,7 @@ tinsert(ResSpells.DRUID, 50769) -- Revive (40 yards, level 14)
 tinsert(ResSpells.DRUID, 20484) -- Rebirth (40 yards, level 29)
 
 -- Hunters
+tinsert(HarmSpells.HUNTER, 466930) -- Black Arrow (40 yards)
 tinsert(HarmSpells.HUNTER, 75) -- Auto Shot (40 yards)
 
 if not isRetail then
@@ -4941,7 +4948,6 @@ end
 -- << load-time initialization
 
 function lib:activate()
-  --print(MAJOR_VERSION .. ": initializing...")
   if not self.frame then
     local frame = CreateFrame("Frame")
     self.frame = frame
@@ -5011,4 +5017,4 @@ end
 
 --- END CallbackHandler stuff
 
---lib:activate()
+-- lib:activate()
