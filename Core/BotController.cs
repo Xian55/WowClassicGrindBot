@@ -125,8 +125,7 @@ public sealed partial class BotController : IBotController, IDisposable
             !Enum.IsDefined<UnitClass>(playerReader.Class) ||
             playerReader.Class == UnitClass.None);
 
-        logger.LogInformation($"{playerReader.Race.ToStringF()} " +
-            $"{playerReader.Class.ToStringF()}!");
+        logger.LogInformation($"{playerReader.Version.ToStringF()} {playerReader.Race.ToStringF()} {playerReader.Class.ToStringF()}!");
 
         screenshotThread = new(ScreenshotThread);
         screenshotThread.Start();

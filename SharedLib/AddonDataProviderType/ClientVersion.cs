@@ -8,7 +8,13 @@ public enum ClientVersion
     TBC,
     Wrath,
     Cata,
-    Mop
+    Mop,
+    //
+    Legacy_Vanilla = 21,
+    Legacy_TBC = 22,
+    Legacy_Wrath = 23,
+    Legacy_Cata = 24,
+    Legacy_Mop = 25,
 }
 
 public static class ClientVersion_Extension
@@ -22,6 +28,11 @@ public static class ClientVersion_Extension
         ClientVersion.Wrath => nameof(ClientVersion.Wrath),
         ClientVersion.Cata => nameof(ClientVersion.Cata),
         ClientVersion.Mop => nameof(ClientVersion.Mop),
+        ClientVersion.Legacy_Vanilla => nameof(ClientVersion.Legacy_Vanilla),
+        ClientVersion.Legacy_TBC => nameof(ClientVersion.Legacy_TBC),
+        ClientVersion.Legacy_Wrath => nameof(ClientVersion.Legacy_Wrath),
+        ClientVersion.Legacy_Cata => nameof(ClientVersion.Legacy_Cata),
+        ClientVersion.Legacy_Mop => nameof(ClientVersion.Legacy_Mop),
         _ => nameof(ClientVersion.None)
     };
 }
