@@ -76,35 +76,12 @@ local Cata440 = DataToColor.IsClassic_Cata() and buildVersion >= 40400
 
 --------------------------------------------------------------------------------
 -- CLIENT VERSION ASSIGNMENT
--- Legacy clients: Version 6
--- Classic-era clients: Versions 1-5
 --------------------------------------------------------------------------------
 
-if DataToColor.IsLegacy() then
-  -- Legacy (old retail) clients - e.g., Cataclysm 4.3.4
-  DataToColor.ClientVersion = 6
-elseif WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
-  -- Retail (modern)
-  DataToColor.ClientVersion = 1
-elseif WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC then
-  -- Cataclysm Classic
-  DataToColor.ClientVersion = 5
-elseif WOW_PROJECT_ID == WOW_PROJECT_WRATH_CLASSIC then
-  -- Wrath Classic
-  DataToColor.ClientVersion = 4
-elseif WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC then
-  if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_NORTHREND or
-      LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_WRATH_OF_THE_LICH_KING then
-    DataToColor.ClientVersion = 4
-  elseif LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_BURNING_CRUSADE then
-    DataToColor.ClientVersion = 3
-  end
-elseif WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
-  -- Classic Era
-  DataToColor.ClientVersion = 2
+if not DataToColor.IsLegacy() then
+  DataToColor.ClientVersion = WOW_PROJECT_ID
 else
-  -- Unknown client, default to Legacy
-  DataToColor.ClientVersion = 6
+  DataToColor.ClientVersion = 20 + math.floor(buildVersion / 10000)
 end
 
 --------------------------------------------------------------------------------
@@ -308,4 +285,204 @@ DataToColor.OnGossipShow = function(event)
   end
 
   DataToColor.gossipQueue:push(DataToColor.GOSSIP_END)
+end
+
+--------------------------------------------------------------------------------
+-- GUID HANDLING FUNCTIONS - Version-specific implementations
+-- Legacy 4.3.4: Uses simpler Cataclysm-era GUID format
+-- Modern Classic: Uses newer GUID format with uniqueGuid hash calculation
+--------------------------------------------------------------------------------
+
+-- Compatibility layer for older WoW versions
+if not bit then
+	bit = {
+		band = function(a, b)
+			a = tonumber(a) or 0
+			b = tonumber(b) or 0
+			local result = 0
+			local p = 1
+			while a > 0 and b > 0 do
+				result = result + (p * ((a % 2) * (b % 2)))
+				a = math.floor(a / 2)
+				b = math.floor(b / 2)
+				p = p * 2
+			end
+			return result
+		end,
+		rshift = function(a, bits)
+			a = tonumber(a) or 0
+			return math.floor(a / (2 ^ bits))
+		end
+	}
+end
+
+local bit = bit
+local band = bit.band
+local sub = string.sub
+local strsplit = strsplit
+
+if DataToColor.IsLegacy() then
+  -- ========================================
+  -- LEGACY CATACLYSM 4.3.4 IMPLEMENTATIONS
+  -- ========================================
+
+  -- Extract NPC ID from GUID
+  -- Legacy Cataclysm format: Creature-0-X-Y-Z-NpcId-UniqueSpawnId
+  function DataToColor:NpcId(unit)
+    local guid = UnitGUID(unit) or ""
+
+    -- Legacy format (hex)
+    -- pattern: 0xF13000C5000034D7 → extract 00C5
+    local npc_hex = guid:match("^0xF[0-9A-F]+00(%x%x%x%x)")
+    if npc_hex then
+        return tonumber(npc_hex, 16)
+    end
+
+    return 0
+  end
+
+  -- Get unique GUID from unit
+  -- Legacy: Uses direct extraction of the last hex segment
+  function DataToColor:getGuidFromUnit(unit)
+    if not UnitExists(unit) then
+      return 0
+    end
+
+    local guid = UnitGUID(unit)
+    if not guid then return 0 end
+
+    -- Legacy format: Extract last segment (unique spawn ID) directly
+    local spawn_hex = guid:match("0xF[0-9A-F]+%x%x%x%x(%x%x%x%x%x%x)")
+    if spawn_hex then
+        return tonumber(spawn_hex, 16)
+    end
+
+    return 0
+  end
+
+  -- Get unique GUID from UUID
+  -- Legacy: Direct extraction without hash calculation
+  function DataToColor:getGuidFromUUID(uuid)
+    if not uuid then
+      return 0
+    end
+
+    local _, lastPart = uuid:match("^(.+)-([^-]+)$")
+    if lastPart then
+      return tonumber(lastPart, 16) % 0x1000000
+    end
+    return 0
+  end
+
+  -- Extract NPC ID from UUID
+  -- Legacy: Same extraction pattern as modern
+  function DataToColor:getNpcIdFromUUID(uuid)
+    if not uuid then
+      return 0
+    end
+
+    local npc_hex = uuid:match("^0xF[0-9A-F]+00(%x%x%x%x)")
+    if npc_hex then return tonumber(npc_hex, 16) end
+
+    return 0
+  end
+
+  -- Get unit type from UUID
+  -- Same for all versions - extract first segment
+  function DataToColor:getTypeFromUUID(uuid)
+    if not uuid then
+      return 0
+    end
+
+    --local type = uuid:match("^(.-)-")
+    --return DataToColor.C.GuidType[type] or 0
+
+    -- Legacy hex GUID: first byte identifies type
+    local high = uuid:sub(3,4)
+    local firstByte = tonumber(high, 16)
+    local typeID = bit.rshift(firstByte, 4)
+    -- Map typeID → your GuidType table if you maintain one
+    return typeID
+
+  end
+
+else
+  -- ========================================
+  -- MODERN CLASSIC IMPLEMENTATIONS
+  -- ========================================
+
+  -- Extract NPC ID from GUID
+  -- Modern format: Uses standard extraction
+  function DataToColor:NpcId(unit)
+    local guid = UnitGUID(unit) or ""
+    local id = guid:match("-(%d+)-[^-]+$")
+
+    if id and not guid:find("^Player") then
+      return tonumber(id, 10)
+    end
+    return 0
+  end
+
+  -- Get unique GUID from unit
+  -- Modern: Uses uniqueGuid calculation with spawn data
+  function DataToColor:getGuidFromUnit(unit)
+    if not UnitExists(unit) then
+      return 0
+    end
+
+    -- Modern Classic: Uses uniqueGuid calculation
+    -- Player-4731-02AAD4FF
+    -- Creature-0-4488-530-222-19350-000005C0D70
+    -- Pet-0-4448-530-222-22123-15004E200E
+    return DataToColor:uniqueGuid(select(-2, strsplit('-', UnitGUID(unit))))
+  end
+
+  -- Get unique GUID from UUID
+  -- Modern: Uses uniqueGuid calculation
+  function DataToColor:getGuidFromUUID(uuid)
+    if not uuid then
+      return 0
+    end
+    return DataToColor:uniqueGuid(select(-2, strsplit('-', uuid)))
+  end
+
+  -- Extract NPC ID from UUID
+  -- Modern: Standard extraction
+  function DataToColor:getNpcIdFromUUID(uuid)
+    if not uuid then
+      return 0
+    end
+
+    local id = uuid:match("-(%d+)-[^-]+$")
+
+    if id and not uuid:find("^Player") then
+      return tonumber(id, 10)
+    end
+    return 0
+  end
+
+  -- Get unit type from UUID
+  -- Same for all versions - extract first segment
+  function DataToColor:getTypeFromUUID(uuid)
+    if not uuid then
+      return 0
+    end
+
+    local type = uuid:match("^(.-)-")
+    return DataToColor.C.GuidType[type] or 0
+  end
+
+end
+
+-- Unique GUID calculation (Modern Classic only)
+-- This is called from modern client implementations only
+function DataToColor:uniqueGuid(npcId, spawn)
+  if not spawn then
+    return 0
+  end
+
+  local spawnEpochOffset = band(tonumber(sub(spawn, 5), 16), 0x7fffff)
+  local spawnIndex = band(tonumber(sub(spawn, 1, 5), 16), 0xffff8)
+
+  return (spawnEpochOffset + spawnIndex + npcId) % 0x1000000
 end

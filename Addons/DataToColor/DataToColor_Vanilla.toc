@@ -2,7 +2,7 @@
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Classic Era)
-## Version: 1.7.70
+## Version: 1.8.0
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:

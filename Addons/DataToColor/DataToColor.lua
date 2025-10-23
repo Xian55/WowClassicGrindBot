@@ -17,29 +17,6 @@ local GLOBAL_TIME_CELL = NUMBER_OF_FRAMES - 2
 
 -- Dont modify values below
 
--- Compatibility layer for older WoW versions
-if not bit then
-	bit = {
-		band = function(a, b)
-			a = tonumber(a) or 0
-			b = tonumber(b) or 0
-			local result = 0
-			local p = 1
-			while a > 0 and b > 0 do
-				result = result + (p * ((a % 2) * (b % 2)))
-				a = math.floor(a / 2)
-				b = math.floor(b / 2)
-				p = p * 2
-			end
-			return result
-		end,
-		rshift = function(a, bits)
-			a = tonumber(a) or 0
-			return math.floor(a / (2 ^ bits))
-		end
-	}
-end
-
 if not Enum or not Enum.PowerType then
 	PowerType = {
 		Mana = 0,
@@ -257,43 +234,6 @@ function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
     DataToColor:RegisterChatCommand('dccpu', 'GetCPUImpact')
     DataToColor:RegisterChatCommand('dcflush', 'FushState')
-    DataToColor:RegisterChatCommand('dcdbg', 'Dbg')
-end
-
-function DataToColor:Dbg()
-    DataToColor:Print("=== DataToColor Debug Info ===")
-
-    -- Client Type
-    if DataToColor.IsLegacy() then
-        DataToColor:Print("Client Type: LEGACY (Old Retail)")
-        if DataToColor.IsLegacyCataclysm() then
-            DataToColor:Print("  └─ Legacy Cataclysm 4.3.4")
-        end
-    elseif DataToColor.IsClassicEra() then
-        DataToColor:Print("Client Type: CLASSIC-ERA")
-        if DataToColor.IsClassic() then
-            DataToColor:Print("  └─ Classic Era (Vanilla)")
-        elseif DataToColor.IsClassic_BCC() then
-            DataToColor:Print("  └─ Burning Crusade Classic")
-        elseif DataToColor.IsClassic_Wrath() then
-            DataToColor:Print("  └─ Wrath of the Lich King Classic")
-        elseif DataToColor.IsClassic_Cata() then
-            DataToColor:Print("  └─ Cataclysm Classic")
-        elseif DataToColor.IsRetail() then
-            DataToColor:Print("  └─ Retail (Mainline)")
-        end
-    end
-
-    -- Version Info
-    local _, _, _, buildVersion = GetBuildInfo()
-    DataToColor:Print("Build Version: " .. buildVersion)
-    DataToColor:Print("Client Version ID: " .. (DataToColor.ClientVersion or 0))
-
-    -- Character Info
-    DataToColor:Print("Character Race: " .. (DataToColor.C.CHARACTER_RACE or "unknown"))
-    DataToColor:Print("Character Race ID: " .. (DataToColor.C.CHARACTER_RACE_ID or 0))
-    DataToColor:Print("Character Class: " .. (DataToColor.C.CHARACTER_CLASS or "unknown"))
-    DataToColor:Print("Character Class ID: " .. (DataToColor.C.CHARACTER_CLASS_ID or 0))
 end
 
 function DataToColor:StartSetup()

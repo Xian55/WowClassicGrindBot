@@ -2,7 +2,7 @@
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Legacy Cataclysm 4.3.0)
-## Version: 1.7.70
+## Version: 1.8.0
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck
 ## SavedVariables:

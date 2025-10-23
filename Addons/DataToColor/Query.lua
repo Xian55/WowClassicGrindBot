@@ -335,62 +335,6 @@ function DataToColor:getRange()
     return (max or 0) * 1000 + (min or 0)
 end
 
-function DataToColor:NpcId(unit)
-    local guid = UnitGUID(unit) or ""
-    local id = guid:match("-(%d+)-[^-]+$")
-
-    if id and not guid:find("^Player") then
-        return tonumber(id, 10)
-    end
-    return 0
-end
-
-function DataToColor:getGuidFromUnit(unit)
-    if not UnitExists(unit) then
-        return 0
-    end
-
-    -- Player-4731-02AAD4FF
-    -- Creature-0-4488-530-222-19350-000005C0D70
-    -- Pet-0-4448-530-222-22123-15004E200E
-    return DataToColor:uniqueGuid(select(-2, strsplit('-', UnitGUID(unit))))
-end
-
-function DataToColor:getGuidFromUUID(uuid)
-    if not uuid then
-        return 0
-    end
-    return DataToColor:uniqueGuid(select(-2, strsplit('-', uuid)))
-end
-
-function DataToColor:getNpcIdFromUUID(uuid)
-    if not uuid then
-        return 0
-    end
-
-    local id = uuid:match("-(%d+)-[^-]+$")
-
-    if id and not uuid:find("^Player") then
-        return tonumber(id, 10)
-    end
-    return 0
-end
-
-function DataToColor:getTypeFromUUID(uuid)
-    if not uuid then
-        return 0
-    end
-
-    local type = uuid:match("^(.-)-")
-    return DataToColor.C.GuidType[type] or 0
-end
-
-function DataToColor:uniqueGuid(npcId, spawn)
-    local spawnEpochOffset = band(tonumber(sub(spawn, 5), 16), 0x7fffff)
-    local spawnIndex = band(tonumber(sub(spawn, 1, 5), 16), 0xffff8)
-
-    return (spawnEpochOffset + spawnIndex + npcId) % 0x1000000
-end
 
 local offsetEnumPowerType = 2
 function DataToColor:populateActionbarCost(slot)
