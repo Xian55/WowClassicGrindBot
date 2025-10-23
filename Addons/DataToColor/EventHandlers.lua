@@ -172,10 +172,6 @@ function DataToColor:InitializeErrorLists()
             errorListMessages[text] = value
         end
     end
-
-    if _G['ERR_USE_LOCKED_WITH_SPELL_S'] then
-        specialErrorS[strsplit('%s', _G['ERR_USE_LOCKED_WITH_SPELL_S'], 2)] = 17
-    end
 end
 
 -- Called by PLAYER_LOGIN event when it exists
@@ -191,7 +187,9 @@ function DataToColor:OnPlayerLogin()
     end)
 end
 
-function DataToColor:OnUIErrorMessage(_, _, message)
+function DataToColor:OnUIErrorMessage(...)
+    local message = select(-1, ...)
+
     if ignoreErrorListMessages[message] then
         UIErrorsFrame:AddMessage(message, 0.7, 0.7, 0.7) -- show as grey message
         return
@@ -484,8 +482,10 @@ function DataToColor:OnCombatEvent(...)
     end
 end
 
-function DataToColor:OnUnitSpellCastSent(event, unit, target, castGUID, spellId)
-    --print(event, unit, target, castGUID, spellId)
+function DataToColor:OnUnitSpellCastSent(...)
+    --print(...)
+    local unit = select(2, ...)
+    local spellId = select(-1, ...)
     if unit ~= DataToColor.C.unitPlayer then return end
 
     DataToColor.lastCastEvent = CAST_SENT
@@ -493,8 +493,10 @@ function DataToColor:OnUnitSpellCastSent(event, unit, target, castGUID, spellId)
     DataToColor.lastCastSpellId = spellId
 end
 
-function DataToColor:OnUnitSpellCastSucceeded(event, unit, castGUID, spellId)
-    --print(event, unit, castGUID, spellId)
+function DataToColor:OnUnitSpellCastSucceeded(...)
+    --print(...)
+    local unit = select(2, ...)
+    local spellId = select(-1, ...)
     if unit ~= DataToColor.C.unitPlayer then return end
 
     DataToColor.lastCastEvent = CAST_SUCCESS
@@ -502,8 +504,10 @@ function DataToColor:OnUnitSpellCastSucceeded(event, unit, castGUID, spellId)
     DataToColor.lastCastSpellId = spellId
 end
 
-function DataToColor:OnUnitSpellCastFailed(event, unit, castGUID, spellId)
-    --print(event, unit, castGUID, spellId)
+function DataToColor:OnUnitSpellCastFailed(...)
+    --print(...)
+    local unit = select(2, ...)
+    local spellId = select(-1, ...)
     if unit ~= DataToColor.C.unitPlayer then return end
 
     DataToColor.lastCastEvent = DataToColor.uiErrorMessage
