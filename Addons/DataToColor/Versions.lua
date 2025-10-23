@@ -16,22 +16,11 @@ local WOW_PROJECT_WRATH_CLASSIC = WOW_PROJECT_WRATH_CLASSIC
 local WOW_PROJECT_CATACLYSM_CLASSIC = WOW_PROJECT_CATACLYSM_CLASSIC
 local WOW_PROJECT_MAINLINE = WOW_PROJECT_MAINLINE
 
-local LE_EXPANSION_LEVEL_CURRENT = LE_EXPANSION_LEVEL_CURRENT
-local LE_EXPANSION_NORTHREND = LE_EXPANSION_NORTHREND
-local LE_EXPANSION_BURNING_CRUSADE = LE_EXPANSION_BURNING_CRUSADE
-local LE_EXPANSION_WRATH_OF_THE_LICH_KING = LE_EXPANSION_WRATH_OF_THE_LICH_KING
-
 -- Is this a Legacy client (old retail, e.g., Cataclysm 4.3.4)?
 function DataToColor.IsLegacy()
   return WOW_PROJECT_ID == -1
 end
 
--- Is this Legacy Cataclysm 4.3.4?
-function DataToColor.IsLegacyCataclysm()
-  if not DataToColor.IsLegacy() then return false end
-  local buildVersion = select(4, GetBuildInfo())
-  return buildVersion >= 40000 and buildVersion < 50000
-end
 
 -- Is this a Classic-era client (any of the Classic versions)?
 function DataToColor.IsClassicEra()
@@ -78,10 +67,10 @@ local Cata440 = DataToColor.IsClassic_Cata() and buildVersion >= 40400
 -- CLIENT VERSION ASSIGNMENT
 --------------------------------------------------------------------------------
 
-if not DataToColor.IsLegacy() then
-  DataToColor.ClientVersion = WOW_PROJECT_ID
+if DataToColor.IsLegacy() then
+  DataToColor.ClientVersion = 90 + math.floor(buildVersion / 10000)
 else
-  DataToColor.ClientVersion = 20 + math.floor(buildVersion / 10000)
+  DataToColor.ClientVersion = WOW_PROJECT_ID
 end
 
 --------------------------------------------------------------------------------

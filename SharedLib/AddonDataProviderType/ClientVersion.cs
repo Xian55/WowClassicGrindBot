@@ -2,19 +2,19 @@
 
 public enum ClientVersion
 {
-    None,
-    Retail,
-    SoM,
-    TBC,
-    Wrath,
-    Cata,
-    Mop,
+    None = 0,
+    Retail = 1,
+    SoM = 2,
+    TBC = 5,
+    Wrath = 11,
+    Cata = 14,
+    Mop = 19,
     //
-    Legacy_Vanilla = 21,
-    Legacy_TBC = 22,
-    Legacy_Wrath = 23,
-    Legacy_Cata = 24,
-    Legacy_Mop = 25,
+    Legacy_Vanilla = 91,
+    Legacy_TBC = 92,
+    Legacy_Wrath = 93,
+    Legacy_Cata = 94,
+    Legacy_Mop = 95,
 }
 
 public static class ClientVersion_Extension
