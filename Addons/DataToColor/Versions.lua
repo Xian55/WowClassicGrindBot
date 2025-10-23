@@ -283,6 +283,13 @@ end
 --------------------------------------------------------------------------------
 
 -- Compatibility layer for older WoW versions
+
+if not IsInGroup then
+    function IsInGroup()
+        return (GetNumPartyMembers() > 0) or (GetNumRaidMembers() > 0)
+    end
+end
+
 if not bit then
 	bit = {
 		band = function(a, b)
