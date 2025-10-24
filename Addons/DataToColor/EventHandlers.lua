@@ -92,6 +92,8 @@ local specialErrorS = {}
 local errorListMessages = {}
 
 function DataToColor:RegisterEvents()
+    DataToColor:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnteringWorld")
+
     DataToColor:RegisterEvent("UI_ERROR_MESSAGE", 'OnUIErrorMessage')
     DataToColor:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", 'UnfilteredCombatEvent')
     DataToColor:RegisterEvent("UNIT_SPELLCAST_SENT", 'OnUnitSpellCastSent')

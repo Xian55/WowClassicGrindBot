@@ -258,29 +258,23 @@ end
 -- This function runs when addon is initialized/player logs in
 function DataToColor:OnInitialize()
     DataToColor:CreateConstants()
+    DataToColor:InitStorage()
     DataToColor:SetupRequirements()
     DataToColor:CreateFrames()
     DataToColor:RegisterSlashCommands()
-
-    DataToColor:PopulateSpellBookInfo()
-    DataToColor:InitStorage()
 
     UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
 
     DataToColor:RegisterEvents()
 
-    -- Try to register PLAYER_LOGIN event for initializing error lists
-    -- If PLAYER_LOGIN doesn't exist (legacy clients), initialize error lists immediately
-    local playerLoginRegistered = pcall(function()
-        DataToColor:RegisterEvent("PLAYER_LOGIN", "OnPlayerLogin")
-    end)
+    local version = GetAddOnMetadata('DataToColor', 'Version')
+    DataToColor:Print("Welcome. Using " .. version)
+end
 
-    if not playerLoginRegistered then
-        -- Legacy client without PLAYER_LOGIN event
-        DataToColor:InitializeErrorLists()
-        local version = GetAddOnMetadata('DataToColor', 'Version')
-        DataToColor:Print("Welcome. Using " .. version)
-    end
+function DataToColor:OnEnteringWorld()
+    DataToColor:InitializeErrorLists()
+
+    DataToColor:PopulateSpellBookInfo()
 
     DataToColor:InitUpdateQueues()
     DataToColor:InitTrigger(DataToColor.customTrigger1)
@@ -453,56 +447,68 @@ function DataToColor:InitActionBarCostQueue()
 end
 
 function DataToColor:PopulateSpellBookInfo()
-    local num, type = 1, "spell"
-    if not GetNumSpellTabs then
-        while true do
-            local name, _, id = GetSpellBookItemName(num, type)
-            if not name then
-                break
-            end
+    local numLoaded = 0
+    local bookType = "spell"
 
-            if id then
-                local texture = GetSpellBookItemTexture(num, type)
-                DataToColor.S.playerSpellBookId[id] = true
-                DataToColor.S.playerSpellBookName[texture] = name
-                DataToColor.S.playerSpellBookIconToId[texture] = id
+    -- prepare destination tables
+    local S = DataToColor.S
+    S.playerSpellBookId, S.playerSpellBookName,
+    S.playerSpellBookIconToId, S.playerSpellBookIdHighest = {}, {}, {}, {}
 
-                --DataToColor:Print(id, texture, name)
-
-                if not DataToColor.S.playerSpellBookIdHighest[texture] or id > DataToColor.S.playerSpellBookIdHighest[texture] then
-                    DataToColor.S.playerSpellBookIdHighest[texture] = id
-                end
-
-                num = num + 1
-            end
+    --------------------------------------------------------------------
+    -- Helper to record one spell safely
+    --------------------------------------------------------------------
+    local function RecordSpell(id, name, texture)
+        if not (id and name and texture) then return end
+        S.playerSpellBookId[id] = true
+        S.playerSpellBookName[texture] = name
+        S.playerSpellBookIconToId[texture] = id
+        local highest = S.playerSpellBookIdHighest[texture]
+        if not highest or id > highest then
+            S.playerSpellBookIdHighest[texture] = id
         end
+        numLoaded = numLoaded + 1
+    end
+
+    --------------------------------------------------------------------
+    -- Classic-era clients: no GetNumSpellTabs
+    --------------------------------------------------------------------
+    if not GetNumSpellTabs then
+        local i = 1
+        while true do
+            local name, rank, id
+
+            if GetSpellBookItemName then
+                name, rank, id = GetSpellBookItemName(i, bookType)
+            elseif GetSpellName then
+                name, rank = GetSpellName(i, bookType)
+            end
+
+            if not name then break end
+            id = id or (GetSpellID and GetSpellID(i, bookType))
+            local texture = GetSpellBookItemTexture and GetSpellBookItemTexture(i, bookType)
+            RecordSpell(id, name, texture)
+            i = i + 1
+        end
+
+    --------------------------------------------------------------------
+    -- Cataclysm and later: tab-based spellbook
+    --------------------------------------------------------------------
     else
-        -- Cataclysm Classic
-        for i = 1, GetNumSpellTabs() do
-            local offset, numSlots = select(3, GetSpellTabInfo(i))
-            for j = offset + 1, offset + numSlots do
-                local name, _, id = GetSpellBookItemName(j, type)
-                if not name then
-                    break
-                end
-
-                if id and IsSpellKnown(id) then
-                    local texture = GetSpellBookItemTexture(j, type)
-                    DataToColor.S.playerSpellBookId[id] = true
-                    DataToColor.S.playerSpellBookName[texture] = name
-                    DataToColor.S.playerSpellBookIconToId[texture] = id
-
-                    if not DataToColor.S.playerSpellBookIdHighest[texture] or id > DataToColor.S.playerSpellBookIdHighest[texture] then
-                        DataToColor.S.playerSpellBookIdHighest[texture] = id
-                    end
-
-                    num = num + 1
+        for tab = 1, GetNumSpellTabs() do
+            local offset, numSlots = select(3, GetSpellTabInfo(tab))
+            for i = offset + 1, offset + numSlots do
+                local slotType, id = GetSpellBookItemInfo(i, bookType)
+                if slotType == "SPELL" and id and (not IsSpellKnown or IsSpellKnown(id)) then
+                    local name = GetSpellBookItemName(i, bookType)
+                    local texture = GetSpellBookItemTexture(i, bookType)
+                    RecordSpell(id, name, texture)
                 end
             end
         end
     end
 
-    DataToColor:Print("Loaded " .. num .. " spell")
+    --DataToColor:Print(("Loaded %d spells"):format(numLoaded))
 end
 
 function DataToColor:InitSpellBookQueue()
@@ -668,7 +674,8 @@ function DataToColor:CreateFrames()
                 bagNum = floor(bagSlotNum / 1000)
                 bagSlotNum = bagSlotNum - (bagNum * 1000)
 
-                local _, itemCount, _, _, _, _, _, _, _, itemID = GetContainerItemInfo(bagNum, bagSlotNum)
+                local texture, itemCount, locked, quality, readable, lootable, link = GetContainerItemInfo(bagNum, bagSlotNum)
+                local itemID = link and tonumber(link:match("item:(%d+)")) or 0
 
                 -- 0-4 bagNum + 1-21 itenNum + 1-1000 quantity
                 if Pixel(int, bagNum * 1000000 + bagSlotNum * 10000 + (itemCount or 0), 21) then
