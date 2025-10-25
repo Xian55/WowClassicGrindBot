@@ -77,51 +77,67 @@ end
 -- API COMPATIBILITY WRAPPERS
 --------------------------------------------------------------------------------
 
--- UnitCastingInfo wrapper for different client versions
-if DataToColor.IsLegacy() or DataToColor.IsRetail() or TBC253 or DataToColor.IsClassic_Wrath() or DataToColor.IsClassic_Cata() then
-  -- Legacy clients and newer Classic-era clients have the full API
-  DataToColor.UnitCastingInfo = UnitCastingInfo
-elseif Som140 or TBC252 then
-  DataToColor.UnitCastingInfo = function(unit)
-    local name, text, texture, startTimeMS, endTimeMS, isTradeSkill, castID, spellId = UnitCastingInfo(unit)
-    return name, text, texture, startTimeMS, endTimeMS, isTradeSkill, castID, nil, spellId
-  end
-elseif DataToColor.IsClassic_BCC() or DataToColor.IsClassic() then
-  DataToColor.UnitCastingInfo = function(unit)
-    local name, text, texture, startTimeMS, endTimeMS, isTradeSkill, castID, interrupt, spellId = UnitCastingInfo(unit)
-    return name, text, texture, startTimeMS, endTimeMS, isTradeSkill, castID, nil, spellId
-  end
-else
-  DataToColor.UnitCastingInfo = function(unit)
-    if UnitIsUnit(unit, DataToColor.C.unitPlayer) then
-      return UnitCastingInfo(DataToColor.C.unitPlayer)
-    else
-      return LibClassicCasterino:UnitCastingInfo(unit)
+------------------------------------------------------------
+-- UnitCastingInfo (no allocations, cross-version safe)
+------------------------------------------------------------
+if DataToColor.IsLegacy() then
+    local S = DataToColor.S
+    -- Fast path: built-in function exists
+    function DataToColor.UnitCastingInfo(unit)
+        local n1, n2, n3, n4, n5, n6, n7, n8, n9 = UnitCastingInfo(unit)
+        -- Legacy (e.g., 4.3.4) may not return spellId (n9)
+        if not n9 and n4 and S and S.playerSpellBookIconToId then
+          n4 = DataToColor:NormalizeTexture(n4)
+          n9 = S.playerSpellBookIconToId[n4] or 0
+        end
+        return n1, n2, n3, n4, n5, n6, n7, n8, n9
     end
+else
+  function DataToColor.UnitCastingInfo(unit)
+    local n1, n2, n3, n4, n5, n6, n7, n8, n9
+    if LibClassicCasterino then
+      n1, n2, n3, n4, n5, n6, n7, n8, n9 = LibClassicCasterino:UnitCastingInfo(unit)
+    else
+      n1, n2, n3, n4, n5, n6, n7, n8, n9 = UnitCastingInfo(unit)
+    end
+
+    if not n9 then
+      return n1, n2, n3, n4, n5, n6, n7, nil, n8
+    end
+    return n1, n2, n3, n4, n5, n6, n7, n8, n9
   end
 end
 
--- UnitChannelInfo wrapper for different client versions
-if DataToColor.IsLegacy() or DataToColor.IsRetail() or TBC253 or DataToColor.IsClassic_Wrath() or DataToColor.IsClassic_Cata() then
-  -- Legacy clients and newer Classic-era clients have the full API
-  DataToColor.UnitChannelInfo = UnitChannelInfo
-elseif Som140 or TBC252 then
-  DataToColor.UnitChannelInfo = function(unit)
-    local name, text, texture, startTimeMS, endTimeMS, isTradeSkill, spellId = UnitChannelInfo(unit)
-    return name, text, texture, startTimeMS, endTimeMS, isTradeSkill, nil, spellId
-  end
-elseif DataToColor.IsClassic_BCC() or DataToColor.IsClassic() then
-  DataToColor.UnitChannelInfo = function(unit)
-    local name, text, texture, startTimeMS, endTimeMS, isTradeSkill, interrupt, spellId = UnitChannelInfo(unit)
-    return name, text, texture, startTimeMS, endTimeMS, isTradeSkill, nil, spellId
-  end
-else
-  DataToColor.UnitChannelInfo = function(unit)
-    if UnitIsUnit(unit, DataToColor.C.unitPlayer) then
-      return UnitChannelInfo(DataToColor.C.unitPlayer)
-    else
-      return LibClassicCasterino:UnitChannelInfo(unit)
+
+------------------------------------------------------------
+-- UnitChannelInfo (no allocations, cross-version safe)
+------------------------------------------------------------
+
+local S = DataToColor.S
+if DataToColor.IsLegacy() then
+    function DataToColor.UnitChannelInfo(unit)
+        local n1, n2, n3, n4, n5, n6, n7, n8 = UnitChannelInfo(unit)
+        -- Legacy (e.g., 4.3.4) may not return spellId (n8)
+        if not n8 and n4 and S and S.playerSpellBookIconToId then
+          n4 = DataToColor:NormalizeTexture(n4)
+          n8 = S.playerSpellBookIconToId[n4] or 0
+        end
+
+        return n1, n2, n3, n4, n5, n6, n7, n8
     end
+else
+  function DataToColor.UnitChannelInfo(unit)
+    local n1, n2, n3, n4, n5, n6, n7, n8
+    if LibClassicCasterino then
+      n1, n2, n3, n4, n5, n6, n7, n8 =  LibClassicCasterino:UnitChannelInfo(unit)
+    else
+      n1, n2, n3, n4, n5, n6, n7, n8 = UnitChannelInfo(unit)
+    end
+
+    if not n8 then
+      return n1, n2, n3, n4, n5, n6, nil, n7
+    end
+    return n1, n2, n3, n4, n5, n6, n7, n8
   end
 end
 
@@ -162,12 +178,7 @@ function DataToColor:NormalizeTexture(texture)
         return texture
     end
 
-    local mapped = DataToColor.LegacyTextureToFileID[texture]
-    if mapped then
-        return mapped
-    end
-
-    return -1
+    return DataToColor.LegacyTextureToFileID[texture] or -1
 end
 
 
