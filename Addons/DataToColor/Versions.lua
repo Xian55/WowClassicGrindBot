@@ -151,6 +151,69 @@ end
 
 DataToColor.UnitIsTapDenied = SafeUnitIsTapDenied
 
+--------------------------------------------------------
+-- Case-insensitive, slash-tolerant lookup for legacy table
+--------------------------------------------------------
+setmetatable(DataToColor.LegacyTextureToFileID, {
+    __index = function(t, k)
+        if type(k) ~= "string" then
+            return nil
+        end
+        local key = k:lower()
+        return rawget(t, key)
+    end
+})
+
+--------------------------------------------------------
+-- NormalizeTexture: convert path or numeric into a fileID
+--------------------------------------------------------
+function DataToColor:NormalizeTexture(texture)
+    if not texture then return nil end
+
+    -- modern numeric ID
+    if type(texture) == "number" then
+        return texture
+    end
+
+    local mapped = DataToColor.LegacyTextureToFileID[texture]
+    if mapped then
+        return mapped
+    end
+
+    return -1
+end
+
+
+function DataToColor:GetAuraInfo(func, unit, index)
+    -- one call only; positions differ by era:
+    -- modern: name(1), icon(2), count(3), dispel(4), duration(5), expiration(6), source(7), ...
+    -- legacy: name(1), rank(2), icon(3),  count(4), dispel(5), duration(6),   expiration(7), source(8)
+    local a1, a2, a3, a4, a5, a6, a7 = func(unit, index)
+    if not a1 then return nil end
+
+    -- decide which slot is the texture:
+    --  - modern: a2 is a file path like "Interface\\Icons\\..."
+    --  - legacy: a2 is rank ("" or "Rank X"), a3 is the texture path
+    local texture = a2
+    if not texture
+       or texture == ""
+       or type(texture) ~= "string"
+       or (not texture:find("\\") and not texture:find("/"))  -- not a path-looking string
+    then
+        texture = a3
+    end
+
+    -- ✅ normalize texture cross-version (ALWAYS do it here)
+    texture = DataToColor:NormalizeTexture(texture)
+
+    -- duration/expiration are at a6/a7 in both eras
+    local duration       = tonumber(a6) or 0
+    local expirationTime = tonumber(a7) or 0
+
+    return a1, texture, duration, expirationTime
+end
+
+
 --------------------------------------------------------------------------------
 -- CONTAINER API COMPATIBILITY (Bag changes from 10.0)
 -- Legacy clients use old API, newer clients may use C_Container

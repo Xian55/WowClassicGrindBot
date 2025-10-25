@@ -262,10 +262,9 @@ function DataToColor:OnInitialize()
     DataToColor:SetupRequirements()
     DataToColor:CreateFrames()
     DataToColor:RegisterSlashCommands()
+    DataToColor:RegisterEvents()
 
     UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
-
-    DataToColor:RegisterEvents()
 
     local version = GetAddOnMetadata('DataToColor', 'Version')
     DataToColor:Print("Welcome. Using " .. version)
@@ -278,6 +277,8 @@ function DataToColor:OnEnteringWorld()
 
     DataToColor:InitUpdateQueues()
     DataToColor:InitTrigger(DataToColor.customTrigger1)
+
+    DataToColor.Libs.RangeCheck:activate()
 end
 
 function DataToColor:SetupRequirements()
@@ -460,6 +461,8 @@ function DataToColor:PopulateSpellBookInfo()
     --------------------------------------------------------------------
     local function RecordSpell(id, name, texture)
         if not (id and name and texture) then return end
+        -- prefer number over file path name
+        texture = DataToColor:NormalizeTexture(texture)
         S.playerSpellBookId[id] = true
         S.playerSpellBookName[texture] = name
         S.playerSpellBookIconToId[texture] = id

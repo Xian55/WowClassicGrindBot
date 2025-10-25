@@ -13,6 +13,7 @@ init.lua
 
 Collections.lua
 
+LegacyTextureToFileID.lua
 WorldMapAreaIDToUiMapID.lua
 
 Versions.lua

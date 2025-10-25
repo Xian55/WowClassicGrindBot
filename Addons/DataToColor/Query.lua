@@ -1,7 +1,6 @@
 local Load = select(2, ...)
 local DataToColor = unpack(Load)
 local Range = DataToColor.Libs.RangeCheck
-Range:activate()
 
 local bit = bit
 local band = bit.band
@@ -236,7 +235,7 @@ function DataToColor:populateAuraTimer(func, unitId, queue)
     end
 
     for i = 1, 40 do
-        local name, texture, _, _, duration, expirationTime = func(unitId, i)
+        local name, texture, duration, expirationTime = DataToColor:GetAuraInfo(func, unitId, i)
         if not name then
             break
         end
@@ -428,7 +427,7 @@ function DataToColor:isActionUseable(min, max)
         local _, spellId = GetActionInfo(i)
         local gcd = 0
         if DataToColor.S.playerSpellBookId[spellId] then
-            gcd = select(2, GetSpellBaseCooldown(spellId))
+            gcd = select(2, GetSpellBaseCooldown(spellId)) or 1500 -- Legacy version fallback to 1500 ms
         end
 
         if enabled == 1 and start ~= 0 and (duration * 1000) > gcd and not DataToColor.actionBarCooldownQueue:exists(i) then
