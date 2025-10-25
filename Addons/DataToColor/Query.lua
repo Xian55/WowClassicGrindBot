@@ -53,7 +53,7 @@ local UnitRangedDamage = UnitRangedDamage
 
 local GameMenuFrame = GameMenuFrame
 local LootFrame = LootFrame
-local ChatFrame1EditBox = ChatFrame1EditBox
+local ChatEdit_GetActiveWindow = ChatEdit_GetActiveWindow
 
 local HasPetUI = HasPetUI
 
@@ -111,6 +111,10 @@ function DataToColor:GetPosition()
         return pos:GetXY()
     end
     return 0, 0
+end
+
+function DataToColor:IsChatInputActive()
+    return ChatEdit_GetActiveWindow() ~= nil
 end
 
 -- Base 2 converter for up to 24 boolean values to a single pixel square.
@@ -186,7 +190,7 @@ function DataToColor:Bits3()
         (DataToColor:IsUnitHostile(DataToColor.C.unitPlayer, DataToColor.C.unitSoftInteract) and 2 or 0) ^ 6 +
         (DataToColor.channeling and 2 or 0) ^ 7 +
         (LootFrame:IsShown() and 2 or 0) ^ 8 +
-        (ChatFrame1EditBox:IsVisible() and 2 or 0) ^ 9 +
+        (DataToColor:IsChatInputActive() and 2 or 0) ^ 9 +
         (DataToColor:SoftTargetInteractEnabled() and 2 or 0) ^ 10
 end
 
