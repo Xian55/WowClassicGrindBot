@@ -152,19 +152,6 @@ end
 DataToColor.UnitIsTapDenied = SafeUnitIsTapDenied
 
 --------------------------------------------------------
--- Case-insensitive, slash-tolerant lookup for legacy table
---------------------------------------------------------
-setmetatable(DataToColor.LegacyTextureToFileID, {
-    __index = function(t, k)
-        if type(k) ~= "string" then
-            return nil
-        end
-        local key = k:lower()
-        return rawget(t, key)
-    end
-})
-
---------------------------------------------------------
 -- NormalizeTexture: convert path or numeric into a fileID
 --------------------------------------------------------
 function DataToColor:NormalizeTexture(texture)
@@ -243,6 +230,20 @@ DataToColor.GetGossipOptions = GetGossipOptions or C_GossipInfo.GetOptions
 
 -- C_Map compatibility
 if not C_Map or not C_Map.GetBestMapForUnit then
+
+--------------------------------------------------------
+-- Case-insensitive, slash-tolerant lookup for legacy table
+--------------------------------------------------------
+  setmetatable(DataToColor.LegacyTextureToFileID, {
+      __index = function(t, k)
+          if type(k) ~= "string" then
+              return nil
+          end
+          local key = k:lower()
+          return rawget(t, key)
+      end
+  })
+
     C_Map = C_Map or {}
 
     function C_Map.GetBestMapForUnit(unit)
