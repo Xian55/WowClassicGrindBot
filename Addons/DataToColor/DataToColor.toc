@@ -13,6 +13,8 @@ init.lua
 
 Collections.lua
 
+WorldMapAreaIDToUiMapID.lua
+
 Versions.lua
 
 Constants.lua

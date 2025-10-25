@@ -179,30 +179,26 @@ DataToColor.GetGossipOptions = GetGossipOptions or C_GossipInfo.GetOptions
 --------------------------------------------------------------------------------
 
 -- C_Map compatibility
-if C_Map and C_Map.GetBestMapForUnit then
-  DataToColor.GetBestMapForUnit = C_Map.GetBestMapForUnit
-else
-  local map = {}
-  map.GetBestMapForUnit = function(unit)
-    SetMapToCurrentZone()
-    return GetPlayerMapPosition(unit or "player")
-  end
+if not C_Map or not C_Map.GetBestMapForUnit then
+    C_Map = C_Map or {}
 
-  map.GetPlayerMapPosition = function(map, unit)
-    local x, y = GetPlayerMapPosition(unit or "player")
-    local obj = {}
-
-    obj.GetXY = function()
-      return x, y
+    function C_Map.GetBestMapForUnit(unit)
+        unit = unit or "player"
+        SetMapToCurrentZone()
+        local id = GetCurrentMapAreaID and GetCurrentMapAreaID() or 0
+        return DataToColor.WorldMapAreaIDToUiMapID[id]
     end
 
-    return obj
-  end
-
-  C_Map = map
-  DataToColor.GetBestMapForUnit = C_Map.GetBestMapForUnit
-  DataToColor.GetPlayerMapPosition = C_Map.GetPlayerMapPosition
+    function C_Map.GetPlayerMapPosition(mapID, unit)
+        local x, y = GetPlayerMapPosition(unit or "player")
+        local pos = {}
+        function pos:GetXY() return x, y end
+        return pos
+    end
 end
+
+DataToColor.GetBestMapForUnit    = C_Map.GetBestMapForUnit
+DataToColor.GetPlayerMapPosition = C_Map.GetPlayerMapPosition
 
 -- GetCVar compatibility wrapper
 local originalGetCVar = GetCVar
