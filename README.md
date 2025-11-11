@@ -233,15 +233,15 @@ More info [506](https://github.com/Xian55/WowClassicGrindBot/pull/506)
 ## 4.1 Build Requirements
 
 * Windows 10 and above
-* [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+* [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 * `AnyCPU`, `x86` and `x64` build supported.
 
 ## 4.2 Build the solution
 
 One of the following IDE or command line
-* Visual Studio
-* Visual Studio Code
-* Powershell
+* [Visual Studio 2026](https://visualstudio.microsoft.com/downloads/)
+* [Visual Studio Code](https://code.visualstudio.com/)
+* [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5)
 
 e.g. Build from Powershell
 ```ps
