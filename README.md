@@ -239,9 +239,9 @@ More info [506](https://github.com/Xian55/WowClassicGrindBot/pull/506)
 ## 4.2 Build the solution
 
 One of the following IDE or command line
-* Visual Studio
-* Visual Studio Code
-* Powershell
+* [Visual Studio 2026](https://visualstudio.microsoft.com/downloads/)
+* [Visual Studio Code](https://code.visualstudio.com/)
+* [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5)
 
 e.g. Build from Powershell
 ```ps
