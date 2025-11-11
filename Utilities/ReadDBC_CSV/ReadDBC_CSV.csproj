@@ -11,7 +11,7 @@
 
   <ItemGroup>
     <Reference Include="SharedLib">
-      <HintPath>..\..\SharedLib\bin\Release\net9.0\SharedLib.dll</HintPath>
+      <HintPath>..\..\SharedLib\bin\Release\net10.0\SharedLib.dll</HintPath>
     </Reference>
   </ItemGroup>
 
