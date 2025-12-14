@@ -422,6 +422,7 @@ local GetTime = GetTime
 local HandSlotId = GetInventorySlotInfo("HandsSlot")
 local math_floor = math.floor
 local UnitIsVisible = UnitIsVisible
+local IsSpellKnown = IsSpellKnown
 
 -- temporary stuff
 
@@ -538,10 +539,12 @@ local function findMinRangeChecker(origMinRange, origRange, spellList)
   for i = 1, #spellList do
     local sid = spellList[i]
     local name, minRange, range, spellIdx = getSpellData(sid)
+    local known = IsSpellKnown(sid, false)
     -- print("### checking minChecker: " .. tostring(name) .. ", idx: " .. tostring(spellIdx) .. ", " .. tostring(minRange) .. " - " ..  tostring(range) .. " for range " .. origMinRange .. " - " .. origRange)
-    if range and spellIdx and origMinRange <= range and range <= origRange and minRange == 0 then
-      -- print("### using minChecker: " .. tostring(name) .. ", " .. tostring(minRange) .. " - " ..  tostring(range) .. " for range " .. origMinRange .. " - " .. origRange)
-      return checkers_Spell[findSpellIdx(name)]
+    if known and range and spellIdx and origMinRange <= range and range <= origRange and minRange == 0 then
+      local spellbookIndex = findSpellIdx(name)
+      -- print("### using minChecker: " .. "sid: " .. sid .. " " .. tostring(name) .. ", " .. tostring(minRange) .. " - " ..  tostring(range) .. " for range " .. origMinRange .. " - " .. origRange .. ", spellIdx: " .. tostring(spellbookIndex))
+      return checkers_Spell[spellbookIndex]
     end
   end
 end
@@ -583,8 +586,9 @@ local function createCheckerList(spellList, itemList, interactList)
     for i = 1, #spellList do
       local sid = spellList[i]
       local name, minRange, range, spellIdx = getSpellData(sid)
-      if spellIdx and range then
-        -- print("### spell: " .. tostring(name) .. ", " .. tostring(minRange) .. " - " ..  tostring(range))
+      local known = IsSpellKnown(sid, false)
+      if known and spellIdx and range then
+        --print("### spell: " .. tostring(name) .. ", " .. tostring(minRange) .. " - " ..  tostring(range))
         if minRange == 0 then -- getRange() expects minRange to be nil in this case
           minRange = nil
         end
@@ -592,6 +596,7 @@ local function createCheckerList(spellList, itemList, interactList)
           range = MeleeRange
         end
         if minRange then
+          --print("### getting spell with minRange checker: " .. tostring(name) .. ", " .. tostring(minRange) .. " - " ..  tostring(range))
           local checker = getCheckerForSpellWithMinRange(spellIdx, minRange, range, spellList)
           if checker then
             addChecker(res, range, minRange, checker, "spell:" .. sid .. ":" .. tostring(name))
@@ -626,6 +631,7 @@ local function getRange(unit, checkerList)
     else
       hi = mid - 1
     end
+    --print(rc.info .. " checker for " .. tostring(unit))
   end
   if lo > #checkerList then
     return 0, checkerList[#checkerList].range
