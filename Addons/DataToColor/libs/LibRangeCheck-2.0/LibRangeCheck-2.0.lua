@@ -530,7 +530,7 @@ local function fixRange(range)
 end
 
 local function getSpellData(sid)
-  local name, _, _, _, minRange, range = GetSpellInfo(sid)
+  local name, _, _, _, _, _, _, minRange, range = GetSpellInfo(sid)
   return name, fixRange(minRange), fixRange(range), findSpellIdx(name)
 end
 
