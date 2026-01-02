@@ -44,7 +44,7 @@ local GetNetStats = GetNetStats
 
 local CreateFrame = CreateFrame
 local SetCVar = SetCVar
-local GetAddOnMetadata = GetAddOnMetadata
+local GetAddOnMetadata = GetAddOnMetadata or C_AddOns.GetAddOnMetadata
 
 local UIErrorsFrame = UIErrorsFrame
 local DEFAULT_CHAT_FRAME = DEFAULT_CHAT_FRAME

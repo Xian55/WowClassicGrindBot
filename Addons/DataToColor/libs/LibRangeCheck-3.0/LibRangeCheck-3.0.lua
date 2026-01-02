@@ -4946,7 +4946,10 @@ function lib:activate()
     local frame = CreateFrame("Frame")
     self.frame = frame
 
-    frame:RegisterEvent("LEARNED_SPELL_IN_TAB")
+    pcall(function()
+        frame:RegisterEvent("LEARNED_SPELL_IN_TAB")
+    end)
+
     frame:RegisterEvent("CHARACTER_POINTS_CHANGED")
     frame:RegisterEvent("SPELLS_CHANGED")
 
