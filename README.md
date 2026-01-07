@@ -4,7 +4,21 @@
 
 # Master Of Puppets
 
-The project current goal is to support `Season of Mastery Classic`, `Burning Crusade Classic`, `Wrath of the Lich King Classic`
+The project current goal is to supports the following client versions
+
+Legacy
+* 4.3.4 Cataclysm (2011) Work in progress [704](https://github.com/Xian55/WowClassicGrindBot/issues/704)
+
+Classic (2019)
+* 1.13.y - Vanilla
+    * 1.13.x Normal game
+    * 1.14.x Season of Mastery
+    * 1.15.x Season of Discovery - **Note**: New abilities and runes not implemented [559](https://github.com/Xian55/WowClassicGrindBot/issues/559)
+    * 1.15.x Anniversary
+* 2.5.x - Burning Crusade 
+* 3.4.x - Wrath of the Lich King 
+* 4.4.x - Cataclysm [Limitations](#supporting-cataclysm-classic-and-above-limitations)
+* 5.5.x - Mist of Pandaria [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [702](https://github.com/Xian55/WowClassicGrindBot/issues/702)
 
 # Components
 
@@ -27,9 +41,9 @@ Further detail about the architecture can be found in [Blog post](http://www.cod
 * World map - Indoors pathfinder only works properly if `PathFilename` is exists.
 * Dungeons / instances **not** supported!
 
-# Supporting Cataclysm Classic limitations
+# Supporting Cataclysm Classic and above limitations
 
-With Cataclysm, the navigation will be limited. Only V3 Remote will be support for now.
+With Cataclysm (MoP, and above), the navigation will be limited. Only V3 Remote will be support for now.
 
 V1 Local and V1 Remote does not have the capability as of this moment to read the CASC files only works with MPQs.
 

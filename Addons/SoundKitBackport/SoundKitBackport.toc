@@ -1,6 +1,6 @@
-## Interface: 20501
+## Interface: 40300
 ## Title: SoundKitBackport
 ## Author: Xii
-## Notes: Backport the SOUNDKIT Global variable
+## Notes: Cataclysm 4.3.4 SOUNDKIT Global variable
 
 SoundKitBackport.lua

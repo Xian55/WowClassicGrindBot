@@ -253,9 +253,12 @@ local miss_type = {
     ["RESIST"] = 10
 }
 
-function DataToColor:UnfilteredCombatEvent(...)
-    --DataToColor:OnCombatEvent(CombatLogGetCurrentEventInfo())
-    DataToColor:OnCombatEvent(...)
+function DataToColor:UnfilteredCombatEvent(event, ...)
+    if CombatLogGetCurrentEventInfo then
+        return DataToColor:OnCombatEvent(CombatLogGetCurrentEventInfo())
+    end
+    -- 4.3.4 and earlier
+    return DataToColor:OnCombatEvent(...)
 end
 
 local COMBATLOG_OBJECT_TYPE_NPC = COMBATLOG_OBJECT_TYPE_NPC
@@ -405,13 +408,13 @@ function DataToColor:OnCombatEvent(...)
 
                 if hasGCD then
                     if spellId == DataToColor.C.Spell.ShootId then
-                        castTime = floor(UnitRangedDamage(DataToColor.C.unitPlayer) * 1000)
+                        castTime = floor(UnitRangedDamage(DataToColor.C.unitPlayer) * 1000) or 0
                     else
                         castTime = gcdMS
                     end
 
-                    DataToColor.gcdExpirationTime = GetTime() + (castTime / 1000)
-                    DataToColor.lastCastGCD = castTime
+                    DataToColor.gcdExpirationTime = GetTime() + ((castTime or 0) / 1000)
+                    DataToColor.lastCastGCD = castTime or 0
                     --DataToColor:Print(subEvent, " ", spellName, " ", spellId, " ", castTime)
                 else
                     --DataToColor:Print(subEvent, " ", spellName, " ", spellId, " has no GCD")

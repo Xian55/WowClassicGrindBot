@@ -37,7 +37,6 @@ local IsSpellInRange = IsSpellInRange
 local GetSpellInfo = GetSpellInfo
 local GetActionCooldown = GetActionCooldown
 local IsUsableAction = IsUsableAction
-local GetActionTexture = GetActionTexture
 local IsCurrentAction = IsCurrentAction
 local IsAutoRepeatAction = IsAutoRepeatAction
 
@@ -414,12 +413,22 @@ function DataToColor:areSpellsInRange()
     return inRange
 end
 
+-- /dump DataToColor:isActionUseable(75, 75)
 function DataToColor:isActionUseable(min, max)
     local isUsableBits = 0
     for i = min, max do
         local start, duration, enabled = GetActionCooldown(i)
         local isUsable, notEnough = IsUsableAction(i)
-        local texture = GetActionTexture(i)
+        if isUsable == 1 then
+            isUsable = true
+        else
+            isUsable = false
+        end
+        if notEnough == nil then
+            notEnough = false
+        end
+
+        local texture = DataToColor:GetActionTexture(i)
         local spellName = DataToColor.S.playerSpellBookName[texture]
 
         if spellName ~= nil then

@@ -1,14 +1,13 @@
-## Interface: 11503
+## Interface: 11503, 20504, 30403, 40400, 50501
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
-## Notes: Displays data as colors (Classic Era)
+## Notes: Displays data as colors (Classic)
 ## Version: 1.8.0
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:
 
 embeds-ace3-v12.xml
-embeds.xml
 
 init.lua
 

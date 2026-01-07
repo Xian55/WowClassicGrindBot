@@ -1,5 +1,5 @@
-## Interface: 20501
+## Interface: 40300
 ## Title: cTimerBackport
-## Notes: C_Timer backport
+## Notes: Cataclysm 4.3.4 cTimer backport
 
 cTimerBackport.lua

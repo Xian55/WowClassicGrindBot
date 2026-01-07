@@ -1,6 +1,0 @@
-<Ui xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
-
-  <Include file='Libs\LibRangeCheck-2.0\LibRangeCheck-2.0.lua'/>
-  <Include file='Libs\LibRangeCheck-3.0\LibRangeCheck-3.0.lua'/>
-  <Include file='Libs\LibClassicCasterino\LibClassicCasterino.lua'/>
-</Ui>

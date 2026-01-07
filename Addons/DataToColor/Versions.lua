@@ -393,6 +393,11 @@ if DataToColor.IsLegacy() then
   -- LEGACY CATACLYSM 4.3.4 IMPLEMENTATIONS
   -- ========================================
 
+  function DataToColor:GetActionTexture(slot)
+    if not slot then return nil end
+    return DataToColor:NormalizeTexture(GetActionTexture(slot))
+  end
+
   -- Extract NPC ID from GUID
   -- Legacy Cataclysm format: Creature-0-X-Y-Z-NpcId-UniqueSpawnId
   function DataToColor:NpcId(unit)
@@ -427,6 +432,8 @@ if DataToColor.IsLegacy() then
     return 0
   end
 
+  -- /dump DataToColor:getGuidFromUUID("0xF130C2CF0000355D")
+  -- returns: 63532
   -- Get unique GUID from UUID
   -- Legacy: Direct extraction without hash calculation
   function DataToColor:getGuidFromUUID(uuid)
@@ -434,11 +441,13 @@ if DataToColor.IsLegacy() then
       return 0
     end
 
-    local _, lastPart = uuid:match("^(.+)-([^-]+)$")
-    if lastPart then
-      return tonumber(lastPart, 16) % 0x1000000
-    end
-    return 0
+    -- Legacy creature guid example: 0xF130C2CF0000355D
+    -- NPC/Entry is always right after 0xF130
+    local npc_hex = uuid:match("^0xF130(%x%x%x%x)")
+    local hex = uuid:match("^0x(%x+)$")
+    local npcId = tonumber(npc_hex, 16)
+    local spawn = hex:sub(-8)  -- "0000355D"
+    return self:uniqueGuid(npcId, spawn)
   end
 
   -- Extract NPC ID from UUID
@@ -477,6 +486,10 @@ else
   -- ========================================
   -- MODERN CLASSIC IMPLEMENTATIONS
   -- ========================================
+
+  function DataToColor:GetActionTexture(slot)
+    return GetActionTexture(slot)
+  end
 
   -- Extract NPC ID from GUID
   -- Modern format: Uses standard extraction
@@ -544,12 +557,13 @@ end
 -- Unique GUID calculation (Modern Classic only)
 -- This is called from modern client implementations only
 function DataToColor:uniqueGuid(npcId, spawn)
+  npcId = tonumber(npcId, 10) or tonumber(npcId, 16) or 0
   if not spawn then
     return 0
   end
 
-  local spawnEpochOffset = band(tonumber(sub(spawn, 5), 16), 0x7fffff)
-  local spawnIndex = band(tonumber(sub(spawn, 1, 5), 16), 0xffff8)
+  local spawnEpochOffset = band(tonumber(sub(spawn, 5), 16) or 0, 0x7fffff)
+  local spawnIndex = band(tonumber(sub(spawn, 1, 5), 16) or 0, 0xffff8)
 
   return (spawnEpochOffset + spawnIndex + npcId) % 0x1000000
 end
