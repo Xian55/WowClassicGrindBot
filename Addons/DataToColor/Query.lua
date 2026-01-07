@@ -174,7 +174,7 @@ function DataToColor:Bits2()
         (DataToColor.autoFollow and 2 or 0) ^ 19 +
         (GameMenuFrame:IsShown() and 2 or 0) ^ 20 +
         (IsFlying() and 2 or 0) ^ 21 +
-        (DataToColor.moving and 2 or 0) ^ 22 +
+        (DataToColor:PlayerIsMoving() and 2 or 0) ^ 22 +
         (DataToColor:PetIsDefensive() and 2 or 0) ^ 23
 end
 

@@ -57,7 +57,7 @@ if DataToColor.IsClassic() then
 end
 
 local buildVersion = select(4, GetBuildInfo())
-local Som140 = DataToColor.IsClassic() and buildVersion == 11400
+local Som140 = DataToColor.IsClassic() and buildVersion == 11400 or buildVersion == 11401 or buildVersion == 11402
 local TBC253 = DataToColor.IsClassic_BCC() and buildVersion >= 20503
 local TBC252 = DataToColor.IsClassic_BCC() and buildVersion >= 20502
 local Wrath340 = DataToColor.IsClassic_Wrath() and buildVersion >= 30400
@@ -308,7 +308,7 @@ DataToColor.UnitLevelSafe = function(unit, playerLevel)
 end
 
 DataToColor.OnGossipShow = function(event)
-  if Som140 or TBC252 then
+  if Som140 or TBC252 or DataToColor:IsLegacy() then
     local options = { DataToColor:GetGossipOptions() }
     local count = #options / 2
     if count == 0 then
@@ -566,4 +566,17 @@ function DataToColor:uniqueGuid(npcId, spawn)
   local spawnIndex = band(tonumber(sub(spawn, 1, 5), 16) or 0, 0xffff8)
 
   return (spawnEpochOffset + spawnIndex + npcId) % 0x1000000
+end
+
+
+---
+
+if DataToColor:IsLegacy() then
+  function DataToColor:PlayerIsMoving()
+      return GetUnitSpeed(DataToColor.C.unitPlayer) > 0
+  end
+else
+  function DataToColor:PlayerIsMoving()
+    return DataToColor.moving
+  end
 end
