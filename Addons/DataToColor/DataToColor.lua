@@ -409,7 +409,8 @@ function DataToColor:InitInventoryQueue(containerID)
 end
 
 function DataToColor:BagSlotChanged(container, slot)
-    local _, count, _, _, _, _, _, _, _, id = GetContainerItemInfo(container, slot)
+    local _, count, _, _, _, _, link = GetContainerItemInfo(container, slot)
+    local id = link and tonumber(link:match("item:(%d+)")) or 0
 
     if not id then
         count = 0
