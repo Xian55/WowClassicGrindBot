@@ -156,10 +156,10 @@ local function UnitIsTapDenied_Fallback(unit)
 end
 
 -- if Blizzard’s version exists and works, use it; otherwise use the fallback
-local function SafeUnitIsTapDenied(unit)
-  local ok, result = pcall(UnitIsTapDenied, unit)
-  if ok then
-    return result
+local UnitIsTapDeniedExists = type(UnitIsTapDenied) == "function"
+local function SafeUnitIsTapDenied(self, unit)
+  if UnitIsTapDeniedExists then
+    return UnitIsTapDenied(unit)
   else
     return UnitIsTapDenied_Fallback(unit)
   end
