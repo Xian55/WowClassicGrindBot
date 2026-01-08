@@ -12,5 +12,4 @@ IF EXIST "%Blazor%\%dataf%" (XCOPY /Y "%Blazor%\%dataf%" "%Headless%") ELSE (ech
 IF EXIST "%Blazor%\%addonf%" (XCOPY /Y "%Blazor%\%addonf%" "%Headless%") ELSE (echo "%Blazor%\%addonf%" not exists)
 IF EXIST "%Blazor%\%framef%" (XCOPY /Y "%Blazor%\%framef%" "%Headless%") ELSE (echo "%Blazor%\%framef%" not exists)
 
-dotnet run -c Release -- %*
 pause

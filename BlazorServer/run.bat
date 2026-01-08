@@ -1,5 +1,5 @@
-start "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" "http://localhost:5000"
+start "" "http://localhost:5000"
 cd /D "%~dp0"
-dotnet run --configuration Release
+dotnet run --configuration Release --no-build -e:ASPNETCORE_ENVIRONMENT=Production
 
 pause

@@ -177,17 +177,17 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
 
     public void Dispose()
     {
-        duplication?.ReleaseFrame();
-        duplication?.Dispose();
+        try { duplication?.ReleaseFrame(); } catch { }
+        try { duplication?.Dispose(); } catch { }
 
-        minimapTexture.Dispose();
-        addonTexture.Dispose();
-        screenTexture.Dispose();
+        try { minimapTexture.Dispose(); } catch { }
+        try { addonTexture.Dispose(); } catch { }
+        try { screenTexture.Dispose(); } catch { }
 
-        device.Dispose();
-        adapter.Dispose();
-        output1.Dispose();
-        output.Dispose();
+        try { device.Dispose(); } catch { }
+        try { adapter.Dispose(); } catch { }
+        try { output1.Dispose(); } catch { }
+        try { output.Dispose(); } catch { }
     }
 
     public void InitFrames(DataFrame[] frames)

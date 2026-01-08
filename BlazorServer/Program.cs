@@ -30,26 +30,36 @@ public static class Program
     {
         while (true)
         {
-            Log.Information($"[{nameof(Program),-17}] Starting blazor server");
+            bool shutdownRequested = false;
+
             try
             {
+                Log.Information("[Program          ] Starting blazor server");
                 var host = CreateApp(args);
-                var logger = host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
-
-                AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs args) =>
+                var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+                lifetime.ApplicationStopping.Register(() =>
                 {
-                    Exception e = (Exception)args.ExceptionObject;
-                    logger.LogError(e, e.Message);
-                };
+                    shutdownRequested = true;
+                    Log.Warning("[Program          ] Graceful shutdown requested");
+                });
 
                 host.Run();
             }
             catch (Exception ex)
             {
-                Log.Information($"[{nameof(Program),-17}] {ex.Message}");
-                Log.Information("");
+                if (shutdownRequested)
+                {
+                    // We were stopping anyway; don't restart-loop just because Dispose threw.
+                    Log.Error(ex, "[Program          ] Exception during shutdown; exiting without restart");
+                    break;
+                }
 
+                Log.Fatal(ex, "[Program          ] Host crashed – restarting in 3s");
                 Thread.Sleep(3000);
+            }
+            finally
+            {
+                Log.CloseAndFlush();
             }
         }
     }
@@ -126,6 +136,11 @@ public static class Program
             options.SerializerOptions.PropertyNameCaseInsensitive = true;
             options.SerializerOptions.Converters.Add(new Vector3Converter());
             options.SerializerOptions.Converters.Add(new Vector4Converter());
+        });
+
+        services.Configure<HostOptions>(o =>
+        {
+            o.ShutdownTimeout = TimeSpan.FromSeconds(1);
         });
 
         services.AddControllers().AddJsonOptions(options =>
