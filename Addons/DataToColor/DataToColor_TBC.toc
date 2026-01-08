@@ -1,7 +1,7 @@
-## Interface: 11300, 11400, 11500, 20500, 30400, 40400, 50500
+## Interface: 20500
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
-## Notes: Displays data as colors (Classic)
+## Notes: Displays data as colors (Classic TBC)
 ## Version: 1.8.0
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino

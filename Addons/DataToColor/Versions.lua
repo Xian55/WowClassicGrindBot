@@ -307,8 +307,10 @@ DataToColor.UnitLevelSafe = function(unit, playerLevel)
   return level
 end
 
+local IS_LEGACY_GOSSIP = type(_G.GetNumGossipOptions) == "function" and type(DataToColor.GetGossipOptions) == "function"
+
 DataToColor.OnGossipShow = function(event)
-  if Som140 or TBC252 or DataToColor:IsLegacy() then
+  if IS_LEGACY_GOSSIP then
     local options = { DataToColor:GetGossipOptions() }
     local count = #options / 2
     if count == 0 then
