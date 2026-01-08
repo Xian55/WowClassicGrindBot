@@ -7,18 +7,17 @@
 The project current goal is to supports the following client versions
 
 Legacy
-* 4.3.4 Cataclysm (2011) Work in progress [704](https://github.com/Xian55/WowClassicGrindBot/issues/704)
+* 4.3.4 Cataclysm (2011) Work in progress - [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [704](https://github.com/Xian55/WowClassicGrindBot/issues/704)
 
-Classic (2019)
-* 1.13.y - Vanilla
-    * 1.13.x Normal game
-    * 1.14.x Season of Mastery
-    * 1.15.x Season of Discovery - **Note**: New abilities and runes not implemented [559](https://github.com/Xian55/WowClassicGrindBot/issues/559)
-    * 1.15.x Anniversary
+Classic (Since 2019)
+* 1.13.x Vanilla Classic
+* 1.14.x Season of Mastery
+* 1.15.x Era, Hardcore, Anniversary, Season of Discovery
+    * **Note**: Season of Discovery: New abilities and runes not implemented, workaround [559](https://github.com/Xian55/WowClassicGrindBot/issues/559)
 * 2.5.x - Burning Crusade 
 * 3.4.x - Wrath of the Lich King 
 * 4.4.x - Cataclysm [Limitations](#supporting-cataclysm-classic-and-above-limitations)
-* 5.5.x - Mist of Pandaria [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [702](https://github.com/Xian55/WowClassicGrindBot/issues/702)
+* 5.5.x - Mist of Pandaria [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [TODO 702](https://github.com/Xian55/WowClassicGrindBot/issues/702)
 
 # Components
 
