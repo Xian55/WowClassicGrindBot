@@ -30,8 +30,6 @@ local RepopMe = RepopMe
 local RetrieveCorpse = RetrieveCorpse
 local GetCorpseRecoveryDelay = GetCorpseRecoveryDelay
 
-local UnitIsTapDenied = UnitIsTapDenied
-
 local ContainerIDToInventoryID = DataToColor.ContainerIDToInventoryID
 local NUM_BAG_SLOTS = NUM_BAG_SLOTS
 
@@ -94,6 +92,8 @@ local specialErrorS = {}
 local errorListMessages = {}
 
 function DataToColor:RegisterEvents()
+    DataToColor:RegisterEvent("PLAYER_ENTERING_WORLD", "OnEnteringWorld")
+
     DataToColor:RegisterEvent("UI_ERROR_MESSAGE", 'OnUIErrorMessage')
     DataToColor:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED", 'UnfilteredCombatEvent')
     DataToColor:RegisterEvent("UNIT_SPELLCAST_SENT", 'OnUnitSpellCastSent')
@@ -149,26 +149,49 @@ function DataToColor:RegisterEvents()
         DataToColor:RegisterEvent('UNIT_SPELLCAST_SUCCEEDED', 'SoM_OnCastSuccess')
         DataToColor:RegisterEvent('UNIT_SPELLCAST_FAILED', 'SoM_OnCastFailed')
     end
+end
 
+-- Initialize error message lookup tables
+-- This must be called after global strings are available (PLAYER_LOGIN or equivalent)
+function DataToColor:InitializeErrorLists()
     for i = 1, #ignoreErrorList do
         local text = _G[ignoreErrorList[i]]
-        ignoreErrorListMessages[text] = i
+        if text then
+            ignoreErrorListMessages[text] = i
+        end
     end
 
     for i = 1, #errorList do
         local text = _G[errorList[i]]
-        errorListMessages[text] = i
+        if text then
+            errorListMessages[text] = i
+        end
     end
 
     for key, value in pairs(spellFailedErrors) do
         local text = _G[key]
-        errorListMessages[text] = value
+        if text then
+            errorListMessages[text] = value
+        end
     end
-
-    specialErrorS[strsplit('%s', ERR_USE_LOCKED_WITH_SPELL_S, 2)] = 17
 end
 
-function DataToColor:OnUIErrorMessage(_, _, message)
+-- Called by PLAYER_LOGIN event when it exists
+function DataToColor:OnPlayerLogin()
+    DataToColor:InitializeErrorLists()
+
+    local version = GetAddOnMetadata('DataToColor', 'Version')
+    DataToColor:Print("Welcome. Using " .. version)
+
+    -- Unregister to avoid being called again
+    pcall(function()
+        DataToColor:UnregisterEvent("PLAYER_LOGIN")
+    end)
+end
+
+function DataToColor:OnUIErrorMessage(...)
+    local message = select(-1, ...)
+
     if ignoreErrorListMessages[message] then
         UIErrorsFrame:AddMessage(message, 0.7, 0.7, 0.7) -- show as grey message
         return
@@ -230,8 +253,12 @@ local miss_type = {
     ["RESIST"] = 10
 }
 
-function DataToColor:UnfilteredCombatEvent()
-    DataToColor:OnCombatEvent(CombatLogGetCurrentEventInfo())
+function DataToColor:UnfilteredCombatEvent(event, ...)
+    if CombatLogGetCurrentEventInfo then
+        return DataToColor:OnCombatEvent(CombatLogGetCurrentEventInfo())
+    end
+    -- 4.3.4 and earlier
+    return DataToColor:OnCombatEvent(...)
 end
 
 local COMBATLOG_OBJECT_TYPE_NPC = COMBATLOG_OBJECT_TYPE_NPC
@@ -298,7 +325,7 @@ function DataToColor:OnCombatEvent(...)
         --DataToColor:Print("Damage Taken ", sourceGUID)
 
         local targetGuid = UnitGUID(DataToColor.C.unitTarget)
-        if targetGuid == sourceGUID and not UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[sourceGUID] == nil then
+        if targetGuid == sourceGUID and not DataToColor:UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[sourceGUID] == nil then
             DataToColor.eligibleKillCredit[sourceGUID] = true
             --DataToColor:Print("Kill Credit added(take): ", sourceGUID)
         end
@@ -381,13 +408,13 @@ function DataToColor:OnCombatEvent(...)
 
                 if hasGCD then
                     if spellId == DataToColor.C.Spell.ShootId then
-                        castTime = floor(UnitRangedDamage(DataToColor.C.unitPlayer) * 1000)
+                        castTime = floor(UnitRangedDamage(DataToColor.C.unitPlayer) * 1000) or 0
                     else
                         castTime = gcdMS
                     end
 
-                    DataToColor.gcdExpirationTime = GetTime() + (castTime / 1000)
-                    DataToColor.lastCastGCD = castTime
+                    DataToColor.gcdExpirationTime = GetTime() + ((castTime or 0) / 1000)
+                    DataToColor.lastCastGCD = castTime or 0
                     --DataToColor:Print(subEvent, " ", spellName, " ", spellId, " ", castTime)
                 else
                     --DataToColor:Print(subEvent, " ", spellName, " ", spellId, " has no GCD")
@@ -401,7 +428,7 @@ function DataToColor:OnCombatEvent(...)
             --DataToColor:Print(subEvent, " ", destGUID)
 
             local targetGuid = UnitGUID(DataToColor.C.unitTarget)
-            if targetGuid == destGUID and not UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[destGUID] == nil then
+            if targetGuid == destGUID and not DataToColor:UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[destGUID] == nil then
                 DataToColor.eligibleKillCredit[destGUID] = true
                 --DataToColor:Print("Kill Credit added(done): ", destGUID)
             end
@@ -460,8 +487,10 @@ function DataToColor:OnCombatEvent(...)
     end
 end
 
-function DataToColor:OnUnitSpellCastSent(event, unit, target, castGUID, spellId)
-    --print(event, unit, target, castGUID, spellId)
+function DataToColor:OnUnitSpellCastSent(...)
+    --print(...)
+    local unit = select(2, ...)
+    local spellId = select(-1, ...)
     if unit ~= DataToColor.C.unitPlayer then return end
 
     DataToColor.lastCastEvent = CAST_SENT
@@ -469,8 +498,10 @@ function DataToColor:OnUnitSpellCastSent(event, unit, target, castGUID, spellId)
     DataToColor.lastCastSpellId = spellId
 end
 
-function DataToColor:OnUnitSpellCastSucceeded(event, unit, castGUID, spellId)
-    --print(event, unit, castGUID, spellId)
+function DataToColor:OnUnitSpellCastSucceeded(...)
+    --print(...)
+    local unit = select(2, ...)
+    local spellId = select(-1, ...)
     if unit ~= DataToColor.C.unitPlayer then return end
 
     DataToColor.lastCastEvent = CAST_SUCCESS
@@ -478,8 +509,10 @@ function DataToColor:OnUnitSpellCastSucceeded(event, unit, castGUID, spellId)
     DataToColor.lastCastSpellId = spellId
 end
 
-function DataToColor:OnUnitSpellCastFailed(event, unit, castGUID, spellId)
-    --print(event, unit, castGUID, spellId)
+function DataToColor:OnUnitSpellCastFailed(...)
+    --print(...)
+    local unit = select(2, ...)
+    local spellId = select(-1, ...)
     if unit ~= DataToColor.C.unitPlayer then return end
 
     DataToColor.lastCastEvent = DataToColor.uiErrorMessage

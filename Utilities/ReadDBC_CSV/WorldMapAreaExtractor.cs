@@ -70,7 +70,8 @@ internal sealed class WorldMapAreaExtractor : IExtractor
             int system = row[systemIndex].Parse<int>();
 
             // 1 ([DEPRECATED] Legacy Taxi)
-            if (system == 1)
+            // 2 (Taxi and Adventure)
+            if (system == 1 || system == 2)
             {
                 continue;
             }

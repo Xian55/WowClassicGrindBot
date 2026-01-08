@@ -391,7 +391,7 @@ public sealed class FrameConfigurator : IDisposable
         // RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
         race = (UnitRace)(value / 10000);
         @class = (UnitClass)(value / 100 % 100);
-        version = (ClientVersion)(value % 10);
+        version = (ClientVersion)(value % 100);
 
         return Enum.IsDefined(race) && Enum.IsDefined(@class) && Enum.IsDefined(version) &&
             race != UnitRace.None && @class != UnitClass.None && version != ClientVersion.None;

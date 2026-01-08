@@ -17,6 +17,34 @@ local GLOBAL_TIME_CELL = NUMBER_OF_FRAMES - 2
 
 -- Dont modify values below
 
+if not Enum or not Enum.PowerType then
+	PowerType = {
+		Mana = 0,
+		Rage = 1,
+		Focus = 2,
+		Energy = 3,
+		ComboPoints = 4,
+		Runes = 5,
+		RunicPower = 6,
+		SoulShards = 7,
+		LunarPower = 8,
+		HolyPower = 9,
+		Alternate = 10,
+		Maelstrom = 11,
+		Chi = 12,
+		Insanity = 13,
+		Obsolete = 14,
+		Obsolete2 = 15,
+		ArcaneCharges = 16,
+		Fury = 17,
+		Pain = 18,
+		NumPowerTypes = 19
+	}
+else
+	PowerType = Enum.PowerType
+end
+-- End of compatibility layer
+
 local Load = select(2, ...)
 local DataToColor = unpack(Load)
 
@@ -78,8 +106,6 @@ local UnitExists = UnitExists
 local UnitGUID = UnitGUID
 local UnitClassification = UnitClassification
 
-local PowerType = Enum.PowerType
-
 local GetMoney = GetMoney
 
 local GetContainerNumSlots = DataToColor.GetContainerNumSlots
@@ -139,7 +165,7 @@ DataToColor.globalTime = 0
 DataToColor.lastLoot = 0
 DataToColor.lastLootResetStart = 0
 
-DataToColor.map = C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
+DataToColor.map = DataToColor.GetBestMapForUnit(DataToColor.C.unitPlayer)
 DataToColor.uiMapId = 0
 DataToColor.uiErrorMessage = 0
 DataToColor.uiErrorMessageTime = 0
@@ -202,7 +228,7 @@ DataToColor.customTrigger1 = {}
 
 DataToColor.sessionKillCount = 0
 
-local SpellQueueWindow = min(tonumber(GetCVar(DataToColor.C.SpellQueueWindow)) or 0, 999)
+local SpellQueueWindow = min(tonumber(DataToColor.SafeGetCVar(DataToColor.C.SpellQueueWindow, "0")) or 0, 999)
 
 function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
@@ -232,31 +258,36 @@ end
 -- This function runs when addon is initialized/player logs in
 function DataToColor:OnInitialize()
     DataToColor:CreateConstants()
+    DataToColor:InitStorage()
     DataToColor:SetupRequirements()
     DataToColor:CreateFrames()
     DataToColor:RegisterSlashCommands()
-
-    DataToColor:PopulateSpellBookInfo()
-    DataToColor:InitStorage()
+    DataToColor:RegisterEvents()
 
     UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
 
-    DataToColor:RegisterEvents()
-
     local version = GetAddOnMetadata('DataToColor', 'Version')
     DataToColor:Print("Welcome. Using " .. version)
+end
+
+function DataToColor:OnEnteringWorld()
+    DataToColor:InitializeErrorLists()
+
+    DataToColor:PopulateSpellBookInfo()
 
     DataToColor:InitUpdateQueues()
     DataToColor:InitTrigger(DataToColor.customTrigger1)
+
+    DataToColor.Libs.RangeCheck:activate()
 end
 
 function DataToColor:SetupRequirements()
-    SetCVar("autoInteract", 1)
-    SetCVar("autoLootDefault", 1)
-    -- /run SetCVar("cameraSmoothStyle", 2) -- always
-    SetCVar('Contrast', 50, '[]')
-    SetCVar('Brightness', 50, '[]')
-    SetCVar('Gamma', 1, '[]')
+    DataToColor.SafeSetCVar("autoInteract", 1)
+    DataToColor.SafeSetCVar("autoLootDefault", 1)
+    -- /run DataToColor.SafeSetCVar("cameraSmoothStyle", 2) -- always
+    DataToColor.SafeSetCVar('Contrast', 50, '[]')
+    DataToColor.SafeSetCVar('Brightness', 50, '[]')
+    DataToColor.SafeSetCVar('Gamma', 1, '[]')
 end
 
 function DataToColor:CreateConstants()
@@ -274,7 +305,7 @@ function DataToColor:Reset()
 
     DataToColor.playerGUID = UnitGUID(DataToColor.C.unitPlayer)
     DataToColor.petGUID = UnitGUID(DataToColor.C.unitPet)
-    DataToColor.map = C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
+    DataToColor.map = DataToColor.GetBestMapForUnit(DataToColor.C.unitPlayer)
 
     DataToColor.eligibleKillCredit = {}
 
@@ -378,7 +409,8 @@ function DataToColor:InitInventoryQueue(containerID)
 end
 
 function DataToColor:BagSlotChanged(container, slot)
-    local _, count, _, _, _, _, _, _, _, id = GetContainerItemInfo(container, slot)
+    local _, count, _, _, _, _, link = GetContainerItemInfo(container, slot)
+    local id = link and tonumber(link:match("item:(%d+)")) or 0
 
     if not id then
         count = 0
@@ -417,52 +449,70 @@ function DataToColor:InitActionBarCostQueue()
 end
 
 function DataToColor:PopulateSpellBookInfo()
-    local num, type = 1, 1
-    if not GetNumSpellTabs then
-        while true do
-            local name, _, id = GetSpellBookItemName(num, type)
-            if not name then
-                break
-            end
+    local numLoaded = 0
+    local bookType = "spell"
 
-            if id then
-                local texture = GetSpellBookItemTexture(num, type)
-                DataToColor.S.playerSpellBookId[id] = true
-                DataToColor.S.playerSpellBookName[texture] = name
-                DataToColor.S.playerSpellBookIconToId[texture] = id
+    -- prepare destination tables
+    local S = DataToColor.S
+    S.playerSpellBookId, S.playerSpellBookName,
+    S.playerSpellBookIconToId, S.playerSpellBookIdHighest = {}, {}, {}, {}
 
-                if not DataToColor.S.playerSpellBookIdHighest[texture] or id > DataToColor.S.playerSpellBookIdHighest[texture] then
-                    DataToColor.S.playerSpellBookIdHighest[texture] = id
-                end
-
-                num = num + 1
-            end
+    --------------------------------------------------------------------
+    -- Helper to record one spell safely
+    --------------------------------------------------------------------
+    local function RecordSpell(id, name, texture)
+        if not (id and name and texture) then return end
+        -- prefer number over file path name
+        texture = DataToColor:NormalizeTexture(texture)
+        S.playerSpellBookId[id] = true
+        S.playerSpellBookName[texture] = name
+        S.playerSpellBookIconToId[texture] = id
+        local highest = S.playerSpellBookIdHighest[texture]
+        if not highest or id > highest then
+            S.playerSpellBookIdHighest[texture] = id
         end
+        numLoaded = numLoaded + 1
+    end
+
+    --------------------------------------------------------------------
+    -- Classic-era clients: no GetNumSpellTabs
+    --------------------------------------------------------------------
+    if not GetNumSpellTabs then
+        local i = 1
+        while true do
+            local name, rank, id
+
+            if GetSpellBookItemName then
+                name, rank, id = GetSpellBookItemName(i, bookType)
+            elseif GetSpellName then
+                name, rank = GetSpellName(i, bookType)
+            end
+
+            if not name then break end
+            id = id or (GetSpellID and GetSpellID(i, bookType))
+            local texture = GetSpellBookItemTexture and GetSpellBookItemTexture(i, bookType)
+            RecordSpell(id, name, texture)
+            i = i + 1
+        end
+
+    --------------------------------------------------------------------
+    -- Cataclysm and later: tab-based spellbook
+    --------------------------------------------------------------------
     else
-        -- Cataclysm Classic
-        for i = 1, GetNumSpellTabs() do
-            local offset, numSlots = select(3, GetSpellTabInfo(i))
-            for j = offset + 1, offset + numSlots do
-                local name, _, id = GetSpellBookItemName(j, type)
-                if not name then
-                    break
-                end
-
-                if id and IsSpellKnown(id) then
-                    local texture = GetSpellBookItemTexture(j, type)
-                    DataToColor.S.playerSpellBookId[id] = true
-                    DataToColor.S.playerSpellBookName[texture] = name
-                    DataToColor.S.playerSpellBookIconToId[texture] = id
-
-                    if not DataToColor.S.playerSpellBookIdHighest[texture] or id > DataToColor.S.playerSpellBookIdHighest[texture] then
-                        DataToColor.S.playerSpellBookIdHighest[texture] = id
-                    end
-
-                    num = num + 1
+        for tab = 1, GetNumSpellTabs() do
+            local offset, numSlots = select(3, GetSpellTabInfo(tab))
+            for i = offset + 1, offset + numSlots do
+                local slotType, id = GetSpellBookItemInfo(i, bookType)
+                if slotType == "SPELL" and id and (not IsSpellKnown or IsSpellKnown(id)) then
+                    local name = GetSpellBookItemName(i, bookType)
+                    local texture = GetSpellBookItemTexture(i, bookType)
+                    RecordSpell(id, name, texture)
                 end
             end
         end
     end
+
+    --DataToColor:Print(("Loaded %d spells"):format(numLoaded))
 end
 
 function DataToColor:InitSpellBookQueue()
@@ -628,7 +678,8 @@ function DataToColor:CreateFrames()
                 bagNum = floor(bagSlotNum / 1000)
                 bagSlotNum = bagSlotNum - (bagNum * 1000)
 
-                local _, itemCount, _, _, _, _, _, _, _, itemID = GetContainerItemInfo(bagNum, bagSlotNum)
+                local texture, itemCount, locked, quality, readable, lootable, link = GetContainerItemInfo(bagNum, bagSlotNum)
+                local itemID = link and tonumber(link:match("item:(%d+)")) or 0
 
                 -- 0-4 bagNum + 1-21 itenNum + 1-1000 quantity
                 if Pixel(int, bagNum * 1000000 + bagSlotNum * 10000 + (itemCount or 0), 21) then
@@ -720,7 +771,7 @@ function DataToColor:CreateFrames()
             DataToColor.uiErrorMessage = 0
 
             Pixel(int, DataToColor:CastingInfoSpellId(DataToColor.C.unitPlayer), 53)                                                                                                                                                                               -- SpellId being cast
-            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, Enum.PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
+            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
 
             local playerBuffCount = DataToColor:populateAuraTimer(UnitBuff, DataToColor.C.unitPlayer, DataToColor.playerBuffTime)
             local playerDebuffCount = DataToColor:populateAuraTimer(UnitDebuff, DataToColor.C.unitPlayer, DataToColor.playerDebuffTime)

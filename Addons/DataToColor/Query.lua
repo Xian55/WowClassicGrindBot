@@ -1,7 +1,6 @@
 local Load = select(2, ...)
 local DataToColor = unpack(Load)
 local Range = DataToColor.Libs.RangeCheck
-Range:activate()
 
 local bit = bit
 local band = bit.band
@@ -28,18 +27,20 @@ local UnitGUID = UnitGUID
 
 local GetActionInfo = GetActionInfo
 local GetMacroSpell = GetMacroSpell
-local GetSpellPowerCost = GetSpellPowerCost
+local GetSpellPowerCost = GetSpellPowerCost or function(spellID)
+    local cost, powerType = select(4, GetSpellInfo(spellID)), select(5, GetSpellInfo(spellID))
+    return { cost = cost, powerType = powerType }
+end
 local GetSpellBaseCooldown = GetSpellBaseCooldown
 local GetInventoryItemLink = GetInventoryItemLink
 local IsSpellInRange = IsSpellInRange
 local GetSpellInfo = GetSpellInfo
 local GetActionCooldown = GetActionCooldown
 local IsUsableAction = IsUsableAction
-local GetActionTexture = GetActionTexture
 local IsCurrentAction = IsCurrentAction
 local IsAutoRepeatAction = IsAutoRepeatAction
 
-local IsUsableSpell = IsUsableSpell
+local IsUsableSpell = IsUsableSpell or C_Spell.IsUsableSpell
 
 local GetNumSkillLines = GetNumSkillLines
 local GetSkillLineInfo = GetSkillLineInfo
@@ -51,7 +52,7 @@ local UnitRangedDamage = UnitRangedDamage
 
 local GameMenuFrame = GameMenuFrame
 local LootFrame = LootFrame
-local ChatFrame1EditBox = ChatFrame1EditBox
+local ChatEdit_GetActiveWindow = ChatEdit_GetActiveWindow
 
 local HasPetUI = HasPetUI
 
@@ -63,7 +64,18 @@ local UnitIsDead = UnitIsDead
 local UnitIsPlayer = UnitIsPlayer
 local UnitName = UnitName
 local UnitIsDeadOrGhost = UnitIsDeadOrGhost
-local UnitCharacterPoints = UnitCharacterPoints
+local UnitCharacterPoints = UnitCharacterPoints or function(unit)
+  if not UnitExists(unit) then
+    return 0
+  end
+  if UnitIsUnit(unit, "pet") then
+    return GetUnspentTalentPoints(false, true)
+  elseif UnitIsUnit(unit, "player") then
+    return GetUnspentTalentPoints(false)
+  else
+    return 0
+  end
+end
 local UnitPlayerControlled = UnitPlayerControlled
 local GetShapeshiftForm = GetShapeshiftForm
 local GetShapeshiftFormInfo = GetShapeshiftFormInfo
@@ -80,7 +92,6 @@ local GetMirrorTimerInfo = GetMirrorTimerInfo
 local IsMounted = IsMounted
 local IsInGroup = IsInGroup
 
-local UnitIsTapDenied = UnitIsTapDenied
 local IsAutoRepeatSpell = IsAutoRepeatSpell
 local IsCurrentSpell = IsCurrentSpell
 local UnitIsVisible = UnitIsVisible
@@ -99,6 +110,10 @@ function DataToColor:GetPosition()
         return pos:GetXY()
     end
     return 0, 0
+end
+
+function DataToColor:IsChatInputActive()
+    return ChatEdit_GetActiveWindow() ~= nil
 end
 
 -- Base 2 converter for up to 24 boolean values to a single pixel square.
@@ -130,7 +145,7 @@ function DataToColor:Bits1()
         (IsAutoRepeatSpell(DataToColor.C.Spell.ShootId) and 2 or 0) ^ 19 +
         (IsCurrentSpell(DataToColor.C.Spell.AttackId) and 2 or 0) ^ 20 +
         (UnitIsPlayer(DataToColor.C.unitTarget) and 2 or 0) ^ 21 +
-        (UnitIsTapDenied(DataToColor.C.unitTarget) and 2 or 0) ^ 22 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitTarget) and 2 or 0) ^ 22 +
         (IsFalling() and 2 or 0) ^ 23
 end
 
@@ -150,7 +165,7 @@ function DataToColor:Bits2()
         (IsStealthed() and 2 or 0) ^ 10 +
         (UnitIsTrivial(DataToColor.C.unitTarget) and 2 or 0) ^ 11 +
         (UnitIsTrivial(DataToColor.C.unitmouseover) and 2 or 0) ^ 12 +
-        (UnitIsTapDenied(DataToColor.C.unitmouseover) and 2 or 0) ^ 13 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitmouseover) and 2 or 0) ^ 13 +
         (DataToColor:IsUnitHostile(DataToColor.C.unitPlayer, DataToColor.C.unitmouseover) and 2 or 0) ^ 14 +
         (UnitIsPlayer(DataToColor.C.unitmouseover) and 2 or 0) ^ 15 +
         (DataToColor:IsUnitsTargetIsPlayerOrPet(DataToColor.C.unitmouseover, DataToColor.C.unitmouseovertarget) and 2 or 0) ^ 16 +
@@ -159,7 +174,7 @@ function DataToColor:Bits2()
         (DataToColor.autoFollow and 2 or 0) ^ 19 +
         (GameMenuFrame:IsShown() and 2 or 0) ^ 20 +
         (IsFlying() and 2 or 0) ^ 21 +
-        (DataToColor.moving and 2 or 0) ^ 22 +
+        (DataToColor:PlayerIsMoving() and 2 or 0) ^ 22 +
         (DataToColor:PetIsDefensive() and 2 or 0) ^ 23
 end
 
@@ -169,19 +184,19 @@ function DataToColor:Bits3()
         (UnitIsDead(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 1 +
         (UnitIsDeadOrGhost(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 2 +
         (UnitIsPlayer(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 3 +
-        (UnitIsTapDenied(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 4 +
+        (DataToColor:UnitIsTapDenied(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 4 +
         (UnitAffectingCombat(DataToColor.C.unitSoftInteract) and 2 or 0) ^ 5 +
         (DataToColor:IsUnitHostile(DataToColor.C.unitPlayer, DataToColor.C.unitSoftInteract) and 2 or 0) ^ 6 +
         (DataToColor.channeling and 2 or 0) ^ 7 +
         (LootFrame:IsShown() and 2 or 0) ^ 8 +
-        (ChatFrame1EditBox:IsVisible() and 2 or 0) ^ 9 +
+        (DataToColor:IsChatInputActive() and 2 or 0) ^ 9 +
         (DataToColor:SoftTargetInteractEnabled() and 2 or 0) ^ 10
 end
 
 function DataToColor:CustomTrigger(t)
-    local v = t[0]
+    local v = t[0] or 0
     for i = 1, 23 do
-        v = v + (t[i] ^ i)
+        v = v + ((t[i] or 0) ^ i)
     end
     return v
 end
@@ -223,7 +238,7 @@ function DataToColor:populateAuraTimer(func, unitId, queue)
     end
 
     for i = 1, 40 do
-        local name, texture, _, _, duration, expirationTime = func(unitId, i)
+        local name, texture, duration, expirationTime = DataToColor:GetAuraInfo(func, unitId, i)
         if not name then
             break
         end
@@ -322,62 +337,6 @@ function DataToColor:getRange()
     return (max or 0) * 1000 + (min or 0)
 end
 
-function DataToColor:NpcId(unit)
-    local guid = UnitGUID(unit) or ""
-    local id = guid:match("-(%d+)-[^-]+$")
-
-    if id and not guid:find("^Player") then
-        return tonumber(id, 10)
-    end
-    return 0
-end
-
-function DataToColor:getGuidFromUnit(unit)
-    if not UnitExists(unit) then
-        return 0
-    end
-
-    -- Player-4731-02AAD4FF
-    -- Creature-0-4488-530-222-19350-000005C0D70
-    -- Pet-0-4448-530-222-22123-15004E200E
-    return DataToColor:uniqueGuid(select(-2, strsplit('-', UnitGUID(unit))))
-end
-
-function DataToColor:getGuidFromUUID(uuid)
-    if not uuid then
-        return 0
-    end
-    return DataToColor:uniqueGuid(select(-2, strsplit('-', uuid)))
-end
-
-function DataToColor:getNpcIdFromUUID(uuid)
-    if not uuid then
-        return 0
-    end
-
-    local id = uuid:match("-(%d+)-[^-]+$")
-
-    if id and not uuid:find("^Player") then
-        return tonumber(id, 10)
-    end
-    return 0
-end
-
-function DataToColor:getTypeFromUUID(uuid)
-    if not uuid then
-        return 0
-    end
-
-    local type = uuid:match("^(.-)-")
-    return DataToColor.C.GuidType[type] or 0
-end
-
-function DataToColor:uniqueGuid(npcId, spawn)
-    local spawnEpochOffset = band(tonumber(sub(spawn, 5), 16), 0x7fffff)
-    local spawnIndex = band(tonumber(sub(spawn, 1, 5), 16), 0xffff8)
-
-    return (spawnEpochOffset + spawnIndex + npcId) % 0x1000000
-end
 
 local offsetEnumPowerType = 2
 function DataToColor:populateActionbarCost(slot)
@@ -454,22 +413,34 @@ function DataToColor:areSpellsInRange()
     return inRange
 end
 
+-- /dump DataToColor:isActionUseable(75, 75)
 function DataToColor:isActionUseable(min, max)
     local isUsableBits = 0
     for i = min, max do
         local start, duration, enabled = GetActionCooldown(i)
         local isUsable, notEnough = IsUsableAction(i)
-        local texture = GetActionTexture(i)
+        if isUsable == 1 then
+            isUsable = true
+        else
+            isUsable = false
+        end
+        if notEnough == nil then
+            notEnough = false
+        end
+
+        local texture = DataToColor:GetActionTexture(i)
         local spellName = DataToColor.S.playerSpellBookName[texture]
 
-        if start == 0 and (isUsable == true and notEnough == false or IsUsableSpell(spellName)) and texture ~= 134400 then -- red question mark texture
-            isUsableBits = isUsableBits + (2 ^ (i - min))
+        if spellName ~= nil then
+            if start == 0 and (isUsable == true and notEnough == false or IsUsableSpell(spellName)) and texture ~= 134400 then -- red question mark texture
+                isUsableBits = isUsableBits + (2 ^ (i - min))
+            end
         end
 
         local _, spellId = GetActionInfo(i)
         local gcd = 0
         if DataToColor.S.playerSpellBookId[spellId] then
-            gcd = select(2, GetSpellBaseCooldown(spellId))
+            gcd = select(2, GetSpellBaseCooldown(spellId)) or 1500 -- Legacy version fallback to 1500 ms
         end
 
         if enabled == 1 and start ~= 0 and (duration * 1000) > gcd and not DataToColor.actionBarCooldownQueue:exists(i) then

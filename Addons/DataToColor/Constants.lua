@@ -37,11 +37,51 @@ DataToColor.C.unitSoftInteract = "softinteract"
 
 DataToColor.C.SpellQueueWindow = "SpellQueueWindow"
 
+DataToColor.C.CHARACTER_CLASS_MAP = {
+    ["None"] = 0,
+    ["Warrior"] = 1,
+    ["Paladin"] = 2,
+    ["Hunter"] = 3,
+    ["Rogue"] = 4,
+    ["Priest"] = 5,
+    ["DeathKnight"] = 6,
+    ["Shaman"] = 7,
+    ["Mage"] = 8,
+    ["Warlock"] = 9,
+    ["Monk"] = 10,
+    ["Druid"] = 11,
+    ["DemonHunter"] = 12
+}
+
+DataToColor.C.CHARACTER_RACE_MAP = {
+    ["None"] = 0,
+    ["Human"] = 1,
+    ["Orc"] = 2,
+    ["Dwarf"] = 3,
+    ["NightElf"] = 4,
+    ["Undead"] = 5,
+    ["Tauren"] = 6,
+    ["Gnome"] = 7,
+    ["Troll"] = 8,
+    ["Goblin"] = 9,
+    ["BloodElf"] = 10,
+    ["Draenei"] = 11,
+    ["Worgen"] = 22
+}
+
 -- Character's name
 DataToColor.C.CHARACTER_NAME = UnitName(DataToColor.C.unitPlayer)
 DataToColor.C.CHARACTER_GUID = UnitGUID(DataToColor.C.unitPlayer)
-_, DataToColor.C.CHARACTER_CLASS, DataToColor.C.CHARACTER_CLASS_ID = UnitClass(DataToColor.C.unitPlayer)
-_, _, DataToColor.C.CHARACTER_RACE_ID = UnitRace(DataToColor.C.unitPlayer)
+DataToColor.C.CHARACTER_CLASS_LOWER, DataToColor.C.CHARACTER_CLASS, DataToColor.C.CHARACTER_CLASS_ID = UnitClass(DataToColor.C.unitPlayer)
+DataToColor.C.CHARACTER_RACE, _, DataToColor.C.CHARACTER_RACE_ID = UnitRace(DataToColor.C.unitPlayer)
+
+if DataToColor.C.CHARACTER_RACE_ID == nil then
+    DataToColor.C.CHARACTER_RACE_ID = DataToColor.C.CHARACTER_RACE_MAP[DataToColor.C.CHARACTER_RACE]
+end
+
+if DataToColor.C.CHARACTER_CLASS_ID == nil then
+    DataToColor.C.CHARACTER_CLASS_ID = DataToColor.C.CHARACTER_CLASS_MAP[DataToColor.C.CHARACTER_CLASS_LOWER]
+end
 
 -- Spells
 DataToColor.C.Spell.AutoShotId = 75

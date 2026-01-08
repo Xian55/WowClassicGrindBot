@@ -182,13 +182,17 @@ public sealed partial class AddonConfigurator
 
     private void EditToc()
     {
-        string tocPath = Path.Join(FinalAddonPath, Config.Title + ".toc");
-        string text =
-            File.ReadAllText(tocPath)
-            .Replace(DefaultAddonName, Config.Title)
-            .Replace("## Author: FreeHongKongMMO", "## Author: " + Config.Author);
+        FileInfo[] files = new DirectoryInfo(FinalAddonPath).GetFiles("*.toc");
+        foreach (var f in files)
+        {
+            string tocPath = f.FullName;
+            string text =
+                File.ReadAllText(tocPath)
+                .Replace(DefaultAddonName, Config.Title)
+                .Replace("## Author: FreeHongKongMMO", "## Author: " + Config.Author);
 
-        File.WriteAllText(tocPath, text);
+            File.WriteAllText(tocPath, text);
+        }
     }
 
     private void EditMainLua()

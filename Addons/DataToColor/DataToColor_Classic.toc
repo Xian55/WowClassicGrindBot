@@ -1,0 +1,29 @@
+## Interface: 11300, 11400, 11500, 20500, 30400, 40400, 50500
+## Title: DataToColor
+## Author: FreeHongKongMMO
+## Notes: Displays data as colors (Classic)
+## Version: 1.8.0
+## RequiredDeps:
+## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
+## SavedVariables:
+
+embeds-ace3-v12.xml
+
+init.lua
+
+Collections.lua
+
+Versions.lua
+
+Constants.lua
+Query.lua
+
+Storage.lua
+
+Diagnostics.lua
+
+EventHandlers.lua
+
+DataToColor.lua
+
+SellJunk.lua
