@@ -190,7 +190,8 @@ function filterContientsAndInvalid(db, mapID) {
         x.AreaName != "Eastern Kingdoms" &&
         x.AreaName != "Azeroth" &&
         x.AreaName != "Kalimdor" &&
-        x.AreaName != "Hyjal"
+        x.AreaName != "Hyjal" &&
+        x.AreaName != "Outland"
     );
 }
 
@@ -506,7 +507,7 @@ async function init(e, c, z, x, y, urlEdit) {
                 sprite.scale.set(aSize / sprite.texture.width * scaleFactor);
             }
             else {
-                sprite.scale.set(aSize / sprite.texture.width * scaleFactor * 2);
+                sprite.scale.set(aSize / sprite.texture.width * Math.min(scaleFactor, 3) * 3);
                 // TODO: FIX bitmap rendered subzone texts as sprites
                 //const textZoomFactor = Math.min(1.5, Math.max(0.5, scaleFactor * 1.2));
                 //sprite.scale.set(textZoomFactor);
