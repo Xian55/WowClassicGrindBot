@@ -43,13 +43,40 @@ public class PPatherV2
     {
         [0] = "Azeroth",
         [1] = "Kalimdor",
-        //[530] = "Expansion01",
-        //[571] = "Northrend",
+        [530] = "Expansion01",
+        [571] = "Northrend",
     };
+
+    private static Dictionary<int, string> GenerateMaps(string exp)
+    {
+        Dictionary<int, string> maps = new()
+        {
+            [0] = "Azeroth",
+            [1] = "Kalimdor",
+        };
+
+        if (exp is "tbc")
+        {
+            maps[530] = "Expansion01";
+        }
+
+        if (exp == "wrath")
+        {
+            maps[530] = "Expansion01";
+            maps[571] = "Northrend";
+        }
+
+        return maps;
+    }
 
     public PPatherV2(ILogger logger, DataConfig dataConfig)
     {
         string[] mpqFiles = Directory.GetFiles(dataConfig.MPQ, "*.MPQ");
+        if (mpqFiles.Length == 0)
+        {
+            logger.LogError($"No MPQ files found in {dataConfig.MPQ}");
+            return;
+        }
         ArchiveSet archive = new(logger, mpqFiles);
 
         bool SubZoneBounds = true;
@@ -66,7 +93,9 @@ public class PPatherV2
 
     private void GenerateBoundingBoxForSubZones(ILogger logger, DataConfig dataConfig, ArchiveSet archive)
     {
-        foreach ((int continentId, string value) in maps)
+        var mapDict = GenerateMaps(dataConfig.Exp);
+
+        foreach ((int continentId, string value) in mapDict)
         {
             // skip building trash maps
             if (unusedMapIds.Contains(continentId))
