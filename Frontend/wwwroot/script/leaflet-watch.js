@@ -1891,7 +1891,7 @@ async function addNpc(npcType) {
 
     const flag = npcFlags[npcType];
     const matches = getCreatureByFlag(flag, []);
-    const hitboxArea = Zones[currentArea.AreaID + AreaIDOffset];
+    const hitboxArea = Zones[currentArea.AreaID + AreaIDOffset] || currentArea;
     const texture = getPixiIconTexture(npcType);
 
     for (const creature of matches) {
