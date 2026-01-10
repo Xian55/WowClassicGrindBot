@@ -4,6 +4,7 @@ using Core.GOAP;
 using Core.Session;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using SharedLib;
 
