@@ -1,21 +1,23 @@
 ﻿// 512
 const Configs = {
-    'Azeroth': {
-        resX: 10752,
-        resY: 21504,
-        maxZoom: 6,
-        MapID: 0,
-        offset: {
-            min: { x: 20, y: 24 },
-        }
-    },
-    'Kalimdor': {
-        resX: 15360,
-        resY: 24064,
-        maxZoom: 6,
-        MapID: 1,
-        offset: {
-            min: { x: 9, y: 19 },
+    'som': {
+        'Azeroth': {
+            resX: 10752,
+            resY: 21504,
+            maxZoom: 6,
+            MapID: 0,
+            offset: {
+                min: { x: 20, y: 24 },
+            }
+        },
+        'Kalimdor': {
+            resX: 15360,
+            resY: 24064,
+            maxZoom: 6,
+            MapID: 1,
+            offset: {
+                min: { x: 9, y: 19 },
+            }
         }
     }
 };
@@ -434,7 +436,7 @@ async function init(e, c, z, x, y, urlEdit) {
     continent = c;
     startZoom = z;
 
-    config = Configs[continent];
+    config = Configs[expansion][continent];
 
     maxSize = Math.max(config.resX, config.resY);
     const multi = 17066.66666666667 / maxSize;
@@ -470,8 +472,12 @@ async function init(e, c, z, x, y, urlEdit) {
             if (sprite instanceof PIXI.Text) {
                 const textZoomFactor = Math.min(1.5, Math.max(0.5, scaleFactor * 1.2));
                 sprite.scale.set(textZoomFactor);
-            } else {
+            } 
+            if (sprite.interactive) {
                 sprite.scale.set(aSize / sprite.texture.width * scaleFactor);
+            }
+            else {
+                sprite.scale.set(aSize / sprite.texture.width * scaleFactor * 2);
                 // TODO: FIX bitmap rendered subzone texts as sprites
                 //const textZoomFactor = Math.min(1.5, Math.max(0.5, scaleFactor * 1.2));
                 //sprite.scale.set(textZoomFactor);
@@ -482,7 +488,7 @@ async function init(e, c, z, x, y, urlEdit) {
             //    sprite.hitArea = new PIXI.Rectangle(-size/2, -size/2, size, size);
             //} 
         }
-        
+
 
         if (firstDraw) {
             // set coordinates
@@ -981,8 +987,8 @@ function addSpriteClickHandler(sprite, handler) {
     });
 
     //sprite.on('click', (e) => {
-        //console.log('PIXI Sprite clicked!', sprite.latlng, window.location.pathname);
-        //handler(e);
+    //console.log('PIXI Sprite clicked!', sprite.latlng, window.location.pathname);
+    //handler(e);
     //});
 
     // hoover
@@ -993,7 +999,7 @@ function addSpriteClickHandler(sprite, handler) {
     });
 
     //sprite.on('pointerout', (e) => {
-        //console.log('PIXI Sprite unhovered!', sprite.latlng);
+    //console.log('PIXI Sprite unhovered!', sprite.latlng);
     //});
 }
 
