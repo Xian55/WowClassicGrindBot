@@ -33,12 +33,8 @@ do
 
 	E:AddLib('AceAddon', AceAddon, AceAddonMinor)
 
-	local ver = select(4, GetBuildInfo())
-	if ver <= 11400 then
-		--print('load 2.0')
-		E:AddLib('RangeCheck', 'LibRangeCheck-2.0')
-	else
-		--print('load 3.0')
-		E:AddLib('RangeCheck', 'LibRangeCheck-3.0')
-	end
+	local rangeCheck2 = _G.LibStub('LibRangeCheck-2.0', true)
+	local rangeCheck3 = _G.LibStub('LibRangeCheck-3.0', true)
+
+	E:AddLib('RangeCheck', rangeCheck2 or rangeCheck3, 0)
 end

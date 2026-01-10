@@ -4,7 +4,20 @@
 
 # Master Of Puppets
 
-The project current goal is to support `Season of Mastery Classic`, `Burning Crusade Classic`, `Wrath of the Lich King Classic`
+The project current goal is to supports the following client versions
+
+Legacy
+* 4.3.4 Cataclysm (2011) Work in progress - [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [704](https://github.com/Xian55/WowClassicGrindBot/issues/704)
+
+Classic (Since 2019)
+* 1.13.x Vanilla Classic
+* 1.14.x Season of Mastery
+* 1.15.x Era, Hardcore, Anniversary, Season of Discovery
+    * **Note**: Season of Discovery: New abilities and runes not implemented, workaround [559](https://github.com/Xian55/WowClassicGrindBot/issues/559)
+* 2.5.x - Burning Crusade 
+* 3.4.x - Wrath of the Lich King 
+* 4.4.x - Cataclysm [Limitations](#supporting-cataclysm-classic-and-above-limitations)
+* 5.5.x - Mist of Pandaria [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [TODO 702](https://github.com/Xian55/WowClassicGrindBot/issues/702)
 
 # Components
 
@@ -27,9 +40,9 @@ Further detail about the architecture can be found in [Blog post](http://www.cod
 * World map - Indoors pathfinder only works properly if `PathFilename` is exists.
 * Dungeons / instances **not** supported!
 
-# Supporting Cataclysm Classic limitations
+# Supporting Cataclysm Classic and above limitations
 
-With Cataclysm, the navigation will be limited. Only V3 Remote will be support for now.
+With Cataclysm (MoP, and above), the navigation will be limited. Only V3 Remote will be support for now.
 
 V1 Local and V1 Remote does not have the capability as of this moment to read the CASC files only works with MPQs.
 
@@ -233,15 +246,15 @@ More info [506](https://github.com/Xian55/WowClassicGrindBot/pull/506)
 ## 4.1 Build Requirements
 
 * Windows 10 and above
-* [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+* [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 * `AnyCPU`, `x86` and `x64` build supported.
 
 ## 4.2 Build the solution
 
 One of the following IDE or command line
-* Visual Studio
-* Visual Studio Code
-* Powershell
+* [Visual Studio 2026](https://visualstudio.microsoft.com/downloads/)
+* [Visual Studio Code](https://code.visualstudio.com/)
+* [Powershell](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5)
 
 e.g. Build from Powershell
 ```ps
@@ -249,28 +262,24 @@ cd C:\WowClassicGrindBot
 dotnet build -c Release
 ```
 
+or look at the `BlazorServer\build.bat`, or look at the `HeadlessServer\build.bat` files.
+
 ![Build](images/build.png)
 
 ## 5. BlazorServer Configuration process
 
 The app reads the game state using small blocks of color shown at the top of the screen by an Addon. This needs to be configured.
 
-1. Edit the batch script in `C:\WowClassicGrindBot\BlazorServer` called `run.bat`, change it to point at where you have put the repo BlazorServer folder
+1. Look at `C:\WowClassicGrindBot\BlazorServer` called `run.bat` or `rundev.bat`.
+    * `rundev.bat` has a more verbose logging.
 
-    e.g.
-    ```ps
-    start "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" "http://localhost:5000"
-    c:
-    cd C:\WowClassicGrindBot\BlazorServer
-    dotnet run -c Release
-    pause
-    ```
+1. The **WoW client** must be already running, and make sure to logged with your character.
 
-2. Execute the `run.bat`. This will start the bot and Chrome, WoW client must be already running. 
+1. Execute the `C:\WowClassicGrindBot\BlazorServer\run.bat`. This will start the bot and a browser. 
 
-2. If you get `"Unable to find the Wow process is it running ?"` in the console window then it can't find game executable.
+1. If you get `"Unable to find the Wow process is it running ?"` in the console window then it can't find game executable.
 
-4. When running the BlazorServer for the first time you will have to follow a setup process:
+1. When running the BlazorServer for the first time you will have to follow a setup process:
     * Start the game and login with a character
     * Navigate to `2. Addon Configuration`
     * Fill the `Author` input form
@@ -281,7 +290,7 @@ The app reads the game state using small blocks of color shown at the top of the
     * Navigate to `5. Frame Configuration` [Guidance for good DataFrame](../../wiki/Guidance-for-good-DataFrame)
     * Click on `Auto` -> `Start` [Validate FrameConfiguration](../../wiki/Validating-FrameConfiguration)
 
-5. Addon Control panel `Status` is `Update Available`
+1. Addon Control panel `Status` is `Update Available`
     * Press `Save` button
     * Should see a loading screen
     * Restart the BlazorServer
@@ -295,6 +304,8 @@ The app reads the game state using small blocks of color shown at the top of the
 Similar to BlazorServer project, except without Frontend. Should consume less system resources in general.
 
 While the bot is running there's no way to adjust / tweak the values. In order to take effect, have to restart.
+
+Firstly be sure to compile the project `HeadlessServer\build.bat`
 
 Everything has to be setup inside the [Class Configuration](#12-class-configuration) file, in prior.
 
@@ -312,7 +323,7 @@ A few use case when you need to run `install.bat`
 * After made a change in the source code which result a new Addon Version
 * After switched from **FullScreen** to **Windowed mode** thus a `frame_config.json` needed to be recreated
 
-For normal quick startup of `HeadlessServer` please look at the `HeadlessServer\run.bat`.
+For normal quick startup of `HeadlessServer` please look at the `HeadlessServer\run.bat` or `HeadlessServer\rundev.bat`.
 
 **Required** cli parameter: relative [Class Configuration](#12-class-configuration) file name under the [/Json/class/](./Json/class) folder.
 
@@ -2374,14 +2385,20 @@ Pathed routes are shown in Green.
 
 ### Leaflet
 
-**Note:** Currently the component **only** works for client aka 1.15.x client version. Anniversary realms.
+**Note:** Currently the component **only** works with
+* som -> 1.13.x - 1.14.x - 1.15.x
+* tbc -> 2.5.x
 
 Also it is required to download the map tiles
-* [Som Azeroth and Kalimdor map tiles](https://mega.nz/file/mfgiRRLQ#RvUjd-eb1pMOC5GXCI4jDfpiYyiAUJK_gGfkaWGtz0I)
+* [som - Azeroth and Kalimdor map tiles](https://mega.nz/file/mfgiRRLQ#RvUjd-eb1pMOC5GXCI4jDfpiYyiAUJK_gGfkaWGtz0I)
 * * Copy the content under the `json\leaflet\som` folder.
 * * So the path look like this `Json\leaflet\som\Azeroth\z2x0y0.png`
 
-This component is meant to replace the Route later on, it has *'readonly'* mode when no autohroing is enabled.
+* [tbc - Azeroth and Kalimdor and Expansion01 map tiles](https://mega.nz/file/HLAzgJaJ#UxmaVPSLqgbdl_OQ75vd9C1_DV1kTJxzq-Ce727Z8mw)
+* * Copy the content under the `json\leaflet\tbc` folder.
+* * So the path look like this `Json\leaflet\tbc\Expansion01\z2x0y0.png`
+
+This component is meant to replace the Route later on, it has *'readonly'* mode when no authoring is enabled.
 
 ![Leaflet](images/leafletComponent.png)
 

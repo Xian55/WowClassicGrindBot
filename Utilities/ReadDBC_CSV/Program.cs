@@ -33,6 +33,7 @@ internal sealed class Program
     // WOTLK 3.4.5.63697
     // Cata 4.4.2.60895
     // Mop 5.5.1.63698
+    // Legacy Cata 8.1.0.27826 -- used for legacy Cataclysm
     private const string build = "1.15.8.63829";
 
     public static void Main()
@@ -91,7 +92,14 @@ internal sealed class Program
     {
         TalentExtractor extractor = new(path);
         await DownloadRequirements(path, extractor, build);
-        extractor.Run();
+        try
+        {
+            extractor.Run();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error generating talents: {ex.Message}");
+        }
     }
 
     private static async Task GenerateWorldMapArea(string path)

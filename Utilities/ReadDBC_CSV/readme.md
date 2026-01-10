@@ -55,6 +55,10 @@ https://wago.tools/db2/talent/csv?&build=4.4.0.54647
 # ReadDBC_CSV_WorldMapArea - What it does
 * It generates the WorldMapArea.json list based on the given DBC files.
 
+## SubZoneArea
+* Requires continent names (like `0.json`, `1.json`) which contains each tile what zone it bounds to.
+* These files can be found under the `json\subzones\EXPANSION` copy these files into `Utilities\ReadDBC_CSV\data` folder.
+
 ## ReadDBC_CSV_WorldMapArea - Required DBC files
 * data/uimap.csv
 https://wago.tools/db2/uimap/csv?&build=4.4.0.54647

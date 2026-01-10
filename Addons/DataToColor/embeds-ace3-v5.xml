@@ -1,0 +1,13 @@
+<Ui xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+  <!-- Ace3 v5 - For Cataclysm Classic (4.4.0) -->
+  <Script  file="Libs\Ace3-Cata\LibStub\LibStub.lua"/>
+  <Include file="Libs\Ace3-Cata\CallbackHandler-1.0\CallbackHandler-1.0.xml"/>
+  <Include file="Libs\Ace3-Cata\AceAddon-3.0\AceAddon-3.0.xml"/>
+  <Include file="Libs\Ace3-Cata\AceConsole-3.0\AceConsole-3.0.xml"/>
+  <Include file="Libs\Ace3-Cata\AceEvent-3.0\AceEvent-3.0.xml"/>
+  <Include file="Libs\Ace3-Cata\AceTimer-3.0\AceTimer-3.0.xml"/>
+  <Include file="Libs\Ace3-Cata\AceComm-3.0\AceComm-3.0.xml"/>
+  <Include file="Libs\Ace3-Cata\AceSerializer-3.0\AceSerializer-3.0.xml"/>
+
+  <Include file='Libs\LibRangeCheck-2.0\LibRangeCheck-2.0.lua'/>
+</Ui>

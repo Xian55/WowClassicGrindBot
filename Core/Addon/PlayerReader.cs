@@ -120,7 +120,7 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     // RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
     public UnitRace Race => (UnitRace)(reader.GetInt(46) / 10000);
     public UnitClass Class => (UnitClass)(reader.GetInt(46) / 100 % 100);
-    public ClientVersion Version => (ClientVersion)(reader.GetInt(46) % 10);
+    public ClientVersion Version => (ClientVersion)(reader.GetInt(46) % 100);
 
     public PlayerFaction Faction => Race switch {
         UnitRace.Human => PlayerFaction.Alliance,

@@ -86,9 +86,12 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             }
         }
 
-        AddPrecondition(GoapKey.targettargetsus, false);
         AddPrecondition(GoapKey.hastarget, true);
         AddPrecondition(GoapKey.targetisalive, true);
+        if (classConfig.Mode != Mode.AssistFocus)
+        {
+            AddPrecondition(GoapKey.targettargetsus, false);
+        }
         AddPrecondition(GoapKey.targethostile, true);
         AddPrecondition(GoapKey.withinpullrange, true);
 

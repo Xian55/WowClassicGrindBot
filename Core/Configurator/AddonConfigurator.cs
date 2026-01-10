@@ -162,33 +162,48 @@ public sealed partial class AddonConfigurator
         EditModulesLua();
     }
 
-    private static void BulkRename(string fPath, string match, string fNewName)
+    private static void BulkRename(string folderPath, string match, string replacement)
     {
-        foreach (FileInfo f in new DirectoryInfo(fPath).GetFiles())
-        {
-            string fromName = Path.GetFileNameWithoutExtension(f.Name);
+        if (string.IsNullOrEmpty(match))
+            throw new ArgumentException("match must not be empty", nameof(match));
 
-            if (!fromName.Contains(match))
+        DirectoryInfo dir = new(folderPath);
+
+        foreach (var file in dir.EnumerateFiles())
+        {
+            var baseName = Path.GetFileNameWithoutExtension(file.Name);
+            if (baseName is null || !baseName.Contains(match, StringComparison.Ordinal))
                 continue;
 
-            string ext = Path.GetExtension(f.Name);
+            var ext = file.Extension;
 
-            fromName = Path.Join(fPath, f.Name);
-            string toName = Path.Join(fPath, fNewName) + ext;
+            var newBaseName = baseName.Replace(match, replacement, StringComparison.Ordinal);
 
-            File.Move(fromName, toName);
+            var targetPath = Path.Combine(file.DirectoryName!, newBaseName + ext);
+
+            if (string.Equals(file.FullName, targetPath, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (File.Exists(targetPath))
+                throw new IOException($"Target file already exists: {targetPath}");
+
+            file.MoveTo(targetPath);
         }
     }
 
     private void EditToc()
     {
-        string tocPath = Path.Join(FinalAddonPath, Config.Title + ".toc");
-        string text =
-            File.ReadAllText(tocPath)
-            .Replace(DefaultAddonName, Config.Title)
-            .Replace("## Author: FreeHongKongMMO", "## Author: " + Config.Author);
+        FileInfo[] files = new DirectoryInfo(FinalAddonPath).GetFiles("*.toc");
+        foreach (var f in files)
+        {
+            string tocPath = f.FullName;
+            string text =
+                File.ReadAllText(tocPath)
+                .Replace(DefaultAddonName, Config.Title)
+                .Replace("## Author: FreeHongKongMMO", "## Author: " + Config.Author);
 
-        File.WriteAllText(tocPath, text);
+            File.WriteAllText(tocPath, text);
+        }
     }
 
     private void EditMainLua()

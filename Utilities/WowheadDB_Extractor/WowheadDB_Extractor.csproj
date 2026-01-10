@@ -11,10 +11,10 @@
 
   <ItemGroup>
     <Reference Include="WowheadDB">
-      <HintPath>..\..\WowheadDB\bin\Release\net9.0\WowheadDB.dll</HintPath>
+      <HintPath>..\..\WowheadDB\bin\Release\net10.0\WowheadDB.dll</HintPath>
     </Reference>
 	<Reference Include="SharedLib">
-		<HintPath>..\..\SharedLib\bin\Release\net9.0\SharedLib.dll</HintPath>
+		<HintPath>..\..\SharedLib\bin\Release\net10.0\SharedLib.dll</HintPath>
 	</Reference>
   </ItemGroup>
 

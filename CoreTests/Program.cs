@@ -43,6 +43,10 @@ internal sealed class Program
         Log.Logger = logConfig;
         logger = new SerilogLoggerProvider(Log.Logger).CreateLogger(nameof(Program));
 
+
+        //var a = new PPatherV2.PPatherV2(logger, DataConfig.Load("tbc"));
+        //return;
+
         loggerFactory = LoggerFactory.Create(builder =>
         {
             builder.ClearProviders().AddSerilog();

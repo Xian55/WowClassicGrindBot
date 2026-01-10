@@ -26,6 +26,8 @@
             continent = PlayerReader.WorldMapArea.Continent;
             expansion = PlayerReader.Version.ToStringF().ToLower();
 
+            StateHasChanged();
+
             await Task.CompletedTask;
         }
     }

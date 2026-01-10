@@ -1,18 +1,20 @@
-## Interface-BCC: 20502
-## Interface-WOTLKC: 30400
+## Interface: 40300
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
-## Notes: Displays data as colors
-## Version: 1.7.71
+## Notes: Displays data as colors (Legacy Cataclysm 4.3.0)
+## Version: 1.8.0
 ## RequiredDeps:
-## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
+## OptionalDeps: Ace3, LibRangeCheck, cTimerBackport
 ## SavedVariables:
 
-embeds.xml
+embeds-ace3-v5.xml
 
 init.lua
 
 Collections.lua
+
+LegacyTextureToFileID.lua
+WorldMapAreaIDToUiMapID.lua
 
 Versions.lua
 

@@ -1,5 +1,9 @@
 ﻿using Core.Talents;
 
+using Microsoft.Extensions.Logging;
+
+using Newtonsoft.Json;
+
 using SharedLib;
 
 using System;
@@ -17,15 +21,39 @@ public sealed class TalentDB
     private readonly TalentTab[] talentTabs;
     private readonly TalentTreeElement[] talentTreeElements;
 
-    public TalentDB(DataConfig dataConfig, SpellDB spellDB)
+    public TalentDB(ILogger<TalentDB> logger, DataConfig dataConfig, SpellDB spellDB)
     {
         this.spellDB = spellDB;
 
-        talentTabs = DeserializeObject<TalentTab[]>(
-            ReadAllText(Join(dataConfig.ExpDbc, "talenttab.json")))!;
+        talentTabs = LoadJsonSafe<TalentTab>(logger, Join(dataConfig.ExpDbc, "talenttab.json"));
+        talentTreeElements = LoadJsonSafe<TalentTreeElement>(logger, Join(dataConfig.ExpDbc, "talent.json"));
+    }
 
-        talentTreeElements = DeserializeObject<TalentTreeElement[]>(
-            ReadAllText(Join(dataConfig.ExpDbc, "talent.json")))!;
+    private static T[] LoadJsonSafe<T>(ILogger<TalentDB> logger, string path)
+    {
+        try
+        {
+            if (!System.IO.File.Exists(path))
+            {
+                logger.LogWarning($"Missing file: {path}");
+                return [];
+            }
+
+            var json = ReadAllText(path);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                logger.LogWarning($"Empty file: {path}");
+                return [];
+            }
+
+            var data = DeserializeObject<T[]>(json);
+            return data ?? [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogError($"Failed to read {path}: {ex.Message}");
+            return [];
+        }
     }
 
     public bool Update(ref Talent talent, UnitClass @class, out int spellId)
@@ -36,10 +64,11 @@ public sealed class TalentDB
         int tabIndex = talent.TabNum - 1;
         for (int i = 0; i < talentTabs.Length; i++)
         {
-            if (talentTabs[i].ClassMask == classMask &&
-                talentTabs[i].OrderIndex == tabIndex)
+            var tab = talentTabs[i];
+            if (tab.ClassMask == classMask &&
+                tab.OrderIndex == tabIndex)
             {
-                tabId = talentTabs[i].Id;
+                tabId = tab.Id;
                 break;
             }
         }
@@ -53,9 +82,10 @@ public sealed class TalentDB
         int index = -1;
         for (int i = 0; i < talentTreeElements.Length; i++)
         {
-            if (talentTreeElements[i].TabID == tabId &&
-                talentTreeElements[i].TierID == tierIndex &&
-                talentTreeElements[i].ColumnIndex == columnIndex)
+            var treeElement = talentTreeElements[i];
+            if (treeElement.TabID == tabId &&
+                treeElement.TierID == tierIndex &&
+                treeElement.ColumnIndex == columnIndex)
             {
                 index = i;
                 break;

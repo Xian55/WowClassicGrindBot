@@ -53,7 +53,7 @@
                 </div>
 
                 <div class="bottom-section">
-                    @if (client.Version == ClientVersion.SoM)
+                    @if (client.Version is ClientVersion.SoM or ClientVersion.TBC)
                     {
                         <LeafletComponent Size="400px" />
                     }

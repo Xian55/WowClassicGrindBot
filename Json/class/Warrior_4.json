@@ -1,6 +1,18 @@
 {
   "ClassName": "Warrior",
-  "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\4-6_Dun Morogh.json",
+  //"Mode": "AttendedGrind",
+  "NPCMaxLevels_Below": 10,
+  "KeyboardOnly": true,
+  "PathFilename": "5_Human.json",
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
@@ -61,7 +73,6 @@
         "Name": "Repair",
         "Key": "C",
         "Requirement": "Durability% < 35",
-        "PathFilename": "1_Gnome_Vendor.json",
         "Cost": 6
       },
       {
@@ -71,7 +82,6 @@
           "BagFull",
           "BagGreyItem"
         ],
-        "PathFilename": "1_Gnome_Vendor.json",
         "Cost": 6
       }
     ]
