@@ -2385,14 +2385,20 @@ Pathed routes are shown in Green.
 
 ### Leaflet
 
-**Note:** Currently the component **only** works for client aka 1.15.x client version. Anniversary realms.
+**Note:** Currently the component **only** works with
+* som -> 1.13.x - 1.14.x - 1.15.x
+* tbc -> 2.5.x
 
 Also it is required to download the map tiles
-* [Som Azeroth and Kalimdor map tiles](https://mega.nz/file/mfgiRRLQ#RvUjd-eb1pMOC5GXCI4jDfpiYyiAUJK_gGfkaWGtz0I)
+* [som - Azeroth and Kalimdor map tiles](https://mega.nz/file/mfgiRRLQ#RvUjd-eb1pMOC5GXCI4jDfpiYyiAUJK_gGfkaWGtz0I)
 * * Copy the content under the `json\leaflet\som` folder.
 * * So the path look like this `Json\leaflet\som\Azeroth\z2x0y0.png`
 
-This component is meant to replace the Route later on, it has *'readonly'* mode when no autohroing is enabled.
+* [tbc - Azeroth and Kalimdor and Expansion01 map tiles](https://mega.nz/file/HLAzgJaJ#UxmaVPSLqgbdl_OQ75vd9C1_DV1kTJxzq-Ce727Z8mw)
+* * Copy the content under the `json\leaflet\tbc` folder.
+* * So the path look like this `Json\leaflet\tbc\Expansion01\z2x0y0.png`
+
+This component is meant to replace the Route later on, it has *'readonly'* mode when no authoring is enabled.
 
 ![Leaflet](images/leafletComponent.png)
 

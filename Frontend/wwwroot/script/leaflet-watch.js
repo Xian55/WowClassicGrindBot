@@ -19,7 +19,36 @@ const Configs = {
                 min: { x: 9, y: 19 },
             }
         }
-    }
+    },
+    'tbc': {
+        'Azeroth': {
+            resX: 10752,
+            resY: 21504,
+            maxZoom: 6,
+            MapID: 0,
+            offset: {
+                min: { x: 20, y: 24 },
+            }
+        },
+        'Kalimdor': {
+            resX: 15360,
+            resY: 24064,
+            maxZoom: 6,
+            MapID: 1,
+            offset: {
+                min: { x: 9, y: 19 },
+            }
+        },
+        'Expansion01': {
+            resX: 25088,
+            resY: 19968,
+            maxZoom: 6,
+            MapID: 530,
+            offset: {
+                min: { x: 6, y: 12 },
+            }
+        }
+    },
 };
 
 const aSize = 32;
@@ -427,7 +456,7 @@ async function init(e, c, z, x, y, urlEdit) {
     enableUrlEdit = urlEdit;
 
     // currently only som is supported
-    if (expansion !== 'som') {
+    if (expansion !== 'som' && expansion !== 'tbc') {
         return;
     }
 

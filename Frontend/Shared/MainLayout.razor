@@ -84,7 +84,7 @@
             new() { Id = "13", Href = "/RestartServer", Text = "Restart"},
         };
 
-        if (client.Version == ClientVersion.SoM)
+        if (client.Version is ClientVersion.SoM or ClientVersion.TBC)
         {
             navItems.Insert(5, new() { Id = "6", Href = "/Leaflet", Text = "Leaflet" });
         }
