@@ -36,6 +36,7 @@ local GetInventoryItemLink = GetInventoryItemLink
 local IsSpellInRange = IsSpellInRange
 local GetSpellInfo = GetSpellInfo
 local GetActionCooldown = GetActionCooldown
+local IsUsableItem = IsUsableItem or C_Item.IsUsableItem
 local IsUsableAction = IsUsableAction
 local IsCurrentAction = IsCurrentAction
 local IsAutoRepeatAction = IsAutoRepeatAction
@@ -413,42 +414,85 @@ function DataToColor:areSpellsInRange()
     return inRange
 end
 
+local function NormalizeUsable(usable, notEnough)
+  -- Classic/vanilla style: usable = 1/nil, notEnough = 1/nil
+  if usable == 1 then usable = true end
+  if usable == nil then usable = false end
+
+  if notEnough == 1 then notEnough = true end
+  if notEnough == nil then notEnough = false end
+
+  return usable, notEnough
+end
+
+local function GetActionSpellGcdMs(spellId)
+  if not spellId then return 0 end
+  local base = select(2, GetSpellBaseCooldown(spellId))
+  return base or 1500 -- legacy fallback you already used
+end
+
 -- /dump DataToColor:isActionUseable(75, 75)
 function DataToColor:isActionUseable(min, max)
-    local isUsableBits = 0
-    for i = min, max do
-        local start, duration, enabled = GetActionCooldown(i)
-        local isUsable, notEnough = IsUsableAction(i)
-        if isUsable == 1 then
-            isUsable = true
+  local isUsableBits = 0
+  for slot = min, max do
+    local start, duration, enabled = GetActionCooldown(slot)
+
+    local actionType, id, _ = GetActionInfo(slot)
+
+    local usable, notEnough = false, false
+    local gcdMs = 0
+
+    if actionType == "spell" then
+      usable, notEnough = IsUsableSpell(id)
+      usable, notEnough = NormalizeUsable(usable, notEnough)
+
+      if DataToColor.S.playerSpellBookId and DataToColor.S.playerSpellBookId[id] then
+        gcdMs = GetActionSpellGcdMs(id)
+      end
+
+    elseif actionType == "item" then
+      usable, notEnough = IsUsableItem(id)
+      usable, notEnough = NormalizeUsable(usable, notEnough)
+
+      -- items don't use spell GCD the same way; keep gcdMs=0
+
+    elseif actionType == "macro" then
+      local macroSpell = GetMacroSpell(id)
+      if macroSpell then
+        usable, notEnough = IsUsableSpell(macroSpell)
+        usable, notEnough = NormalizeUsable(usable, notEnough)
+
+        if DataToColor.S.playerSpellBookId and DataToColor.S.playerSpellBookId[macroSpell] then
+          gcdMs = GetActionSpellGcdMs(macroSpell)
+        end
+      else
+        local macroItemName = GetMacroItem(id)
+        if macroItemName then
+          usable, notEnough = IsUsableItem(macroItemName)
+          usable, notEnough = NormalizeUsable(usable, notEnough)
         else
-            isUsable = false
+          local u, ne = IsUsableAction(slot)
+          usable, notEnough = NormalizeUsable(u, ne)
         end
-        if notEnough == nil then
-            notEnough = false
-        end
+      end
 
-        local texture = DataToColor:GetActionTexture(i)
-        local spellName = DataToColor.S.playerSpellBookName[texture]
-
-        if spellName ~= nil then
-            if start == 0 and (isUsable == true and notEnough == false or IsUsableSpell(spellName)) and texture ~= 134400 then -- red question mark texture
-                isUsableBits = isUsableBits + (2 ^ (i - min))
-            end
-        end
-
-        local _, spellId = GetActionInfo(i)
-        local gcd = 0
-        if DataToColor.S.playerSpellBookId[spellId] then
-            gcd = select(2, GetSpellBaseCooldown(spellId)) or 1500 -- Legacy version fallback to 1500 ms
-        end
-
-        if enabled == 1 and start ~= 0 and (duration * 1000) > gcd and not DataToColor.actionBarCooldownQueue:exists(i) then
-            local expireTime = start + duration
-            DataToColor.actionBarCooldownQueue:set(i, expireTime)
-        end
+    else
+      local u, ne = IsUsableAction(slot)
+      usable, notEnough = NormalizeUsable(u, ne)
     end
-    return isUsableBits
+
+    -- 'Red question mark' guard (134400) stays
+    local texture = DataToColor:GetActionTexture(slot)
+
+    if texture ~= 134400 and start == 0 and usable and not notEnough then
+      isUsableBits = isUsableBits + (2 ^ (slot - min))
+    end
+
+    if enabled == 1 and start ~= 0 and (duration * 1000) > gcdMs and not DataToColor.actionBarCooldownQueue:exists(slot) then
+      DataToColor.actionBarCooldownQueue:set(slot, start + duration)
+    end
+  end
+  return isUsableBits
 end
 
 function DataToColor:isCurrentAction(min, max)
