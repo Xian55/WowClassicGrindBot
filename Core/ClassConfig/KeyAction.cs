@@ -155,6 +155,12 @@ public sealed partial class KeyAction
         set => features[ActionMask.CancelOnInterrupt] = value;
     }
 
+    public bool UseMount
+    {
+        get => features[ActionMask.UseMount];
+        set => features[ActionMask.UseMount] = value;
+    }
+
     public int AfterCastStepBack { get; set; }
 
     public string InCombat { get; set; } = "false";

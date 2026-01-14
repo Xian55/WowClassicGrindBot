@@ -22,4 +22,6 @@ public static class ActionMask
     public const int AfterCastWaitGCD = 1 << 15;
     public const int AfterCastAuraExpected = 1 << 16;
     public const int CancelOnInterrupt = 1 << 17;
+
+    public const int UseMount = 1 << 18;
 }
