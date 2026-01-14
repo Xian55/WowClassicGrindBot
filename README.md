@@ -763,6 +763,7 @@ Can specify conditions with [Requirement(s)](#requirement) in order to create a 
 | `"CancelOnInterrupt"` | If the [Interrupt](#interrupt-requirement) [Requirement](#requirement) has met, shall **Cancel** current castbar spellcast (sending ESC) | `false` |
 | `"ResetOnNewTarget"` | Reset the Cooldown if the target changes | `false` |
 | `"Log"` | Related events should appear in the logs | `true` |
+| `"UseMount"` | Should use mount ? <br/>Limited to [AdhocNpcGoals](#npc-goals) such as `Repair`, `Sell`, `Vendor` routes. | `false` |
 | --- | Before keypress cast, ... | --- |
 | `"BeforeCastFaceTarget"` | Attempt to look directly at target.<br>**Note**: it may not work for every scenario. | `false` |
 | `"BeforeCastDelay"` | Delay in milliseconds. | `0` |
@@ -1186,6 +1187,7 @@ e.g. using a prerecoded path to follow
         "Name": "Repair",
         "Key": "C",
         "Requirement": "Items Broken",
+        "UseMount": true, // When ClassConfig.UseMount is disabled, still allows to use mounts
         "PathFilename": "Tanaris_GadgetzanKrinkleGoodsteel.json",
         "Cost": 6
     },
@@ -1193,6 +1195,7 @@ e.g. using a prerecoded path to follow
         "Name": "Sell",
         "Key": "C",
         "Requirement": "BagFull",
+        "UseMount": true, // When ClassConfig.UseMount is disabled, still allows to use mounts
         "PathFilename": "Tanaris_GadgetzanKrinkleGoodsteel.json",
         "Cost": 6
     }

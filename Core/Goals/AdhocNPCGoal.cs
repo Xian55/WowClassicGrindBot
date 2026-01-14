@@ -415,7 +415,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
     {
         float totalDistance = VectorExt.TotalDistance<Vector3>(navigation.TotalRoute, VectorExt.WorldDistanceXY);
 
-        if (classConfig.UseMount && mountHandler.CanMount() &&
+        if ((classConfig.UseMount || key.UseMount) && mountHandler.CanMount() &&
             (MountHandler.ShouldMount(totalDistance) ||
             (navigation.TotalRoute.Length > 0 &&
             mountHandler.ShouldMount(navigation.TotalRoute[^1]))
