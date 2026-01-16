@@ -230,8 +230,20 @@ public sealed partial class GoapAgent : IDisposable
             }
 
             Thread.Sleep(2);
-            WaitHandle.WaitAny(waitHandles);
-            sessionPauseEvent.Wait(cts.Token);
+
+            try
+            {
+                WaitHandle.WaitAny(waitHandles);
+                sessionPauseEvent.Wait(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
+            }
         }
 
         if (logger.IsEnabled(LogLevel.Debug))
