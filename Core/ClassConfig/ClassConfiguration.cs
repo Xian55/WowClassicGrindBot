@@ -28,6 +28,8 @@ public enum Mode
 
 public sealed partial class ClassConfiguration
 {
+    public string FileName { get; set; } = string.Empty;
+
     public bool Log { get; set; } = true;
     public bool LogBagChanges { get; set; } = true;
     public bool Loot { get; set; } = true;
