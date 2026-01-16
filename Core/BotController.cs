@@ -323,10 +323,13 @@ public sealed partial class BotController : IBotController, IDisposable
         long startTime = GetTimestamp();
         try
         {
-            ClassConfig = ReadClassConfiguration(classFile);
-            ClassConfig.Initialise(serviceProvider, pathFiles);
+            var tryLoadConfig = ReadClassConfiguration(classFile);
+            tryLoadConfig.Initialise(serviceProvider, pathFiles);
 
-            LogProfileLoaded(logger, classFile, ClassConfig.PathFilename);
+            LogProfileLoaded(logger, classFile, tryLoadConfig.PathFilename);
+            ClassConfig = tryLoadConfig;
+
+            ClassConfig.FileName = classFile;
 
             CreateSession(ClassConfig);
         }
