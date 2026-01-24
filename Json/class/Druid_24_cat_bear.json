@@ -1,6 +1,7 @@
 {
   "ClassName": "Druid",
   "Loot": true,
+  "KeyboardOnly": true,
   "PathFilename": "_pack\\20-30\\Duskwood\\21-22.json",
   "PathReduceSteps": true,
   "CheckTargetGivesExp": true,
@@ -9,6 +10,7 @@
       {
         //macro: /cancelform
         "Name": "cancelform",
+        "BaseAction": true,
         "Key": "F1",
         "Form": "None"
       },
@@ -21,6 +23,15 @@
         "Name": "Cat form",
         "Key": "F3",
         "Form": "Druid_Cat"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
       }
     ]
   },
@@ -248,13 +259,15 @@
         "Name": "Food",
         "Key": "=",
         "Requirement": "Health% < 50",
-        "Form": "None"
+        "Form": "None",
+        "AfterCastDelay": 500
       },
       {
         "Name": "Drink",
         "Key": "-",
         "Requirement": "Mana% < 40",
-        "Form": "None"
+        "Form": "None",
+        "AfterCastDelay": 500
       }
     ]
   },
@@ -274,8 +287,8 @@
         "Requirements": [
           "BagFull",
           "BagGreyItem"
-        ],
-        "PathFilename": "23_Duskwood_Vendor.json"
+        ]//,
+        //"PathFilename": "23_Duskwood_Vendor.json"
       }
     ]
   }
