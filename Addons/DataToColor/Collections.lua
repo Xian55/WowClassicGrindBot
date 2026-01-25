@@ -70,6 +70,16 @@ function TimedQueue:push(item)
     return table.insert(self.tail, item)
 end
 
+-- Clears all items from the queue and resets state.
+function TimedQueue:clear()
+    self.head = {}
+    self.tail = {}
+    self.index = 1
+    self.headLength = 0
+    self.lastValue = self.defaultValue
+    self.lastChangedTick = 0
+end
+
 -- Peeks at the next item to be shifted without actually shifting it.
 function TimedQueue:peek()
     if self.index <= self.headLength then

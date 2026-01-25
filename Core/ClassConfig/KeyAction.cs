@@ -4,6 +4,8 @@ using Game;
 
 using Microsoft.Extensions.Logging;
 
+using SharedLib;
+
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -21,7 +23,10 @@ public sealed partial class KeyAction
         set => features[ActionMask.HasCastBar] = value;
     }
     public ConsoleKey ConsoleKey { get; set; }
+    public ModifierKey Modifier { get; set; } = ModifierKey.None;
+    public bool HasModifier => Modifier != ModifierKey.None;
     public string Key { get; set; } = string.Empty;
+    public BindingID BindingID { get; set; }
     public int Slot { get; set; }
     public int SlotIndex { get; private set; }
     public int SpellId { get; set; }

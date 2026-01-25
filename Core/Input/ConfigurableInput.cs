@@ -2,6 +2,8 @@
 
 using Microsoft.Extensions.Logging;
 
+using SharedLib;
+
 using System;
 using System.Threading;
 
@@ -29,6 +31,7 @@ public sealed partial class ConfigurableInput
         input.TurnRightKey = classConfig.TurnRightKey;
 
         input.InteractMouseover = classConfig.InteractMouseOver.ConsoleKey;
+        input.InteractMouseoverModifier = classConfig.InteractMouseOver.Modifier;
         input.InteractMouseoverPress = classConfig.InteractMouseOver.PressDuration;
     }
 
@@ -71,15 +74,26 @@ public sealed partial class ConfigurableInput
 
     public int PressRandom(KeyAction keyAction, CancellationToken token = default)
     {
-        int elapsedMs = input.PressRandom(keyAction.ConsoleKey, keyAction.PressDuration, token);
+        int elapsedMs;
+
+        // Use modifier-aware pressing if the keyAction has a modifier
+        if (keyAction.HasModifier)
+        {
+            elapsedMs = input.PressRandomWithModifier(keyAction.ConsoleKey, keyAction.Modifier, keyAction.PressDuration, token);
+        }
+        else
+        {
+            elapsedMs = input.PressRandom(keyAction.ConsoleKey, keyAction.PressDuration, token);
+        }
+
         keyAction.SetClicked();
 
         if (Log && keyAction.Log)
         {
             if (keyAction.BaseAction)
-                LogBaseActionPressRandom(logger, keyAction.Name, keyAction.ConsoleKey, elapsedMs);
+                LogBaseActionPressRandom(logger, keyAction.Name, keyAction.ConsoleKey, keyAction.Modifier.ToPrefix(), elapsedMs);
             else
-                LogKeyActionPressRandom(logger, keyAction.Name, keyAction.ConsoleKey, elapsedMs);
+                LogKeyActionPressRandom(logger, keyAction.Name, keyAction.ConsoleKey, keyAction.Modifier.ToPrefix(), elapsedMs);
         }
 
         return elapsedMs;
@@ -101,13 +115,19 @@ public sealed partial class ConfigurableInput
 
     public void PressFastInteract(CancellationToken token = default)
     {
-        input.PressRandom(Interact.ConsoleKey, InputDuration.FastPress, token);
+        if (Interact.HasModifier)
+            input.PressRandomWithModifier(Interact.ConsoleKey, Interact.Modifier, InputDuration.FastPress, token);
+        else
+            input.PressRandom(Interact.ConsoleKey, InputDuration.FastPress, token);
         Interact.SetClicked();
     }
 
     public void PressVeryFastInteract()
     {
-        input.PressRandom(Interact.ConsoleKey, InputDuration.VeryFastPress);
+        if (Interact.HasModifier)
+            input.PressRandomWithModifier(Interact.ConsoleKey, Interact.Modifier, InputDuration.VeryFastPress);
+        else
+            input.PressRandom(Interact.ConsoleKey, InputDuration.VeryFastPress);
         Interact.SetClicked();
     }
 
@@ -118,7 +138,10 @@ public sealed partial class ConfigurableInput
             return;
         }
 
-        input.PressRandom(Approach.ConsoleKey, InputDuration.FastPress);
+        if (Approach.HasModifier)
+            input.PressRandomWithModifier(Approach.ConsoleKey, Approach.Modifier, InputDuration.FastPress);
+        else
+            input.PressRandom(Approach.ConsoleKey, InputDuration.FastPress);
         Approach.SetClicked();
     }
 
@@ -129,7 +152,10 @@ public sealed partial class ConfigurableInput
             return false;
         }
 
-        input.PressRandom(Approach.ConsoleKey, InputDuration.FastPress);
+        if (Approach.HasModifier)
+            input.PressRandomWithModifier(Approach.ConsoleKey, Approach.Modifier, InputDuration.FastPress);
+        else
+            input.PressRandom(Approach.ConsoleKey, InputDuration.FastPress);
         Approach.SetClicked();
         return true;
     }
@@ -138,10 +164,33 @@ public sealed partial class ConfigurableInput
 
     public void PressLastTarget(CancellationToken token = default) => PressRandom(TargetLastTarget, token);
 
+    /// <summary>
+    /// Presses TargetLastTarget and waits for a target to appear.
+    /// </summary>
+    /// <returns>True if target appeared within timeout, false if timed out.</returns>
+    public bool PressLastTargetAndWait(Wait wait, Func<bool> hasTarget, int timeoutMs = 300, CancellationToken token = default)
+    {
+        PressLastTarget(token);
+        return wait.Until(timeoutMs, hasTarget) > 0;
+    }
+
     public void PressFastLastTarget(CancellationToken token = default)
     {
-        input.PressRandom(TargetLastTarget.ConsoleKey, InputDuration.FastPress, token);
+        if (TargetLastTarget.HasModifier)
+            input.PressRandomWithModifier(TargetLastTarget.ConsoleKey, TargetLastTarget.Modifier, InputDuration.FastPress, token);
+        else
+            input.PressRandom(TargetLastTarget.ConsoleKey, InputDuration.FastPress, token);
         TargetLastTarget.SetClicked();
+    }
+
+    /// <summary>
+    /// Presses TargetLastTarget (fast) and waits for a target to appear.
+    /// </summary>
+    /// <returns>True if target appeared within timeout, false if timed out.</returns>
+    public bool PressFastLastTargetAndWait(Wait wait, Func<bool> hasTarget, int timeoutMs = 300, CancellationToken token = default)
+    {
+        PressFastLastTarget(token);
+        return wait.Until(timeoutMs, hasTarget) > 0;
     }
 
     public void PressStandUp(CancellationToken token = default) => PressRandom(StandUp, token);
@@ -164,7 +213,10 @@ public sealed partial class ConfigurableInput
 
     public void PressDismount(CancellationToken token = default)
     {
-        input.PressRandom(Mount.ConsoleKey, Mount.PressDuration, token);
+        if (Mount.HasModifier)
+            input.PressRandomWithModifier(Mount.ConsoleKey, Mount.Modifier, Mount.PressDuration, token);
+        else
+            input.PressRandom(Mount.ConsoleKey, Mount.PressDuration, token);
     }
 
     public void PressTargetFocus(CancellationToken token = default) => PressRandom(TargetFocus, token);
@@ -181,14 +233,14 @@ public sealed partial class ConfigurableInput
     [LoggerMessage(
         EventId = 5000,
         Level = LogLevel.Trace,
-        Message = @"[{name}] {key} pressed {milliseconds}ms")]
-    static partial void LogBaseActionPressRandom(ILogger logger, string name, ConsoleKey key, int milliseconds);
+        Message = @"[{name}] {modifierPrefix}{key} pressed {milliseconds}ms")]
+    static partial void LogBaseActionPressRandom(ILogger logger, string name, ConsoleKey key, string modifierPrefix, int milliseconds);
 
     [LoggerMessage(
         EventId = 5001,
         Level = LogLevel.Debug,
-        Message = @"[{name}] {key} pressed {milliseconds}ms")]
-    static partial void LogKeyActionPressRandom(ILogger logger, string name, ConsoleKey key, int milliseconds);
+        Message = @"[{name}] {modifierPrefix}{key} pressed {milliseconds}ms")]
+    static partial void LogKeyActionPressRandom(ILogger logger, string name, ConsoleKey key, string modifierPrefix, int milliseconds);
 
     #endregion
 }

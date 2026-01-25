@@ -138,4 +138,51 @@ public sealed class ActionBarPopulator
 
         return "PickupSpellBookItem";
     }
+
+    /// <summary>
+    /// Places a single KeyAction on the action bar.
+    /// Handles spells, macros, items, food, drink, and trinkets.
+    /// </summary>
+    public bool Place(KeyAction keyAction)
+    {
+        if (keyAction.Slot == 0 || string.IsNullOrEmpty(keyAction.Name))
+            return false;
+
+        string name = keyAction.Name;
+        bool isItem = false;
+
+        if (name.Equals(RequirementFactory.Drink, System.StringComparison.OrdinalIgnoreCase))
+        {
+            name = bagReader.HighestQuantityOfDrinkItemId().ToString();
+            isItem = true;
+        }
+        else if (name.Equals(RequirementFactory.Food, System.StringComparison.OrdinalIgnoreCase))
+        {
+            name = bagReader.HighestQuantityOfFoodItemId().ToString();
+            isItem = true;
+        }
+        else if (keyAction.Item)
+        {
+            if (keyAction.Name == "Trinket 1")
+            {
+                name = equipmentReader.GetId((int)InventorySlotId.Trinket_1).ToString();
+                isItem = true;
+            }
+            else if (keyAction.Name == "Trinket 2")
+            {
+                name = equipmentReader.GetId((int)InventorySlotId.Trinket_2).ToString();
+                isItem = true;
+            }
+        }
+
+        var item = new ActionBarSlotItem(name, keyAction, isItem);
+        if (ScriptBuilder(item, out string content))
+        {
+            execGameCommand.Run(content);
+            return true;
+        }
+
+        logger.LogWarning($"Unable to place {keyAction.Name} -> '{name}' is not valid!");
+        return false;
+    }
 }

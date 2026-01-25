@@ -2,14 +2,7 @@
 
 @inject ILogger logger
 @inject IBotController botController
-
-@inject ILoggerFactory logFactory
-
-@inject BagReader bagReader
-@inject EquipmentReader equipmentReader
-
 @inject DataConfig dataConfig
-@inject ExecGameCommand exec
 
 @implements IDisposable
 
@@ -30,9 +23,7 @@
             <span>Load Profile</span>
         </button>
 
-        <button class="btn btn-sm btn-primary" @onclick="SyncActionBar" disabled="@(string.IsNullOrEmpty(botController.SelectedClassFilename) || ActionBarPopulator == null)">
-            <span>Sync Actionbar</span>
-        </button>
+        <ActionBarValidationBadge />
     </div>
 </div>
 
@@ -47,8 +38,6 @@
     private bool DisableLoadButton { get; set; } = true;
 
     private FileSystemWatcher watcher = null!;
-
-    private ActionBarPopulator ActionBarPopulator { get; set; } = null!;
 
     protected override void OnInitialized()
     {
@@ -96,7 +85,6 @@
             return;
 
         botController.LoadClassProfile(Selected);
-        CreateNewActionBarPopulator();
     }
 
     private void OnListBoxChanged(ChangeEventArgs changeEventArgs)
@@ -114,20 +102,5 @@
         Files = botController.ClassFiles();
         Selected = botController.SelectedClassFilename;
         DisableLoadButton = string.IsNullOrEmpty(Selected);
-
-        CreateNewActionBarPopulator();
-    }
-
-    private void SyncActionBar()
-    {
-        ActionBarPopulator.Execute();
-    }
-
-    private void CreateNewActionBarPopulator()
-    {
-        if (botController.ClassConfig != null)
-            ActionBarPopulator = new(
-                logFactory.CreateLogger<ActionBarPopulator>(),
-                botController.ClassConfig!, bagReader, equipmentReader, exec);
     }
 }

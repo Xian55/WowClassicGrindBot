@@ -1,5 +1,0 @@
-<Bindings>
-  <Binding name="TOGGLE_BINDPAD" header="BINDPAD">
-    BindPadFrame_Toggle();
-  </Binding>
-</Bindings>

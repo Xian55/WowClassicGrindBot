@@ -53,7 +53,7 @@ public sealed partial class ClassConfiguration
     public List<string> SideActivityRequirements = [];
     public PathSettings[] Paths { get; set; } = [];
 
-    public Mode Mode { get; init; } = Mode.Grind;
+    public Mode Mode { get; set; } = Mode.Grind;
 
     public BadZone WrongZone { get; } = new BadZone();
 
@@ -246,7 +246,10 @@ public sealed partial class ClassConfiguration
                 if (user.Name != baseAction.Name)
                     continue;
 
+                // Copy key-related properties from base action
                 user.Key = baseAction.Key;
+                user.ConsoleKey = baseAction.ConsoleKey;
+                user.BindingID = baseAction.BindingID;
 
                 if (!string.IsNullOrEmpty(baseAction.Requirement))
                     user.Requirement += " " + baseAction.Requirement;

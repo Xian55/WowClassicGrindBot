@@ -41,6 +41,8 @@ public sealed partial class BotController : IBotController, IDisposable
     private readonly AddonBits bits;
     private readonly PlayerReader playerReader;
     private readonly IWowScreen screen;
+    private readonly ActionBarSlotValidator slotValidator;
+    private readonly ActionBarTextureReader textureReader;
 
     private readonly NpcNameOverlay? npcNameOverlay;
 
@@ -84,7 +86,9 @@ public sealed partial class BotController : IBotController, IDisposable
         MinimapNodeFinder minimapNodeFinder,
         IScreenCapture screenCapture,
         IServiceProvider serviceProvider,
-        IOptions<StartupConfigNpcOverlay> overlayOptions)
+        IOptions<StartupConfigNpcOverlay> overlayOptions,
+        ActionBarSlotValidator slotValidator,
+        ActionBarTextureReader textureReader)
     {
         this.serviceProvider = serviceProvider;
 
@@ -98,6 +102,8 @@ public sealed partial class BotController : IBotController, IDisposable
         this.addonReader = addonReader;
         this.playerReader = playerReader;
         this.bits = bits;
+        this.slotValidator = slotValidator;
+        this.textureReader = textureReader;
 
         this.minimapNodeFinder = minimapNodeFinder;
 
@@ -134,6 +140,21 @@ public sealed partial class BotController : IBotController, IDisposable
         {
             remotePathing = new(RemotePathingThread);
             remotePathing.Start();
+        }
+
+        // Subscribe to texture changes for deferred validation
+        textureReader.TextureChanged += OnTextureChanged;
+    }
+
+    private bool texturesValidated;
+
+    private void OnTextureChanged(int slot, int textureId)
+    {
+        // Only validate once after textures are initialized and profile is loaded
+        if (!texturesValidated && textureReader.IsInitialized && ClassConfig != null)
+        {
+            texturesValidated = true;
+            slotValidator.ValidateClassConfig(ClassConfig);
         }
     }
 
@@ -330,6 +351,11 @@ public sealed partial class BotController : IBotController, IDisposable
             ClassConfig = tryLoadConfig;
 
             ClassConfig.FileName = classFile;
+
+            // Validate action bar slots against expected spells
+            // (may be deferred if textures aren't ready yet)
+            texturesValidated = false;
+            slotValidator.ValidateClassConfig(ClassConfig);
 
             CreateSession(ClassConfig);
         }

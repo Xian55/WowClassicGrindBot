@@ -12,14 +12,18 @@ public sealed class SpellBookReader : IReader
     private const int cSpellId = 71;
 
     private readonly HashSet<int> spells = [];
-    private readonly HashSet<string> spellNames = [];
+    private readonly HashSet<string> spellNames = new(StringComparer.OrdinalIgnoreCase);
 
     public SpellDB SpellDB { get; }
     public int Count => spells.Count;
+    public IReadOnlyCollection<int> SpellIds => spells;
 
     public SpellBookReader(SpellDB spellDB)
     {
         this.SpellDB = spellDB;
+
+        // Set static reference for KeyReader spell checking
+        KeyReader.SpellBookReader = this;
     }
 
     public void Update(IAddonDataProvider reader)
@@ -62,5 +66,26 @@ public sealed class SpellBookReader : IReader
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Checks if a spell name is known by the player (case-insensitive).
+    /// Supports partial matching for ranked spells (e.g., "Create Healthstone" matches "Create Healthstone (Minor)").
+    /// </summary>
+    public bool KnowsSpell(string name)
+    {
+        // Fast path: exact match
+        if (spellNames.Contains(name))
+            return true;
+
+        // Partial match: check if any known spell starts with the given name
+        // This handles ranked spells like "Create Healthstone (Minor)" matching "Create Healthstone"
+        foreach (string knownSpell in spellNames)
+        {
+            if (knownSpell.StartsWith(name, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }

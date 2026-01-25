@@ -368,8 +368,7 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
 
         if (!bits.Target())
         {
-            input.PressLastTarget();
-            wait.Update();
+            input.PressLastTargetAndWait(wait, bits.Target);
 
             if (state.RecentlyLooted.Contains(playerReader.TargetGuid))
             {

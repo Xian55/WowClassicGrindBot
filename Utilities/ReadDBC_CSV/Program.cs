@@ -47,7 +47,8 @@ internal sealed class Program
 
         await GenerateItems(path);
         await GenerateConsumables(path);
-        await GenerateSpells(path);
+        //await GenerateSpells(path);
+        await GenerateSpellIcons(path);
         await GenerateTalents(path);
         await GenerateWorldMapArea(path);
     }
@@ -100,6 +101,13 @@ internal sealed class Program
         {
             Console.WriteLine($"Error generating talents: {ex.Message}");
         }
+    }
+
+    private static async Task GenerateSpellIcons(string path)
+    {
+        SpellIconExtractor extractor = new(path);
+        await DownloadRequirements(path, extractor, build);
+        extractor.Run();
     }
 
     private static async Task GenerateWorldMapArea(string path)

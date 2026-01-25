@@ -1,0 +1,107 @@
+@using Core
+@using Core.Database
+@using SharedLib
+
+@inject SpellBookReader spellBookReader
+@inject SpellIconDB spellIconDB
+@inject WApi api
+
+<div class="card mt-1">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Spellbook (@spellBookReader.Count spells)</span>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="Refresh">
+            Refresh
+        </button>
+    </div>
+    <div class="card-body p-0">
+        @if (spellBookReader.Count == 0)
+        {
+            <div class="p-3 text-muted">
+                No spells loaded. Make sure the addon is running and the character is logged in.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover mb-0">
+                    <thead class="sticky-top bg-dark">
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>Spell Name</th>
+                            <th style="width: 80px;">Level</th>
+                            <th style="width: 80px;">Spell ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var spellEntry in GetSortedSpells())
+                        {
+                            <tr>
+                                <td class="align-middle">
+                                    @if (!string.IsNullOrEmpty(spellEntry.IconUrl))
+                                    {
+                                        <img src="@spellEntry.IconUrl"
+                                             alt="@spellEntry.Spell.Name"
+                                             style="width: 24px; height: 24px; border-radius: 4px;" />
+                                    }
+                                    else
+                                    {
+                                        <div style="width: 24px; height: 24px; background: #333; border-radius: 4px;"></div>
+                                    }
+                                </td>
+                                <td class="align-middle">
+                                    <a href="@($"{api.SpellId}{spellEntry.Spell.Id}")"
+                                       target="_blank"
+                                       data-wowhead="spell=@spellEntry.Spell.Id"
+                                       style="text-decoration: none;">
+                                        @spellEntry.Spell.Name
+                                    </a>
+                                </td>
+                                <td class="align-middle text-muted">@spellEntry.Spell.Level</td>
+                                <td class="align-middle text-muted">@spellEntry.Spell.Id</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private record SpellDisplayEntry(Spell Spell, string? IconUrl);
+
+    private List<SpellDisplayEntry> GetSortedSpells()
+    {
+        var entries = new List<SpellDisplayEntry>();
+
+        foreach (int spellId in spellBookReader.SpellIds)
+        {
+            if (spellBookReader.TryGetValue(spellId, out Spell spell))
+            {
+                string? iconUrl = spellIconDB.GetIconUrlForSpell(spellId, 36);
+                entries.Add(new SpellDisplayEntry(spell, iconUrl));
+            }
+        }
+
+        // Sort by name, then by level (for ranked spells)
+        return entries
+            .OrderBy(e => GetBaseSpellName(e.Spell.Name))
+            .ThenBy(e => e.Spell.Level)
+            .ToList();
+    }
+
+    private static string GetBaseSpellName(string name)
+    {
+        int parenIndex = name.IndexOf('(');
+        if (parenIndex > 0)
+        {
+            return name.Substring(0, parenIndex).Trim();
+        }
+        return name;
+    }
+
+    private void Refresh()
+    {
+        StateHasChanged();
+    }
+}

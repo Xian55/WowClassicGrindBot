@@ -23,23 +23,25 @@ public sealed class ExecGameCommand
 
     public void Run(string content)
     {
+        if (string.IsNullOrEmpty(content))
+        {
+            return;
+        }
+
         input.SetForegroundWindow();
         logger.LogInformation(content);
 
-        int duration = string.IsNullOrEmpty(content)
-            ? InputDuration.VeryFastPress
-            : Random.Shared.Next(100, 250);
-
-        input.SetClipboard(content);
-        token.WaitHandle.WaitOne(duration);
+        int duration = Random.Shared.Next(100, 250);
 
         // Open chat inputbox
         input.PressRandom(ConsoleKey.Enter, token: token);
-
-        input.PasteFromClipboard();
         token.WaitHandle.WaitOne(duration);
 
-        // Close chat inputbox
+        // Send text directly via WM_CHAR messages
+        input.SendText(content);
+        token.WaitHandle.WaitOne(duration);
+
+        // Close chat inputbox and execute command
         input.PressRandom(ConsoleKey.Enter, token: token);
         token.WaitHandle.WaitOne(duration);
     }

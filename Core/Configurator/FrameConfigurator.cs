@@ -21,9 +21,11 @@ public sealed class FrameConfigurator : IDisposable
         DetectRunningGame,
         CheckGameWindowLocation,
         EnterConfigMode,
+        WaitEnterConfigMode,
         ValidateMetaSize,
         CreateDataFrames,
         ReturnNormalMode,
+        WaitReturnNormalMode,
         UpdateReader,
         ValidateData,
         Done
@@ -33,12 +35,12 @@ public sealed class FrameConfigurator : IDisposable
 
     private const int MAX_HEIGHT = 25; // this one just arbitrary number for sanity check
     private const int INTERVAL = 500;
+    private const int MAX_WAIT_RETRIES = 10;
 
     private readonly ILogger<FrameConfigurator> logger;
     private readonly WowProcess process;
     private readonly IWowScreen screen;
     private readonly WowProcessInput input;
-    private readonly ExecGameCommand execGameCommand;
     private readonly AddonConfigurator addonConfigurator;
     private readonly Wait wait;
     private readonly IAddonDataProvider reader;
@@ -57,13 +59,14 @@ public sealed class FrameConfigurator : IDisposable
 
     private Rectangle screenRect = Rectangle.Empty;
     private Size size = Size.Empty;
+    private int waitRetryCount = 0;
 
     public event Action? OnUpdate;
 
     public FrameConfigurator(ILogger<FrameConfigurator> logger, Wait wait,
         WowProcess process, IAddonDataProvider reader,
         IWowScreen screen, WowProcessInput input,
-        ExecGameCommand execGameCommand, AddonConfigurator addonConfigurator)
+        AddonConfigurator addonConfigurator)
     {
         this.logger = logger;
         this.wait = wait;
@@ -71,7 +74,6 @@ public sealed class FrameConfigurator : IDisposable
         this.reader = reader;
         this.screen = screen;
         this.input = input;
-        this.execGameCommand = execGameCommand;
         this.addonConfigurator = addonConfigurator;
     }
 
@@ -167,17 +169,42 @@ public sealed class FrameConfigurator : IDisposable
                     logger.LogInformation("Enter configuration mode.");
                     input.SetForegroundWindow();
                     wait.Fixed(INTERVAL);
-                    ToggleInGameConfiguration(execGameCommand);
-                    wait.Update();
+                    ToggleInGameConfiguration();
+                    waitRetryCount = 0;
+                    stage = Stage.WaitEnterConfigMode;
                 }
-
-                DataFrameMeta temp = GetDataFrameMeta();
-                if (DataFrameMeta == DataFrameMeta.Empty && temp != DataFrameMeta.Empty)
+                else
                 {
-                    DataFrameMeta = temp;
-                    stage++;
-
-                    logger.LogInformation($"{DataFrameMeta}");
+                    // Manual mode: just check if already in config mode
+                    DataFrameMeta temp = GetDataFrameMeta();
+                    if (DataFrameMeta == DataFrameMeta.Empty && temp != DataFrameMeta.Empty)
+                    {
+                        DataFrameMeta = temp;
+                        stage = Stage.ValidateMetaSize;
+                        logger.LogInformation($"{DataFrameMeta}");
+                    }
+                }
+                break;
+            case Stage.WaitEnterConfigMode:
+                {
+                    wait.Update();
+                    DataFrameMeta temp = GetDataFrameMeta();
+                    if (DataFrameMeta == DataFrameMeta.Empty && temp != DataFrameMeta.Empty)
+                    {
+                        DataFrameMeta = temp;
+                        stage = Stage.ValidateMetaSize;
+                        logger.LogInformation($"{DataFrameMeta}");
+                    }
+                    else
+                    {
+                        waitRetryCount++;
+                        if (waitRetryCount >= MAX_WAIT_RETRIES)
+                        {
+                            logger.LogError("Timeout waiting for config mode!");
+                            stage = Stage.Reset;
+                            if (auto) return false;
+                        }
+                    }
                 }
                 break;
             case Stage.ValidateMetaSize:
@@ -232,27 +259,40 @@ public sealed class FrameConfigurator : IDisposable
                 {
                     logger.LogInformation("Exit configuration mode.");
                     input.SetForegroundWindow();
-                    ToggleInGameConfiguration(execGameCommand);
-                    wait.Fixed(INTERVAL);
-                    wait.Update();
-                }
-
-                temp = GetDataFrameMeta();
-                if (temp == DataFrameMeta.Empty)
-                {
-                    logger.LogDebug(temp.ToString());
-                    stage++;
+                    ToggleInGameConfiguration();
+                    waitRetryCount = 0;
+                    stage = Stage.WaitReturnNormalMode;
                 }
                 else
                 {
-                    if (auto)
+                    // Manual mode: just check if already in normal mode
+                    DataFrameMeta temp = GetDataFrameMeta();
+                    if (temp == DataFrameMeta.Empty)
                     {
-
-                        logger.LogError("Unable to return normal mode!");
-                        ResetConfigState();
+                        logger.LogDebug(temp.ToString());
+                        stage = Stage.UpdateReader;
                     }
-
-                    return false;
+                }
+                break;
+            case Stage.WaitReturnNormalMode:
+                {
+                    wait.Update();
+                    DataFrameMeta temp = GetDataFrameMeta();
+                    if (temp == DataFrameMeta.Empty)
+                    {
+                        logger.LogDebug(temp.ToString());
+                        stage = Stage.UpdateReader;
+                    }
+                    else
+                    {
+                        waitRetryCount++;
+                        if (waitRetryCount >= MAX_WAIT_RETRIES)
+                        {
+                            logger.LogError("Unable to return normal mode!");
+                            ResetConfigState();
+                            return false;
+                        }
+                    }
                 }
                 break;
             case Stage.UpdateReader:
@@ -371,9 +411,10 @@ public sealed class FrameConfigurator : IDisposable
         FrameConfig.Delete();
     }
 
-    private void ToggleInGameConfiguration(ExecGameCommand exec)
+    private void ToggleInGameConfiguration()
     {
-        exec.Run($"/{addonConfigurator.Config.Command}");
+        // Press SHIFT-PAGEUP to trigger CUSTOM_CONFIG (/dc)
+        input.PressRandomWithModifier(ConsoleKey.PageUp, ModifierKey.Shift, 50);
     }
 
     public bool TryResolveRaceAndClass(out UnitRace race, out UnitClass @class, out ClientVersion version)
