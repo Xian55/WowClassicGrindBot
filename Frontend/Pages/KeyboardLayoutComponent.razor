@@ -13,6 +13,10 @@
 @inject AddonConfigurator addonConfigurator
 @inject WowProcessInput wowInput
 @inject IAddonReader addonReader
+@inject ActionBarCostReader actionBarCostReader
+@inject ActionBarCooldownReader actionBarCooldownReader
+@inject ActionBarBits<IUsableAction> usableAction
+@inject ActionBarBits<ICurrentAction> currentAction
 
 @if (botController.ClassConfig == null)
 {
@@ -1152,6 +1156,32 @@ else
         return GetSlotValidationClass(slot, action);
     }
 
+    private string GetSlotInfo(KeyAction? action)
+    {
+        if (action == null)
+            return "";
+
+        var parts = new List<string>();
+
+        // Cost info
+        var cost = actionBarCostReader.Get(action);
+        if (cost.Cost > 0)
+            parts.Add($"{cost.Cost} {cost.PowerType.ToStringF()}");
+
+        // Cooldown info
+        int cdMs = actionBarCooldownReader.Get(action);
+        if (cdMs > 0)
+            parts.Add($"CD: {cdMs / 1000f:F1}s");
+
+        // Usable/Current status
+        if (currentAction.Is(action))
+            parts.Add("Active");
+        else if (!usableAction.Is(action))
+            parts.Add("Not Usable");
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "";
+    }
+
     private string GetCombinedTooltip(ConsoleKey key, int slot, KeyAction? action)
     {
         var parts = new List<string>();
@@ -1179,6 +1209,11 @@ else
                 parts.Add($"Slot {slot}: Empty");
             }
         }
+
+        // Add slot-based reader info (cost, cooldown, usable status)
+        string slotInfo = GetSlotInfo(action);
+        if (!string.IsNullOrEmpty(slotInfo))
+            parts.Add(slotInfo);
 
         return parts.Count > 0 ? string.Join(" | ", parts) : key.ToString();
     }
@@ -1240,6 +1275,11 @@ else
             // Show validation status
             var status = GetSlotValidationStatus(slot, action);
             parts.Add($"Status: {status}");
+
+            // Add slot-based reader info (cost, cooldown, usable status)
+            string slotInfo = GetSlotInfo(action);
+            if (!string.IsNullOrEmpty(slotInfo))
+                parts.Add(slotInfo);
         }
 
         return string.Join(" | ", parts);
