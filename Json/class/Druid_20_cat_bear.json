@@ -9,6 +9,7 @@
       {
         //macro: /cancelform
         "Name": "cancelform",
+        "BaseAction": true,
         "Key": "F1",
         "Form": "None"
       },
@@ -173,8 +174,7 @@
         ]
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "!AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

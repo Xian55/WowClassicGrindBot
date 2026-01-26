@@ -1,12 +1,16 @@
 using Core.GOAP;
-using SharedLib.NpcFinder;
+
+using Game;
+
 using Microsoft.Extensions.Logging;
+
+using SharedLib.Extensions;
+using SharedLib.NpcFinder;
+
 using System;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
-using SharedLib.Extensions;
-using Game;
 
 #pragma warning disable 162
 
@@ -14,7 +18,12 @@ namespace Core.Goals;
 
 public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvider, IEditedRouteReceiver, IDisposable
 {
-    public override float Cost => 20f;
+    public const float DEFAULT_COST = 20f;
+    public const float COST_OFFSET = 0.1f;
+
+    private readonly float cost;
+    public override float Cost => cost;
+    public override bool CanRun() => pathSettings.CanRun();
 
     private const bool debug = false;
 
@@ -38,13 +47,22 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
     private readonly Thread? sideActivityThread;
     private CancellationTokenSource sideActivityCts;
 
-    private Vector3[] mapRoute;
+    private readonly PathSettings pathSettings;
+
+    private Vector3[] mapRoute
+    {
+        get => pathSettings.Path;
+        set => pathSettings.Path = value;
+    }
 
     private DateTime onEnterTime;
+    private bool refillByOther;
 
     #region IRouteProvider
 
     public DateTime LastActive => navigation.LastActive;
+
+    public Vector3[] MapRoute() => mapRoute;
 
     public Vector3[] PathingRoute()
     {
@@ -63,26 +81,41 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
     #endregion
 
-
-    public FollowRouteGoal(ILogger<FollowRouteGoal> logger,
+    public FollowRouteGoal(
+        float cost,
+        PathSettings pathSettings,
+        ILogger<FollowRouteGoal> logger,
         ConfigurableInput input, Wait wait, PlayerReader playerReader,
         AddonBits bits,
-        ClassConfiguration classConfig, Vector3[] route, Navigation navigation,
+        ClassConfiguration classConfig,
+        Navigation navigation,
         IMountHandler mountHandler, TargetFinder targetFinder,
-        IBlacklist blacklist)
-        : base(nameof(FollowRouteGoal))
+        IBlacklist targetBlacklist)
+    : base("Follow " + System.IO.Path.GetFileNameWithoutExtension(pathSettings.FileName))
     {
+        this.cost = cost;
+
         this.logger = logger;
         this.input = input;
-
         this.wait = wait;
         this.classConfig = classConfig;
         this.playerReader = playerReader;
         this.bits = bits;
-        this.mapRoute = route;
+        this.pathSettings = pathSettings;
         this.mountHandler = mountHandler;
         this.targetFinder = targetFinder;
-        this.targetBlacklist = blacklist;
+        this.targetBlacklist = targetBlacklist;
+
+        if (pathSettings.Requirements.Count > 0)
+        {
+            Keys = [
+             new KeyAction() {
+                RequirementsRuntime = pathSettings.RequirementsRuntime,
+                Name = "Follow " + System.IO.Path.GetFileNameWithoutExtension(pathSettings.FileName)
+            }];
+        }
+
+        pathSettings.Finished = () => !navigation.HasWaypoint();
 
         this.navigation = navigation;
         navigation.OnPathCalculated += Navigation_OnPathCalculated;
@@ -147,7 +180,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
     private void Resume()
     {
-        onEnterTime = DateTime.UtcNow;
+        SendGoapEvent(FollowRouteChanged.Instance);
 
         if (sideActivityCts.IsCancellationRequested)
         {
@@ -155,8 +188,9 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
         }
         sideActivityManualReset.Set();
 
-        if (!navigation.HasWaypoint())
+        if (!navigation.HasWaypoint() || refillByOther)
         {
+            refillByOther = false;
             RefillWaypoints(true);
         }
         else
@@ -166,6 +200,8 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
         if (playerReader.Class != UnitClass.Druid)
             MountIfPossible();
+
+        onEnterTime = DateTime.UtcNow;
     }
 
     public void OnGoapEvent(GoapEventArgs e)
@@ -177,6 +213,10 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
         else if (e.GetType() == typeof(ResumeEvent))
         {
             Resume();
+        }
+        else if (e.GetType() == typeof(FollowRouteChanged))
+        {
+            refillByOther = true;
         }
     }
 
@@ -231,14 +271,24 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
         while (!sideActivityCts.IsCancellationRequested)
         {
-            if (targetFinder.Search(NpcNameToFind, bits.Target_NotDead, sideActivityCts.Token))
+            if (pathSettings.CanRunSideActivity() &&
+                targetFinder.Search(NpcNameToFind, bits.Target_NotDead, sideActivityCts.Token))
             {
-                Log("Found target!");
-                sideActivityCts.Cancel();
-                sideActivityManualReset.Reset();
+                if (bits.Target() && targetBlacklist.Is())
+                {
+                    Log("Blacklisted target found, clearing target");
+                    input.PressClearTarget();
+                    wait.Update();
+                }
+                else
+                {
+                    Log("Found target!");
+                    sideActivityCts.Cancel();
+                    sideActivityManualReset.Reset();
+                }
             }
 
-            sideActivityCts.Token.WaitHandle.WaitOne(1);
+            wait.Update();
             sideActivityManualReset.Wait();
         }
 
@@ -315,7 +365,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
     public void RefillWaypoints(bool onlyClosest)
     {
-        Log($"{nameof(RefillWaypoints)} - findClosest:{onlyClosest} - ThereAndBack:{classConfig.PathThereAndBack}");
+        Log($"{nameof(RefillWaypoints)} - findClosest:{onlyClosest} - ThereAndBack:{pathSettings.PathThereAndBack}");
 
         Vector3 playerMap = playerReader.MapPos;
 
@@ -358,7 +408,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
         if (mapClosestPoint == pathMap[0] || mapClosestPoint == pathMap[^1])
         {
-            if (classConfig.PathThereAndBack)
+            if (pathSettings.PathThereAndBack)
             {
                 navigation.SetWayPoints(pathMap);
             }
@@ -378,9 +428,14 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
     #endregion
 
-    public void ReceivePath(Vector3[] mapRoute)
+    public void ReceivePath(Vector3[] oldMap, Vector3[] newMap)
     {
-        this.mapRoute = mapRoute;
+        // TODO: Cheap way to avoid override all FollowRouteGoal
+        // to the same path
+        if (mapRoute.SequenceEqual(oldMap))
+        {
+            this.mapRoute = newMap;
+        }
     }
 
     private void RandomJump()

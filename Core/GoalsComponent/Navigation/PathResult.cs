@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Numerics;
 
+using static System.Diagnostics.Stopwatch;
+
 namespace Core.Goals;
 
 internal readonly struct PathResult
@@ -19,6 +21,6 @@ internal readonly struct PathResult
         Distance = request.Distance;
         Path = path;
         Callback = callback;
-        ElapsedMs = (DateTime.UtcNow - request.Time).TotalMilliseconds;
+        ElapsedMs = GetElapsedTime(request.Time).TotalMilliseconds;
     }
 }

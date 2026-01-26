@@ -7,11 +7,14 @@ public sealed class BlacklistTargetGoal : GoapGoal
     private readonly PlayerReader playerReader;
     private readonly AddonBits bits;
     private readonly ConfigurableInput input;
+    private readonly Wait wait;
     private readonly IBlacklist targetBlacklist;
 
     public BlacklistTargetGoal(PlayerReader playerReader,
         AddonBits bits,
-        ConfigurableInput input, IBlacklist blacklist)
+        ConfigurableInput input,
+        IBlacklist blacklist,
+        Wait wait)
         : base(nameof(BlacklistTargetGoal))
     {
         this.playerReader = playerReader;
@@ -19,6 +22,7 @@ public sealed class BlacklistTargetGoal : GoapGoal
         this.input = input;
         this.targetBlacklist = blacklist;
         this.bits = bits;
+        this.wait = wait;
     }
 
     public override bool CanRun()
@@ -30,10 +34,12 @@ public sealed class BlacklistTargetGoal : GoapGoal
     {
         if (playerReader.PetTarget() ||
             playerReader.IsCasting() ||
-            bits.Auto_Attack() || bits.AutoShot() ||
-            bits.Shoot())
+            bits.Any_AutoAttack())
+        {
             input.PressStopAttack();
+        }
 
         input.PressClearTarget();
+        wait.Update();
     }
 }

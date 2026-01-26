@@ -1,12 +1,14 @@
 ﻿using System;
 
+using static System.Diagnostics.Stopwatch;
+
 namespace Core;
 
 public sealed class LevelTracker : IDisposable
 {
     private readonly PlayerReader playerReader;
 
-    private DateTime levelStartTime = DateTime.UtcNow;
+    private long levelStartTime;
     private int levelStartXP;
 
     public TimeSpan TimeToLevel { get; private set; } = TimeSpan.Zero;
@@ -15,6 +17,8 @@ public sealed class LevelTracker : IDisposable
     public LevelTracker(PlayerReader playerReader)
     {
         this.playerReader = playerReader;
+
+        levelStartTime = GetTimestamp();
 
         playerReader.Level.Changed += PlayerLevel_Changed;
         playerReader.PlayerXp.Changed += PlayerExp_Changed;
@@ -33,13 +37,13 @@ public sealed class LevelTracker : IDisposable
 
     private void PlayerLevel_Changed()
     {
-        levelStartTime = DateTime.UtcNow;
+        levelStartTime = GetTimestamp();
         levelStartXP = playerReader.PlayerXp.Value;
     }
 
     public void UpdateExpPerHour()
     {
-        double runningSeconds = (DateTime.UtcNow - levelStartTime).TotalSeconds;
+        double runningSeconds = GetElapsedTime(levelStartTime).TotalSeconds;
         double xpPerSecond = (playerReader.PlayerXp.Value - levelStartXP) / runningSeconds;
         double secondsLeft = (playerReader.PlayerMaxXp - playerReader.PlayerXp.Value) / xpPerSecond;
 

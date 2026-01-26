@@ -1,45 +1,76 @@
 ﻿@page "/Watch"
 
 @using static System.Text.Json.JsonSerializer
+@using Microsoft.AspNetCore.SignalR
+@using System.Buffers
+@using static System.Diagnostics.Stopwatch
+@using System.Collections.Concurrent
 
 @inject IJSRuntime jsRuntime
 @inject PPatherService pPatherService
 @inject PathingAPILoggerSink loggerSink
 @inject JsonSerializerOptions options
+@inject DataConfig dataConfig
+
+@inject IHubContext<WatchHub> hubContext;
 
 @implements IAsyncDisposable
 
-
-<div style="position: relative; z-index: 2; left: 0px; padding-left:10px; height:30px; background-color: black;color:white">
+<div id="watchtopbar" style="position: absolute; top: 0; left: 250px; width: -webkit-fill-available; height: 30px;
+    background-color: black; color: white; display: flex;
+    align-items: center; justify-content: space-between; padding: 0 10px; z-index: 1000;">
     <div id="canvasText" style="display:inline-block; float: left">
         ...
     </div>
     <div style="display:inline-block; float: right">
-        <button @onclick="() => ToggleLayer(TriangleType.Model)">
-            <span>Model</span>
+        <button @onclick="ClearCache">
+            <span style="color: red;">Cache Clear</span>
         </button>
-        <button @onclick="() => ToggleLayer(TriangleType.Object)">
-            <span>Object</span>
+
+        @if (BabylonJs)
+        {
+            <button @onclick="() => ToggleSceneExplorer()">
+                <span style="@(SceneExplorerEnabled ? "color: green;" : "")">Explorer</span>
+            </button>
+        }
+
+        <button @onclick="() => DrawTestPoints = !DrawTestPoints">
+            <span style="@(DrawTestPoints ? "color: green;" : "")">TestPoints</span>
         </button>
-        <button @onclick="() => ToggleLayer(TriangleType.Water)">
-            <span>Water</span>
-        </button>
-        <button @onclick="() => ToggleLayer(TriangleType.Terrain)">
-            <span>Terrain</span>
-        </button>
-        <button @onclick="ToggleWireFrame">
-            <span>Wire</span>
-        </button>
-        <button @onclick="() => LoadGeometry = !LoadGeometry">
-            <span>@(LoadGeometry ? "Hide3D" : "Show3D")</span>
-        </button>
+
+        @if (BabylonJs)
+        {
+            <button @onclick="() => ToggleLayer(TriangleType.Model)">
+                <span style="@(IsLayerEnabled(TriangleType.Model) ? "color: green;" : "")">Model</span>
+            </button>
+            <button @onclick="() => ToggleLayer(TriangleType.Object)">
+                <span style="@(IsLayerEnabled(TriangleType.Object) ? "color: green;" : "")">Object</span>
+            </button>
+            <button @onclick="() => ToggleLayer(TriangleType.Water)">
+                <span style="@(IsLayerEnabled(TriangleType.Water) ? "color: green;" : "")">Water</span>
+            </button>
+            <button @onclick="() => ToggleLayer(TriangleType.Terrain)">
+                <span style="@(IsLayerEnabled(TriangleType.Terrain) ? "color: green;" : "")">Terrain</span>
+            </button>
+            <button @onclick="ToggleWireFrame">
+                <span style="@(WireFrameEnabled ? "color: green;" : "")">Wire</span>
+            </button>
+            <button @onclick="() => LoadGeometry = !LoadGeometry">
+                <span style="@(LoadGeometry ? "color: green;" : "")">Show3D</span>
+            </button>
+        }
         <button @onclick="async () => await Reset()">
             <span>Reset</span>
         </button>
     </div>
 </div>
-<canvas id="renderCanvas" style="background:black">
-</canvas>
+
+@if (BabylonJs)
+{
+    <canvas id="renderCanvas" style="background:black">
+    </canvas>
+}
+
 @code {
 
     public enum Color
@@ -50,8 +81,12 @@
         Teal,
         White,
         Orange,
-        Yellow
+        Yellow,
+        Black,
+        Magenta
     }
+
+    private const int RefreshTimeMs = 50;
 
     [Parameter]
     public int PathColour { get; set; } = (int)Color.Red;
@@ -62,21 +97,33 @@
     [Parameter]
     public bool ClearPath { get; set; } = true;
 
+    [Parameter]
+    public bool BabylonJs { get; set; } = true;
+
     private bool firstRender = false;
 
     private Thread thread;
     private CancellationTokenSource searchCts;
 
-    private Queue<ChunkEventArgs> chunkEventArgs = new();
+    private ConcurrentQueue<ChunkEventArgs> chunkEventArgs = new();
 
     private bool LoadGeometry { get; set; } = true;
+
+    private bool DrawTestPoints { get; set; } = false;
+
+    private bool SceneExplorerEnabled { get; set; } = false;
 
     private Vector4 lastFrom;
     private Vector4 lastTo;
     private Vector3 lastClosest;
     private Vector3 lastPeek;
 
-    private Vector3[] testPoints;
+    private int testPointsCount = 0;
+    private int blockedPointsCount = 0;
+
+    private bool[] ToggleLayers = [true, true, true, true];
+
+    private bool WireFrameEnabled = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -85,17 +132,17 @@
 
         this.firstRender = true;
 
-        await jsRuntime.InvokeVoidAsync("log", Token,
-            "Waiting for first search from the API...");
+        await SendLog("Waiting for first search from the API...", Token);
 
-        await jsRuntime.InvokeVoidAsync("createScene", Token);
+        if (BabylonJs)
+            await SendCreateScene(Token);
 
-        loggerSink.OnLog += OnLog;
+        //loggerSink.OnLog += OnLog;
 
         pPatherService.OnChunkAdded += OnChunkAdded;
         pPatherService.OnPathCreated += OnDrawFinalPath;
 
-        pPatherService.OnLinesAdded += OnDrawlines;
+        pPatherService.OnLinesAdded += OnDrawLines;
         pPatherService.OnSphereAdded += OnDrawSphere;
         pPatherService.SearchBegin += OnSearchBegin;
     }
@@ -109,7 +156,7 @@
         pPatherService.SearchBegin -= OnSearchBegin;
         pPatherService.OnChunkAdded -= OnChunkAdded;
         pPatherService.OnPathCreated -= OnDrawFinalPath;
-        pPatherService.OnLinesAdded -= OnDrawlines;
+        pPatherService.OnLinesAdded -= OnDrawLines;
         pPatherService.OnSphereAdded -= OnDrawSphere;
 
         await Reset();
@@ -117,21 +164,45 @@
         base.Dispose();
     }
 
+    private void ClearCache()
+    {
+        dataConfig.DeletePPatherCache();
+        Log($"{TimeOnly.FromDateTime(DateTime.Now)} Cache Cleared {dataConfig.PathInfo}");
+    }
+
     private async void ToggleLayer(TriangleType layer)
     {
+        if (!BabylonJs) { return; }
+
+        ToggleLayers[layer.ToIndex()] = !ToggleLayers[layer.ToIndex()];
         await jsRuntime.InvokeVoidAsync("toggleLayer", Token, layer);
+    }
+
+    private bool IsLayerEnabled(TriangleType layer)
+    {
+        return ToggleLayers[layer.ToIndex()];
     }
 
     private async void ToggleWireFrame()
     {
+        WireFrameEnabled = !WireFrameEnabled;
         await jsRuntime.InvokeVoidAsync("toggleWireFrame", Token);
+    }
+
+    private async void ToggleSceneExplorer()
+    {
+        SceneExplorerEnabled = !SceneExplorerEnabled;
+        await jsRuntime.InvokeVoidAsync("toggleSceneExplorer", Token, SceneExplorerEnabled);
     }
 
     private async ValueTask Reset()
     {
+        testPointsCount = 0;
+        blockedPointsCount = 0;
+
         searchCts?.Cancel();
 
-        await jsRuntime.InvokeVoidAsync("clear", Token);
+        await SendClear(Token);
 
         pPatherService.Reset();
         GC.Collect();
@@ -142,72 +213,77 @@
         Log(logEvent.RenderMessage());
     }
 
-    private async void Log(string message)
+    public async void Log(string message)
     {
-        await jsRuntime.InvokeVoidAsync("log", Token, message);
+        await SendLog(message, Token);
     }
 
     private async void SearchPath_Thread()
     {
-        while (!searchCts.IsCancellationRequested &&
-            !Token.IsCancellationRequested)
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(Token, searchCts.Token);
+        var token = cts.Token;
+
+        long startTime = GetTimestamp();
+
+        while (!token.IsCancellationRequested && pPatherService.IsSearching)
         {
-            var spots = pPatherService.GetCurrentSearchPath();
-            if (spots != null)
-            {
-                var path = spots.Where(s => s != null).Select(s => s.Loc);
-                if (path.Count() > 0)
-                {
-                    await jsRuntime.InvokeVoidAsync("drawPath", Token,
-                        Serialize(path, options), Color.White, "search");
-                }
-            }
+            var points = pPatherService.GetCurrentSearchPath();
+            await SendDrawPath(points, Color.White, "search", token);
 
             if (lastFrom != pPatherService.SearchFrom)
             {
                 lastFrom = pPatherService.SearchFrom;
-                await jsRuntime.InvokeVoidAsync("drawLine", Token,
-                    Serialize(lastFrom.AsVector3(), options), Color.Green, "start2");
+                await SendDrawLine(lastFrom.AsVector3(), PathGraph.toonHeight, Color.Green, "start", token);
             }
 
             if (lastTo != pPatherService.SearchTo)
             {
                 lastTo = pPatherService.SearchTo;
-                await jsRuntime.InvokeVoidAsync("drawLine", Token,
-                    Serialize(lastTo.AsVector3(), options), Color.Blue, "endd");
+                await SendDrawLine(lastTo.AsVector3(), PathGraph.toonHeight, Color.Blue, "end", token);
             }
 
             if (lastClosest != pPatherService.ClosestLocation)
             {
                 lastClosest = pPatherService.ClosestLocation;
-                await jsRuntime.InvokeVoidAsync("drawLine", Token,
-                    Serialize(pPatherService.ClosestLocation, options), Color.Teal, "closest");
+                await SendDrawLine(lastClosest, PathGraph.toonHeight, Color.Black, "closest", token);
             }
 
-            if (testPoints != pPatherService.TestPoints)
+            // This can be causes issues for really big path
+            if (PathGraph.DelayMs > 0 && DrawTestPoints && BabylonJs)
             {
-                testPoints = pPatherService.TestPoints;
-
-                for (int i = 0; i < testPoints.Length; i++)
+                if (testPointsCount != pPatherService.TestPoints.Count)
                 {
-                    Vector3 p = testPoints[i];
-                    await jsRuntime.InvokeVoidAsync("drawLineDebug", Token,
-                        Serialize(p, options), Color.Yellow, "debug" + i, testPoints.Length);
+                    testPointsCount = pPatherService.TestPoints.Count;
+                    await SendDrawLines(pPatherService.TestPoints.ToHashSet(), Color.Green, "debug", token);
+                }
+
+                if (blockedPointsCount != pPatherService.BlockedPoints.Count)
+                {
+                    blockedPointsCount = pPatherService.BlockedPoints.Count;
+                    await SendDrawLines(pPatherService.BlockedPoints.ToHashSet(), Color.Red, "debug2", token);
                 }
             }
+
+#pragma warning disable CS0162
+            if (PathGraph.DelayMs > 0)
+            {
+                await DrawGeometry(token);
+            }
+#pragma warning restore CS0162
 
             if (lastPeek != pPatherService.PeekLocation)
             {
                 lastPeek = pPatherService.PeekLocation;
-
-                await jsRuntime.InvokeVoidAsync("drawLine", Token,
-                    Serialize(pPatherService.PeekLocation, options), Color.Orange, "peek");
+                await SendDrawLine(lastPeek, PathGraph.toonHeight, Color.Orange, "peek", token);
             }
 
-            searchCts.Token.WaitHandle.WaitOne(100);
+            token.WaitHandle.WaitOne(RefreshTimeMs);
         }
-    }
 
+        Log($"Search took {GetElapsedTime(startTime)} ms");
+
+        thread = null;
+    }
 
     private void OnSearchBegin()
     {
@@ -216,34 +292,49 @@
         thread.Start();
     }
 
+    private async Task DrawGeometry(CancellationToken token)
+    {
+        if (!BabylonJs) { return; }
+
+        while (LoadGeometry &&
+            !token.IsCancellationRequested &&
+            chunkEventArgs.TryDequeue(out var e))
+        {
+            await DequeueChunkEvent(e, token);
+        }
+    }
+
     private async void OnDrawFinalPath(Path spotPath)
     {
         if (spotPath != null)
         {
-            while (chunkEventArgs.TryDequeue(out var e))
+            while (thread != null || Token.IsCancellationRequested)
             {
-                if (LoadGeometry)
-                    await DequeueChunkEvent(e);
+                Token.WaitHandle.WaitOne(RefreshTimeMs);
             }
-
-            if (ClearPath)
-                await jsRuntime.InvokeVoidAsync("removeMeshes", Token, Name);
-
-            await jsRuntime.InvokeVoidAsync("drawPath", Token,
-                Serialize(spotPath.locations, options), PathColour, Name);
-
-            await jsRuntime.InvokeVoidAsync("removeMeshes", Token, "search");
         }
-        else
+
+        await DrawGeometry(Token);
+
+        if (DrawTestPoints && BabylonJs)
         {
-            while (chunkEventArgs.TryDequeue(out var e))
-            {
-                await DequeueChunkEvent(e);
-            }
-            Log("No path found");
+            await SendDrawLines(pPatherService.TestPoints, Color.Green, "debug", Token);
+            await SendDrawLines(pPatherService.BlockedPoints, Color.Red, "debug2", Token);
         }
 
-        searchCts?.Cancel();
+        await SendDrawLine(lastFrom.AsVector3(), PathGraph.toonHeight, Color.Green, "start", Token);
+
+        await SendDrawLine(lastTo.AsVector3(), PathGraph.toonHeight, Color.Blue, "end", Token);
+
+        if (spotPath == null || spotPath.locations.Count == 0)
+        {
+            Log("No path found");
+            return;
+        }
+
+        await SendRemoveMesh("search", Token);
+
+        await SendDrawPath(spotPath.locations, (Color)PathColour, Name, Token);
     }
 
     private async void OnDrawSphere(SphereEventArgs e)
@@ -252,12 +343,14 @@
             Serialize(e.Location, options), e.Colour, e.Name);
     }
 
-    private async void OnDrawlines(LinesEventArgs e)
+    private async void OnDrawLines(LinesEventArgs e)
     {
-        await jsRuntime.InvokeVoidAsync("removeMeshes", Token, e.Name);
+        await DrawGeometry(Token);
 
-        await jsRuntime.InvokeVoidAsync("drawPath", Token,
-            Serialize(e.Locations, options), e.Colour, e.Name);
+        await SendRemoveMesh(Name, Token);
+
+        await jsRuntime.InvokeVoidAsync("drawPath", Token, Serialize(e.Locations, options), e.Colour, e.Name);
+        //await SendDrawPath(e.Locations, (Color)e.Colour, e.Name, Token);
     }
 
     private /*async*/ void OnChunkAdded(ChunkEventArgs e)
@@ -266,23 +359,100 @@
         //_ = DequeueChunkEvent(e);
     }
 
-    private async ValueTask DequeueChunkEvent(ChunkEventArgs e)
+    private async ValueTask DequeueChunkEvent(ChunkEventArgs e, CancellationToken token)
     {
-        if (Token.IsCancellationRequested) return;
+        try
+        {
+            TriangleCollection chunks = pPatherService.GetChunkAt(e.GridX, e.GridY);
 
-        TriangleCollection chunks = pPatherService.GetChunkAt(e.GridX, e.GridY);
+            var pooler = ArrayPool<int>.Shared;
 
-        int i = 0;
-        int[][] models = new int[4][];
-        models[i++] = MeshFactory.CreateTriangles(TriangleType.Terrain, chunks);
-        models[i++] = MeshFactory.CreateTriangles(TriangleType.Water, chunks);
-        models[i++] = MeshFactory.CreateTriangles(TriangleType.Object, chunks);
-        models[i++] = MeshFactory.CreateTriangles(TriangleType.Model, chunks);
+            int count = chunks.TriangleCount * 3;
 
-        var positions = MeshFactory.CreatePoints(chunks);
+            var array1 = pooler.Rent(count);
+            var array2 = pooler.Rent(count);
+            var array3 = pooler.Rent(count);
+            var array4 = pooler.Rent(count);
 
-        await jsRuntime.InvokeVoidAsync("addModels", Token,
-            Serialize(models, options),
-            Serialize(positions, options));
+            try
+            {
+                var c1 = MeshFactory.CreateTriangles(TriangleType.Terrain, chunks, array1);
+                var c2 = MeshFactory.CreateTriangles(TriangleType.Water, chunks, array2);
+                var c3 = MeshFactory.CreateTriangles(TriangleType.Object, chunks, array3);
+                var c4 = MeshFactory.CreateTriangles(TriangleType.Model, chunks, array4);
+
+                int i = 0;
+                Memory<int>[] models = new Memory<int>[4];
+                models[i++] = array1.AsMemory(0, c1);
+                models[i++] = array2.AsMemory(0, c2);
+                models[i++] = array3.AsMemory(0, c3);
+                models[i++] = array4.AsMemory(0, c4);
+
+                var positions = MeshFactory.CreatePoints(chunks);
+
+                await hubContext.Clients.All.SendAsync("addModels", models, positions, token);
+                //await SendDrawBoundBox(chunks.Min, chunks.Max, Color.Magenta, $"boundbox_{e.GridX}_{e.GridY}", token);
+            }
+            finally
+            {
+                pooler.Return(array1);
+                pooler.Return(array2);
+                pooler.Return(array3);
+                pooler.Return(array4);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Handle the cancellation exception if needed
+        }
+        catch (Exception ex)
+        {
+            // Log the exception or handle it as needed
+            await SendLog($"Error in DequeueChunkEvent: {ex.Message}", token);
+        }
+    }
+
+    // SignalR methods to babylonjs.js
+
+    private async Task SendLog(string message, CancellationToken token)
+    {
+        await jsRuntime.InvokeVoidAsync("log", token, message);
+        //await hubContext.Clients.All.SendAsync("log", message, token);
+    }
+
+    private async Task SendCreateScene(CancellationToken token)
+    {
+        await jsRuntime.InvokeVoidAsync("createScene", token);
+        // await hubContext.Clients.All.SendAsync("createScene", token);
+    }
+
+    private async Task SendClear(CancellationToken token)
+    {
+        await hubContext.Clients.All.SendAsync("clear", token);
+    }
+
+    private async Task SendDrawPath(IEnumerable<Vector3> points, Color color, string name, CancellationToken token)
+    {
+        await hubContext.Clients.All.SendAsync("drawPath", points, (int)color, name, token);
+    }
+
+    private async Task SendDrawLine(Vector3 point, float height, Color color, string name, CancellationToken token)
+    {
+        await hubContext.Clients.All.SendAsync("drawLine", point, height, (int)color, name, token);
+    }
+
+    private async Task SendDrawBoundBox(Vector3 min, Vector3 max, Color color, string name, CancellationToken token)
+    {
+        await hubContext.Clients.All.SendAsync("drawBoundBox", min, max, (int)color, name, token);
+    }
+
+    private async Task SendDrawLines(IEnumerable<Vector3> points, Color color, string name, CancellationToken token)
+    {
+        await hubContext.Clients.All.SendAsync("drawLines", points, (int)color, name, token);
+    }
+
+    private async Task SendRemoveMesh(string name, CancellationToken token)
+    {
+        await hubContext.Clients.All.SendAsync("removeMesh", name, token);
     }
 }

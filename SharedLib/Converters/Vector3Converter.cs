@@ -1,13 +1,20 @@
 ﻿using System;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SharedLib.Converters;
 
 public sealed class Vector3Converter : JsonConverter<Vector3>
 {
+    private readonly bool upperCase;
+
+    public Vector3Converter(bool upperCase = false)
+    {
+        this.upperCase = upperCase;
+    }
+
     public override bool CanConvert(Type typeToConvert)
     {
         return typeToConvert == typeof(Vector3);
@@ -50,9 +57,20 @@ public sealed class Vector3Converter : JsonConverter<Vector3>
         Vector3 value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
-        writer.WriteNumber("x"u8, value.X);
-        writer.WriteNumber("y"u8, value.Y);
-        writer.WriteNumber("z"u8, value.Z);
+
+        if (upperCase)
+        {
+            writer.WriteNumber("X"u8, value.X);
+            writer.WriteNumber("Y"u8, value.Y);
+            writer.WriteNumber("Z"u8, value.Z);
+        }
+        else
+        {
+            writer.WriteNumber("x"u8, value.X);
+            writer.WriteNumber("y"u8, value.Y);
+            writer.WriteNumber("z"u8, value.Z);
+        }
+
         writer.WriteEndObject();
     }
 }

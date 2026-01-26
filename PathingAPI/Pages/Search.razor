@@ -5,13 +5,13 @@
 
 <Watch PathColour="@pathColour" Name="@name" />
 
-<span>
-    <SearchParameters OnSearch="OnSearch" IsDisabled="@IsDisabled" />
-</span>
+<div style="position: fixed; bottom: 0; left: 450px; z-index: 1000; background-color: black; color: white; padding: 0 10px; text-align: center; display: flex; align-items: center;">
+    <SearchParameters OnSearch="OnSearch" IsDisabled="@IsDisabled" OnDraw="OnDraw" />
+</div>
 @code {
     bool IsDisabled = true;
 
-    PathGraph.eSearchScoreSpot searchType;
+    SearchStrategy searchType;
     int pathColour = 1;
     string name;
     SearchParam parameters;
@@ -41,16 +41,34 @@
         await DoSearch(parameters.SearchType, ((int)parameters.SearchType) + 1, parameters.SearchType.ToString());
     }
 
-    private async Task DoSearch(PathGraph.eSearchScoreSpot searchType, int colour, string name)
+    public void OnDraw(SearchParam searchParameters)
+    {
+        if (searchParameters.From == null || searchParameters.To == null)
+        {
+            return;
+        }
+
+        var mapId = searchParameters.From.Location.W;
+
+        var start = searchParameters.From.Location.AsVector3();
+        var end = searchParameters.To.Location.AsVector3();
+
+        ReadOnlySpan<Vector3> path = [start, end];
+
+        pathColour = (int)Watch.Color.Orange;
+        name = "route";
+        StateHasChanged();
+
+        pPatherService.DrawPath(mapId, path);
+    }
+
+    private async Task DoSearch(SearchStrategy searchType, int colour, string name)
     {
         IsDisabled = true;
 
         this.searchType = searchType;
         this.pathColour = colour;
         this.name = name;
-
-        PathGraph.ProgressTimeoutSeconds = 60;
-        PathGraph.TimeoutSeconds = 600;
 
         await InvokeAsync(StateHasChanged);
 
@@ -62,8 +80,8 @@
     {
         try
         {
-            await jsRuntime.InvokeVoidAsync("removeMeshes", name);
-            await jsRuntime.InvokeVoidAsync("removeMeshes", "search");
+            await jsRuntime.InvokeVoidAsync("removeMesh", name);
+            await jsRuntime.InvokeVoidAsync("removeMesh", "search");
 
             pPatherService.SetLocations(parameters.From.Location, parameters.To.Location);
 

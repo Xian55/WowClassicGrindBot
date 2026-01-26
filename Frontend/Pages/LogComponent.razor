@@ -3,50 +3,19 @@
 
 @inject LoggerSink sink
 
-<style>
-    .log {
-        font-family: Consolas, monaco, monospace;
-        font-size: small;
-        padding: 0 0 5px 0 !important;
-        padding-right: 5px !important;
-    }
-
-    .success {
-        color: #28a745;
-    }
-
-    .info {
-        color: #17a2b8;
-    }
-
-    .warning {
-        color: #ffc107;
-    }
-
-    .danger {
-        color: #dc3545;
-    }
-
-    .light {
-        color: #f8f9fa;
-    }
-</style>
-
 <div class="col-sm" style="@(MaxHeight > 0 ? $"overflow: auto; max-height: {MaxHeight}px;" : string.Empty)">
-    <table class="table table-borderless table-dark" cellspacing="20">
-        @{
-            int head = Math.Max(sink.Head - 1, 0);
-        }
-        @for (int i = LoggerSink.SIZE; i >= 0; i--)
-        {
-            var evt = sink.Log[(head + i) % LoggerSink.SIZE];
-            if (evt == null) continue;
-            <tr class="@logLevelColor[(int)evt.Level]">
-                <td class="log">@evt.Timestamp.ToString("HH:mm:ss")</td>
-                <td class="log">@evt.RenderMessage()</td>
-            </tr>
-        }
-    </table>
+    @{
+        int head = Math.Max(sink.Head - 1, 0);
+    }
+    @for (int i = LoggerSink.SIZE; i >= 0; i--)
+    {
+        var evt = sink.Log[(head + i) % LoggerSink.SIZE];
+        if (evt == null) continue;
+        <p class="@logLevelColor[(int)evt.Level] mb-0">
+            <span class="font-monospace">@evt.Timestamp.ToString("HH:mm:ss")</span>
+            <span class="font-monospace">@evt.RenderMessage()</span>
+        </p>
+    }
 </div>
 
 @code {
@@ -55,11 +24,11 @@
 
     private static readonly string[] logLevelColor = {
         string.Empty,   // LogEventLevel.Verbose
-        "success",      // LogEventLevel.Debug
+        "text-success",      // LogEventLevel.Debug
         string.Empty,   // LogEventLevel.Information
-        "warning",      // LogEventLevel.Warning
-        "danger",       // LogEventLevel.Error
-        "danger"        // LogEventLevel.Fatal
+        "text-warning",      // LogEventLevel.Warning
+        "text-danger",       // LogEventLevel.Error
+        "text-danger"        // LogEventLevel.Fatal
     };
 
     protected override void OnInitialized()

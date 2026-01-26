@@ -22,7 +22,8 @@ public static class DependencyInjection
         return Options.Create<StartupConfigPathing>(
         new(options.Mode.ToString()!,
             options.Hostv1!, options.Portv1,
-            options.Hostv3!, options.Portv3));
+            options.Hostv3!, options.Portv3,
+            options.PathVisualizer));
     }
 
     private static IOptions<StartupConfigReader> StartupConfigReaderFactory(IServiceProvider sp)

@@ -11,14 +11,15 @@
     "MIN_TARGET_HP_DOT%": 20,
     "MIN_TARGET_HP_CD%": 75,
     "Item_Clam": 7973,
-    "Debuff_Faerie Fire": 136033,
-    "Debuff_Mangle": 132135
+    "TDebuff_Faerie Fire": 136033,
+    "TDebuff_Mangle": 132135
   },
   "Form": {
     "Sequence": [
       {
         //macro: /cancelform
         "Name": "cancelform",
+        "BaseAction": true,
         "Key": "F1",
         "Form": "None"
       },
@@ -116,7 +117,7 @@
           "MobCount < 2",
           "Form:Druid_Cat",
           "Talent:Mangle",
-          "Debuff_Mangle <= 0 || Energy >= 95"
+          "TDebuff_Mangle <= 0 || Energy >= 95"
         ],
         "Form": "Druid_Cat"
       },
@@ -250,15 +251,14 @@
         "Usable": true,
         "Requirements": [
           "Form:Druid_Cat || Form:Druid_Bear",
-          "Debuff_Faerie Fire < 2000",
+          "TDebuff_Faerie Fire < 2000",
           "Spell:Faerie Fire"
         ]
       },
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "InMeleeRange",
-          "!AutoAttacking"
+          "InMeleeRange"
         ]
       },
       {

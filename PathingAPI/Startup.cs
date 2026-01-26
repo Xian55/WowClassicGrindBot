@@ -1,20 +1,18 @@
-using System;
-using System.IO;
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Core.Database;
+
+using Frontend;
 
 using MatBlazor;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 using PPather;
 
@@ -24,10 +22,22 @@ using Serilog.Events;
 using SharedLib;
 using SharedLib.Converters;
 
+using System;
+using System.IO;
+using System.Reflection;
+using System.Threading;
+
 namespace PathingAPI;
 
 public sealed class Startup
 {
+    private readonly IConfiguration configuration;
+
+    public Startup(IConfiguration configuration)
+    {
+        this.configuration = configuration;
+    }
+
     // This method gets called by the runtime. Use this method to add services to the container.
     // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
     public void ConfigureServices(IServiceCollection services)
@@ -62,12 +72,22 @@ public sealed class Startup
 
         Log.Information(DateTimeOffset.Now.ToString());
 
+        string exp = configuration["exp"]
+            ?? Environment.GetEnvironmentVariable("exp")
+            ?? ClientVersion.SoM.ToString().ToLower(System.Globalization.CultureInfo.InvariantCulture);
+
+        Log.Information($"Expansion: {exp}");
+
         services.AddMatBlazor();
         services.AddRazorPages();
         services.AddServerSideBlazor();
-        services.AddSingleton<DataConfig>(x => DataConfig.Load()); // going to use the Hardcoded DataConfig.Exp
+        services.AddSingleton<CancellationTokenSource>();
+        services.AddSingleton<DataConfig>(x => DataConfig.Load(exp));
         services.AddSingleton<WorldMapAreaDB>();
         services.AddSingleton<PPatherService>();
+        services.AddSingleton<FactionTemplateDB>();
+        services.AddSingleton<CreatureDB>();
+        services.AddSingleton<AreaDB>();
 
         services.AddSingleton(provider =>
             provider.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions);
@@ -79,7 +99,18 @@ public sealed class Startup
             options.SerializerOptions.Converters.Add(new Vector4Converter());
         });
 
-        services.AddControllers();
+        services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            options.JsonSerializerOptions.Converters.Add(new Vector3Converter());
+            options.JsonSerializerOptions.Converters.Add(new Vector4Converter());
+        });
+
+        services.AddSignalR()
+            .AddMessagePackProtocol(options =>
+            {
+                options.SerializerOptions.WithCompression(MessagePack.MessagePackCompression.Lz4BlockArray);
+            });
 
         // Register the Swagger generator, defining 1 or more Swagger documents
         services.AddSwaggerGen(c =>
@@ -125,20 +156,17 @@ public sealed class Startup
         app.UseHttpsRedirection();
         app.UseStaticFiles();
 
-        DataConfig dataConfig = app.ApplicationServices.GetRequiredService<DataConfig>();
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.Path)),
-            RequestPath = "/path"
-        });
+        app.UseCustomStaticFiles(env);
 
         app.UseRouting();
 
         app.UseEndpoints(endpoints =>
         {
+            endpoints.MapHub<WatchHub>(WatchHub.Url);
             endpoints.MapBlazorHub();
             endpoints.MapFallbackToPage("/_Host");
             endpoints.MapControllers();
+            endpoints.MapRazorPages();
         });
     }
 }

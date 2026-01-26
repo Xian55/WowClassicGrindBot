@@ -2,7 +2,7 @@
 
 <a href="@($"{api.ItemId}{Item.Entry}")" target="_blank" data-wowhead="item=@Item.Entry" class="small" style="text-decoration:none">
     <b>
-        <span style="color:@ItemColour();font-weight:normal">
+        <span style="font-weight:normal" class="@(colors[Item.Quality])">
             @if (Count > 1)
             {
                 @Count
@@ -21,7 +21,7 @@
             }
             @if (WasRecentlyUpdated())
             {
-                <span class="float-right badge badge-info">@ChangeDescription()</span>
+                <Badge Color="BadgeColor.Info" class="float-end">@ChangeDescription()</Badge>
             }
         </span>
     </b>
@@ -57,8 +57,7 @@
     private string iconName { get; set; } = string.Empty;
     private string imgLink => string.Format(WApi.TinyIconUrl, iconName);
 
-    private static readonly string[] colors = { "#9d9d9d", "#fff", "#1eff00", "#0070dd", "#9345ff", "#ff8000", "#e5cc80", "#e5cc80" };
-    private static readonly string[] itemBadge = { "badge-secondary", "badge-dark", "badge-success", "badge-primary", "badge-warning", "badge-warning", "badge-warning", "badge-warning" };
+    private static readonly string[] colors = { "poor", "common", "uncommon", "rare", "epic", "legendary", "artifact", "heirloom" };
 
     private static readonly Dictionary<int, string> icons = new()
     {
@@ -77,18 +76,6 @@
 
         iconName = await api.RequestItemIconName(Item.Entry);
         icons.TryAdd(Item.Entry, iconName);
-    }
-
-    private string ItemColour()
-    {
-        if (Item.Quality < 0 || Item.Quality > 7) { return "black"; }
-        return colors[Item.Quality];
-    }
-
-    private string ItemBadge()
-    {
-        if (Item.Quality < 0 || Item.Quality > 7) { return "badge-dark"; }
-        return itemBadge[Item.Quality];
     }
 
     private Currency GetItemPrice()

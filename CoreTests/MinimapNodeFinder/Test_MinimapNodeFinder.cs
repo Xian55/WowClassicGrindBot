@@ -1,13 +1,13 @@
-﻿using System;
-using System.Diagnostics;
-
-using Core;
+﻿using Core;
 
 using Game;
 
 using Microsoft.Extensions.Logging;
 
 using SixLabors.ImageSharp;
+
+using System;
+using System.Diagnostics;
 
 #pragma warning disable 0162
 

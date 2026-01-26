@@ -13,7 +13,8 @@ public enum UnitRace
     Troll,
     Goblin,
     BloodElf,
-    Draenei
+    Draenei,
+    Worgen = 22
 }
 
 public static class UnitRace_Extension
@@ -32,6 +33,7 @@ public static class UnitRace_Extension
         UnitRace.Goblin => nameof(UnitRace.Goblin),
         UnitRace.BloodElf => nameof(UnitRace.BloodElf),
         UnitRace.Draenei => nameof(UnitRace.Draenei),
+        UnitRace.Worgen => nameof(UnitRace.Worgen),
         _ => nameof(UnitRace.None)
     };
 }

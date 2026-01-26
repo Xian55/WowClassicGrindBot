@@ -1,7 +1,7 @@
 ﻿using Core.Goals;
-using System.Collections.Generic;
-using System.Linq;
+
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 
 namespace Core.GOAP;

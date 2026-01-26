@@ -1,6 +1,7 @@
 ﻿using SharedLib.NpcFinder;
-using System.Threading;
+
 using System;
+using System.Threading;
 
 namespace Core.Goals;
 
@@ -47,18 +48,18 @@ public sealed class TargetFinder
         if (ElapsedMs < waitMs)
             return bits.Target();
 
-        if (input.TargetNearestTarget.GetRemainingCooldown() == 0)
+        if (!input.TargetNearestTarget.OnCooldown())
         {
             lastActive = DateTime.UtcNow;
-            input.PressNearestTarget();
-            wait.Update();
+            input.PressNearestTarget(token);
+            wait.Update(token);
         }
 
         if (!token.IsCancellationRequested &&
             !input.KeyboardOnly && !bits.Target())
         {
             npcNameTargeting.ChangeNpcType(target);
-            npcNameTargeting.WaitForUpdate();
+            npcNameTargeting.WaitForUpdate(token);
 
             if (token.IsCancellationRequested)
                 return false;

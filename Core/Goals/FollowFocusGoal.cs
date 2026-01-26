@@ -58,7 +58,7 @@ public sealed class FollowFocusGoal : GoapGoal
         if (playerReader.TargetGuid == playerReader.FocusGuid &&
             playerReader.SpellInRange.Focus_Inspect &&
             !bits.AutoFollow() &&
-            input.FollowTarget.GetRemainingCooldown() == 0)
+            !input.FollowTarget.OnCooldown())
         {
             input.PressFollowTarget();
         }

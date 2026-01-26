@@ -3,12 +3,7 @@
 namespace Core;
 
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class NamesAttribute : Attribute
+public sealed class NamesAttribute(string[] values) : Attribute
 {
-    public string[] Values { get; }
-
-    public NamesAttribute(params string[] values)
-    {
-        Values = values;
-    }
+    public string[] Values { get; } = values;
 }

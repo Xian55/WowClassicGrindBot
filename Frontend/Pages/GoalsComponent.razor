@@ -6,67 +6,80 @@
 
 @implements IDisposable
 
-<div class="card" style="margin-top: 10px">
-    <div class="card-header">
-        Goals
-        <button style="margin-right:4px" class="btn btn-sm btn-secondary" @onclick="() => {
-            CurrentOnly = !CurrentOnly;
-            if (CurrentOnly)
-                Expand = true;
-            }">
-            <span>@(LabelCurrent(CurrentOnly))</span>
-        </button>
-        @if (!CurrentOnly)
-        {
-            <button style="margin-right:4px" class="btn btn-sm btn-secondary" @onclick="() => Expand = !Expand">
-                <span>@(LabelExpand(Expand))</span>
-            </button>
-        }
-        <button class="btn btn-sm btn-secondary" @onclick="() => Requirements = !Requirements">
-            <span>@(LabelRequirements(Requirements))</span>
-        </button>
-        <ToggleButton Disable="@(botController.ClassConfig?.Mode == Mode.AttendedGather)" />
-
-        @PlayerReader.MinRange() - @PlayerReader.MaxRange()
-
-        @ttk.Time.ToString("F1")
-
-        <span class="float-right">
-            Net: @PlayerReader.NetworkLatency.ToString()ms |
-            Npc: @NpcLatency.ToString("0.0")ms |
-            Bot: @addonReader.AvgUpdateLatency.ToString("0.0")ms
-        </span>
-    </div>
+<Card style="margin-top: 10px">
+    <CardHeader>
+        <div class="d-flex">
+            <div class="p-2 flex-grow-1 bd-highlight">
+                Goals<br/>
+                @PlayerReader.MinRange()-@PlayerReader.MaxRange()
+            </div>
+            <div class="p-2 bd-highlight">
+                <span>
+                    Npc: @NpcLatency.ToString("0.0")ms |
+                    Bot: @addonReader.AvgUpdateLatency.ToString("0.0")ms<br/>
+                    Net: @PlayerReader.NetworkLatency.ToString()ms
+                </span>
+            </div>
+            <div class="p-2 bd-highlight">
+                <InitButton /> <ToggleButton Disable="@(botController.ClassConfig?.Mode == Mode.AttendedGather)" />
+            </div>
+        </div>
+    </CardHeader>
 
     @if (ShowPlan && botController.GoapAgent != null && botController.GoapAgent.Plan.Count > 0)
     {
-        <div class="card-body">
-            <table class="table table-sm table-striped">
-                @foreach (var goal in botController.GoapAgent.Plan)
-                {
-                    <GoapGoalView goal="goal" IsSelected="false" Expand="false" />
-                }
+        <CardBody>
+            <table class="table table-sm table-striped table-bordered">
+                <tbody>
+                    @foreach (var goal in botController.GoapAgent.Plan)
+                    {
+                        <GoapGoalView goal="goal" IsSelected="false" Expand="false" />
+                    }
+                </tbody>
             </table>
-        </div>
+        </CardBody>
     }
     @if (ShowGoals && botController.GoapAgent != null)
     {
-        <div class="card-body">
-            <table class="table table-sm table-striped">
-                @foreach (var goal in botController.GoapAgent.AvailableGoals)
-                {
-                    if (CurrentOnly && goal != botController.GoapAgent.CurrentGoal)
-                        continue;
+        <CardBody>
+            <table class="table table-sm table-striped table-bordered">
+                <tbody>
+                    <tr>
+                        <td colspan="2">
+                            <Button style="margin-right:4px" Color="ButtonColor.Secondary" @onclick="() => {
+                            CurrentOnly = !CurrentOnly;
+                            if (CurrentOnly)
+                            Expand = true;
+                        }">
+                                <span>@(LabelCurrent(CurrentOnly))</span>
+                            </Button>
+                            @if (!CurrentOnly)
+                            {
+                                <Button style="margin-right:4px" Color="ButtonColor.Secondary" @onclick="() => Expand = !Expand">
+                                    <span>@(LabelExpand(Expand))</span>
+                                </Button>
+                            }
+                            <Button Color="ButtonColor.Secondary" @onclick="() => Requirements = !Requirements">
+                                <span>@(LabelRequirements(Requirements))</span>
+                            </Button>
+                        </td>
+                    </tr>
 
-                    <GoapGoalView goal="goal"
-                                  IsSelected="(!CurrentOnly && goal == botController.GoapAgent.CurrentGoal)"
-                                  Expand="@(Expand || goal.GetType() == typeof(Core.Goals.ParallelGoal))"
-                                  ShowAll="@Requirements" />
-                }
+                    @foreach (var goal in botController.GoapAgent.AvailableGoals)
+                    {
+                        if (CurrentOnly && goal != botController.GoapAgent.CurrentGoal)
+                            continue;
+
+                        <GoapGoalView goal="goal"
+                                      IsSelected="(!CurrentOnly && goal == botController.GoapAgent.CurrentGoal)"
+                                      Expand="@(Expand || goal.GetType() == typeof(Core.Goals.ParallelGoal))"
+                                      ShowAll="@Requirements" />
+                    }
+                </tbody>
             </table>
-        </div>
+        </CardBody>
     }
-</div>
+</Card>
 
 @code {
 

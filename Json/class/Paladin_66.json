@@ -47,7 +47,7 @@
         "Cooldown": 3000,
         "Requirements": [
           "Mana%<50",
-          "not Seal of Wisdom"
+          "!Seal of Wisdom"
         ]
       },
       {
@@ -56,7 +56,7 @@
         "Cooldown": 3000,
         "Requirements": [
           "Mana%>50",
-          "not Seal of Command"
+          "!Seal of Command"
         ]
       },
       {
@@ -94,8 +94,7 @@
         ]
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "not AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",
@@ -108,14 +107,14 @@
       {
         "Name": "Devotion Aura",
         "Key": "F8",
-        "Requirement": "not Devotion Aura",
+        "Requirement": "!Form:Paladin_Devotion_Aura",
         "AfterCastAuraExpected": true,
         "Log": false
       },
       {
         "Name": "Blessing of Might",
         "Key": "0",
-        "Requirement": "not Blessing of Might",
+        "Requirement": "!Blessing of Might",
         "AfterCastAuraExpected": true,
         "Log": false
       }

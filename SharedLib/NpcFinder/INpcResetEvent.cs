@@ -35,6 +35,8 @@ public interface INpcResetEvent : IDisposable
 {
     void Reset();
     void Wait();
+    void Wait(CancellationToken token);
+
     void Set();
 
     void ChangeReset();

@@ -3,33 +3,35 @@
 @if (Obj != null)
 {
     <table class="table table-bordered">
-        @foreach (var property in GetPropertyValues(Obj))
-        {
-            <tr>
-                <td>@(property.Name)</td>
-                <td>
-                    <input value="@property.Value" class="form-control" Disabled="true" />
-                </td>
-            </tr>
-        }
-        @foreach (var property in GetFunctionValues(Obj, typeof(bool)))
-        {
-            <tr>
-                <td>@(property.Name)</td>
-                <td>
-                    <input value="@property.Value" class="form-control" Disabled="true" />
-                </td>
-            </tr>
-        }
-        @foreach (var property in GetFunctionValues(Obj, typeof(int)))
-        {
-            <tr>
-                <td>@(property.Name)</td>
-                <td>
-                    <input value="@property.Value" class="form-control" Disabled="true" />
-                </td>
-            </tr>
-        }
+        <tbody>
+            @foreach (var property in GetPropertyValues(Obj))
+            {
+                <tr>
+                    <td>@(property.Name)</td>
+                    <td>
+                        <input value="@property.Value" class="form-control" Disabled="true" />
+                    </td>
+                </tr>
+            }
+            @foreach (var property in GetFunctionValues(Obj, typeof(bool)))
+            {
+                <tr>
+                    <td>@(property.Name)</td>
+                    <td>
+                        <input value="@property.Value" class="form-control" Disabled="true" />
+                    </td>
+                </tr>
+            }
+            @foreach (var property in GetFunctionValues(Obj, typeof(int)))
+            {
+                <tr>
+                    <td>@(property.Name)</td>
+                    <td>
+                        <input value="@property.Value" class="form-control" Disabled="true" />
+                    </td>
+                </tr>
+            }
+        </tbody>
     </table>
 }
 
@@ -99,10 +101,10 @@
                     if (!string.IsNullOrEmpty(allCosts))
                     {
                         propList.Add(new ObjectField()
-                        {
-                            Name = name,
-                            Value = allCosts
-                        });
+                            {
+                                Name = name,
+                                Value = allCosts
+                            });
                     }
                 }
             }

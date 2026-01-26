@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace ConsoleApp10
 {
-    internal sealed class Program
+    internal sealed partial class Program
     {
         internal sealed class Creature
         {
@@ -64,7 +64,7 @@ namespace ConsoleApp10
                 line = line.Trim();
                 if (line.StartsWith(template))
                 {
-                    var rx = new Regex(@"\(\d.*?\)(,|;)");
+                    var rx = MyRegex();
                     MatchCollection matches = rx.Matches(line);
                     foreach(var match in matches)
                     {
@@ -106,10 +106,10 @@ namespace ConsoleApp10
 
                     if (line.Substring(i, 1) == ",")
                     {
-                        var value = line.Substring(startIndex, i - startIndex);
-                        if (value.StartsWith("'"))
+                        var value = line[startIndex..i];
+                        if (value.StartsWith('\''))
                         {
-                            value = value.Substring(1, value.Length - 2);
+                            value = value[1..^1];
                         }
 
                         result.Add(value);
@@ -117,7 +117,7 @@ namespace ConsoleApp10
                     }
                 }
             }
-            return result.ToArray();
+            return [.. result];
         }
 
         private static int FindIndex(List<string> columnIndexs, string v)
@@ -131,5 +131,8 @@ namespace ConsoleApp10
             }
             throw new ArgumentOutOfRangeException(v);
         }
+
+        [GeneratedRegex(@"\(\d.*?\)(,|;)")]
+        public static partial Regex MyRegex();
     }
 }

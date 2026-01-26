@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+
+using static System.Diagnostics.Stopwatch;
 
 namespace Core;
 
@@ -12,6 +15,8 @@ public interface IAuraTimeReader
 
 public interface IPlayerBuffTimeReader : IAuraTimeReader { }
 
+public interface IPlayerDebuffTimeReader : IAuraTimeReader { }
+
 public interface ITargetDebuffTimeReader : IAuraTimeReader { }
 
 public interface ITargetBuffTimeReader : IAuraTimeReader { }
@@ -22,10 +27,13 @@ public sealed class AuraTimeReader<T> : IAuraTimeReader, IReader
 {
     public readonly struct Data
     {
-        public int DurationSec { get; }
-        public DateTime StartTime { get; }
+        private long StartTime { get; }
 
-        public Data(int duration, DateTime startTime)
+        public int DurationSec { get; }
+
+        public long End => StartTime + (DurationSec * TimeSpan.TicksPerSecond);
+
+        public Data(int duration, long startTime)
         {
             DurationSec = duration;
             StartTime = startTime;
@@ -37,7 +45,7 @@ public sealed class AuraTimeReader<T> : IAuraTimeReader, IReader
     private readonly int cTextureId;
     private readonly int cDurationSec;
 
-    private readonly Dictionary<int, Data> data = new();
+    private readonly Dictionary<int, Data> data = [];
 
     public AuraTimeReader(int cTextureId, int cDurationSec)
     {
@@ -52,7 +60,7 @@ public sealed class AuraTimeReader<T> : IAuraTimeReader, IReader
         if (textureId == 0) return;
 
         int durationSec = reader.GetInt(cDurationSec);
-        data[textureId] = new(durationSec, DateTime.UtcNow);
+        data[textureId] = new(durationSec, GetTimestamp());
     }
 
     public void Reset()
@@ -63,7 +71,7 @@ public sealed class AuraTimeReader<T> : IAuraTimeReader, IReader
     public int GetRemainingTimeMs(int textureId)
     {
         return data.TryGetValue(textureId, out Data d) ?
-            Math.Max(0, d.DurationSec >= UNLIMITED ? 1 : (int)(d.StartTime.AddSeconds(d.DurationSec) - DateTime.UtcNow).TotalMilliseconds)
+            Math.Max(0, d.DurationSec >= UNLIMITED ? 1 : (int)((d.End - GetTimestamp()) / TimeSpan.TicksPerMillisecond))
             : 0;
     }
 

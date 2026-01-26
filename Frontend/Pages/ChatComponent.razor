@@ -4,26 +4,15 @@
 
 @inject ChatReader reader
 
-<style>
-    .log {
-        font-family: Consolas, monaco, monospace;
-        font-size: small;
-        padding: 0 0 5px 0 !important;
-        padding-right: 5px !important;
-    }
-</style>
-
 <div class="col-sm" style="@(MaxHeight > 0 ? $"overflow: auto; max-height: {MaxHeight}px;" : string.Empty)">
-    <table class="table table-borderless table-dark" cellspacing="20">
-        @foreach (var cme in reader.Messages.Reverse())
-        {
-            <tr style="color: @(typeColor[(int)cme.Type])">
-                <td width="65px" class="log">@cme.Time.ToString("HH:mm:ss")</td>
-                <td width="80px" class="log">@cme.Author:</td>
-                <td class="log">@cme.Message</td>
-            </tr>
-        }
-    </table>
+    @foreach (var cme in reader.Messages.Reverse())
+    {
+        <p style="color:@(typeColor[(int)cme.Type])" class="mb-0">
+            <span>@cme.Time.ToString("HH:mm:ss")</span>
+            <span>@cme.Author:</span>
+            <span>@cme.Message</span>
+        </p>
+    }
 </div>
 
 @code {
@@ -31,8 +20,8 @@
     public int MaxHeight { get; set; } = 400;
 
     private static readonly string[] typeColor = {
-        "pink",     // ChatMessageType.Whisper
-        "white",    // ChatMessageType.Say
+        "#FF80FF",   // ChatMessageType.Whisper
+        "",         // ChatMessageType.Say
         "red",      // ChatMessageType.Yell
         "orange",   // ChatMessageType.Emote
         "cyan",    // ChatMessageType.Party

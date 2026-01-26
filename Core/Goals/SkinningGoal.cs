@@ -1,6 +1,9 @@
 ﻿using Core.GOAP;
-using SharedLib.NpcFinder;
+
 using Microsoft.Extensions.Logging;
+
+using SharedLib.NpcFinder;
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -21,13 +24,14 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
     private readonly ConfigurableInput input;
     private readonly ClassConfiguration classConfig;
     private readonly PlayerReader playerReader;
+    private readonly CombatLog combatLog;
     private readonly AddonBits bits;
     private readonly Wait wait;
     private readonly StopMoving stopMoving;
     private readonly BagReader bagReader;
     private readonly EquipmentReader equipmentReader;
     private readonly NpcNameTargeting npcNameTargeting;
-    private readonly CombatUtil combatUtil;
+    private readonly CombatTracker combatTracker;
     private readonly GoapAgentState state;
     private readonly CancellationToken token;
 
@@ -37,10 +41,10 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
     private readonly List<SkinCorpseEvent> corpses = new();
 
     public SkinningGoal(ILogger<SkinningGoal> logger, ConfigurableInput input,
-        PlayerReader playerReader,
+        PlayerReader playerReader, CombatLog combatLog,
         BagReader bagReader, EquipmentReader equipmentReader,
         AddonBits bits, Wait wait, StopMoving stopMoving,
-        NpcNameTargeting npcNameTargeting, CombatUtil combatUtil,
+        NpcNameTargeting npcNameTargeting, CombatTracker combatTracker,
         GoapAgentState state, ClassConfiguration classConfig,
         CancellationTokenSource cts)
         : base(nameof(SkinningGoal))
@@ -49,6 +53,7 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
         this.input = input;
         this.classConfig = classConfig;
         this.playerReader = playerReader;
+        this.combatLog = combatLog;
         this.bits = bits;
         this.wait = wait;
         this.stopMoving = stopMoving;
@@ -56,7 +61,7 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
         this.equipmentReader = equipmentReader;
 
         this.npcNameTargeting = npcNameTargeting;
-        this.combatUtil = combatUtil;
+        this.combatTracker = combatTracker;
         this.state = state;
 
         this.token = cts.Token;
@@ -91,30 +96,38 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
 
     public override void OnEnter()
     {
-        combatUtil.Update();
-
-        float e = wait.Until(CastingHandler.GCD, LootReset);
+        float e = wait.UntilCount(Loot.RESET_UPDATE_COUNT, LootReset);
         if (e < 0)
         {
-            LogWarnWindowStillOpen(logger, e);
-            ExitInterruptOrFailed(false);
-            return;
+            LogWarnWindowStillOpen(logger, playerReader.LootWindowCount.Value, e);
+
+            if (bits.LootFrameShown())
+            {
+                input.PressESC();
+                wait.Update();
+            }
+
+            if (bits.LootFrameShown())
+            {
+                ExitInterruptOrFailed(false);
+                return;
+            }
         }
 
         bagHashNewOrStackGain = bagReader.HashNewOrStackGain;
 
-        wait.Fixed(playerReader.NetworkLatency);
+        wait.Fixed(Math.Max(playerReader.NetworkLatency, Loot.LOOTFRAME_AUTOLOOT_DELAY_MS));
 
         if (bagReader.BagsFull())
         {
             LogWarning("Inventory is full!");
         }
 
-        ReadOnlySpan<CursorType> types = stackalloc[] {
+        ReadOnlySpan<CursorType> types = [
             CursorType.Skin,
             CursorType.Mine,
             CursorType.Herb
-        };
+        ];
 
         int attempts = 0;
         while (attempts < MAX_ATTEMPTS)
@@ -146,7 +159,6 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
             if (!foundTarget && !input.KeyboardOnly)
             {
                 stopMoving.Stop();
-                combatUtil.Update();
 
                 npcNameTargeting.ChangeNpcType(NpcNames.Corpse);
                 e = wait.Until(MAX_TIME_TO_WAIT_NPC_NAME, npcNameTargeting.FoundAny);
@@ -154,6 +166,21 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
 
                 foundTarget = npcNameTargeting.FindBy(types, token); // todo salvage icon
                 interact = true;
+            }
+
+            if (!foundTarget &&
+                bits.SoftInteract() &&
+                bits.SoftInteract_Dead() &&
+                bits.SoftInteract_Hostile())
+            {
+                Log("Found soft target!");
+
+                input.PressInteract();
+                wait.Update();
+
+                foundTarget = true;
+
+                interact = false;
             }
 
             if (!foundTarget)
@@ -188,7 +215,7 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
             else if ((e < 0 || playerReader.LastUIError == UI_ERROR.ERR_LOOT_LOCKED) && !playerReader.IsCasting())
             {
                 int delay = playerReader.LastUIError == UI_ERROR.ERR_LOOT_LOCKED
-                    ? Loot.LOOTFRAME_AUTOLOOT_DELAY
+                    ? Loot.LOOTFRAME_AUTOLOOT_DELAY_MS
                     : playerReader.NetworkLatency;
 
                 wait.Fixed(delay);
@@ -219,8 +246,9 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
             }
             else
             {
-                if (combatUtil.EnteredCombat() ||
-                playerReader.LastUIError == UI_ERROR.ERR_SPELL_FAILED_INTERRUPTED)
+                if (combatLog.DamageTakenCount() > 0 ||
+                    playerReader.LastUIError == UI_ERROR.ERR_SPELL_FAILED_INTERRUPTED
+                    )
                 {
                     Log("Interrupted due combat!");
                     ExitInterruptOrFailed(true);
@@ -228,7 +256,7 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
                 }
 
                 LogWarnGatherFailed(logger, playerReader.CastState.ToStringF(), attempts);
-                wait.Fixed(Loot.LOOTFRAME_AUTOLOOT_DELAY);
+                wait.Fixed(Loot.LOOTFRAME_AUTOLOOT_DELAY_MS);
 
                 attempts++;
 
@@ -279,16 +307,18 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
 
     private void ClearTargetIfExists()
     {
-        if (bits.Target() && bits.Target_Dead())
+        if (!bits.Target() || !bits.Target_Dead())
         {
-            input.PressClearTarget();
-            wait.Update();
+            return;
+        }
 
-            if (bits.Target())
-            {
-                SendGoapEvent(ScreenCaptureEvent.Default);
-                LogWarning($"Unable to clear target! Check Bindpad settings!");
-            }
+        input.PressClearTarget();
+        wait.Update();
+
+        if (bits.Target())
+        {
+            SendGoapEvent(ScreenCaptureEvent.Default);
+            LogWarning($"Unable to clear target! Check Bindpad settings!");
         }
     }
 
@@ -405,8 +435,8 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
     [LoggerMessage(
         EventId = 0140,
         Level = LogLevel.Warning,
-        Message = "Loot window still open! {elapsedMs}ms")]
-    static partial void LogWarnWindowStillOpen(ILogger logger, float elapsedMs);
+        Message = "OnEnter window still open! Available Loot: {count} {elapsedMs}ms")]
+    static partial void LogWarnWindowStillOpen(ILogger logger, int count, float elapsedMs);
 
     [LoggerMessage(
         EventId = 0141,

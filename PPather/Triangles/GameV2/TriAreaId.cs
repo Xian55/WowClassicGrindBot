@@ -1,0 +1,48 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace PPather.Triangles.GameV2;
+
+public enum TriAreaId : byte
+{
+    NO_TYPE,
+
+    LIQUID_LAVA,
+    ALLIANCE_LIQUID_LAVA,
+    HORDE_LIQUID_LAVA,
+
+    LIQUID_SLIME,
+    ALLIANCE_LIQUID_SLIME,
+    HORDE_LIQUID_SLIME,
+
+    LIQUID_OCEAN,
+    ALLIANCE_LIQUID_OCEAN,
+    HORDE_LIQUID_OCEAN,
+
+    LIQUID_WATER,
+    ALLIANCE_LIQUID_WATER,
+    HORDE_LIQUID_WATER,
+
+    TERRAIN_GROUND,
+    ALLIANCE_TERRAIN_GROUND,
+    HORDE_TERRAIN_GROUND,
+
+    TERRAIN_ROAD,
+    ALLIANCE_TERRAIN_ROAD,
+    HORDE_TERRAIN_ROAD,
+
+    TERRAIN_CITY,
+    ALLIANCE_TERRAIN_CITY,
+    HORDE_TERRAIN_CITY,
+
+    WMO,
+    ALLIANCE_WMO,
+    HORDE_WMO,
+
+    DOODAD,
+    ALLIANCE_DOODAD,
+    HORDE_DOODAD,
+}

@@ -9,8 +9,8 @@
   "IntVariables": {
     "MIN_HP_FOOD%": 40,
     "MIN_RUNE_TO_DUMP": 40,
-    "Debuff_Frost Fever": 237522,
-    "Debuff_Blood Plague": 237514,
+    "TDebuff_Frost Fever": 237522,
+    "TDebuff_Blood Plague": 237514,
     "MIN_TIME_REFRESH": 3500
   },
   "Form": {
@@ -111,7 +111,7 @@
         "Key": "F6",
         "WhenUsable": true,
         "Requirements": [
-          "Frost Fever && Blood Plague && (Debuff_Frost Fever < MIN_TIME_REFRESH || Debuff_Blood Plague < MIN_TIME_REFRESH)",
+          "Frost Fever && Blood Plague && (TDebuff_Frost Fever < MIN_TIME_REFRESH || TDebuff_Blood Plague < MIN_TIME_REFRESH)",
           "InMeleeRange"
         ]
       },
@@ -197,7 +197,7 @@
         "Cooldown": 2000,
         "Requirements": [
           "MobCount < 2",
-          "Debuff_Frost Fever > MIN_TIME_REFRESH && Debuff_Blood Plague > MIN_TIME_REFRESH",
+          "TDebuff_Frost Fever > MIN_TIME_REFRESH && TDebuff_Blood Plague > MIN_TIME_REFRESH",
           "InMeleeRange"
         ]
       },
@@ -233,10 +233,7 @@
         "AfterCastAuraExpected": true
       },
       {
-        "Name": "AutoAttack",
-        "Requirements": [
-          "!AutoAttacking"
-        ]
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

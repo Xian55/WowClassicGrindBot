@@ -28,7 +28,6 @@
         "Key": "3",
         "WhenUsable": true,
         "Requirement": "SpellInRange:0",
-        "Form": "Warrior_BattleStance",
         "AfterCastWaitMeleeRange": true
       }
     ]
@@ -59,8 +58,7 @@
         "Cooldown": 16000,
         "Requirements": [
           "!Thunder Clap && MobCount > 1"
-        ],
-        "Form": "Warrior_BattleStance"
+        ]
       },
       {
         "Name": "Overpower",
@@ -100,12 +98,10 @@
         "Requirements": [
           "TargetHealth% > 50 && TargetHealth% < 98",
           "!Rend"
-        ],
-        "Form": "Warrior_BattleStance"
+        ]
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "!AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

@@ -1,15 +1,14 @@
-﻿using System;
+﻿using Core.Database;
+
+using SharedLib;
+
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Data;
 using System.Linq;
 using System.Numerics;
 using System.Text;
-
-using Core.Database;
-using Core.Extensions;
-
-using SharedLib;
 
 using WowheadDB;
 
@@ -49,7 +48,7 @@ public sealed class RouteInfo : IDisposable
         pathedRoutes.Length > 0 ? pathedRoutes
             .OrderByDescending(MostRecent)
             .First().PathingRoute()
-        : Array.Empty<Vector3>();
+        : [];
 
     private static DateTime MostRecent(IRouteProvider x) => x.LastActive;
 
@@ -73,16 +72,19 @@ public sealed class RouteInfo : IDisposable
 
     private const int dSize = 2;
 
-    public RouteInfo(Vector3[] route,
+    public RouteInfo(
         IEnumerable<IRouteProvider> pathedRoutes,
         PlayerReader playerReader, AreaDB areaDB,
         WorldMapAreaDB worldmapAreaDB)
     {
-        RouteSrc = this.Route = route;
         this.pathedRoutes = pathedRoutes.ToImmutableArray();
         this.playerReader = playerReader;
         this.areaDB = areaDB;
         this.worldmapAreaDB = worldmapAreaDB;
+
+        RouteSrc = pathedRoutes.Any()
+            ? (this.Route = pathedRoutes.First().MapRoute() ?? [])
+            : this.Route = [];
 
         this.areaDB.Changed += OnZoneChanged;
         OnZoneChanged();
@@ -106,7 +108,7 @@ public sealed class RouteInfo : IDisposable
 
         foreach (var r in pathedRoutes.OfType<IEditedRouteReceiver>())
         {
-            r.ReceivePath(Route);
+            r.ReceivePath(RouteSrc.ToArray(), Route);
         }
     }
 
@@ -183,7 +185,10 @@ public sealed class RouteInfo : IDisposable
         int navLength = RouteToWaypoint.Length;
         int poiCount = PoiList.Count;
 
-        int length = routeLength + navLength + poiCount + 1;
+        bool hasTarget = playerReader.TargetId != 0;
+        int extraCount = hasTarget ? 2 : 1;
+
+        int length = routeLength + navLength + poiCount + extraCount;
         Span<Vector3> total = stackalloc Vector3[length];
 
         RouteToWaypoint.AsSpan().CopyTo(total);
@@ -199,6 +204,9 @@ public sealed class RouteInfo : IDisposable
         {
             total[navLength + poiCount + idx++] = p;
         }
+
+        if (hasTarget)
+            total[^2] = playerReader.TargetMapPos;
 
         total[^1] = playerReader.MapPos;
 
@@ -308,19 +316,36 @@ public sealed class RouteInfo : IDisposable
 
     public Vector3 NextPoint()
     {
-        var route = pathedRoutes
+        IRouteProvider? mostRecent = pathedRoutes
             .OrderByDescending(MostRecent)
             .FirstOrDefault();
 
-        if (route == null || !route.HasNext())
+        if (mostRecent == null || !mostRecent.HasNext())
             return Vector3.Zero;
 
-        return route.NextMapPoint();
+        // dynamically update the path based on source
+        if (mostRecent.MapRoute() != Array.Empty<Vector3>())
+        {
+            RouteSrc = Route = mostRecent.MapRoute();
+        }
+
+        return mostRecent.NextMapPoint();
     }
 
     public string RenderNextPoint()
     {
         Vector3 pt = NextPoint();
+        if (pt == Vector3.Zero)
+            return string.Empty;
+
+        return $"<circle " +
+            $"cx='{ToCanvasPointX(pt.X)}' " +
+            $"cy='{ToCanvasPointY(pt.Y)}'" +
+            $"r='{dSize + 1}' />";
+    }
+
+    public string RenderPoint(Vector3 pt)
+    {
         if (pt == Vector3.Zero)
             return string.Empty;
 

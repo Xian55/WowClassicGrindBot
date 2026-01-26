@@ -1,6 +1,6 @@
-﻿using System;
+﻿using SixLabors.ImageSharp;
 
-using SixLabors.ImageSharp;
+using System;
 
 namespace Core;
 

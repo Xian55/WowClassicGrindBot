@@ -1,9 +1,10 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace StormDll;
-
+ 
 internal sealed partial class StormDllx86
 {
     [LibraryImport("MPQ\\StormLib_x86.dll")]
@@ -47,7 +48,7 @@ internal sealed partial class StormDllx86
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SFileOpenFileEx(
         nint archiveHandle,
-        [MarshalAs(UnmanagedType.LPStr)] string fileName,
+        ReadOnlySpan<byte> fileName,
         OpenFile searchScope,
         out nint fileHandle);
 }

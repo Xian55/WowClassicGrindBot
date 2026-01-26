@@ -1,15 +1,19 @@
 ﻿using Core.Goals;
-using Game;
-using Microsoft.Extensions.Logging;
-using SharedLib.Extensions;
-using System;
-using System.Threading;
-using System.Collections.Generic;
-using System.Linq;
 using Core.Session;
-using System.Numerics;
-using System.Collections.Specialized;
+
+using Game;
+
+using Microsoft.Extensions.Logging;
+
 using SharedLib;
+using SharedLib.Extensions;
+
+using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
+using System.Linq;
+using System.Numerics;
+using System.Threading;
 
 namespace Core.GOAP;
 
@@ -33,7 +37,7 @@ public sealed partial class GoapAgent : IDisposable
 
     private readonly Thread goapThread;
     private readonly CancellationTokenSource<GoapAgent> cts;
-    private readonly ManualResetEventSlim manualReset;
+    private readonly ManualResetEventSlim sessionPauseEvent;
 
     private readonly IScreenCapture screenCapture;
     private readonly IBagChangeTracker bagChangeTracker;
@@ -47,7 +51,7 @@ public sealed partial class GoapAgent : IDisposable
             active = value;
             if (!active)
             {
-                manualReset.Reset();
+                sessionPauseEvent.Reset();
 
                 foreach (IGoapEventListener goal in AvailableGoals.OfType<IGoapEventListener>())
                 {
@@ -74,10 +78,11 @@ public sealed partial class GoapAgent : IDisposable
                     listener.OnGoapEvent(new ResumeEvent());
                 }
 
-                manualReset.Set();
+                sessionPauseEvent.Set();
 
                 if (classConfig.Mode is Mode.AttendedGrind or Mode.Grind)
                 {
+                    SessionStat.Start();
                     sessionHandler.Start(classConfig.OverridePathFilename ?? classConfig.PathFilename);
                 }
             }
@@ -165,7 +170,7 @@ public sealed partial class GoapAgent : IDisposable
             }
         }
 
-        manualReset = new(false);
+        sessionPauseEvent = new(false);
         goapThread = new(GoapThread);
         goapThread.Start();
     }
@@ -173,7 +178,7 @@ public sealed partial class GoapAgent : IDisposable
     public void Dispose()
     {
         cts.Cancel();
-        manualReset.Set();
+        sessionPauseEvent.Set();
 
         foreach (GoapGoal a in AvailableGoals)
         {
@@ -194,7 +199,12 @@ public sealed partial class GoapAgent : IDisposable
     {
         bool wasEmpty = false;
 
-        manualReset.Wait();
+        sessionPauseEvent.Wait();
+
+        WaitHandle[] waitHandles = [
+            addonReader.DataReady.WaitHandle,
+            cts.Token.WaitHandle
+        ];
 
         while (!cts.IsCancellationRequested)
         {
@@ -219,8 +229,21 @@ public sealed partial class GoapAgent : IDisposable
                 wasEmpty = true;
             }
 
-            Thread.Sleep(1);
-            manualReset.Wait();
+            Thread.Sleep(2);
+
+            try
+            {
+                WaitHandle.WaitAny(waitHandles);
+                sessionPauseEvent.Wait(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
+            }
         }
 
         if (logger.IsEnabled(LogLevel.Debug))
@@ -266,7 +289,7 @@ public sealed partial class GoapAgent : IDisposable
             (B(mountHandler.IsMounted()) << (int)GoapKey.ismounted) |
             (B(playerReader.WithInPullRange()) << (int)GoapKey.withinpullrange) |
             (B(playerReader.WithInCombatRange()) << (int)GoapKey.incombatrange) |
-            // pulled always false
+            (B(bits.Combat() && bits.Target_Combat() && combatLog.ToPullCount() > 0) << (int)GoapKey.pulled) |
             (B(b.Dead()) << (int)GoapKey.isdead) |
             (B(State.LootableCorpseCount > 0) << (int)GoapKey.shouldloot) |
             (B(State.GatherableCorpseCount > 0) << (int)GoapKey.shouldgather) |
@@ -275,7 +298,7 @@ public sealed partial class GoapAgent : IDisposable
             (B(b.Swimming()) << (int)GoapKey.isswimming) |
             (B(b.Items_Broken()) << (int)GoapKey.itemsbroken) |
             (B(State.Gathering) << (int)GoapKey.gathering) |
-            (B(b.Target_Hostile()) << (int)GoapKey.targethostile) |
+            (B(b.Target_Hostile() || (bits.Target() && combatLog.ToPull.Contains(playerReader.TargetGuid))) << (int)GoapKey.targethostile) |
             (B(b.Focus()) << (int)GoapKey.hasfocus) |
             (B(b.FocusTarget()) << (int)GoapKey.focushastarget) |
             (B(State.ConsumableCorpseCount > 0) << (int)GoapKey.consumablecorpsenearby)
@@ -320,21 +343,20 @@ public sealed partial class GoapAgent : IDisposable
 
     private void OnKillCredit()
     {
-        if (Active)
-        {
-            SessionStat.Kills++;
-
-            State.LastCombatKillCount++;
-            State.ConsumableCorpseCount++;
-
-            BroadcastGoapEvent(GoapKey.producedcorpse, true);
-
-            LogActiveKillDetected(logger, State.LastCombatKillCount, combatLog.DamageTakenCount());
-        }
-        else
+        if (!Active)
         {
             LogInactiveKillDetected(logger);
+            return;
         }
+
+        SessionStat.Kills++;
+
+        State.LastCombatKillCount++;
+        State.ConsumableCorpseCount++;
+
+        BroadcastGoapEvent(GoapKey.producedcorpse, true);
+
+        LogActiveKillDetected(logger, SessionStat.Kills, State.LastCombatKillCount, combatLog.DamageTakenCount());
     }
 
     public void PlayerDied()
@@ -391,8 +413,8 @@ public sealed partial class GoapAgent : IDisposable
     [LoggerMessage(
         EventId = 0050,
         Level = LogLevel.Information,
-        Message = "Kill credit detected! Known kills: {count} | Fighting with: {remain}")]
-    static partial void LogActiveKillDetected(ILogger logger, int count, int remain);
+        Message = "Kill credit detected! Session Total: {sessionTotal} | Last Combat: {lastCombatCount} | Currently fighting: {currentCombatRemain}")]
+    static partial void LogActiveKillDetected(ILogger logger, int sessionTotal, int lastCombatCount, int currentCombatRemain);
 
     [LoggerMessage(
         EventId = 0051,

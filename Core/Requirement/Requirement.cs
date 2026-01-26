@@ -36,16 +36,18 @@ public static class RequirementExt
             LogMessage(), f2.LogMessage());
     }
 
-    public static void Negate(this Requirement f, string keyword)
+    public static void Negate(this Requirement f, ReadOnlySpan<char> keyword)
     {
         Func<bool> HasRequirement = f.HasRequirement;
         Func<string> LogMessage = f.LogMessage;
+
+        string keywordStr = keyword.ToString();
 
         f.HasRequirement = Negated;
         f.LogMessage = Message;
 
         bool Negated() => !HasRequirement();
-        string Message() => $"{keyword}{LogMessage()}";
+        string Message() => $"{keywordStr}{LogMessage()}";
     }
 }
 
@@ -57,6 +59,9 @@ public sealed class Requirement
     public const string SymbolNegate = "!";
     public const string SymbolAnd = "&&";
     public const string SymbolOr = "||";
+
+    public const char SymbolAndChar = '&';
+    public const char SymbolOrChar = '|';
 
     private static bool False() => false;
     private static string Default() => "Unknown requirement";

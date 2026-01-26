@@ -1,10 +1,26 @@
 {
   "ClassName": "Paladin",
+  "Mode": "AttendedGrind",
   "PathFilename": "_pack\\1-20\\Human\\19-21_Duskwood_Hushed Bank.json",
   "IntVariables": {
     "MIN_SPEED_SEAL": 3000,
     "MIN_TARGET_HP%": 20,
-    "MIN_HP_BEFORE_HEAL%": 20
+    "MIN_HP_BEFORE_HEAL%": 20,
+    "Debuff_POISON1": 136006,
+    "Debuff_POISON2": 136007,
+    "Debuff_POISON3": 136016,
+    "Debuff_POISON4": 136064,
+    "Debuff_POISON5": 136067,
+    "Debuff_POISON6": 136077,
+    "Debuff_POISON7": 136093,
+    "Debuff_POISON8": 134437,
+    "Debuff_POISON9": 132273,
+    "Debuff_POISON10": 132274,
+    "Debuff_POISON11": 132105,
+    "Debuff_DISEASE1": 136127,
+    "Debuff_DISEASE2": 136134,
+    "Debuff_DISEASE3": 134324,
+    "Debuff_DISEASE4": 135914
   },
   "Pull": {
     "Sequence": [
@@ -33,118 +49,8 @@
   "Combat": {
     "Sequence": [
       {
-        "Name": "Divine Protection",
-        "Key": "N1",
-        "WhenUsable": true,
-        "Requirements": [
-          "Health% < MIN_HP_BEFORE_HEAL%",
-          "!Blessing of Protection"
-        ]
-      },
-      {
-        "Name": "Blessing of Protection",
-        "Key": "N2",
-        "WhenUsable": true,
-        "Requirements": [
-          "Health% < MIN_HP_BEFORE_HEAL%",
-          "!Divine Protection"
-        ]
-      },
-      {
-        "Name": "Lay on Hands",
-        "Key": "N3",
-        "WhenUsable": true,
-        "Requirements": [
-          "Health% < MIN_HP_BEFORE_HEAL%",
-          "!Blessing of Protection && CD_Blessing of Protection > 0",
-          "!Divine Protection && CD_Divine Protection > 0"
-        ]
-      },
-      {
-        "Name": "Holy Light",
-        "Key": "3",
-        "HasCastBar": true,
-        "WhenUsable": true,
-        "Requirements": [
-          "Health% < 75",
-          "(Blessing of Protection || Divine Protection)"
-        ]
-      },
-      {
-        "Name": "Flash of Light",
-        "Key": "8",
-        "HasCastBar": true,
-        "WhenUsable": true,
-        "Requirements": [
-          "Health% < 60",
-          "!Blessing of Protection && CD_Blessing of Protection > 0 && !Divine Protection && CD_Divine Protection > 0",
-          "MobCount < 2",
-          "LastMainHandMs <= 1000"
-        ],
-        "Cooldown": 6000
-      },
-      {
-        "Name": "Consecration",
-        "Key": "0",
-        "WhenUsable": true,
-        "Requirements": [
-          "Mana% > 50",
-          "MobCount > 1"
-        ]
-      },
-      {
-        "Name": "Seal of the Crusader",
-        "Key": "6",
-        "Requirements": [
-          "!Seal of the Crusader",
-          "!Judgement of the Crusader",
-          "TargetHealth% > MIN_TARGET_HP%"
-        ]
-      },
-      {
-        "Name": "Judgement",
-        "Key": "1",
-        "WhenUsable": true,
-        "Requirements": [
-          "!Judgement of the Crusader || Hammer of Justice || CD_Hammer of Justice > CD_Judgement",
-          "Seal of Command || Seal of Righteousness || Seal of the Crusader"
-        ],
-        "AfterCastDelay": 25
-      },
-      {
-        "Name": "Hammer of Justice",
-        "Key": "7",
-        "WhenUsable": true,
-        "Requirements": [
-          "Judgement of the Crusader && CD_Judgement <= GCD && TargetHealth% > MIN_TARGET_HP% || TargetCastingSpell"
-        ]
-      },
-      {
-        "Name": "Seal of Command",
-        "Key": "9",
-        "WhenUsable": true,
-        "Requirements": [
-          "Talent:Seal of Command && MainHandSpeed > MIN_SPEED_SEAL",
-          "!Seal of Command",
-          "Judgement of the Crusader",
-          "TargetHealth% > MIN_TARGET_HP%"
-        ]
-      },
-      {
-        "Name": "Seal of Righteousness",
-        "Key": "2",
-        "WhenUsable": true,
-        "Requirements": [
-          "!Talent:Seal of Command || MainHandSpeed < MIN_SPEED_SEAL",
-          "!Seal of Righteousness",
-          "Judgement of the Crusader",
-          "TargetHealth% > MIN_TARGET_HP%"
-        ]
-      },
-      {
         "Name": "AutoAttack",
         "Requirements": [
-          "!AutoAttacking",
           "!Divine Protection",
           "!Blessing of Protection"
         ]
@@ -158,17 +64,6 @@
   "Adhoc": {
     "Sequence": [
       {
-        "Name": "Blessing of Might",
-        "Key": "4",
-        "Requirement": "!Blessing of Might"
-      },
-      {
-        /*
-#showtooltip
-/use Heavy Weightstone
-/use 16
-/click StaticPopup1Button1
-*/
         "Name": "sharpen",
         "Key": "F1",
         "WhenUsable": true,
@@ -178,10 +73,14 @@
         "AfterCastAuraExpected": true
       },
       {
-        "Name": "Retribution Aura",
-        "Key": "5",
-        "Requirement": "!Form:Paladin_Retribution_Aura",
-        "AfterCastAuraExpected": true
+        "Cost": 3.1,
+        "Name": "Stoneform",
+        "Key": "9",
+        "InCombat": "i dont care",
+        "WhenUsable": true,
+        "Requirements": [
+          "Debuff_POISON1 > 1 || Debuff_POISON2 > 1 || Debuff_POISON3 > 1 || Debuff_POISON4 > 1 || Debuff_POISON5 > 1 || Debuff_POISON6 > 1 || Debuff_POISON7 > 1 || Debuff_POISON8 > 1 || Debuff_POISON9 > 1 || Debuff_POISON10 > 1 || Debuff_POISON11 > 1 || Debuff_DISEASE1 > 1 || Debuff_DISEASE2 > 1 || Debuff_DISEASE3 > 1 || Debuff_DISEASE4 > 1"
+        ]
       }
     ]
   },

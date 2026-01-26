@@ -24,8 +24,9 @@ namespace PPather.Graph;
 
 public sealed class Path
 {
-    public List<Vector3> locations { get; } = new();
+    public List<Vector3> locations { get; } = [];
 
+    public Vector3 GetFirst => locations[0];
     public Vector3 GetLast => locations[^1];
 
     public Path(List<Spot> steps)

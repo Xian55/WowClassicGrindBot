@@ -8,36 +8,67 @@ using WowheadDB;
 using System.Numerics;
 using System.Diagnostics;
 using System.Linq;
+using SharedLib;
+
+using static System.Diagnostics.Stopwatch;
 
 namespace WowheadDB_Extractor
 {
     public class ZoneExtractor
     {
-        public const string EXP = "tbc";
+        public const string EXP = "cata";
+
+        private const string RetailUrl = "https://www.wowhead.com";
 
         public static string BaseUrl()
         {
-            switch (EXP)
+            return EXP switch
             {
-                case "som":
-                    return "https://classic.wowhead.com";
-                case "tbc":
-                    return "https://tbc.wowhead.com";
-                case "wrath":
-                    return "https://www.wowhead.com/wotlk";
-                default:
-                case "retail":
-                    return "https://www.wowhead.com";
-            }
+                "som" => "https://classic.wowhead.com",
+                "tbc" => "https://tbc.wowhead.com",
+                "wrath" => "https://www.wowhead.com/wotlk",
+                "cata" => "https://www.wowhead.com/cata",
+                _ => RetailUrl,
+            };
         }
 
-        private const string outputPath = $"../../../../../Json/area/{EXP}/";
+        private const string parentPath = $"../../../../../Json";
+        private const string outputPath = $"{parentPath}/area/{EXP}/";
         private const string outputNodePath = "../path/";
         private static string ZONE_URL = $"{BaseUrl()}/zone=";
+
+        private static string GetRetailZoneUrl() => $"{RetailUrl}/zone=";
+
 
         public static async Task Run()
         {
             await ExtractZones();
+        }
+
+        static Dictionary<string, int> GetZonesByContient(int contientId)
+        {
+            Dictionary<string, int> result = new();
+
+            string location = $"{parentPath}\\dbc\\{EXP}\\";
+
+            ReadOnlySpan<WorldMapArea> span =
+                JsonConvert.DeserializeObject<WorldMapArea[]>(
+                    File.ReadAllText(Path.Join(location, "WorldMapArea.json")));
+
+            for (int i = 0; i < span.Length; i++)
+            {
+                WorldMapArea wma = span[i];
+
+                if (span[i].MapID == contientId)
+                {
+                    if (!result.TryAdd(wma.AreaName, wma.AreaID))
+                    {
+                        Console.WriteLine($"Already exits! {wma.AreaName}");
+                    }
+                }
+            }
+
+            return result;
         }
 
         static async Task ExtractZones()
@@ -49,39 +80,64 @@ namespace WowheadDB_Extractor
             //Dictionary<string, int> temp = new() { { "Elwynn Forest", 12 } };
             //Dictionary<string, int> temp = new() { { "Zangarmarsh", 3521 } };
             //foreach (var entry in temp)
-            foreach (KeyValuePair<string, int> entry in Areas.List)
+            //foreach (KeyValuePair<string, int> entry in Areas.List)
+
+            foreach (string key in Continents.Map.Keys)
             {
-                if (entry.Value == 0) continue;
-                try
+                foreach (KeyValuePair<string, int> entry in GetZonesByContient(Continents.Map[key]))
                 {
-                    var p = GetPayloadFromWebpage(await LoadPage(entry.Value));
-                    var z = ZoneFromJson(p);
+                    if (entry.Value == 0) continue;
 
-                    PerZoneGatherable skin = new(entry.Value, GatherFilter.Skinnable);
-                    z.skinnable = await skin.Run();
+                    try
+                    {
+                        var p = GetPayloadFromWebpage(await LoadPage(entry.Value));
+                        string baseUrl = BaseUrl();
+                        //string p;
+                        //string baseUrl;
 
-                    PerZoneGatherable g = new(entry.Value, GatherFilter.Gatherable);
-                    z.gatherable = await g.Run();
+                        // empty then fall back to retail
+                        if (p == "[]")
+                        {
+                            var url = GetRetailZoneUrl() + entry.Value;
 
-                    PerZoneGatherable m = new(entry.Value, GatherFilter.Minable);
-                    z.minable = await m.Run();
+                            HttpClient client = new HttpClient();
+                            var response = await client.GetAsync(url);
+                            var c = await response.Content.ReadAsStringAsync();
+                            p = GetPayloadFromWebpage(c);
 
-                    PerZoneGatherable salv = new(entry.Value, GatherFilter.Salvegable);
-                    z.salvegable = await salv.Run();
+                            baseUrl = RetailUrl;
+                        }
 
-                    SaveZone(z, entry.Value.ToString());
-                    //SaveZoneNode(entry, z.herb, nameof(z.herb), false, true);
-                    //SaveZoneNode(entry, z.vein, nameof(z.vein), false, true);
+                        var z = ZoneFromJson(p);
 
-                    Console.WriteLine($"Saved {entry.Value,5}={entry.Key}");
+                        PerZoneGatherable skin = new(baseUrl, entry.Value, GatherFilter.Skinnable);
+                        z.skinnable = await skin.Run();
+
+                        PerZoneGatherable g = new(baseUrl, entry.Value, GatherFilter.Gatherable);
+                        z.gatherable = await g.Run();
+
+                        PerZoneGatherable m = new(baseUrl, entry.Value, GatherFilter.Minable);
+                        z.minable = await m.Run();
+
+                        PerZoneGatherable salv = new(baseUrl, entry.Value, GatherFilter.Salvegable);
+                        z.salvegable = await salv.Run();
+
+                        SaveZone(z, entry.Value.ToString());
+
+                        // TSP generation
+                        //SaveZoneNode(entry, z.herb, nameof(z.herb), false, true);
+                        //SaveZoneNode(entry, z.vein, nameof(z.vein), false, true);
+
+                        Console.WriteLine($"Saved {entry.Value,5}={entry.Key}");
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"Fail  {entry.Value,5}={entry.Key} -> '{e.Message}'");
+                        Console.WriteLine(e);
+                    }
+
+                    await Task.Delay(50);
                 }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"Fail  {entry.Value,5}={entry.Key} -> '{e.Message}'");
-                    Console.WriteLine(e);
-                }
-
-                await Task.Delay(50);
             }
         }
 
@@ -123,21 +179,20 @@ namespace WowheadDB_Extractor
             if (nodes == null)
                 return;
 
-            List<Vector2> points = new();
+            List<Vector2> points = [];
             foreach (var kvp in nodes)
             {
-                points.AddRange(Array.ConvertAll(kvp.Value[0].MapCoords.ToArray(), (Vector3 v3) => new Vector2(v3.X, v3.Y)));
+                points.AddRange(Array.ConvertAll([.. kvp.Value[0].MapCoords], (Vector3 v3) => new Vector2(v3.X, v3.Y)));
             }
 
             GeneticTSPSolver solver = new(points);
-            Stopwatch sw = new();
-            sw.Start();
+            long startTime = GetTimestamp();
             while (solver.UnchangedGens < solver.Length)
             {
                 solver.Evolve();
             }
-            sw.Stop();
-            Console.WriteLine($" - TSP Solver {points.Count} {type} nodes {sw.ElapsedMilliseconds} ms");
+            var elapsed = GetElapsedTime(startTime);
+            Console.WriteLine($" - TSP Solver {points.Count} {type} nodes {elapsed.TotalMilliseconds} ms");
 
             string prefix = $"{zonekvp.Value}_{zonekvp.Key}_{type}";
 

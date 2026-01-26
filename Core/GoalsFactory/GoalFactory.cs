@@ -1,15 +1,18 @@
 using Core.Goals;
 using Core.GOAP;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using System;
-using static System.IO.Path;
-using static System.IO.File;
-using System.Numerics;
-using System.Threading;
-using static Newtonsoft.Json.JsonConvert;
 using Core.Session;
+
+using Microsoft.Extensions.DependencyInjection;
+
 using SharedLib;
+
+using System;
+using System.Numerics;
+
+using static Core.BlacklistSourceType;
+using static Newtonsoft.Json.JsonConvert;
+using static System.IO.File;
+using static System.IO.Path;
 
 namespace Core;
 
@@ -34,19 +37,27 @@ public static class GoalFactory
         else
             services.AddScoped<IBagChangeTracker, NoBagChangeTracker>();
 
-        // TODO: Should be scoped as it comes from ClassConfig
-        // 432 issue
-        services.AddSingleton<Vector3[]>(
-            GetPath(classConfig, sp.GetRequiredService<DataConfig>()));
 
         if (classConfig.Mode != Mode.Grind)
         {
             services.AddScoped<IBlacklist, NoBlacklist>();
+
+            services.AddKeyedScoped<IBlacklist, NoBlacklist>(TARGET);
+            services.AddKeyedScoped<IBlacklist, NoBlacklist>(MOUSE_OVER);
         }
         else
         {
-            services.AddScoped<MouseOverBlacklist, MouseOverBlacklist>();
-            services.AddScoped<IBlacklist, TargetBlacklist>();
+            services.AddScoped<IBlacklistSource, BlacklistMouseOver>();
+            services.AddScoped<IBlacklistSource, BlacklistTarget>();
+
+            services.AddScoped<BlacklistMouseOver>();
+            services.AddScoped<BlacklistTarget>();
+
+            services.AddKeyedScoped<IBlacklist, Blacklist<BlacklistMouseOver>>(MOUSE_OVER);
+            services.AddKeyedScoped<IBlacklist, Blacklist<BlacklistTarget>>(TARGET);
+
+            services.AddScoped<IBlacklist>(x => x.GetRequiredKeyedService<IBlacklist>(TARGET));
+
             services.AddScoped<GoapGoal, BlacklistTargetGoal>();
         }
 
@@ -59,7 +70,8 @@ public static class GoalFactory
         services.AddScoped<CastingHandlerInterruptWatchdog>();
         services.AddScoped<CastingHandler>();
         services.AddScoped<StuckDetector>();
-        services.AddScoped<CombatUtil>();
+        services.AddScoped<CombatTracker>();
+        services.AddScoped<SafeSpotCollector>();
 
         var playerReader = sp.GetRequiredService<PlayerReader>();
 
@@ -88,7 +100,7 @@ public static class GoalFactory
             services.AddScoped<GoapGoal, CombatGoal>();
             services.AddScoped<GoapGoal, ApproachTargetGoal>();
             services.AddScoped<GoapGoal, WaitForGatheringGoal>();
-            services.AddScoped<GoapGoal, FollowRouteGoal>();
+            ResolveFollowRouteGoal(services, classConfig);
 
             ResolveLootAndSkin(services, classConfig);
 
@@ -133,12 +145,13 @@ public static class GoalFactory
             }
             else
             {
-                services.AddScoped<GoapGoal, FollowRouteGoal>();
+                ResolveFollowRouteGoal(services, classConfig);
             }
 
             services.AddScoped<GoapGoal, WalkToCorpseGoal>();
             services.AddScoped<GoapGoal, PullTargetGoal>();
             services.AddScoped<GoapGoal, ApproachTargetGoal>();
+            AddFleeGoal(services, classConfig);
             services.AddScoped<GoapGoal, CombatGoal>();
 
             if (classConfig.WrongZone.ZoneId > 0)
@@ -194,16 +207,8 @@ public static class GoalFactory
         for (int i = 0; i < classConfig.Adhoc.Sequence.Length; i++)
         {
             KeyAction keyAction = classConfig.Adhoc.Sequence[i];
-            services.AddScoped<GoapGoal, AdhocGoal>(x => new(keyAction,
-                x.GetRequiredService<Microsoft.Extensions.Logging.ILogger>(),
-                x.GetRequiredService<ConfigurableInput>(),
-                x.GetRequiredService<Wait>(),
-                x.GetRequiredService<PlayerReader>(),
-                x.GetRequiredService<StopMoving>(),
-                x.GetRequiredService<CastingHandler>(),
-                x.GetRequiredService<IMountHandler>(),
-                x.GetRequiredService<AddonBits>(),
-                x.GetRequiredService<CombatLog>()));
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<AdhocGoal>(sp, keyAction));
         }
     }
 
@@ -215,20 +220,8 @@ public static class GoalFactory
             KeyAction keyAction = classConfig.NPC.Sequence[i];
             keyAction.Path = GetPath(keyAction, dataConfig);
 
-            services.AddScoped<GoapGoal, AdhocNPCGoal>(x => new(keyAction,
-                x.GetRequiredService<ILogger<AdhocNPCGoal>>(),
-                x.GetRequiredService<ConfigurableInput>(),
-                x.GetRequiredService<Wait>(),
-                x.GetRequiredService<PlayerReader>(),
-                x.GetRequiredService<GossipReader>(),
-                x.GetRequiredService<AddonBits>(),
-                x.GetRequiredService<Navigation>(),
-                x.GetRequiredService<StopMoving>(),
-                x.GetRequiredService<NpcNameTargeting>(),
-                x.GetRequiredService<ClassConfiguration>(),
-                x.GetRequiredService<IMountHandler>(),
-                x.GetRequiredService<ExecGameCommand>(),
-                x.GetRequiredService<CancellationTokenSource>()));
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<AdhocNPCGoal>(sp, keyAction));
         }
     }
 
@@ -239,10 +232,8 @@ public static class GoalFactory
         {
             KeyAction keyAction = classConfig.Wait.Sequence[i];
 
-            services.AddScoped<GoapGoal, ConditionalWaitGoal>(x => new(
-                keyAction,
-                x.GetRequiredService<ILogger<ConditionalWaitGoal>>(),
-                x.GetRequiredService<Wait>()));
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<ConditionalWaitGoal>(sp, keyAction));
         }
     }
 
@@ -260,6 +251,37 @@ public static class GoalFactory
     }
 
 
+    public static void ResolveFollowRouteGoal(IServiceCollection services,
+        ClassConfiguration classConfig)
+    {
+        float baseCost = FollowRouteGoal.DEFAULT_COST;
+
+        for (int i = 0; i < classConfig.Paths.Length; i++)
+        {
+            int index = i;
+            float cost = baseCost + (index * FollowRouteGoal.COST_OFFSET);
+
+            services.AddKeyedScoped<PathSettings>(i,
+                (IServiceProvider sp, object? key) =>
+                GetPathSettings(
+                    sp.GetRequiredService<ClassConfiguration>().Paths[(int)key!],
+                    sp.GetRequiredService<DataConfig>()));
+
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<FollowRouteGoal>(sp,
+                    cost,
+                    sp.GetRequiredKeyedService<PathSettings>(index)));
+        }
+    }
+
+    public static void AddFleeGoal(IServiceCollection services, ClassConfiguration classConfig)
+    {
+        if (classConfig.Flee.Sequence.Length == 0)
+            return;
+
+        services.AddScoped<GoapGoal, FleeGoal>();
+    }
+
     private static string RelativeFilePath(DataConfig dataConfig, string path)
     {
         return !path.Contains(dataConfig.Path)
@@ -267,37 +289,39 @@ public static class GoalFactory
             : path;
     }
 
-    private static Vector3[] GetPath(ClassConfiguration classConfig,
-        DataConfig dataConfig)
+    private static PathSettings GetPathSettings(PathSettings setting, DataConfig dataConfig)
     {
-        classConfig.PathFilename =
-            RelativeFilePath(dataConfig, classConfig.PathFilename);
+        setting.PathFilename =
+            RelativeFilePath(dataConfig, setting.PathFilename);
 
-        Vector3[] rawPath = DeserializeObject<Vector3[]>(
-            ReadAllText(classConfig.PathFilename))!;
+        setting.Path = DeserializeObject<Vector3[]>(
+            ReadAllText(setting.PathFilename))!;
 
         // TODO: there could be saved user routes where
         //       the Z component not 0
-        for (int i = 0; i < rawPath.Length; i++)
+        for (int i = 0; i < setting.Path.Length; i++)
         {
-            if (rawPath[i].Z != 0)
-                rawPath[i].Z = 0;
+            if (setting.Path[i].Z != 0)
+                setting.Path[i].Z = 0;
         }
 
-        if (!classConfig.PathReduceSteps)
-            return rawPath;
+        if (!setting.PathReduceSteps)
+            return setting;
 
         int step = 2;
-        int reducedLength = rawPath.Length % step == 0
-            ? rawPath.Length / step
-            : (rawPath.Length / step) + 1;
+        int reducedLength = setting.Path.Length % step == 0
+            ? setting.Path.Length / step
+            : (setting.Path.Length / step) + 1;
 
         Vector3[] path = new Vector3[reducedLength];
         for (int i = 0; i < path.Length; i++)
         {
-            path[i] = rawPath[i * step];
+            path[i] = setting.Path[i * step];
         }
-        return path;
+
+        setting.Path = path;
+
+        return setting;
     }
 
     public static Vector3[] GetPath(KeyAction keyAction, DataConfig dataConfig)

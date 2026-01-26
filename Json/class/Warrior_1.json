@@ -1,6 +1,15 @@
 {
   "ClassName": "Warrior",
   "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\1-4_Dun Morogh.json",
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Combat": {
     "Sequence": [
       {
@@ -11,8 +20,7 @@
         "Requirement": "MainHandSwing > -400"
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "!AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

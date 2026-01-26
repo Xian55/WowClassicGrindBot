@@ -6,9 +6,11 @@ public sealed class AddonBits : IReader, IGameMenuWindowShown
 {
     private const int cell1 = 8;
     private const int cell2 = 9;
+    private const int cell3 = 100;
 
     private BitVector32 v1;
     private BitVector32 v2;
+    private BitVector32 v3;
 
     public AddonBits() { }
 
@@ -16,6 +18,7 @@ public sealed class AddonBits : IReader, IGameMenuWindowShown
     {
         v1 = new(reader.GetInt(cell1));
         v2 = new(reader.GetInt(cell2));
+        v3 = new(reader.GetInt(cell3));
     }
 
     // -- value1 based flags
@@ -58,6 +61,7 @@ public sealed class AddonBits : IReader, IGameMenuWindowShown
     public bool FocusTarget_Hostile() => v2[Mask._7];
     public bool MouseOver_Dead() => v2[Mask._8];
     public bool PetTarget_Dead() => v2[Mask._9];
+    public bool PetTarget_Alive() => !PetTarget_Dead();
     public bool Stealthed() => v2[Mask._10];
     public bool Target_Trivial() => v2[Mask._11];
     public bool Target_NotTrivial() => !v2[Mask._11];
@@ -73,9 +77,36 @@ public sealed class AddonBits : IReader, IGameMenuWindowShown
     public bool GameMenuWindowShown() => v2[Mask._20];
     public bool Flying() => v2[Mask._21];
     public bool Moving() => v2[Mask._22];
+    public bool Pet_Defensive() => v2[Mask._23];
+
     public bool NotMoving() => !Moving();
 
     // Combined
 
     public bool Grounded() => !Flying() && !Falling();
+
+    public bool Any_AutoAttack() => AutoShot() || Auto_Attack() || Shoot();
+
+    // -- value3 based flags
+    public bool SoftInteract() => v3[Mask._0];
+
+    public bool SoftInteract_Dead() => v3[Mask._1];
+
+    public bool SoftInteract_DeadOrGhost() => v3[Mask._2];
+
+    public bool SoftInteract_Player() => v3[Mask._3];
+
+    public bool SoftInteract_Tagged() => v3[Mask._4];
+
+    public bool SoftInteract_Combat() => v3[Mask._5];
+
+    public bool SoftInteract_Hostile() => v3[Mask._6];
+
+    public bool Channeling() => v3[Mask._7];
+
+    public bool LootFrameShown() => v3[Mask._8];
+
+    public bool ChatInputIsVisible() => v3[Mask._9];
+
+    public bool SoftInteract_Enabled() => v3[Mask._10];
 }

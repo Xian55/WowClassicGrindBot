@@ -196,8 +196,7 @@
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!HasRangedWeapon",
-          "!AutoAttacking"
+          "!HasRangedWeapon"
         ]
       }
     ]

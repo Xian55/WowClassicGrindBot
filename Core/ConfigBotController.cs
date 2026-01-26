@@ -1,9 +1,12 @@
 ﻿using Core.GOAP;
+
+using Game;
+
+using Microsoft.Extensions.Logging;
+
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Microsoft.Extensions.Logging;
-using Game;
 
 namespace Core;
 
@@ -19,7 +22,7 @@ public sealed class ConfigBotController : IBotController, IDisposable
     public GoapAgent? GoapAgent => throw new NotImplementedException();
     public RouteInfo? RouteInfo => throw new NotImplementedException();
     public string SelectedClassFilename => throw new NotImplementedException();
-    public string? SelectedPathFilename => throw new NotImplementedException();
+    public Dictionary<int, string> SelectedPathFilename => throw new NotImplementedException();
 
     public ClassConfiguration? ClassConfig => null;
 
@@ -94,7 +97,7 @@ public sealed class ConfigBotController : IBotController, IDisposable
         throw new NotImplementedException();
     }
 
-    public void LoadPathProfile(string pathFilename)
+    public void LoadPathProfile(Dictionary<int, string> pathFilenames)
     {
         ProfileLoaded?.Invoke();
         throw new NotImplementedException();

@@ -1,8 +1,8 @@
-﻿using System;
-
-using Core.GOAP;
+﻿using Core.GOAP;
 
 using Microsoft.Extensions.Logging;
+
+using System;
 
 namespace Core.Goals;
 
@@ -30,11 +30,9 @@ public sealed partial class CorpseConsumedGoal : GoapGoal
         {
             AddPrecondition(GoapKey.consumablecorpsenearby, true);
         }
-        else
-        {
-            AddPrecondition(GoapKey.damagedone, false);
-            AddPrecondition(GoapKey.damagetaken, false);
-        }
+        AddPrecondition(GoapKey.pulled, false);
+        AddPrecondition(GoapKey.dangercombat, false);
+        AddPrecondition(GoapKey.incombat, false);
 
         AddPrecondition(GoapKey.consumecorpse, true);
 
@@ -47,6 +45,7 @@ public sealed partial class CorpseConsumedGoal : GoapGoal
         if (goapAgentState.ConsumableCorpseCount == 0)
         {
             goapAgentState.LastCombatKillCount = 0;
+            goapAgentState.RecentlyLooted.Clear();
         }
 
         LogConsumed(logger, goapAgentState.LastCombatKillCount, goapAgentState.ConsumableCorpseCount);
@@ -55,13 +54,14 @@ public sealed partial class CorpseConsumedGoal : GoapGoal
 
         if (goapAgentState.LastCombatKillCount > 1)
         {
-            wait.Fixed(Loot.LOOTFRAME_AUTOLOOT_DELAY);
+            wait.Fixed(Loot.LOOTFRAME_AUTOLOOT_DELAY_MS);
+            wait.Update();
         }
 
         if (!lootEnabled)
         {
             SendGoapEvent(new RemoveClosestPoi(CorpseEvent.NAME));
-            wait.Fixed(Loot.LOOTFRAME_AUTOLOOT_DELAY / 2);
+            wait.Fixed(Loot.LOOTFRAME_AUTOLOOT_DELAY_MS / 2);
         }
     }
 

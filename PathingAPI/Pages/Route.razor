@@ -8,17 +8,11 @@
 <Watch PathColour="@pathColour" Name="@name" ClearPath=@clearPath />
 
 <style>
-    .mat-autocomplete-list {
-        width: 40%;
-    }
 
-    .mat-autocomplete-list-popup {
+    .mat-autocomplete-list-popup > .mdc-list {
+        position: absolute;
+        bottom: 60px;
     }
-
-        .mat-autocomplete-list-popup > .mdc-list {
-            position: absolute;
-            bottom: 60px;
-        }
 
     .thumbnail {
         position: relative;
@@ -54,14 +48,27 @@
             pointer-events: none;
         }
 
+    #controlPanel {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        height: 30px;
+        z-index: 1000;
+        background-color: black;
+        color: white;
+        padding: 0 10px;
+        text-align: center;
+        display: flex;
+    }
+
 </style>
 
-<span class="form-inline px-4">
+<div id="controlPanel">
     <label>Zone:</label>
-    <select disabled="@IsDisabled" class="form-control" @bind="UIMapId">
+    <select disabled="@IsDisabled" @bind="UIMapId">
         @foreach (var wma in wmas)
         {
-            <option value="@wma.UIMapId">@wma.AreaName</option>
+            <option value="@wma.UIMapId">@wma.AreaName - @wma.UIMapId</option>
         }
     </select>
 
@@ -86,7 +93,7 @@
         </ItemTemplate>
     </MatAutocompleteList>
 
-    <button style="margin-left: 10px" type="button" disabled="@IsDisabled" class="form-control btn btn-primary" @onclick="StartDraw">
+    <button type="button" disabled="@IsDisabled" class="btn btn-primary" @onclick="StartDraw">
         @if (IsDisabled)
         {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -99,13 +106,13 @@
     <label>End:</label>
     <InputNumber @bind-Value="EndIndex" style="width: 60px"></InputNumber>
 
-    <button style="margin-left: 10px" type="button" disabled="@IsDisabled" class="form-control btn btn-primary" @onclick="DoPrev">
+    <button type="button" disabled="@IsDisabled" class="btn btn-primary" @onclick="DoPrev">
         --
     </button>
-    <button style="margin-left: 10px" type="button" disabled="@IsDisabled" class="form-control btn btn-primary" @onclick="DoNext">
+    <button type="button" disabled="@IsDisabled" class="btn btn-primary" @onclick="DoNext">
         ++
     </button>
-    <button style="margin-left: 10px" type="button" disabled="@IsDisabled" class="form-control btn btn-primary" @onclick="DoSearch">
+    <button type="button" disabled="@IsDisabled" class="btn btn-primary" @onclick="DoSearch">
         @if (IsDisabled)
         {
             <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -114,14 +121,14 @@
     </button>
 
     <!-- Search Type Combo -->
-    <label style="margin-left: 10px">Search:</label>
-    <select disabled="@IsDisabled" class="form-control" @bind="SearchType">
+    <label>Search:</label>
+    <select disabled="@IsDisabled" @bind="SearchType">
         <option value="0">Original</option>
         <option value="1">A*</option>
         <option value="2">A* avoid models</option>
     </select>
 
-</span>
+</div>
 
 @code {
     private bool IsDisabled { get; set; } = true;
@@ -159,9 +166,9 @@
     System.Threading.Thread searchPathThread;
 
     private int SearchType { get; set; } =
-        (int)PathGraph.eSearchScoreSpot.A_Star_With_Model_Avoidance;
+        (int)SearchStrategy.A_Star_With_Model_Avoidance;
 
-    private int pathColour { get; set; } = (int)Watch.Color.Red;
+    private int pathColour { get; set; } = (int)Watch.Color.Orange;
     private string name { get; set; } = "test";
     private bool clearPath { get; set; } = false;
 
@@ -186,9 +193,6 @@
     private async Task DoSearch()
     {
         IsDisabled = true;
-
-        PathGraph.ProgressTimeoutSeconds = 60;
-        PathGraph.TimeoutSeconds = 600;
 
         await InvokeAsync(StateHasChanged);
 
@@ -216,7 +220,7 @@
 
             pPatherService.SetLocations(start, end);
 
-            var patherPath = pPatherService.DoSearch((PathGraph.eSearchScoreSpot)SearchType);
+            var patherPath = pPatherService.DoSearch((SearchStrategy)SearchType);
 
             IsDisabled = false;
         }

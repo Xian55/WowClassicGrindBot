@@ -10,6 +10,7 @@
       {
         //macro: /cancelform
         "Name": "cancelform",
+        "BaseAction": true,
         "Key": "F1",
         "Form": "None"
       },
@@ -87,7 +88,7 @@
         "WhenUsable": true,
         "Requirements": [
           "Form:Druid_Cat",
-          "!TigersFury",
+          "!Tiger's Fury",
           "InMeleeRange"
         ]
       }
@@ -109,7 +110,7 @@
         "WhenUsable": true,
         "Requirements": [
           "Form:Druid_Cat",
-          "!TigersFury",
+          "!Tiger's Fury",
           "Rip",
           "Rake",
           "InMeleeRange"
@@ -224,10 +225,7 @@
         ]
       },
       {
-        "Name": "AutoAttack",
-        "Requirements": [
-          "!AutoAttacking"
-        ]
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

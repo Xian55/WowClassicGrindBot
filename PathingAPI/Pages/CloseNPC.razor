@@ -1,0 +1,305 @@
+﻿@page "/CloseNPC"
+@using Core.Database
+
+@using static System.Text.Json.JsonSerializer
+
+@implements IAsyncDisposable
+
+@inject IJSRuntime jsRuntime
+@inject PPatherService pPatherService
+@inject AreaDB areaDB
+@inject CreatureDB creatures
+@inject DataConfig dataConfig
+@inject WorldMapAreaDB worldMapAreaDb
+@inject JsonSerializerOptions options
+
+<Watch @ref="@watch" PathColour="@pathColour" Name="@name" ClearPath=@clearPath />
+
+<style>
+    #controlPanel {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        height: 30px;
+        z-index: 1000;
+        background-color: black;
+        color: white;
+        padding: 0 10px;
+        text-align: center;
+        display: flex;
+    }
+</style>
+
+<div id="controlPanel">
+    <label>Zone:</label>
+    <select disabled="@IsDisabled" @bind="UIMapId">
+        @foreach (var wma in wmas)
+        {
+            <option value="@wma.UIMapId">@wma.AreaName - @wma.AreaID</option>
+        }
+    </select>
+
+    <label>Reversed:</label>
+    <input disabled="@IsDisabled" checked="@IsReversed" type="checkbox" @onchange="e => IsReversed = !IsReversed" />
+
+    <label>Type:</label>
+    <select disabled="@IsDisabled" @bind="NpcType">
+        @foreach (var type in Enum.GetValues<NpcFlags>())
+        {
+            <option value="@type">@type.ToStringF()</option>
+        }
+    </select>
+
+    <label>Name:</label>
+    <select disabled="@IsDisabled" @bind="npcName">
+        @foreach (var name in NpcNames)
+        {
+            <option value="@name">@name</option>
+        }
+    </select>
+
+    <button type="button" disabled="@IsDisabled" class="btn btn-primary" @onclick="GenRandomStartPos">
+        @if (IsDisabled)
+        {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        }
+        Random Start Pos
+    </button>
+
+    <button type="button" disabled="@IsDisabled" class="btn btn-primary" @onclick="StartDraw">
+        @if (IsDisabled)
+        {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        }
+        Draw Path
+    </button>
+
+    <button type="button" disabled="@IsDisabled" class="btn btn-primary" @onclick="DoSearch">
+        @if (IsDisabled)
+        {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        }
+        Search
+    </button>
+
+    <label>Search:</label>
+    <select disabled="@IsDisabled" @bind="SearchType">
+        <option value="0">Original</option>
+        <option value="1">A*</option>
+        <option value="2">A* avoid models</option>
+    </select>
+</div>
+
+@code {
+    private Watch watch { get; set; }
+
+    private bool IsDisabled { get; set; } = true;
+    private bool IsReversed { get; set; }
+
+    private string Selected { get; set; } = string.Empty;
+
+    private Vector3 startPos { get; set; }
+
+    private NpcFlags npcType { get; set; }
+    private NpcFlags NpcType
+    {
+        get => npcType;
+        set
+        {
+            npcType = value;
+            OnChanged();
+        }
+    }
+
+    private string npcName { get; set; }
+
+    private int areaId;
+
+    private int uimapId;
+    private int UIMapId
+    {
+        get => uimapId;
+        set
+        {
+            uimapId = value;
+
+            areaId = wmas.First(x => x.UIMapId == value).AreaID;
+            areaDB.Update(areaId);
+        }
+    }
+
+    private IEnumerable<WorldMapArea> wmas { get; set; }
+    private IEnumerable<string> NpcNames { get; set; }
+
+    private System.Threading.Thread searchPathThread;
+
+    private int SearchType { get; set; } =
+        (int)SearchStrategy.A_Star_With_Model_Avoidance;
+
+    private int pathColour { get; set; } = (int)Watch.Color.Orange;
+    private string name { get; set; } = "test";
+    private bool clearPath { get; set; } = false;
+
+    protected override void OnInitialized()
+    {
+        wmas = worldMapAreaDb.Values.OrderBy(x => x.AreaName);
+        NpcNames = GetNpcNames();
+
+        areaDB.Changed += OnChanged;
+
+        pPatherService.OnSphereAdded += OnDrawSphere;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        pPatherService.OnSphereAdded -= OnDrawSphere;
+        areaDB.Changed -= OnChanged;
+
+        await Task.CompletedTask;
+
+        base.Dispose();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        await jsRuntime.InvokeVoidAsync("createScene");
+        pPatherService.Reset();
+
+        IsDisabled = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnDrawSphere(SphereEventArgs e)
+    {
+        await jsRuntime.InvokeVoidAsync("drawSphere", Token,
+            Serialize(e.Location, options), e.Colour, e.Name);
+    }
+
+
+    private async Task DoSearch()
+    {
+        IsDisabled = true;
+        await InvokeAsync(StateHasChanged);
+
+        searchPathThread = new Thread(SearchPathThread);
+        searchPathThread.Start();
+    }
+
+    public async void SearchPathThread()
+    {
+        try
+        {
+            worldMapAreaDb.TryGet(UIMapId, out var wma);
+            float mapId = ContinentDB.NameToId[wma.Continent];
+
+            Vector4 start = new Vector4(startPos, mapId);
+
+            var creature = creatures.Entries.FirstOrDefault(x => x.Value.Name == npcName);
+
+            areaDB.NpcWorldLocations.TryGetValue(creature.Key, out var worldPos);
+            Vector4 end = new Vector4(worldPos[0], mapId);
+
+            pathColour = ((int)SearchType) + 1;
+            name = SearchType.ToString();
+            clearPath = true;
+            await InvokeAsync(StateHasChanged);
+
+            pPatherService.SetLocations(
+                IsReversed ? end : start,
+                IsReversed ? start : end);
+
+            var patherPath = pPatherService.DoSearch((SearchStrategy)SearchType);
+
+            IsDisabled = false;
+        }
+        catch (Exception ex)
+        {
+            await jsRuntime.InvokeVoidAsync("log", ex.Message);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnChanged()
+    {
+        NpcNames = GetNpcNames();
+        npcName = NpcNames.FirstOrDefault();
+
+        base.InvokeAsync(StateHasChanged);
+    }
+
+    private void GenRandomStartPos()
+    {
+        worldMapAreaDb.TryGet(UIMapId, out var wma);
+        float mapId = ContinentDB.NameToId[wma.Continent];
+
+        float mapX = Random.Shared.NextSingle() * 70f + 20f;
+        float mapY = Random.Shared.NextSingle() * 70f + 20f;
+        Vector3 map = new(mapX, mapY, 0);
+
+        Vector4 location = pPatherService.ToWorld(UIMapId, mapX, mapY);
+        startPos = location.AsVector3();
+
+        watch.Log($"StartPos: {map} -- {startPos}");
+
+        pPatherService.DrawPath(mapId, [startPos, startPos]);
+
+        SphereEventArgs sphere = new("startSphere", location, 3);
+        pPatherService.OnSphereAdded?.Invoke(sphere);
+    }
+
+    private void StartDraw()
+    {
+        worldMapAreaDb.TryGet(UIMapId, out var wma);
+        float mapId = ContinentDB.NameToId[wma.Continent];
+
+        var creature = creatures.Entries.FirstOrDefault(x => x.Value.Name == npcName);
+
+        areaDB.NpcWorldLocations.TryGetValue(creature.Key, out var end);
+
+        pathColour = (int)Watch.Color.Orange;
+        name = "route";
+        clearPath = false;
+
+        Vector3[] path = IsReversed
+            ? [end[0], startPos]
+            : [startPos, end[0]];
+
+        pPatherService.DrawPath(mapId, path);
+
+        StateHasChanged();
+    }
+
+    public IEnumerable<string> GetNpcNames()
+    {
+        if (areaId == 0)
+        {
+            return [];
+        }
+
+        List<string> names = new();
+
+        foreach (var npc in areaDB.GetByNpcFlag(NpcType))
+        {
+            if (!areaDB.NpcWorldLocations.TryGetValue(npc.Entry, out var worldPos))
+            {
+                continue;
+            }
+            var firstPos = worldPos[0];
+            var pos = WorldMapAreaDB.ToMap_FlipXY(firstPos, areaDB.Hitbox!.Value);
+
+            if (pos.X > 0 && pos.X < 100 && pos.Y > 0 && pos.Y < 100 &&
+                !string.IsNullOrEmpty(npc.Name))
+            {
+                names.Add(npc.Name);
+            }
+        }
+
+        return names;
+    }
+}

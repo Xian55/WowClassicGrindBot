@@ -103,8 +103,7 @@
         "Name": "AutoAttack",
         "Requirements": [
           "InMeleeRange",
-          "!AutoShot",
-          "!AutoAttacking"
+          "!AutoShot"
         ]
       }
     ]

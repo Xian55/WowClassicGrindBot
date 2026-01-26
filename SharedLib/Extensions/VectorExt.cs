@@ -73,18 +73,11 @@ public static class VectorExt
         float ABAPproduct = Vector2.Dot(AP, AB);    //The DOT product of a_to_p and a_to_b
         float distance = ABAPproduct / magnitudeAB; //The normalized "distance" from a to your closest point
 
-        if (distance < 0)     //Check if P projection is over vectorAB
-        {
-            return A;
-        }
-        else if (distance > 1)
-        {
-            return B;
-        }
-        else
-        {
-            return A + (AB * distance);
-        }
+        return distance < 0
+            ? A
+            : distance > 1
+            ? B
+            : A + (AB * distance);
     }
 
     public static float TotalDistance<T>(ReadOnlySpan<T> points, Func<T, T, float> accumulator)
@@ -100,16 +93,6 @@ public static class VectorExt
         return totalDistance;
     }
 
-    public static Vector2 AsVector2(this Vector3 v3)
-    {
-        return new Vector2(v3.X, v3.Y);
-    }
-
-    public static Vector3 AsVector3(this Vector4 v4)
-    {
-        return new Vector3(v4.X, v4.Y, v4.Z);
-    }
-
     public static void Deconstruct(this Vector3 v3, out float x, out float y, out float z)
     {
         x = v3.X;
@@ -121,5 +104,10 @@ public static class VectorExt
     {
         x = v2.X;
         y = v2.Y;
+    }
+
+    public static string ToStringF(this Vector3 v)
+    {
+        return $"({v.X} {v.Y} {v.Z})";
     }
 }

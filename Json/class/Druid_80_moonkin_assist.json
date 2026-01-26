@@ -13,8 +13,8 @@
   "IntVariables": {
     "MIN_TARGET_HP_DOT%": 20,
     "MIN_TARGET_HP_CD%": 75,
-    "Debuff_Faerie Fire": 136033,
-    "Debuff_Mangle": 132135,
+    "TDebuff_Faerie Fire": 136033,
+    "TDebuff_Mangle": 132135,
     "FBuff_Mount": 132239,
     "USE_TRINKET_1": 1,
     "USE_TRINKET_2": 1
@@ -28,6 +28,7 @@
       {
         //macro: /cancelform
         "Name": "cancelform",
+        "BaseAction": true,
         "Key": "F1",
         "Form": "None"
       },

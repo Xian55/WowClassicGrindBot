@@ -28,10 +28,13 @@ internal sealed class Program
     private const Locale locale = Locale.enUS;
     private const string path = "../../../data/";
     // SoM 1.14.4.51829
+    // SoD 1.15.8.63829
     // TBCC 2.5.4.44833
-    // WOTLK 3.4.3.52237
-    // SoD 1.15.0.52610
-    private const string build = "1.15.0.52610";
+    // WOTLK 3.4.5.63697
+    // Cata 4.4.2.60895
+    // Mop 5.5.1.63698
+    // Legacy Cata 8.1.0.27826 -- used for legacy Cataclysm
+    private const string build = "1.15.8.63829";
 
     public static void Main()
     {
@@ -40,11 +43,20 @@ internal sealed class Program
 
     private static async Task MainAsync()
     {
+        await GenerateFactionTemplate(path);
+
         await GenerateItems(path);
         await GenerateConsumables(path);
         await GenerateSpells(path);
         await GenerateTalents(path);
         await GenerateWorldMapArea(path);
+    }
+
+    private static async Task GenerateFactionTemplate(string path)
+    {
+        FactionTemplateExtractor extractor = new(path);
+        await DownloadRequirements(path, extractor, build);
+        extractor.Run();
     }
 
     private static async Task GenerateItems(string path)
@@ -80,7 +92,14 @@ internal sealed class Program
     {
         TalentExtractor extractor = new(path);
         await DownloadRequirements(path, extractor, build);
-        extractor.Run();
+        try
+        {
+            extractor.Run();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error generating talents: {ex.Message}");
+        }
     }
 
     private static async Task GenerateWorldMapArea(string path)

@@ -2,16 +2,19 @@ using Core.Database;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using SharedLib;
+
 using System;
 using System.Collections.Immutable;
 using System.Threading;
+
+using static System.Diagnostics.Stopwatch;
 
 namespace Core;
 
 public sealed class AddonReader : IAddonReader
 {
     private readonly IAddonDataProvider reader;
-    private readonly AutoResetEvent resetEvent;
 
     private readonly PlayerReader playerReader;
     private readonly CreatureDB creatureDb;
@@ -21,6 +24,8 @@ public sealed class AddonReader : IAddonReader
     private readonly ImmutableArray<IReader> readers;
 
     public event Action? AddonDataChanged;
+
+    public ManualResetEventSlim DataReady { get; }
 
     public RecordInt GlobalTime { get; }
 
@@ -33,17 +38,17 @@ public sealed class AddonReader : IAddonReader
     public double AvgUpdateLatency { private set; get; }
 
     public AddonReader(IAddonDataProvider reader,
-        PlayerReader playerReader, AutoResetEvent resetEvent,
+        PlayerReader playerReader, ManualResetEventSlim resetEvent,
         CreatureDB creatureDb,
         CombatLog combatLog,
         DataFrame[] frames,
         IServiceProvider sp)
     {
         this.reader = reader;
-        this.resetEvent = resetEvent;
         this.creatureDb = creatureDb;
         this.combatLog = combatLog;
         this.playerReader = playerReader;
+        DataReady = resetEvent;
 
         GlobalTime = new(frames.Length - 2);
 
@@ -55,11 +60,12 @@ public sealed class AddonReader : IAddonReader
         IAddonDataProvider reader = this.reader;
         reader.UpdateData();
 
-        if (!GlobalTime.UpdatedNoEvent(reader))
+        long lastUpdate = GlobalTime.LastChanged;
+
+        if (!GlobalTime.Updated(reader))
             return;
 
-        AvgUpdateLatency = (DateTime.UtcNow - GlobalTime.LastChanged).TotalMilliseconds;
-        GlobalTime.UpdateTime();
+        AvgUpdateLatency = GetElapsedTime(lastUpdate).TotalMilliseconds;
 
         if (GlobalTime.Value <= 3)
         {
@@ -78,8 +84,8 @@ public sealed class AddonReader : IAddonReader
             lastTargetGuid = playerReader.TargetGuid;
 
             TargetName =
-                creatureDb.Entries.TryGetValue(playerReader.TargetId, out string? name)
-                ? name
+                creatureDb.Entries.TryGetValue(playerReader.TargetId, out Creature c)
+                ? c.Name
                 : reader.GetString(16).Trim() + reader.GetString(17).Trim();
         }
 
@@ -87,12 +93,12 @@ public sealed class AddonReader : IAddonReader
         {
             lastMouseOverId = playerReader.MouseOverId;
             MouseOverName =
-                creatureDb.Entries.TryGetValue(playerReader.MouseOverId, out string? name)
-                ? name
+                creatureDb.Entries.TryGetValue(playerReader.MouseOverId, out Creature c)
+                ? c.Name
                 : string.Empty;
         }
 
-        resetEvent.Set();
+        DataReady.Set();
     }
 
     public void SessionReset()

@@ -4,6 +4,15 @@
   "PathFilename": "_pack\\1-20\\Draenei\\1-5_Azuremyst Isle.json",
   "PathThereAndBack": true,
   "PathReduceSteps": true,
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
@@ -36,13 +45,12 @@
         "Name": "Lightning Bolt",
         "Key": "2",
         "HasCastBar": true,
-        "Requirement": "not InMeleeRange"
+        "Requirement": "!InMeleeRange"
       },
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!Casting",
-          "!AutoAttacking"
+          "!Casting"
         ]
       },
       {

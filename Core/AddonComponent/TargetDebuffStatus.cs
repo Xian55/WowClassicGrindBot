@@ -23,6 +23,10 @@ public sealed class TargetDebuffStatus : IReader
     // Priest
     [Names(["Shadow Word: Pain"])]
     public bool Shadow_Word_Pain() => v[Mask._0];
+    public bool Holy_Fire() => v[Mask._1];
+    public bool Vampiric_Embrace() => v[Mask._2];
+    public bool Silence() => v[Mask._3];
+    public bool Shackle_Undead() => v[Mask._4];
 
     // Druid
     public bool Demoralizing_Roar() => v[Mask._0];

@@ -1,12 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using AnTCP.Client;
+
 using Microsoft.Extensions.Logging;
+
+using PPather;
 using PPather.Data;
-using System.Threading;
-using AnTCP.Client;
+
 using SharedLib;
+
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Numerics;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 
 #pragma warning disable 162
 
@@ -17,22 +25,29 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
     private const bool debug = false;
     private const int watchdogPollMs = 500;
 
-    public enum EMessageType
+    private const EMessageType TYPE = EMessageType.PATH;
+    private const PathRequestFlags FLAGS = PathRequestFlags.SMOOTH_CATMULLROM | PathRequestFlags.VALIDATE_CPOP;
+
+    private enum EMessageType
     {
-        PATH,
-        MOVE_ALONG_SURFACE,
-        RANDOM_POINT,
-        RANDOM_POINT_AROUND,
-        CAST_RAY,
-        RANDOM_PATH
+        PATH,                   // Generate a simple straight path
+        MOVE_ALONG_SURFACE,     // Move an entity by small deltas using pathfinding (usefull to prevent falling off edges...)
+        RANDOM_POINT,           // Get a random point on the mesh
+        RANDOM_POINT_AROUND,    // Get a random point on the mesh in a circle
+        CAST_RAY,               // Cast a movement ray to test for obstacles
+        RANDOM_PATH,            // Generate a straight path where the nodes get offsetted by a random value
+        EXPLORE_POLY,           // Generate a route to explore the polygon (W.I.P)
+        CONFIGURE_FILTER,       // Cpnfigure the clients dtQueryFilter area costs
     }
 
-    public enum PathRequestFlags
+    private enum PathRequestFlags
     {
         NONE = 0,
-        CHAIKIN = 1,
-        CATMULLROM = 2,
-        FIND_LOCATION = 4
+        SMOOTH_CHAIKIN = 1 << 0,        // Smooth path using Chaikin Curve
+        SMOOTH_CATMULLROM = 1 << 1,     // Smooth path using Catmull-Rom Spline
+        SMOOTH_BEZIERCURVE = 1 << 2,    // Smooth path using Bezier Curve
+        VALIDATE_CPOP = 1 << 3,         // Validate smoothed path using closestPointOnPoly
+        VALIDATE_MAS = 1 << 4,          // Validate smoothed path using moveAlongSurface
     };
 
     private readonly ILogger<RemotePathingAPIV3> logger;
@@ -42,11 +57,19 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
     private readonly Thread connectionWatchdog;
     private readonly CancellationTokenSource cts;
 
-    public RemotePathingAPIV3(ILogger<RemotePathingAPIV3> logger,
+    private readonly IPathVizualizer pathViz;
+
+    private int uiMap;
+    private Vector3[] result = Array.Empty<Vector3>();
+
+    public RemotePathingAPIV3(
+        IPathVizualizer pathViz,
+        ILogger<RemotePathingAPIV3> logger,
         string ip, int port, WorldMapAreaDB areaDB)
     {
         this.logger = logger;
         this.areaDB = areaDB;
+        this.pathViz = pathViz;
 
         cts = new();
 
@@ -60,23 +83,33 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
         RequestDisconnect();
     }
 
-    #region old
-
     public ValueTask DrawLines(List<LineArgs> lineArgs)
     {
-        return ValueTask.CompletedTask;
+        if (pathViz is NoPathVisualizer || result == Array.Empty<Vector3>())
+            return ValueTask.CompletedTask;
+
+        StringContent content =
+            new(JsonSerializer.Serialize(new DrawMapPathRequest(uiMap, result), pathViz.Options),
+            Encoding.UTF8, "application/json");
+
+        pathViz.DrawLines(lineArgs).AsTask().Wait();
+
+        return new(pathViz.Client.PostAsync("DrawMapPath", content));
     }
 
     public ValueTask DrawSphere(SphereArgs args)
     {
-        return ValueTask.CompletedTask;
+        if (pathViz is NoPathVisualizer)
+            return ValueTask.CompletedTask;
+
+        return pathViz.DrawSphere(args);
     }
 
     public Vector3[] FindMapRoute(int uiMap, Vector3 mapFrom, Vector3 mapTo)
     {
         if (!client.IsConnected ||
             !areaDB.TryGet(uiMap, out WorldMapArea area))
-            return Array.Empty<Vector3>();
+            return result = Array.Empty<Vector3>();
 
         try
         {
@@ -94,12 +127,13 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
             if (debug)
                 logger.LogDebug($"Finding map route from {mapFrom}({worldFrom}) map {uiMap} to {mapTo}({worldTo}) map {uiMap}...");
 
-            Vector3[] path = client.Send((byte)EMessageType.PATH,
-                (area.MapID, PathRequestFlags.FIND_LOCATION | PathRequestFlags.CATMULLROM,
+            Vector3[] path = client.Send(
+                (byte)TYPE,
+                (area.MapID, FLAGS,
                 worldFrom.X, worldFrom.Y, worldFrom.Z, worldTo.X, worldTo.Y, worldTo.Z)).AsArray<Vector3>();
 
             if (path.Length == 1 && path[0] == Vector3.Zero)
-                return Array.Empty<Vector3>();
+                return result = Array.Empty<Vector3>();
 
             for (int i = 0; i < path.Length; i++)
             {
@@ -109,22 +143,24 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
                 path[i] = areaDB.ToMap_FlipXY(path[i], area.MapID, uiMap);
             }
 
-            return path;
+            return result = path;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Finding map route from {mapFrom} to {mapTo}");
-            return Array.Empty<Vector3>();
+            return result = Array.Empty<Vector3>();
         }
     }
 
-    public Vector3[] FindWorldRoute(int uiMap, Vector3 worldFrom, Vector3 worldTo)
+    public Vector3[] FindWorldRoute(int uiMap, bool startIndoors, Vector3 worldFrom, Vector3 worldTo)
     {
         if (!client.IsConnected)
-            return Array.Empty<Vector3>();
+            return result = Array.Empty<Vector3>();
 
         if (!areaDB.TryGet(uiMap, out WorldMapArea area))
-            return Array.Empty<Vector3>();
+            return result = Array.Empty<Vector3>();
+
+        this.uiMap = uiMap;
 
         try
         {
@@ -139,19 +175,20 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
             if (debug)
                 logger.LogDebug($"Finding world route from {worldFrom}({worldFrom}) map {uiMap} to {worldTo}({worldTo}) map {uiMap}...");
 
-            Vector3[] path = client.Send((byte)EMessageType.PATH,
-                (area.MapID, PathRequestFlags.FIND_LOCATION | PathRequestFlags.CATMULLROM,
+            Vector3[] path = client.Send(
+                (byte)TYPE,
+                (area.MapID, FLAGS,
                 worldFrom.X, worldFrom.Y, worldFrom.Z, worldTo.X, worldTo.Y, worldTo.Z)).AsArray<Vector3>();
 
             if (path.Length == 1 && path[0] == Vector3.Zero)
-                return Array.Empty<Vector3>();
+                return result = Array.Empty<Vector3>();
 
-            return path;
+            return result = path;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, $"Finding world route from {worldFrom} to {worldTo}");
-            return Array.Empty<Vector3>();
+            return result = Array.Empty<Vector3>();
         }
     }
 
@@ -181,8 +218,6 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
             client.Disconnect();
         }
     }
-
-    #endregion old
 
     private void ObserveConnection()
     {

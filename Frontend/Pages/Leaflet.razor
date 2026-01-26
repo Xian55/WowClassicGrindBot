@@ -1,0 +1,35 @@
+@page "/Leaflet/{expansion?}/{continent?}/{zoom:int?}/{x:float?}/{y:float?}/"
+
+@inject IJSRuntime jsRuntime
+@inject PlayerReader PlayerReader
+@inject FrontendUpdate updater
+
+<LeafletComponent expansion="@expansion"
+                  continent="@continent"
+                  zoom="@zoom"
+                  x="@x"
+                  y="@y"
+                  Size="100vh"
+                  Edit=true />
+
+@code {
+    [Parameter] public string expansion { get; set; } = "som";
+    [Parameter] public string continent { get; set; } = "Azeroth";
+    [Parameter] public int zoom { get; set; } = 5;
+    [Parameter] public float x { get; set; } = 0;
+    [Parameter] public float y { get; set; } = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            continent = PlayerReader.WorldMapArea.Continent;
+            expansion = PlayerReader.Version.ToStringF().ToLower();
+
+            StateHasChanged();
+
+            await Task.CompletedTask;
+        }
+    }
+
+}

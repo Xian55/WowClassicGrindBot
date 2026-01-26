@@ -61,7 +61,7 @@
         "Key": "2",
         "HasCastBar": true,
         "Requirements": [
-          "not InMeleeRange",
+          "!InMeleeRange",
           "Mana%>30"
         ]
       },
@@ -76,8 +76,7 @@
         "Log": false
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "not AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",
@@ -90,13 +89,13 @@
       {
         "Name": "Rockbiter Weapon",
         "Key": "5",
-        "Requirement": "not HasMainHandEnchant",
+        "Requirement": "!HasMainHandEnchant",
         "AfterCastAuraExpected": true
       },
       {
         "Name": "Lightning Shield",
         "Key": "6",
-        "Requirement": "not Lightning Shield"
+        "Requirement": "!Lightning Shield"
       }
     ]
   },

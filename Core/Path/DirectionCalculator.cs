@@ -1,5 +1,4 @@
-﻿using System;
-using System.Numerics;
+﻿using System.Numerics;
 
 using static System.MathF;
 
@@ -21,5 +20,12 @@ public static class DirectionCalculator
         return new(
             Cos(wowRadian + (PI / 2)),
             Sin(wowRadian - (PI / 2)));
+    }
+
+    public static Vector2 ToNormalRadianNoFlip(float wowRadian)
+    {
+        return new(
+            Cos(wowRadian),
+            Sin(wowRadian));
     }
 }

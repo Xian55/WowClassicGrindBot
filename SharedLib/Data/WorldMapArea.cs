@@ -11,7 +11,8 @@ public readonly record struct WorldMapArea
     public float LocBottom { get; init; }
     public int UIMapId { get; init; }
     public string Continent { get; init; }
-
+    public int ParentAreaId { get; init; }
+    public int ExplorationLevel { get; init; }
 
     public float ToWorldX(float value)
     {

@@ -11,7 +11,8 @@ public enum CursorType : byte
     Vendor = 6,
     Repair = 7,
     Innkeeper = 8,
-    Quest = 9
+    Quest = 9,
+    Speak = 10
     // todo salvage icon
 }
 
@@ -29,6 +30,7 @@ public static class CursorType_Extension
         CursorType.Repair => nameof(CursorType.Repair),
         CursorType.Innkeeper => nameof(CursorType.Innkeeper),
         CursorType.Quest => nameof(CursorType.Quest),
+        CursorType.Speak => nameof(CursorType.Speak),
         _ => nameof(CursorType.None)
     };
 }

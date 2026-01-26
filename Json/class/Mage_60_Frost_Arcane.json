@@ -1,0 +1,231 @@
+{
+  "ClassName": "Mage",
+  "Loot": true,
+  "Mode": "AttendedGrind",
+  "NPCMaxLevels_Below": 10,
+  "NPCMaxLevels_Above": 2,
+  "Mount": {
+    "Key": "N0"
+  },
+  "PathFilename": "Burning Steppes_2024_08_15_23_32_17.json",
+  "PathThereAndBack": true,
+  "PathReduceSteps": true,
+  "IntVariables": {
+    "Item_Conjure_Drink": 8079,
+    "Item_Conjure_Food": 8076,
+    "MIN_FOOD%": 50,
+    "MIN_WATER%": 30,
+    "MIN_WATER": 8,
+    "MIN_FOOD": 8,
+    "MIN_MANA_SPELL%": 60
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Ice Barrier",
+        "Key": "7",
+        "Requirement": "!Ice Barrier && Talent:Ice Barrier"
+      },
+      {
+        "Name": "Frostbolt",
+        "Key": "1",
+        "HasCastBar": true,
+        "Requirements": [
+          "SpellInRange:3",
+          "Mana% > MIN_MANA_SPELL%"
+        ]
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "BeforeCastStop": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting",
+          "SpellInRange:1",
+          "Mana% < MIN_MANA_SPELL%"
+        ],
+        "AfterCastWaitCombat": true,
+        "AfterCastDelay": 500
+      }
+    ]
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > 1 && Health% < 50) || TargetElite" 
+      },
+      {
+        "Name": "Frost Nova",
+        "Key": 6,
+        "Requirement": "InMeleeRange"
+      },
+      {
+        "Name": "HP Potion",
+        "Key": 7,
+        "Requirement": "Health% < 50"
+      },
+      {
+        "name": "Blink",
+        "Key": "F3",
+        "Requirement": "!InMeleeRange"
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Ice Barrier",
+        "Key": "7",
+        "Requirement": "!Ice Barrier && Talent:Ice Barrier"
+      },
+      {
+        "Name": "Cone of Cold",
+        "Key": "N8",
+        "BeforeCastFaceTarget": true,
+        "Requirements": [
+          "TargetHealth% > 2",
+          "TargetHealth% < 20",
+          "InMeleeRange"
+        ]
+      },
+      {
+        "Name": "Fire Blast",
+        "Key": "5",
+        "Requirements": [
+          "TargetHealth% > 2",
+          "TargetHealth% < 20",
+          "SpellInRange:4"
+        ]
+      },
+      {
+        "Name": "Stepback",
+        "Key": "S",
+        "PressDuration": 3000,
+        "BaseAction": true,
+        "BeforeCastFaceTarget": true,
+        "Requirements": [
+          "Frostbite",
+          "TargetsMe",
+          "InMeleeRange"
+        ],
+        "Interrupt": "InMeleeRange && TargetAlive"
+      },
+      {
+        "Name": "Frost Nova",
+        "Key": 6,
+        "BeforeCastFaceTarget": true,
+        "Requirements": [
+          "InMeleeRange"
+        ],
+        "Interrupt": "InMeleeRange && TargetAlive",
+        "AfterCastStepBack": -1
+      },
+      {
+        "Name": "Arcane Missiles",
+        "Key": "2",
+        "HasCastBar": true,
+        "Requirements": [
+          "SpellInRange:3",
+          "TargetHealth% > 30",
+          "Mana% > MIN_MANA_SPELL%"
+        ],
+        "AfterCastWaitCastbar": true
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "BeforeCastStop": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting",
+          "SpellInRange:1",
+          "Mana% < MIN_MANA_SPELL%"
+        ],
+        "AfterCastDelay": 500
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "!HasRangedWeapon",
+          "!Casting",
+          "!Shooting"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Casting",
+          "!Shooting"
+        ]
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "Key": "N1",
+        "Requirement": "Health% < MIN_FOOD%"
+      },
+      {
+        "Name": "Drink",
+        "Key": "N2",
+        "Requirement": "Mana% < MIN_WATER%"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 1,
+        "Name": "Menu Closed",
+        "Requirement": "MenuOpen"
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Cost": 2,
+        "Name": "Evocation",
+        "Key": "N9",
+        "HasCastBar": true,
+        "Requirements": [
+          "Mana% < 50"
+        ],
+        "Interrupt": "!Mana% == 100",
+        "AfterCastWaitCastbar": true
+      },
+      {
+        "Name": "Ice Armor",
+        "Key": "3",
+        "Requirement": "!Frost Armor"
+      },
+      {
+        "Name": "Arcane Intellect",
+        "Key": "4",
+        "Requirement": "!Arcane Intellect"
+      },
+      {
+        "Name": "Conjure Water",
+        "HasCastBar": true,
+        "Key": "9",
+        "Requirement": "!BagItem:Item_Conjure_Drink:MIN_WATER",
+        "AfterCastWaitCastbar": true,
+        "AfterCastWaitBag": true
+      },
+      {
+        "Name": "Conjure Food",
+        "HasCastBar": true,
+        "Key": "8",
+        "Requirement": "!BagItem:Item_Conjure_Food:MIN_FOOD",
+        "AfterCastWaitCastbar": true,
+        "AfterCastWaitBag": true
+      }
+    ]
+  }
+}

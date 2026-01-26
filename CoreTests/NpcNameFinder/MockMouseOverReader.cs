@@ -4,11 +4,11 @@ namespace CoreTests;
 
 internal sealed class MockMouseOverReader : IMouseOverReader
 {
-    public int MouseOverLevel => throw new System.NotImplementedException();
+    public int MouseOverLevel => 0;
 
-    public UnitClassification MouseOverClassification => throw new System.NotImplementedException();
+    public UnitClassification MouseOverClassification => UnitClassification.None;
 
-    public int MouseOverId => throw new System.NotImplementedException();
+    public int MouseOverId => 0;
 
-    public int MouseOverGuid => throw new System.NotImplementedException();
+    public int MouseOverGuid => 0;
 }

@@ -1,10 +1,10 @@
-using System.Numerics;
-
 using Core.Goals;
 
 using Microsoft.Extensions.Logging;
 
 using SharedLib.Extensions;
+
+using System.Numerics;
 
 namespace Core;
 
@@ -29,7 +29,8 @@ public sealed partial class MountHandler : IMountHandler
         ClassConfiguration classConfig, AddonBits bits, Wait wait,
         PlayerReader playerReader, ActionBarBits<IUsableAction> usableAction,
         ActionBarCooldownReader cooldownReader,
-        StopMoving stopMoving, IBlacklist blacklist)
+        StopMoving stopMoving,
+        IBlacklist targetBlacklist)
     {
         this.logger = logger;
         this.classConfig = classConfig;
@@ -40,7 +41,7 @@ public sealed partial class MountHandler : IMountHandler
         this.playerReader = playerReader;
         this.bits = bits;
         this.stopMoving = stopMoving;
-        this.targetBlacklist = blacklist;
+        this.targetBlacklist = targetBlacklist;
     }
 
     public bool CanMount()
@@ -63,6 +64,7 @@ public sealed partial class MountHandler : IMountHandler
         wait.Update();
 
         input.PressMount();
+        wait.Update();
 
         float e = wait.Until(
             playerReader.DoubleNetworkLatency,
@@ -70,8 +72,10 @@ public sealed partial class MountHandler : IMountHandler
 
         LogCastStarted(logger, e);
 
+        wait.Update();
+
         e = wait.Until(
-            playerReader.RemainCastMs + playerReader.NetworkLatency,
+            playerReader.RemainCastMs + playerReader.DoubleNetworkLatency,
             MountedOrNotCastingOrValidTargetOrEnteredCombat);
 
         LogCastEnded(logger, e);
@@ -101,6 +105,9 @@ public sealed partial class MountHandler : IMountHandler
     public void Dismount()
     {
         input.PressDismount();
+        wait.Update();
+
+        LogIsMounted(logger, bits.Mounted());
     }
 
     public bool IsMounted()

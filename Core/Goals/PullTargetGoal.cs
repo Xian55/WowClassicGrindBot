@@ -6,6 +6,8 @@ using SharedLib.NpcFinder;
 
 using System;
 
+using static System.Diagnostics.Stopwatch;
+
 namespace Core.Goals;
 
 public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
@@ -13,6 +15,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
     public override float Cost => 7f;
 
     private const int AcquireTargetTimeMs = 5000;
+    private const int MAX_PULL_DURATION = 15_000;
 
     private readonly ILogger<PullTargetGoal> logger;
     private readonly ConfigurableInput input;
@@ -26,7 +29,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
     private readonly NpcNameTargeting npcNameTargeting;
     private readonly CastingHandler castingHandler;
     private readonly IMountHandler mountHandler;
-    private readonly CombatUtil combatUtil;
+    private readonly CombatTracker combatTracker;
     private readonly IBlacklist targetBlacklist;
 
     private readonly KeyAction? approachKey;
@@ -34,16 +37,17 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
 
     private readonly bool requiresNpcNameFinder;
 
-    private DateTime pullStart;
+    private long pullStart;
 
-    private double PullDurationMs => (DateTime.UtcNow - pullStart).TotalMilliseconds;
+    private double PullDurationMs => GetElapsedTime(pullStart).TotalMilliseconds;
 
     public PullTargetGoal(ILogger<PullTargetGoal> logger, ConfigurableInput input,
         Wait wait, CombatLog combatlog, PlayerReader playerReader,
-        AddonBits bits, IBlacklist blacklist,
+        AddonBits bits,
+        IBlacklist targetBlacklist,
         StopMoving stopMoving, CastingHandler castingHandler,
         IMountHandler mountHandler, NpcNameTargeting npcNameTargeting,
-        StuckDetector stuckDetector, CombatUtil combatUtil,
+        StuckDetector stuckDetector, CombatTracker combatTracker,
         ClassConfiguration classConfig)
         : base(nameof(PullTargetGoal))
     {
@@ -58,8 +62,8 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
         this.mountHandler = mountHandler;
         this.npcNameTargeting = npcNameTargeting;
         this.stuckDetector = stuckDetector;
-        this.combatUtil = combatUtil;
-        this.targetBlacklist = blacklist;
+        this.combatTracker = combatTracker;
+        this.targetBlacklist = targetBlacklist;
         this.classConfig = classConfig;
 
         Keys = classConfig.Pull.Sequence;
@@ -82,11 +86,13 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             }
         }
 
-        AddPrecondition(GoapKey.incombat, false);
         AddPrecondition(GoapKey.hastarget, true);
         AddPrecondition(GoapKey.targetisalive, true);
+        if (classConfig.Mode != Mode.AssistFocus)
+        {
+            AddPrecondition(GoapKey.targettargetsus, false);
+        }
         AddPrecondition(GoapKey.targethostile, true);
-        AddPrecondition(GoapKey.pulled, false);
         AddPrecondition(GoapKey.withinpullrange, true);
 
         AddEffect(GoapKey.pulled, true);
@@ -94,7 +100,6 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
 
     public override void OnEnter()
     {
-        combatUtil.Update();
         wait.Update();
         stuckDetector.Reset();
 
@@ -103,10 +108,13 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             mountHandler.Dismount();
         }
 
-        if (Keys.Length != 0 && input.StopAttack.GetRemainingCooldown() == 0)
+        if (Keys.Length != 0 && !input.StopAttack.OnCooldown())
         {
             Log("Stop auto interact!");
             input.PressStopAttack();
+            wait.Update();
+            stopMoving.StopForward();
+            wait.Update(playerReader.DoubleNetworkLatency);
             wait.Update();
         }
 
@@ -115,7 +123,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             npcNameTargeting.ChangeNpcType(NpcNames.Enemy);
         }
 
-        pullStart = DateTime.UtcNow;
+        pullStart = GetTimestamp();
     }
 
     public override void OnExit()
@@ -130,7 +138,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
     {
         if (e.GetType() == typeof(ResumeEvent))
         {
-            pullStart = DateTime.UtcNow;
+            pullStart = GetTimestamp();
         }
     }
 
@@ -138,14 +146,9 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
     {
         wait.Update();
 
-        if (combatLog.DamageDoneCount() > 0)
+        if (PullDurationMs > MAX_PULL_DURATION)
         {
-            SendGoapEvent(new GoapStateEvent(GoapKey.pulled, true));
-            return;
-        }
-
-        if (PullDurationMs > 15_000)
-        {
+            input.PressStopAttack();
             input.PressClearTarget();
             Log("Pull taking too long. Clear target and face away!");
             input.TurnRandomDir(1000);
@@ -156,7 +159,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             bits.Pet() &&
             (!playerReader.PetTarget() ||
             playerReader.TargetGuid != playerReader.PetTargetGuid) &&
-            input.PetAttack.GetRemainingCooldown() == 0)
+            !input.PetAttack.OnCooldown())
         {
             input.PressStopAttack();
             input.PressPetAttack();
@@ -164,9 +167,11 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
 
         bool castAny = false;
         bool spellInQueue = false;
-        for (int i = 0; i < Keys.Length; i++)
+
+        ReadOnlySpan<KeyAction> keys = Keys;
+        for (int i = 0; i < keys.Length; i++)
         {
-            KeyAction keyAction = Keys[i];
+            KeyAction keyAction = keys[i];
 
             if (keyAction.Name.Equals(input.Approach.Name,
                 StringComparison.OrdinalIgnoreCase))
@@ -181,15 +186,15 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
                 break;
             }
 
-            if (castAny = castingHandler.Cast(keyAction, PullPrevention))
-            {
+            bool interrupt() => keyAction.CanBeInterrupted() || PullPrevention();
 
+            if (castAny = castingHandler.Cast(keyAction, interrupt))
+            {
+                castAny = !keyAction.BaseAction;
             }
             else if (PullPrevention() &&
-                (playerReader.IsCasting() ||
-                 bits.Auto_Attack() ||
-                 bits.AutoShot() ||
-                 bits.Shoot()))
+                !bits.Combat() &&
+                (playerReader.IsCasting() || bits.Any_AutoAttack()))
             {
                 Log("Preventing pulling possible tagged target!");
                 input.PressStopAttack();
@@ -199,64 +204,45 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             }
         }
 
-        if (castAny || spellInQueue || playerReader.IsCasting())
-            return;
-
-        if (combatUtil.EnteredCombat())
+        if (bits.Target() && combatLog.EvadeMobs.Contains(playerReader.TargetGuid))
         {
-            if (wait.Until(AcquireTargetTimeMs, CombatLogChanged) >= 0)
-            {
-                if (combatLog.DamageTakenCount() > 0 && !bits.Target_Combat())
-                {
-                    stopMoving.Stop();
+            Log("Evading mob");
 
-                    input.PressClearTarget();
-                    wait.Update();
-
-                    combatUtil.AcquiredTarget(AcquireTargetTimeMs);
-                    return;
-                }
-
-                SendGoapEvent(new GoapStateEvent(GoapKey.pulled, true));
-                return;
-            }
-        }
-        else if (bits.Combat())
-        {
-            SendGoapEvent(new GoapStateEvent(GoapKey.pulled, true));
+            input.PressStopAttack();
+            input.PressClearTarget();
+            wait.Update();
             return;
         }
+        else if (bits.Target())
+        {
+            combatLog.ToPull.Add(playerReader.TargetGuid);
+        }
+
+        if (castAny || spellInQueue || playerReader.IsCasting() || (bits.AutoShot() && !playerReader.IsInMeleeRange()))
+            return;
 
         approachAction();
     }
 
-    private bool CombatLogChanged()
-    {
-        return
-            bits.Target_Combat() ||
-            combatLog.DamageDoneCount() > 0 ||
-            combatLog.DamageTakenCount() > 0 ||
-            playerReader.TargetTarget is
-            UnitsTarget.Me or
-            UnitsTarget.Pet or
-            UnitsTarget.PartyOrPet;
-    }
-
     private void DefaultApproach()
     {
-        if (input.Approach.GetRemainingCooldown() != 0)
+        if (input.Approach.OnCooldown())
             return;
+
+        if (!bits.SoftInteract() || EligibleEnemySoftTargetExists())
+        {
+            input.PressApproach();
+            wait.Update();
+        }
 
         if (!stuckDetector.IsMoving())
             stuckDetector.Update();
-
-        input.PressApproach();
     }
 
     private void ConditionalApproach()
     {
         if (approachKey == null ||
-            (!approachKey.CanRun() && approachKey.GetRemainingCooldown() <= 0))
+            (!approachKey.CanRun() && !approachKey.OnCooldown()))
         {
             stopMoving.Stop();
             return;
@@ -265,25 +251,22 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
         DefaultApproach();
     }
 
-    private bool SuccessfulPull()
-    {
-        return playerReader.TargetTarget is
-            UnitsTarget.Me or
-            UnitsTarget.Pet or
-            UnitsTarget.PartyOrPet ||
-            combatLog.DamageDoneGuid.ElapsedMs() < CastingHandler.GCD ||
-            playerReader.IsInMeleeRange();
-    }
-
     private bool PullPrevention()
     {
-        return targetBlacklist.Is() &&
-            playerReader.TargetTarget is not
+        return !targetBlacklist.Is() ||
+            playerReader.TargetTarget is
             UnitsTarget.None or
             UnitsTarget.Me or
             UnitsTarget.Pet or
             UnitsTarget.PartyOrPet;
     }
+
+    private bool EligibleEnemySoftTargetExists() =>
+        bits.SoftInteract() &&
+        bits.SoftInteract_Hostile() &&
+        !bits.SoftInteract_Dead() &&
+        !bits.SoftInteract_Tagged() &&
+        playerReader.SoftInteract_Type == GuidType.Creature;
 
     private void Log(string text)
     {

@@ -1,8 +1,8 @@
-﻿using System.Collections.Concurrent;
+﻿using SharedLib;
+
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Xml;
-
-using SharedLib;
 
 namespace Core;
 
@@ -19,6 +19,7 @@ public sealed class WApi
             ClientVersion.SoM => "https://classic.wowhead.com",
             ClientVersion.TBC => "https://tbc.wowhead.com",
             ClientVersion.Wrath => "https://www.wowhead.com/wotlk",
+            ClientVersion.Cata => "https://www.wowhead.com/cata",
             _ => "https://www.wowhead.com",
         };
 
@@ -27,6 +28,7 @@ public sealed class WApi
             ClientVersion.SoM => "https://wow.zamimg.com/images/wow/classic/maps/enus/original/",
             ClientVersion.TBC => "https://wow.zamimg.com/images/wow/tbc/maps/enus/original/",
             ClientVersion.Wrath => "https://wow.zamimg.com/images/wow/wrath/maps/enus/original/",
+            ClientVersion.Cata => "https://wow.zamimg.com/images/wow/cata/maps/enus/original/",
             _ => "https://wow.zamimg.com/images/wow/maps/enus/original/",
         };
 

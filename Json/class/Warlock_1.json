@@ -4,6 +4,15 @@
   "PathFilename": "1_Gnome.json",
   "PathThereAndBack": true,
   "PathReduceSteps": false,
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
@@ -23,8 +32,7 @@
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!Casting",
-          "!AutoAttacking"
+          "!Casting"
         ]
       },
       {

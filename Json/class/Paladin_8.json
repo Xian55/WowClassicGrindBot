@@ -70,7 +70,6 @@
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!AutoAttacking",
           "!Divine Protection"
         ]
       },

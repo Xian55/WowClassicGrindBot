@@ -1,14 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Platforms>AnyCPU;x64;x86</Platforms>
-  </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="GregsStack.InputSimulatorStandard" Version="1.3.5" />
-    <PackageReference Include="TextCopy" Version="6.2.1" />
-    <PackageReference Include="Vortice.Direct3D11" Version="3.3.4" />
+    <PackageReference Include="GregsStack.InputSimulatorStandard" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="TextCopy" />
+    <PackageReference Include="Vortice.Direct3D11" />
   </ItemGroup>
 
   <ItemGroup>

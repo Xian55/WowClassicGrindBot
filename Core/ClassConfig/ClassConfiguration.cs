@@ -28,6 +28,8 @@ public enum Mode
 
 public sealed partial class ClassConfiguration
 {
+    public string FileName { get; set; } = string.Empty;
+
     public bool Log { get; set; } = true;
     public bool LogBagChanges { get; set; } = true;
     public bool Loot { get; set; } = true;
@@ -42,12 +44,14 @@ public sealed partial class ClassConfiguration
     public bool AllowPvP { get; set; }
     public bool AutoPetAttack { get; set; } = true;
 
+    // Keeping this for backward compatibility
+    // The following properties are consolidated under PathSettings
     public string PathFilename { get; set; } = string.Empty;
-
     public string? OverridePathFilename { get; set; } = string.Empty;
-
     public bool PathThereAndBack { get; set; } = true;
     public bool PathReduceSteps { get; set; }
+    public List<string> SideActivityRequirements = [];
+    public PathSettings[] Paths { get; set; } = [];
 
     public Mode Mode { get; init; } = Mode.Grind;
 
@@ -61,13 +65,16 @@ public sealed partial class ClassConfiguration
         UnitClassification.Rare;
 
     public bool CheckTargetGivesExp { get; set; }
-    public string[] Blacklist { get; init; } = Array.Empty<string>();
+    public string[] Blacklist { get; init; } = [];
 
-    public Dictionary<int, SchoolMask> NpcSchoolImmunity { get; } = new();
+    public Dictionary<int, SchoolMask> NpcSchoolImmunity { get; } = [];
 
-    public Dictionary<string, int> IntVariables { get; } = new();
+    public Dictionary<string, int> IntVariables { get; } = [];
+
+    public Dictionary<string, string> StringVariables { get; } = [];
 
     public KeyActions Pull { get; } = new();
+    public KeyActions Flee { get; } = new();
     public KeyActions Combat { get; } = new();
     public KeyActions Adhoc { get; } = new();
     public KeyActions Parallel { get; } = new();
@@ -84,17 +91,75 @@ public sealed partial class ClassConfiguration
     public ConsoleKey TurnLeftKey { get; init; } = ConsoleKey.LeftArrow;
     public ConsoleKey TurnRightKey { get; init; } = ConsoleKey.RightArrow;
 
-    public void Initialise(IServiceProvider sp, string? overridePathFile)
+    public void Initialise(IServiceProvider sp, Dictionary<int, string> overridePathFile)
     {
         Approach.Key = Interact.Key;
         AutoAttack.Key = Interact.Key;
-
-        RequirementFactory factory = new(sp, this);
 
         ILogger logger = sp.GetRequiredService<ILogger>();
         PlayerReader playerReader = sp.GetRequiredService<PlayerReader>();
 
         RecordInt globalTime = sp.GetRequiredService<AddonReader>().GlobalTime;
+
+        if (Paths == Array.Empty<PathSettings>() &&
+            !string.IsNullOrEmpty(PathFilename))
+        {
+            overridePathFile.TryGetValue(0, out string? firstoverridePath);
+            OverridePathFilename = firstoverridePath ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(OverridePathFilename))
+            {
+                PathFilename = OverridePathFilename;
+            }
+
+            Paths =
+            [
+                new PathSettings()
+                {
+                    PathFilename = PathFilename,
+                    OverridePathFilename = OverridePathFilename,
+                    PathThereAndBack = PathThereAndBack,
+                    PathReduceSteps = PathReduceSteps,
+                    SideActivityRequirements = SideActivityRequirements
+                }
+            ];
+        }
+
+        DataConfig dataConfig = sp.GetRequiredService<DataConfig>();
+
+        for (int i = 0; i < Paths.Length; i++)
+        {
+            PathSettings settings = Paths[i];
+
+            if (overridePathFile.TryGetValue(i, out string? overridePath))
+                settings.OverridePathFilename = overridePath;
+
+            if (!string.IsNullOrEmpty(settings.OverridePathFilename))
+            {
+                settings.PathFilename = settings.OverridePathFilename;
+            }
+
+            if (!File.Exists(Path.Join(dataConfig.Path, settings.PathFilename)))
+            {
+                if (!string.IsNullOrEmpty(OverridePathFilename))
+                    throw new Exception(
+                        $"[{nameof(ClassConfiguration)}.{nameof(Paths)}[{i}]] " +
+                        $"`{settings.OverridePathFilename}` file does not exists!");
+                else
+                    throw new Exception(
+                        $"[{nameof(ClassConfiguration)}.{nameof(Paths)}[{i}]] " +
+                        $"`{settings.PathFilename}` file does not exists!");
+            }
+
+            settings.Init(globalTime, playerReader, i);
+        }
+
+        if (Paths.Select(x => x.Id).Distinct().Count() != Paths.Length)
+        {
+            throw new ArgumentException("One ore more PathSettings share the same Id. Must be unique!");
+        }
+
+        RequirementFactory factory = new(sp, this);
 
         var baseActionKeys = GetByType<KeyAction>();
         foreach ((string _, KeyAction keyAction) in baseActionKeys)
@@ -109,7 +174,7 @@ public sealed partial class ClassConfiguration
         SetBaseActions(Combat,
             Interact, Approach, AutoAttack, StopAttack, PetAttack);
 
-        var groups = GetByType<KeyActions>();
+        var groups = GetByTypeAsList<KeyActions>();
 
         foreach ((string name, KeyActions keyActions) in groups)
         {
@@ -151,25 +216,6 @@ public sealed partial class ClassConfiguration
             GatherFindKeyConfig[i] = newAction;
         }
 
-        OverridePathFilename = overridePathFile;
-        if (!string.IsNullOrEmpty(OverridePathFilename))
-        {
-            PathFilename = OverridePathFilename;
-        }
-
-        DataConfig dataConfig = sp.GetRequiredService<DataConfig>();
-        if (!File.Exists(Path.Join(dataConfig.Path, PathFilename)))
-        {
-            if (!string.IsNullOrEmpty(OverridePathFilename))
-                throw new Exception(
-                    $"[{nameof(ClassConfiguration)}] " +
-                    $"`{OverridePathFilename}` file does not exists!");
-            else
-                throw new Exception(
-                    $"[{nameof(ClassConfiguration)}] " +
-                    $"`{PathFilename}` file does not exists!");
-        }
-
         if (CheckTargetGivesExp)
         {
             logger.LogWarning($"{nameof(CheckTargetGivesExp)} is enabled. " +
@@ -187,7 +233,7 @@ public sealed partial class ClassConfiguration
     }
 
     private static void SetBaseActions(
-        KeyActions keyActions, params KeyAction[] baseActions)
+        KeyActions keyActions, params ReadOnlySpan<KeyAction> baseActions)
     {
         KeyAction @default = new();
         for (int i = 0; i < keyActions.Sequence.Length; i++)
@@ -202,9 +248,8 @@ public sealed partial class ClassConfiguration
 
                 user.Key = baseAction.Key;
 
-                //if (!string.IsNullOrEmpty(@default.Requirement))
-                //    user.Requirement += " " + @default.Requirement;
-                //user.Requirements.AddRange(@default.Requirements);
+                if (!string.IsNullOrEmpty(baseAction.Requirement))
+                    user.Requirement += " " + baseAction.Requirement;
 
                 if (user.BeforeCastDelay == @default.BeforeCastDelay)
                     user.BeforeCastDelay = baseAction.BeforeCastDelay;
@@ -233,20 +278,25 @@ public sealed partial class ClassConfiguration
         }
     }
 
-    public List<(string name, T)> GetByType<T>()
+    public IEnumerable<(string name, T)> GetByType<T>()
     {
         return GetType()
-            .GetProperties(BindingFlags.Instance |
-            BindingFlags.Public | BindingFlags.FlattenHierarchy)
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy)
             .Where(OfType)
             .Select(pInfo =>
             {
                 return (pInfo.Name, (T)pInfo.GetValue(this)!);
-            })
-            .ToList();
+            });
 
-        static bool OfType(PropertyInfo pInfo) =>
-            typeof(T).IsAssignableFrom(pInfo.PropertyType);
+        static bool OfType(PropertyInfo pInfo)
+        {
+            return typeof(T).IsAssignableFrom(pInfo.PropertyType);
+        }
+    }
+
+    public List<(string name, T)> GetByTypeAsList<T>()
+    {
+        return GetByType<T>().ToList();
     }
 
     [LoggerMessage(

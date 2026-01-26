@@ -4,6 +4,15 @@
   "PathFilename": "_pack\\1-20\\Draenei\\1-5_Azuremyst Isle.json",
   "PathThereAndBack": true,
   "PathReduceSteps": true,
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
@@ -38,13 +47,12 @@
         "Key": "2",
         "HasCastBar": true,
         "Requirements": [
-          "not InMeleeRange",
+          "!InMeleeRange",
           "Mana%>50"
         ]
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "not AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

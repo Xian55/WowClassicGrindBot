@@ -1,13 +1,16 @@
-using Core.Goals;
-using SharedLib.NpcFinder;
-using Microsoft.Extensions.Logging;
-using System.Threading;
-using System.Text;
-using System.Diagnostics;
-using System;
 using Core;
+using Core.Goals;
+
 using Game;
+
+using Microsoft.Extensions.Logging;
+
 using SharedLib;
+using SharedLib.NpcFinder;
+
+using System;
+using System.Text;
+using System.Threading;
 
 using static System.Diagnostics.Stopwatch;
 
@@ -35,7 +38,6 @@ internal sealed class Test_NpcNameFinder : IDisposable
 
     private readonly IWowScreen screen;
 
-    private readonly Stopwatch stopwatch;
     private readonly StringBuilder stringBuilder;
 
     private readonly NpcNameOverlay? npcNameOverlay;
@@ -49,7 +51,6 @@ internal sealed class Test_NpcNameFinder : IDisposable
         this.logger = logger;
         this.screen = screen;
 
-        stopwatch = new();
         stringBuilder = new();
 
         INpcResetEvent npcResetEvent = new NpcResetEvent();

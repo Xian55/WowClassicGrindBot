@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -19,6 +20,11 @@ public sealed class Program
         Host.CreateDefaultBuilder(args)
             .ConfigureWebHostDefaults(webBuilder =>
             {
+                webBuilder.ConfigureAppConfiguration((context, config) =>
+                {
+                    config.AddCommandLine(args);
+                });
+
                 webBuilder.UseUrls(hostUrl);
                 webBuilder.ConfigureLogging(logging =>
                     logging.ClearProviders().AddSerilog());

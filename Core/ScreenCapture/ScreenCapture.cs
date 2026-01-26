@@ -1,12 +1,12 @@
-﻿using System;
-using System.IO;
-using System.Threading;
-
-using Game;
+﻿using Game;
 
 using Microsoft.Extensions.Logging;
 
 using SixLabors.ImageSharp;
+
+using System;
+using System.IO;
+using System.Threading;
 
 namespace Core;
 

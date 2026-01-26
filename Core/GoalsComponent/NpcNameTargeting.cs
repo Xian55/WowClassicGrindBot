@@ -1,11 +1,19 @@
-using System;
-using SixLabors.ImageSharp;
-using System.Threading;
+using Game;
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
 using SharedLib.Extensions;
 using SharedLib.NpcFinder;
-using Game;
-using Microsoft.Extensions.Logging;
+
+using SixLabors.ImageSharp;
+
+using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading;
+
+using static Core.BlacklistSourceType;
 
 namespace Core.Goals;
 
@@ -41,7 +49,9 @@ public sealed partial class NpcNameTargeting : IDisposable
         NpcNameFinder npcNameFinder,
         NpcNameTargetingLocations locations,
         IMouseInput input,
-        IMouseOverReader mouseOverReader, IBlacklist blacklist, Wait wait,
+        IMouseOverReader mouseOverReader,
+        [FromKeyedServices(MOUSE_OVER)] IBlacklist mouseOverBlacklist,
+        Wait wait,
         IGameMenuWindowShown gmws)
     {
         this.logger = logger;
@@ -51,7 +61,7 @@ public sealed partial class NpcNameTargeting : IDisposable
         this.locations = locations;
         this.input = input;
         this.mouseOverReader = mouseOverReader;
-        this.mouseOverBlacklist = blacklist;
+        this.mouseOverBlacklist = mouseOverBlacklist;
         this.wait = wait;
 
         this.gmws = gmws;
@@ -76,9 +86,9 @@ public sealed partial class NpcNameTargeting : IDisposable
         index = 0;
     }
 
-    public void WaitForUpdate()
+    public void WaitForUpdate(CancellationToken token = default)
     {
-        npcNameFinder.WaitForUpdate();
+        npcNameFinder.WaitForUpdate(token);
     }
 
     public bool FoundAny()
@@ -100,11 +110,20 @@ public sealed partial class NpcNameTargeting : IDisposable
         ReadOnlySpan<NpcPosition> span = npcNameFinder.Npcs;
         ref readonly NpcPosition npc = ref span[index];
 
+        screen.GetRectangle(out Rectangle screenRect);
+
         Point p = Targeting[Random.Shared.Next(Targeting.Length)];
         p.Offset(npc.ClickPoint);
         p.Offset(npcNameFinder.ToScreenCoordinates());
 
+        if (!screenRect.Contains(p))
+        {
+            return false;
+        }
+
         input.SetCursorPos(p);
+        wait.Update();
+
         classifier.Classify(out CursorType cls, out _);
 
         if (cls is CursorType.Kill && mouseOverReader.MouseOverId != 0)
@@ -117,16 +136,19 @@ public sealed partial class NpcNameTargeting : IDisposable
                 return false;
             }
 
+            input.InteractMouseOver(token);
+            wait.Update();
+
             LogFoundTarget(logger, cls.ToStringF(), mouseOverReader.MouseOverId,
                 npc.Rect);
 
-            input.InteractMouseOver(token);
             return true;
         }
 
         return false;
     }
 
+    [SkipLocalsInit]
     public bool FindBy(ReadOnlySpan<CursorType> cursors, CancellationToken token)
     {
         int c = locFindBy.Length;
@@ -135,6 +157,8 @@ public sealed partial class NpcNameTargeting : IDisposable
 
         float w = npcNameFinder.ScaleToRefWidth;
         float h = npcNameFinder.ScaleToRefHeight;
+
+        screen.GetRectangle(out Rectangle screenRect);
 
         ReadOnlySpan<NpcPosition> span = npcNameFinder.Npcs;
         for (int i = 0;
@@ -162,6 +186,11 @@ public sealed partial class NpcNameTargeting : IDisposable
                 p.Offset(npc.ClickPoint);
                 p.Offset(npcNameFinder.ToScreenCoordinates());
 
+                if (!screenRect.Contains(p))
+                {
+                    continue;
+                }
+
                 input.SetCursorPos(p);
 
                 classifier.Classify(out CursorType cls, out _);
@@ -172,7 +201,7 @@ public sealed partial class NpcNameTargeting : IDisposable
                     return true;
                 }
 
-                wait.Update();
+                wait.Update(500); // workaround for CoreTests when the wait is not updated by the GlobalTime change
             }
         }
         return false;

@@ -7,6 +7,9 @@ using SharedLib.Extensions;
 
 using System;
 using System.Numerics;
+using System.Threading;
+
+using static System.Diagnostics.Stopwatch;
 
 #pragma warning disable 162
 
@@ -33,11 +36,11 @@ public sealed class StuckDetector
     private Vector3 worldTarget;
 
     private float prevDistance = MAX_RANGE;
-    private DateTime startTime;
-    private DateTime attemptTime;
+    private long startTime;
+    private long attemptTime;
 
-    public double ActionDurationMs => (DateTime.UtcNow - startTime).TotalMilliseconds;
-    private double UnstuckMs => (DateTime.UtcNow - attemptTime).TotalMilliseconds;
+    public double ActionDurationMs => GetElapsedTime(startTime).TotalMilliseconds;
+    private double UnstuckMs => GetElapsedTime(attemptTime).TotalMilliseconds;
 
     public StuckDetector(ILogger<StuckDetector> logger, ConfigurableInput input,
         AddonBits bits, PlayerReader playerReader, PlayerDirection playerDirection,
@@ -65,13 +68,13 @@ public sealed class StuckDetector
 
     public void Reset()
     {
-        attemptTime = DateTime.UtcNow;
-        startTime = DateTime.UtcNow;
+        attemptTime = GetTimestamp();
+        startTime = GetTimestamp();
 
         prevDistance = MAX_RANGE;
     }
 
-    public void Update()
+    public void Update(CancellationToken token = default)
     {
         if (bits.Falling())
             return;
@@ -86,21 +89,21 @@ public sealed class StuckDetector
             // Turn
             int turnDuration = Random.Shared.Next(350);
             logger.LogInformation($"Unstuck by turning for {turnDuration}ms");
-            input.TurnRandomDir(turnDuration);
+            input.TurnRandomDir(turnDuration, token);
 
             // Move
             ConsoleKey moveKey = Random.Shared.Next(100) >= 25 ? input.ForwardKey : input.BackwardKey;
             int moveDuration = Random.Shared.Next(750) + 1000;
             logger.LogInformation($"Unstuck by moving for {moveDuration}ms");
-            input.PressRandom(moveKey, moveDuration);
+            input.PressFixed(moveKey, moveDuration, token);
 
             input.PressJump();
 
             Vector3 targetM = WorldMapAreaDB.ToMap_FlipXY(worldTarget, playerReader.WorldMapArea);
             float heading = DirectionCalculator.CalculateMapHeading(playerReader.MapPos, targetM);
-            playerDirection.SetDirection(heading, targetM);
+            playerDirection.SetDirection(heading, targetM, PlayerDirection.DefaultIgnoreDistance, token);
 
-            attemptTime = DateTime.UtcNow;
+            attemptTime = GetTimestamp();
         }
         else
         {

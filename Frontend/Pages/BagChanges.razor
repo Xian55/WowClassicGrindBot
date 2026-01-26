@@ -6,14 +6,18 @@
 
 @if (NewItems.Count() > 0)
 {
-    <div class="card">
-        <div class="card-header">
-            Bag Changes
-            <div class="float-right">
-                <Money Value="TotalMoneyChange" />
+    <Card>
+        <CardHeader>
+            <div class="d-flex">
+                <div class="p-2 flex-grow-1 bd-highlight">
+                    Bag Changes
+                </div>
+                <div class="p-2 bd-highlight">
+                    <Money Value="TotalMoneyChange" />
+                </div>
             </div>
-        </div>
-        <div class="card-body">
+        </CardHeader>
+        <CardBody>
             @foreach (var bagItem in NewItems)
             {
                 <div class="animate__animated animate__slideInDown">
@@ -26,8 +30,8 @@
                     <hr style="margin:2px" />
                 </div>
             }
-        </div>
-    </div>
+        </CardBody>
+    </Card>
 }
 @code {
 

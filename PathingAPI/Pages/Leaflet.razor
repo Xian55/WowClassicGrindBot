@@ -1,0 +1,187 @@
+﻿@page "/Leaflet/{expansion?}/{continent?}/{zoom:int?}/{x:float?}/{y:float?}/"
+
+@using Microsoft.AspNetCore.SignalR;
+
+@inject IJSRuntime jsRuntime
+@inject IHubContext<WatchHub> hubContext
+
+@inject PPatherService pPatherService
+
+<Watch PathColour="@pathColour" Name="@name" BabylonJs="false" />
+
+<div id="js-map" style="height: 100vh;background-color:rgb(0 29 40);">
+    <div class="specText" id="adtClick"></div>
+    <div class="specText" id="worldClick"></div>
+    <div class="specText" id="mapClick"></div>
+    <div class="specText" id="subZoneName"></div>
+</div>
+
+
+<div id="searchParam" style="position: fixed; bottom: 0; z-index: 1000; background-color: black; color: white; padding: 0 10px; text-align: center; display: flex; align-items: center;">
+    <SearchParameters OnSearch="OnSearch" IsDisabled="@IsDisabled" OnDraw="OnDraw" OnlyMap="@continent" />
+</div>
+
+
+<style>
+    .adtText {
+        color: white;
+        background-color: #00000099;
+        width: 50px;
+        text-align: center;
+    }
+
+    .leaflet-container canvas {
+        pointer-events: auto !important;
+    }
+
+    .poiatlas {
+        background-image: url('_content/Frontend/img/atlas.png');
+        background-repeat: no-repeat;
+        background-position: 32px 32px;
+    }
+
+    .flash {
+        animation: flash-effect 0.3s ease-in-out;
+    }
+
+    @@keyframes flash-effect {
+        0% {
+            background-color: #ffff99;
+        }
+
+        100% {
+            background-color: transparent;
+        }
+    }
+
+    .specText {
+        opacity: 0.8;
+        background-color: #222;
+        border-radius: 4px;
+        color: #fff;
+        height: 26px;
+        left: 60px;
+        padding: 2px;
+        position: absolute;
+        text-align: center;
+        z-index: 1000;
+        font-size: 16px;
+    }
+
+    #adtClick {
+        top: 20px;
+    }
+
+    #worldClick {
+        top: 60px;
+    }
+
+    #mapClick {
+        top: 100px;
+    }
+
+    #subZoneName {
+        top: 140px;
+    }
+
+</style>
+
+@code {
+    [Parameter] public string expansion { get; set; } = "som";
+    [Parameter] public string continent { get; set; } = "Azeroth";
+    [Parameter] public int zoom { get; set; } = 4;
+    [Parameter] public float x { get; set; } = 0;
+    [Parameter] public float y { get; set; } = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await jsRuntime.InvokeVoidAsync("init",
+                expansion ?? "som", continent ?? "Azeroth",
+                zoom, x, y, true);
+
+            pPatherService.Reset();
+
+            IsDisabled = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    //
+    bool IsDisabled = true;
+    SearchStrategy searchType;
+    int pathColour = 1;
+    string name;
+    SearchParam parameters;
+
+    System.Threading.Thread searchPathThread;
+
+    public async Task OnSearch(SearchParam searchParameters)
+    {
+        if (searchParameters.From == null || searchParameters.To == null)
+        {
+            return;
+        }
+        parameters = searchParameters;
+
+        await DoSearch(searchParameters.SearchType, ((int)searchParameters.SearchType) + 1, searchParameters.SearchType.ToString());
+    }
+
+    public void OnDraw(SearchParam searchParameters)
+    {
+        if (searchParameters.From == null || searchParameters.To == null)
+        {
+            return;
+        }
+        parameters = searchParameters;
+
+        var mapId = searchParameters.From.Location.W;
+
+        var start = searchParameters.From.Location.AsVector3();
+        var end = searchParameters.To.Location.AsVector3();
+
+        ReadOnlySpan<Vector3> path = [start, end];
+
+        pathColour = (int)Watch.Color.Orange;
+        name = "route";
+        StateHasChanged();
+
+        pPatherService.DrawPath(mapId, path);
+    }
+
+    private async Task DoSearch(SearchStrategy searchType, int colour, string name)
+    {
+        IsDisabled = true;
+
+        this.searchType = searchType;
+        this.pathColour = colour;
+        this.name = name;
+
+        await InvokeAsync(StateHasChanged);
+
+        searchPathThread = new Thread(SearchPathThread);
+        searchPathThread.Start();
+    }
+
+    public async void SearchPathThread()
+    {
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("removeMesh", name);
+            await jsRuntime.InvokeVoidAsync("removeMesh", "search");
+
+            pPatherService.SetLocations(parameters.From.Location, parameters.To.Location);
+
+            var patherPath = pPatherService.DoSearch(searchType);
+
+            IsDisabled = false;
+        }
+        catch (Exception ex)
+        {
+            await jsRuntime.InvokeVoidAsync("log", ex.Message);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+}

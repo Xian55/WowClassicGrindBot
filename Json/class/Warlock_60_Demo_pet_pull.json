@@ -1,0 +1,281 @@
+{
+  "ClassName": "Warlock",
+  "Loot": true,
+  "Mode": "AttendedGrind", //Grind
+  "UseMount": true,
+  "Mount": { "Key": "N0"},
+  "PathReduceSteps": true,
+  "PathThereAndBack": true,
+  "NPCMaxLevels_Above": 2,
+  "NPCMaxLevels_Below": 10,
+  "PathFilename": "Burning Steppes_2024_08_15_23_32_17.json",
+  "IntVariables": {
+    "Item_Soul_Shard": 6265,
+    "Item_Healthstone": 19013,
+    "DOT_MIN_HEALTH%": 35,
+    "DRAIN_MIN_HP%": 70,
+    "DRAIN_SOUL_MIN_HP%": 35,
+    "TAP_MIN_MANA%": 65,
+    "MIN_TARGET_HP_CD%": 75,
+    "MIN_FOOD_DRINK%": 30,
+    "USE_TRINKET_1": 0,
+    "USE_TRINKET_2": 0,
+    "MIN_SHARD": 24
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "Has Pet",
+          "MinRange > 15"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "heal",
+        "Key": "7",
+        "Requirements": [
+          "Health% < 35",
+          "BagItem:Item_Healthstone"
+        ],
+        "Cooldown": 120000,
+        "InCombat": "true"
+      },
+      {
+        "Name": "Shadow Bolt",
+        "Key": "2",
+        "Requirements": [
+          "Talent:Nightfall",
+          "Shadow Trance"
+        ]
+      },
+      {
+        "Name": "Trinket 1",
+        "Key": "4",
+        "Item": true,
+        "Requirements": [
+          "USE_TRINKET_1 == 1",
+          "!Shooting",
+          "TargetHealth% > MIN_TARGET_HP_CD%"
+        ]
+      },
+      {
+        "Name": "Trinket 2",
+        "Key": "N6",
+        "Item": true,
+        "Requirements": [
+          "USE_TRINKET_2 == 1",
+          "!Shooting",
+          "TargetHealth% > MIN_TARGET_HP_CD%"
+        ]
+      },
+      {
+        "Name": "Drain Soul",
+        "Key": "F2",
+        "HasCastBar": true,
+        "Requirements": [
+          "TargetHealth% < DRAIN_SOUL_MIN_HP%",
+          "!BagItem:Item_Soul_Shard:MIN_SHARD",
+          "TargetYieldXP"
+        ],
+        "AfterCastWaitCastbar": true
+      },
+      {
+        "Name": "Death Coil",
+        "Key": "N5",
+        "Requirements": [
+          "TargetsMe",
+          "InMeleeRange",
+          "Health% < 80"
+        ]
+      },
+      {
+        "Name": "Immolate",
+        "Key": "1",
+        "HasCastBar": true,
+        "AfterCastAuraExpected": true,
+        "Requirements": [
+          "TargetHealth% > DOT_MIN_HEALTH%",
+          "!Immolate",
+          "!TargetsMe || Sacrifice"
+        ]
+      },
+      {
+        "Name": "Amplify Curse",
+        "Key": "N4",
+        "Requirements": [
+          "TargetHealth% > DOT_MIN_HEALTH%",
+          "Talent:Amplify Curse"
+        ]
+      },
+      {
+        "Name": "Curse of Agony",
+        "Key": "N1",
+        "AfterCastAuraExpected": true,
+        "Requirements": [
+          "TargetHealth% > DOT_MIN_HEALTH%",
+          "!Curse of Agony"
+        ]
+      },
+      {
+        "Name": "Corruption",
+        "Key": "N2",
+        "AfterCastAuraExpected": true,
+        "Requirements": [
+          "TargetHealth% > DOT_MIN_HEALTH%",
+          "!Corruption",
+          "Talent:Improved Corruption:5"
+        ]
+      },
+      {
+        "Name": "Shadow Bolt",
+        "Key": "2",
+        "HasCastBar": true,
+        "Cooldown": 6000,
+        "Requirements": [
+          "!TargetsMe || Sacrifice",
+          "!Immolate",
+          "Health% > DRAIN_MIN_HP%",
+          "TargetHealth% > 40"
+        ]
+      },
+      {
+        "Name": "Health Funnel",
+        "Key": "F1",
+        "HasCastBar": true,
+        "Requirements": [
+          "Has Pet",
+          "Health% > MIN_FOOD_DRINK%",
+          "PetHealth% <= DOT_MIN_HEALTH%",
+          "CD_Fel Domination > 0"
+        ]
+      },
+      {
+        "Name": "Drain Life",
+        "Key": "N3",
+        "HasCastBar": true,
+        "Requirements": [
+          "Health% < DRAIN_MIN_HP%"
+        ]
+      },
+      {
+        "Name": "Shoot",
+        "Key": "3",
+        "Item": true,
+        "BeforeCastStop": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting",
+          "!Casting",
+          "SpellInRange:1"
+        ],
+        "AfterCastDelay": 500
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "!HasRangedWeapon",
+          "!Shooting",
+          "!Casting"
+        ]
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_FOOD_DRINK%"
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < MIN_FOOD_DRINK%"
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Demon Armor",
+        "Key": "5",
+        "Requirements":[
+          "!Demon Skin"
+        ]
+      },
+      {
+        "Name": "Fel Domination",
+        "Key": "8",
+        "Cost": 3.1,
+        "InCombat": "true",
+        "Requirements": [
+          "!Has Pet",
+          "!Fel Domination"
+        ]
+      },
+      {
+        "Name": "Summon VoidWalker",
+        "Key": "6",
+        "Cost": 3.2,
+        "HasCastBar": true,
+        "InCombat": "true",
+        "Requirements": [
+          "!Has Pet",
+          "!Mounted",
+          "Fel Domination",
+          "BagItem:Item_Soul_Shard"
+        ],
+        "AfterCastAuraExpected": true
+      },
+      {
+        "Name": "Summon VoidWalker",
+        "Key": "6",
+        "HasCastBar": true,
+        "Requirements": [
+          "!Has Pet",
+          "!Mounted",
+          "BagItem:Item_Soul_Shard"
+        ],
+        "AfterCastWaitCastbar": true,
+        "AfterCastAuraExpected": true
+      },
+      {
+        "Name": "Soul Link",
+        "Key": "9",
+        "Requirements": [
+          "Has Pet",
+          "!Mounted",
+          "!Soul Link"
+        ]
+      },
+      {
+        "Name": "Life Tap",
+        "Cost": 3,
+        "Key": "N9",
+        "InCombat": "i dont care",
+        "Charge": 2,
+        "Requirements": [
+          "!Casting",
+          "Health% > TAP_MIN_MANA%",
+          "Mana% < TAP_MIN_MANA%"
+        ]
+      },
+      {
+        "Name": "heal",
+        "Key": "7",
+        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
+        "AfterCastWaitBag": true,
+        "Requirements": [
+          "BagItem:Item_Soul_Shard",
+          "!BagItem:Item_Healthstone"
+        ]
+      }
+    ]
+  }
+}

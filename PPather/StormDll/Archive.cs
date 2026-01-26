@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace StormDll;
 
@@ -25,28 +26,64 @@ internal sealed class Archive
         if (!open)
             return;
 
-        using MpqFileStream mpq = GetStream("(listfile)");
-
-        var pooler = ArrayPool<byte>.Shared;
-        byte[] buffer = pooler.Rent((int)mpq.Length);
-        mpq.ReadAllBytesTo(buffer);
-
-        using MemoryStream stream = new(buffer, 0, (int)mpq.Length, false);
-        using StreamReader reader = new(stream);
+        using MpqFileStream mpq = GetStream("(listfile)".AsSpan());
+        int length = (int)mpq.Length;
 
         HashSet<string> fileList = new(StringComparer.InvariantCultureIgnoreCase);
-        while (!reader.EndOfStream)
-        {
-            fileList.Add(reader.ReadLine()!);
-        }
 
-        pooler.Return(buffer);
+        if (length <= MpqFileStream.MaxStackLimit)
+        {
+            Span<byte> stackBytes = stackalloc byte[length];
+            mpq.Read(stackBytes);
+            ParseFileLines(stackBytes, fileList);
+        }
+        else
+        {
+            var pooler = ArrayPool<byte>.Shared;
+            byte[] array = pooler.Rent(length);
+            try
+            {
+                Span<byte> spanBytes = array.AsSpan(0, length);
+                mpq.Read(spanBytes);
+                ParseFileLines(spanBytes, fileList);
+            }
+            finally
+            {
+                pooler.Return(array);
+            }
+        }
 
         if (fileList.Count == 0)
             throw new InvalidOperationException($"{nameof(fileList)} contains no elements!");
 
         this.fileList = fileList.ToFrozenSet(StringComparer.InvariantCultureIgnoreCase);
     }
+
+    public static void ParseFileLines(ReadOnlySpan<byte> data, HashSet<string> fileList)
+    {
+        string content = Encoding.UTF8.GetString(data);
+        ReadOnlySpan<char> span = content.AsSpan();
+
+        int start = 0;
+        while (start < span.Length)
+        {
+            int end = span[start..].IndexOf('\n');
+            if (end == -1)
+            {
+                end = span.Length - start;
+            }
+
+            ReadOnlySpan<char> lineSpan = span.Slice(start, end).TrimEnd('\r');
+
+            fileList.Add(lineSpan.ToString());
+
+            start += end + 1;
+        }
+
+        if (fileList.Count == 0)
+            throw new InvalidOperationException("File contains no lines.");
+    }
+
 
     public bool IsOpen()
     {
@@ -55,6 +92,12 @@ internal sealed class Archive
 
     public bool HasFile(string name) => fileList.Contains(name);
 
+    public bool HasFile(ReadOnlySpan<char> name)
+    {
+        var lookup = fileList.GetAlternateLookup<ReadOnlySpan<char>>();
+        return lookup.Contains(name);
+    }
+
     public bool SFileCloseArchive()
     {
         return Is64Bit
@@ -62,7 +105,15 @@ internal sealed class Archive
             : StormDllx86.SFileCloseArchive(handle);
     }
 
+    [Obsolete("Use GetStream instead.")]
     public MpqFileStream GetStream(string fileName)
+    {
+        return !SFileOpenFileEx(handle, fileName, OpenFile.SFILE_OPEN_FROM_MPQ, out IntPtr fileHandle)
+            ? throw new IOException("SFileOpenFileEx failed")
+            : new MpqFileStream(fileHandle);
+    }
+
+    public MpqFileStream GetStream(ReadOnlySpan<char> fileName)
     {
         return !SFileOpenFileEx(handle, fileName, OpenFile.SFILE_OPEN_FROM_MPQ, out IntPtr fileHandle)
             ? throw new IOException("SFileOpenFileEx failed")
@@ -102,12 +153,17 @@ internal sealed class Archive
 
     public static bool SFileOpenFileEx(
         IntPtr archiveHandle,
-        string fileName,
+        ReadOnlySpan<char> fileName,
         OpenFile searchScope,
         out IntPtr fileHandle)
     {
+        // Convert the fileName of Uft16 to Utf8 with null terminated string
+        Span<byte> utf8Bytes = stackalloc byte[Encoding.UTF8.GetByteCount(fileName) + 1];
+        Encoding.UTF8.GetBytes(fileName, utf8Bytes);
+        utf8Bytes[^1] = 0;
+
         return Is64Bit
-            ? StormDllx64.SFileOpenFileEx(archiveHandle, fileName, searchScope, out fileHandle)
-            : StormDllx86.SFileOpenFileEx(archiveHandle, fileName, searchScope, out fileHandle);
+            ? StormDllx64.SFileOpenFileEx(archiveHandle, utf8Bytes, searchScope, out fileHandle)
+            : StormDllx86.SFileOpenFileEx(archiveHandle, utf8Bytes, searchScope, out fileHandle);
     }
 }

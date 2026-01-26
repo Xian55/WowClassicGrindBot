@@ -1,7 +1,10 @@
-﻿using System;
-using SixLabors.ImageSharp;
+﻿using SixLabors.ImageSharp;
+
+using System;
 using System.Threading;
+
 using TextCopy;
+
 using static WinAPI.NativeMethods;
 
 namespace Game;

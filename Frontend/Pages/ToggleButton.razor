@@ -2,9 +2,9 @@
 
 @implements IDisposable
 
-<button class="btn btn-sm btn-primary" @onclick="ToggleBot" disabled="@(Disable || DisableButton)">
-    <span>@(botController.IsBotActive ? "Stop Bot" : "Start Bot")</span>
-</button>
+<Button Color="ButtonColor.Primary" @onclick="ToggleBot" disabled="@(Disable || DisableButton)">
+    @(botController.IsBotActive ? "Stop Bot" : "Start Bot")
+</Button>
 
 @code {
     [Parameter]

@@ -1,5 +1,7 @@
 ﻿using Core.GOAP;
 
+using Game;
+
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -67,15 +69,16 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             // have to check range
             // ex. target died far away have to consider the range and approximate
             float distance = (lastMaxDistance + lastMinDistance) / 2f;
-            SendGoapEvent(new CorpseEvent(GetCorpseLocation(distance), distance));
+            SendGoapEvent(new CorpseEvent(GetCorpseLocation(distance), distance, playerReader.Direction, playerReader.MapPos));
         }
     }
 
     private void ResetCooldowns()
     {
-        for (int i = 0; i < Keys.Length; i++)
+        ReadOnlySpan<KeyAction> span = Keys;
+        for (int i = 0; i < span.Length; i++)
         {
-            KeyAction keyAction = Keys[i];
+            KeyAction keyAction = span[i];
             if (keyAction.ResetOnNewTarget)
             {
                 keyAction.ResetCooldown();
@@ -122,96 +125,166 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             return;
         }
 
-        if (bits.Target())
+        if (classConfig.AutoPetAttack &&
+            bits.Pet() &&
+            (!playerReader.PetTarget() || playerReader.PetTargetGuid != playerReader.TargetGuid) &&
+            !input.PetAttack.OnCooldown())
         {
-            if (classConfig.AutoPetAttack &&
-                bits.Pet() &&
-                (!playerReader.PetTarget() || playerReader.PetTargetGuid != playerReader.TargetGuid) &&
-                input.PetAttack.GetRemainingCooldown() == 0)
+            input.PressPetAttack();
+        }
+
+        ReadOnlySpan<KeyAction> span = Keys;
+        for (int i = 0; bits.Target_Alive() && i < span.Length; i++)
+        {
+            KeyAction keyAction = span[i];
+
+            if (castingHandler.SpellInQueue() && !keyAction.BaseAction)
             {
-                input.PressPetAttack();
+                continue;
             }
 
-            for (int i = 0; bits.Target_Alive() && i < Keys.Length; i++)
+            bool interrupt() => bits.Target_Alive() && keyAction.CanBeInterrupted();
+
+            if (castingHandler.CastIfReady(keyAction, interrupt))
             {
-                KeyAction keyAction = Keys[i];
-
-                if (castingHandler.SpellInQueue() && !keyAction.BaseAction)
-                {
-                    continue;
-                }
-
-                if (castingHandler.CastIfReady(keyAction,
-                    keyAction.Interrupts.Count > 0
-                    ? keyAction.CanBeInterrupted
-                    : bits.Target_Alive))
-                {
-                    break;
-                }
+                break;
             }
         }
 
-        if (!bits.Target())
+        if (bits.SoftInteract_Enabled())
+        {
+            DealWithSoftInteract();
+        }
+
+        if (!bits.Target() || (bits.Target() && bits.Target_Dead()))
         {
             logger.LogInformation("Lost target!");
 
-            if (combatLog.DamageTakenCount() > 0 && !input.KeyboardOnly)
+            if (combatLog.DamageTakenCount() > 0)
             {
+                if (bits.Target() && bits.Target_Dead())
+                {
+                    logger.LogInformation("Clear current dead target!");
+                    input.PressClearTarget();
+                    wait.Update();
+                }
+
+                logger.LogWarning("Search Possible Threats!");
                 stopMoving.Stop();
-                FindNewTarget();
+
+                FindPossibleThreats();
+            }
+            else
+            {
+                input.PressClearTarget();
+                wait.Update();
             }
         }
     }
 
-    private void FindNewTarget()
+    private void FindPossibleThreats()
     {
-        if (playerReader.PetTarget() && combatLog.DeadGuid.Value != playerReader.PetTargetGuid)
+        if (bits.Pet_Defensive())
         {
+            float elapsedPetFoundTarget = wait.Until(CastingHandler.GCD,
+                () => playerReader.PetTarget() && bits.PetTarget_Alive());
+
+            if (elapsedPetFoundTarget < 0)
+            {
+                logger.LogWarning("Pet not found target!");
+                input.PressClearTarget();
+                return;
+            }
+
             ResetCooldowns();
 
             input.PressTargetPet();
             input.PressTargetOfTarget();
             wait.Update();
 
-            if (!bits.Target_Dead())
+            logger.LogWarning($"Found new target by pet. {elapsedPetFoundTarget}ms");
+
+            return;
+        }
+
+        logger.LogInformation("Checking target in front...");
+        input.PressNearestTarget();
+        wait.Update();
+
+        if (bits.Target() && !bits.Target_Dead() && bits.Target_Hostile())
+        {
+            if (bits.Target_Combat() && bits.TargetTarget_PlayerOrPet())
             {
-                logger.LogWarning("---- New targe from Pet target!");
+                ResetCooldowns();
+
+                logger.LogWarning("Found new target!");
+                wait.Update();
                 return;
             }
 
+            logger.LogWarning("Dont pull non-hostile target!");
             input.PressClearTarget();
-        }
-
-        if (combatLog.DamageTakenCount() > 1)
-        {
-            logger.LogInformation("Checking target in front...");
-            input.PressNearestTarget();
             wait.Update();
-
-            if (bits.Target() && !bits.Target_Dead())
-            {
-                if (bits.Target_Combat() && bits.TargetTarget_PlayerOrPet())
-                {
-                    stopMoving.Stop();
-                    ResetCooldowns();
-
-                    logger.LogWarning("Found new target!");
-                    return;
-                }
-
-                input.PressClearTarget();
-                wait.Update();
-            }
-            else if (combatLog.DamageTakenCount() > 0)
-            {
-                logger.LogWarning($"---- Possible threats from behind {combatLog.DamageTakenCount()}. Waiting target by damage taken!");
-                wait.Till(2500, bits.Target);
-            }
         }
+
+        logger.LogWarning($"Waiting for target to exists or lose combat. Possible threats {combatLog.DamageTakenCount()}!");
+        wait.Till(CastingHandler.GCD * 2,
+            () => bits.Target_Alive() || !bits.Combat());
     }
 
     private Vector3 GetCorpseLocation(float distance)
     {
-        return PointEstimator.GetPoint(playerReader.MapPos, playerReader.Direction, distance);
+        return PointEstimator.GetMapPos(playerReader.WorldMapArea, playerReader.WorldPos, playerReader.Direction, distance);
+    }
+
+    private void DealWithSoftInteract()
+    {
+        if (!playerReader.IsInMeleeRange() ||
+            playerReader.IsCasting() ||
+            !InvalidSoftInteractExists() ||
+            playerReader.TargetGuid == playerReader.SoftInteract_Guid)
+        {
+            return;
+        }
+
+        // TODO: have to find a better way to deal with this
+        return;
+
+        ConsoleKey key = Random.Shared.Next(2) == 0
+            ? input.TurnLeftKey
+            : input.TurnRightKey;
+
+        logger.LogWarning($"Invalid SoftInteract Detected Turn away({key}) then face target!");
+
+        input.SetKeyState(key, true, false);
+        while (InvalidSoftInteractExists())
+        {
+            wait.Update();
+        }
+        input.SetKeyState(key, false, false);
+        wait.Fixed(playerReader.DoubleNetworkLatency);
+        wait.Update();
+
+        if (bits.Target() && !InvalidSoftInteractExists())
+        {
+            input.PressFastInteract();
+
+            const int updateCount = 2;
+            float e = wait.AfterEquals(playerReader.SpellQueueTimeMs,
+                updateCount, playerReader._Direction);
+
+            stopMoving.StopForward();
+        }
+    }
+
+    private bool InvalidSoftInteractExists()
+    {
+        return
+            bits.SoftInteract() &&
+            (
+            playerReader.SoftInteract_Type != GuidType.Creature ||
+            bits.SoftInteract_Dead() ||
+            bits.SoftInteract_Tagged()
+            );
     }
 }

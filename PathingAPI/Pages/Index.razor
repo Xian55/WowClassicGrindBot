@@ -1,54 +1,164 @@
 ﻿@page "/"
 
-<Watch />
-
 <style>
-    .scroll_ples {
-        flex: 1 1 0; /* flex: 1, which you had before, is equivalent but doesn't work */
-        display: flex;
-        flex-direction: column;
-        overflow-y: scroll;
-        max-height: 60px;
+    #bottomOverlay {
+        position: fixed;
+        left: 0;
+        width: 250px;
+        height: calc(57% - 15px); /* Subtract 15px from the bottom */
+        bottom: 15px; /* Fixed bottom */
+        top: 430px; /* Use custom top position */
+        overflow-y: auto;
+        background-color: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        padding: 10px 0; /* Add padding for spacing */
     }
+
+        #bottomOverlay a {
+            display: block;
+            height: 30px; /* Explicit height */
+            line-height: 30px; /* Vertically center the text */
+            padding: 0 10px;
+            color: white;
+            text-decoration: none;
+            font-size: 10px; /* Reduced font size */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            /* Prevent text from overflowing */
+            white-space: nowrap; /* Keep text on one line */
+            overflow: hidden; /* Hide text that doesn’t fit */
+            text-overflow: ellipsis; /* Add an ellipsis to truncated text */
+        }
+
+            #bottomOverlay a:hover {
+                background-color: rgba(255, 255, 255, 0.2);
+            }
+
+        #bottomOverlay::-webkit-scrollbar {
+            width: 5px; /* Optional: Customize scrollbar width */
+        }
+
+        #bottomOverlay::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3); /* Optional: Customize scrollbar thumb */
+            border-radius: 3px;
+        }
+
 </style>
 
-<div class="scroll_ples">
-    <a href="api/PPather/MapRoute?uimap1=1446&x1=51.0&y1=29.3&uimap2=1446&x2=38.7&y2=20.1" target="_blank">Tanaris FP to ZF (API Using Map Coords)</a>
-    <a href="api/PPather/MapRoute?uimap1=1451&x1=51.4&y1=37.8&uimap2=1451&x2=29&y2=92" target="_blank">Silithus Inn to AQ (API Using Map Coords)</a>
+<Watch />
 
-    <a href="api/PPather/WorldRoute?x1=-896&y1=-3770&z1=11&x2=-441&y2=-2596&z2=96&mapid=1" target="_blank">Kalimdor Search Barrens (API using world Coords)</a>
-    <a href="api/PPather/WorldRoute?x1=-6238.128&y1=139.40344&z1=430.9192&x2=-5884.185&y2=-118.66675&z2=364.64783&mapid=0" target="_blank">Azeroth Dun morogh 1 (API using world Coords)</a>
-    <a href="api/PPather/WorldRoute?x1=-5609.00&y1=-479.00&z1=397.49&x2=-5884.185&y2=-118.66675&z2=364.64783&mapid=0" target="_blank">Azeroth Dun morogh 2 (API using world Coords)</a>
+<div id="bottomOverlay">
 
-    <a href="api/PPather/WorldRoute2?x1=2293.7908&y1=-6636.0283&z1=120.13607&x2=2309.54&y2=-6666.62&z2=0&uimap=1447" target="_blank">Azshara issue no result (API using world Coords)</a>
-    <a href="api/PPather/WorldRoute2?x1=-732.031&y1=2448.2805&z1=58.940506&x2=-755.79004&y2=2491.16&z2=0&uimap=1944" target="_blank">Outland honor hold issue no result (API using world Coords)</a>
+    <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-8898.32&y1=-117.35608&z1=81.840546&x2=-8779.58&y2=-106.12012&z2=0&mapid=0">Elwynn vendor to path</a>
 
+    <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute2?x1=-8898.32&y1=-117.35608&z1=0&x2=-8779.58&y2=-106.12012&z2=0&uimap=1429&startindoors=false">Z Elwynn vendor to path</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1431&x1=43.097&y1=18.38&uimap2=1431&x2=45.34&y2=16.438" target="_blank">Duskwood issue</a>
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-6120.8084&y1=542.90857&z1=0&x2=-5880.7373&y2=-116.15503&z2=0&mapid=0">Z Coldridge to 5_gnome</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=48.6" target="_blank">Loch Modan building Yanni Stoutheart</a>
-    <a href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=35.5&y2=48.5" target="_blank">Loch Modan building innkeeper</a>
-    <a href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=49.1" target="_blank">Loch Modan building building Vidra Heartstove</a>
+    <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1433&x1=30&y1=60&uimap2=1433&x2=54.3&y2=43.1">Redrdge Grave to North</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1426&x1=28.7&y1=70.1&uimap2=1426&x2=28.8&y2=67.9" target="_blank">Dun morogh building Grundel Harkin</a>
-    <a href="api/PPather/MapRoute?uimap1=1426&x1=28.8&y1=67.9&uimap2=1426&x2=28.7&y2=70.1" target="_blank">Dun morogh building Grundel Harkin reverse</a>
+    <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-17.51&y1=-986.82&z1=55.83&x2=305.33337&y2=-364.6667&z2=168.28902&mapid=0">Alterac Mountains Horde grave</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1426&x1=33.90&y1=71.86&uimap2=1426&x2=38.94&y2=61.0" target="_blank">Dun morogh Coldrige pass - unable to find</a>
+    <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-779.3728&y1=-4926.2754&z1=0&x2=-575.14014&y2=-4298.2&z2=0&mapid=1&startindoors=true">Z Durotar Sen'jin village to grind</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1426&x1=33.76&y1=71.91&uimap2=1426&x2=39.0&y2=61.13" target="_blank">Dun morogh Coldrige pass</a>
+    <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-779.3728&y1=-4926.2754&z1=22.3297&x2=-575.14014&y2=-4298.2&z2=0&mapid=1&startindoors=true">Durotar Sen'jin village to grind</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1943&x1=81.05&y1=45.33&uimap2=1943&x2=78.92&y2=44.14" target="_blank">Ammen Vale</a>
+    <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute2?x1=1618.5112&y1=-4433.742&z1=0&x2=1633.98&y2=-4439.37&z2=15.51&uimap=1454&mapid=1&startindoors=false">Z Orgrimmar to vendor</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1425&x1=82.2771&y1=48.698803&uimap2=1425&x2=81.65922&y2=49.87935" target="_blank">Hinterlands 1 water issue</a>
-    <a href="api/PPather/MapRoute?uimap1=1425&x1=80.7258&y1=64.2714&uimap2=1425&x2=78.321304&y2=64.0448" target="_blank">Hinterlands 2 water issue</a>
+    <a onclick="f(this.href); return false;"                                                                           
+       href="api/PPather/WorldRoute2?x1=10477.419&y1=659.36426&z1=1326.2318&x2=10442.9&y2=783.989&z2=1337.37&uimap=1438&mapid=1&startindoors=false">Teldrassil to vendor</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1447&x1=67.25&y1=82.88&uimap2=1447&x2=66.68&y2=90.23" target="_blank">Azshara 1</a>
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1446&x1=51.0&y1=29.3&uimap2=1446&x2=38.7&y2=20.1">Tanaris FP to ZF</a>
 
-    <a href="api/PPather/MapRoute?uimap1=1944&x1=60.0762&y1=43.4372&uimap2=1944&x2=61.1473&y2=39.955284" target="_blank">hellfire 1</a>
-    <a href="api/PPather/MapRoute?uimap1=1944&x1=60.0762&y1=43.4372&uimap2=1944&x2=61.14&y2=38.38" target="_blank">hellfire 2</a>
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1451&x1=51.4&y1=37.8&uimap2=1451&x2=29&y2=92">Silithus Inn to AQ</a>
 
-    <a href="api/PPather/MapRoute?uimap1=121&x1=40.4058&y1=63.024403&uimap2=121&x2=40.3816&y2=64.259705" target="_blank">Zul'Drak stairs</a>
-    <a href="api/PPather/MapRoute?uimap1=121&x1=40.3816&y1=64.259705&uimap2=121&x2=40.4058&y2=63.024403" target="_blank">Zul'Drak stairs reverse</a>
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-896&y1=-3770&z1=11&x2=-441&y2=-2596&z2=96&mapid=1">Kalimdor Search Barrens</a>
 
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-6238.128&y1=139.40344&z1=430.9192&x2=-5884.185&y2=-118.66675&z2=364.64783&mapid=0">Azeroth Dun morogh 1</a>
+
+    <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute2?x1=-6101.417&y1=390.9181&z1=395.626&x2=-6154.18&y2=609.84973&z2=395.626&uimap=1426&mapid=0&startindoors=true">Dun morogh Vendor to grind</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-5609.00&y1=-479.00&z1=397.49&x2=-5884.185&y2=-118.66675&z2=364.64783&mapid=0">Azeroth Dun morogh 2</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-6200.1924&y1=700.5774&z1=384.6462&x2=-6103.1836&y2=393.5332&z2=0&mapid=0">Z Dun morogh Vendor Rybrad Coldbank</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute?x1=-6200.1924&y1=700.5774&z1=384.6462&x2=-6103.1836&y2=393.5332&z2=396.0979&mapid=0">Azeroth Dun morogh Vendor Rybrad Coldbank</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute2?x1=2293.7908&y1=-6636.0283&z1=120.13607&x2=2309.54&y2=-6666.62&z2=0&uimap=1447">Z Azshara issue no result</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/WorldRoute2?x1=-732.031&y1=2448.2805&z1=58.940506&x2=-755.79004&y2=2491.16&z2=0&uimap=1944">Z Honor hold issue no result</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1431&x1=43.097&y1=18.38&uimap2=1431&x2=45.34&y2=16.438">Duskwood issue</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=48.6">Loch Modan building Yanni Stoutheart</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=35.5&y2=48.5">Loch Modan building innkeeper</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=49.1">Loch Modan building building Vidra Heartstove</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1426&x1=28.7&y1=70.1&uimap2=1426&x2=28.8&y2=67.9">Dun morogh building Grundel Harkin</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1426&x1=28.8&y1=67.9&uimap2=1426&x2=28.7&y2=70.1">Dun morogh building Grundel Harkin reverse</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1426&x1=33.90&y1=71.86&uimap2=1426&x2=38.94&y2=61.0">Dun morogh Coldrige pass - unable to find</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1426&x1=33.76&y1=71.91&uimap2=1426&x2=39.0&y2=61.13">Dun morogh Coldrige pass</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1943&x1=81.05&y1=45.33&uimap2=1943&x2=78.92&y2=44.14">Ammen Vale</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1425&x1=82.2771&y1=48.698803&uimap2=1425&x2=81.65922&y2=49.87935">Hinterlands 1 water issue</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1425&x1=80.7258&y1=64.2714&uimap2=1425&x2=78.321304&y2=64.0448">Hinterlands 2 water issue</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1447&x1=67.25&y1=82.88&uimap2=1447&x2=66.68&y2=90.23">Azshara 1</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1944&x1=60.0762&y1=43.4372&uimap2=1944&x2=61.1473&y2=39.955284">hellfire 1</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=1944&x1=60.0762&y1=43.4372&uimap2=1944&x2=61.14&y2=38.38">hellfire 2</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=121&x1=40.4058&y1=63.024403&uimap2=121&x2=40.3816&y2=64.259705">Zul'Drak stairs</a>
+
+   <a onclick="f(this.href); return false;"
+       href="api/PPather/MapRoute?uimap1=121&x1=40.3816&y1=64.259705&uimap2=121&x2=40.4058&y2=63.024403">Zul'Drak stairs reverse</a>
 </div>
 
+<script>
+    function f(url) {
+      var iframe = document.createElement("iframe");
+      iframe.style.display = "none"; // Hide the iframe
+      iframe.src = url;
+      document.body.appendChild(iframe); // Add it to the page
+    }
+</script>

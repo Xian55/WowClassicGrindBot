@@ -1,6 +1,9 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
+[assembly: DisableRuntimeMarshalling]
 
 namespace StormDll;
 
@@ -47,7 +50,7 @@ internal sealed partial class StormDllx64
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SFileOpenFileEx(
         nint archiveHandle,
-        [MarshalAs(UnmanagedType.LPStr)] string fileName,
+        ReadOnlySpan<byte> fileName,
         OpenFile searchScope,
         out nint fileHandle);
 }

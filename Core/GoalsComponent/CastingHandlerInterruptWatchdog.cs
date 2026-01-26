@@ -1,11 +1,11 @@
-﻿using System;
-using System.Threading;
-
-using Core.GOAP;
+﻿using Core.GOAP;
 
 using Microsoft.Extensions.Logging;
 
 using SharedLib;
+
+using System;
+using System.Threading;
 
 #pragma warning disable 162
 
@@ -22,8 +22,8 @@ public sealed class CastingHandlerInterruptWatchdog : IDisposable
     private readonly Thread thread;
     private readonly ManualResetEventSlim resetEvent;
 
-    private bool? initial;
-    private Func<bool>? interrupt;
+    private bool initialValue;
+    private Func<bool> interrupt = () => false;
 
     private CancellationTokenSource interruptCts;
 
@@ -45,7 +45,6 @@ public sealed class CastingHandlerInterruptWatchdog : IDisposable
 
     public void Dispose()
     {
-        interrupt = null;
         resetEvent.Set();
     }
 
@@ -53,10 +52,14 @@ public sealed class CastingHandlerInterruptWatchdog : IDisposable
     {
         while (!token.IsCancellationRequested)
         {
-            while (initial == interrupt?.Invoke())
+            while (!token.IsCancellationRequested && initialValue == interrupt.Invoke())
             {
-                wait.Update();
-                resetEvent.Wait();
+                wait.Update(token);
+                try
+                {
+                    resetEvent.Wait(token);
+                }
+                catch (OperationCanceledException) { }
             }
 
             interruptCts.Cancel();
@@ -67,7 +70,11 @@ public sealed class CastingHandlerInterruptWatchdog : IDisposable
             }
 
             resetEvent.Reset();
-            resetEvent.Wait();
+            try
+            {
+                resetEvent.Wait(token);
+            }
+            catch (OperationCanceledException) { }
         }
 
         if (logger.IsEnabled(LogLevel.Debug))
@@ -78,7 +85,7 @@ public sealed class CastingHandlerInterruptWatchdog : IDisposable
     {
         resetEvent.Reset();
 
-        this.initial = interrupt();
+        initialValue = interrupt();
         this.interrupt = interrupt;
 
         if (!interruptCts.TryReset())

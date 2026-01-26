@@ -37,13 +37,12 @@
         "Name": "Lightning Bolt",
         "Key": "2",
         "HasCastBar": true,
-        "Requirement": "not InMeleeRange"
+        "Requirement": "!InMeleeRange"
       },
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!Casting",
-          "!AutoAttacking"
+          "!Casting"
         ]
       },
       {
@@ -60,7 +59,7 @@
       {
         "Name": "Rockbiter Weapon",
         "Key": "5",
-        "Requirement": "not HasMainHandEnchant",
+        "Requirement": "!HasMainHandEnchant",
         "AfterCastAuraExpected": true
       }
     ]

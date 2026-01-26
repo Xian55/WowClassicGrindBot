@@ -9,6 +9,8 @@ public sealed class MpqFileStream : Stream
 {
     private const int ERROR_HANDLE_EOF = 38;
 
+    public const int MaxStackLimit = 1024;
+
     private readonly long length;
 
     private nint fileHandle;
@@ -54,6 +56,20 @@ public sealed class MpqFileStream : Stream
             if (lastError != ERROR_HANDLE_EOF)
                 throw new Win32Exception(lastError);
         }
+
+        return unchecked((int)bytesRead);
+    }
+
+    public sealed override int Read(Span<byte> buffer)
+    {
+        if (!Archive.SFileReadFile(fileHandle, buffer, length, out long bytesRead))
+        {
+            int lastError = Marshal.GetLastWin32Error();
+            if (lastError != ERROR_HANDLE_EOF)
+                throw new Win32Exception(lastError);
+        }
+
+        position += bytesRead;
 
         return unchecked((int)bytesRead);
     }

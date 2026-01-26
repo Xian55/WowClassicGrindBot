@@ -1,4 +1,5 @@
 ﻿using Core.GOAP;
+
 using Microsoft.Extensions.Logging;
 
 namespace Core.Goals;

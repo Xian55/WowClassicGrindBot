@@ -1,87 +1,57 @@
-﻿@using MatBlazor
-@using System.IO
+﻿@using System.IO
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
 
 @inject IBotController botController
 @inject DataConfig dataConfig
+@inject IJSRuntime JSRuntime
 
 @implements IDisposable
 
 <style>
-    .thumbnail {
-        position: relative;
-        z-index: 0;
-        text-decoration: none;
+    #path-autocomplete-container .dropdown-menu {
+        max-height: 600px !important;
+        overflow-y: auto;
     }
-
-        .thumbnail:hover {
-            background-color: transparent;
-            z-index: 50;
-        }
-
-        .thumbnail .thumbnail-img {
-            /*CSS for enlarged image*/
-            position: absolute;
-            padding: 5px;
-            visibility: hidden;
-            text-decoration: none;
-        }
-
-            .thumbnail .thumbnail-img img {
-                padding: 2px;
-            }
-
-        .thumbnail:hover .thumbnail-img {
-            /*CSS for enlarged image on hover*/
-            visibility: visible;
-            transform: scale(2);
-            transform-origin: top left;
-            position: fixed;
-            top: 5px;
-            left: 5px;
-            pointer-events: none;
-        }
 </style>
 
-<div class="card @(Hide ? "hide" : "")" style="margin-top: 10px">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <label>Path Profile</label>
-
-        <MatAutocompleteList Items="@Files" TItem="string" Label="Path" ValueChanged="OnSelectedPathChanged"
-                             ShowClearButton="true" NumberOfElementsInPopup="@VisibleNum" OnTextChanged="OnTextChanged">
-            <ItemTemplate>
-                <div class="mat-autocomplete-list-popup-element" style="display: flex; width: 100%; font-size: 0.75vw">
-                    @{
-                        string imgFile = @context.Replace("json", "jpg");
-                    }
-                    @if (File.Exists(Path.Combine(dataConfig.Path, imgFile)))
-                    {
-                        <a class="thumbnail">
-                            <span class="oi oi-image" aria-hidden="true"> </span>
-                            <span class="thumbnail-img">
-                                <img src="./path/@imgFile" />
-                            </span>
-                        </a>
-                    }
-                    @context
-                </div>
-            </ItemTemplate>
-        </MatAutocompleteList>
-
-        <button class="btn btn-sm btn-primary float-right" @onclick="OnClickButtonLoad" disabled="@(ButtonDisabled)">
-            <span>Load Path</span>
-        </button>
-    </div>
-</div>
+<Card class="@(Hide ? "hide" : "")" style="margin-top: 10px">
+    <CardHeader>
+        <div class="d-flex">
+            <div class="p-2 bd-highlight">
+                Path Profile
+            </div>
+            <div class="p-2 flex-grow-1 bd-highlight" id="path-autocomplete-container">
+                <AutoComplete @bind-Value="Selected"
+                TItem="AutoCompleteItem"
+                DataProvider="DataProvider"
+                PropertyName="@nameof(AutoCompleteItem.Name)"
+                Placeholder="@(Files.First() ?? string.Empty)"
+                OnChanged="(AutoCompleteItem selected) => OnSelectedPathChanged(selected)"
+                Disabled="ButtonDisabled" />
+            </div>
+            <div class="p-2 bd-highlight">
+                <Button Color="ButtonColor.Primary" @onclick="OnClickButtonLoad" disabled="@(ButtonDisabled)">
+                    <span>Load Path</span>
+                </Button>
+            </div>
+        </div>
+    </CardHeader>
+</Card>
 
 @code {
-
     [Parameter]
     public bool Hide { get; set; } = false;
 
+    [Parameter]
+    public PathSettings? Target { get; set; }
+
+    [Parameter]
+    public int TargetIndex { get; set; } = 0;
+
     private IEnumerable<string> Files { get; set; } = null!;
 
-    private int VisibleNum { get; set; } = 10;
-    private string Selected { get; set; } = string.Empty;
+    private string Selected { get; set; } = new("");
     private bool ButtonDisabled { get; set; } = true;
 
     private FileSystemWatcher watcher = null!;
@@ -112,6 +82,35 @@
         watcher.EnableRaisingEvents = true;
 
         botController.ProfileLoaded += ValidateLoadButton;
+
+        Selected = Target?.FileName ?? string.Empty;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (firstRender)
+        {
+            await InitializeImageInjectorAsync();
+        }
+    }
+
+    private async Task InitializeImageInjectorAsync()
+    {
+        if (Files == null || !Files.Any())
+        {
+            await JSRuntime.InvokeVoidAsync("PathAutocompleteImageInjector.init", []);
+            return;
+        }
+
+        var allItems = Files
+            .Select(name => {
+                return new { name, imagePath = GetImagePath(name) };
+            })
+            .ToList();
+
+        await JSRuntime.InvokeVoidAsync("PathAutocompleteImageInjector.init", allItems);
     }
 
     public void Dispose()
@@ -125,21 +124,19 @@
         GetData();
     }
 
-    private void OnSelectedPathChanged(string pick)
+    private void OnSelectedPathChanged(AutoCompleteItem? pick)
     {
-        Selected = pick;
-        if (string.IsNullOrEmpty(Selected) || Selected == Files.First())
+        string name = pick?.Name ?? string.Empty;
+
+        if (string.IsNullOrEmpty(name) || name == Files.First())
         {
             Selected = string.Empty;
         }
 
+        botController.SelectedPathFilename[TargetIndex] = name;
+
         ValidateLoadButton();
         base.InvokeAsync(StateHasChanged);
-    }
-
-    private void OnTextChanged(string text)
-    {
-        VisibleNum = string.IsNullOrEmpty(text) ? 10 : 50;
     }
 
     private void OnChanged(object? sender, FileSystemEventArgs e)
@@ -151,7 +148,7 @@
 
     private void OnClickButtonLoad()
     {
-        botController.LoadPathProfile(Selected);
+        botController.LoadPathProfile(botController.SelectedPathFilename);
     }
 
     private void ValidateLoadButton()
@@ -162,6 +159,50 @@
     private void GetData()
     {
         Files = botController.PathFiles();
-        Selected = botController.SelectedPathFilename ?? string.Empty;
+
+        if (botController.SelectedPathFilename.TryGetValue(TargetIndex, out string? selected))
+        {
+            Selected = selected ?? string.Empty;
+        }
+
+        // Update image map when files change
+        _ = UpdateImageMapAsync();
+    }
+
+    private async Task UpdateImageMapAsync()
+    {
+        if (Files == null || !Files.Any())
+            return;
+
+        var allItems = Files
+            .Select(name => new { name, imagePath = GetImagePath(name) ?? "" })
+            .ToList();
+
+        await JSRuntime.InvokeVoidAsync("PathAutocompleteImageInjector.update", allItems);
+    }
+
+    private async Task<AutoCompleteDataProviderResult<AutoCompleteItem>> DataProvider(AutoCompleteDataProviderRequest<AutoCompleteItem> request)
+    {
+        GetData();
+
+        var items = Files.Select(x => new AutoCompleteItem(x, GetImagePath(x)));
+
+        return await Task.FromResult(request.ApplyTo(items.OrderBy(i => i.Name)));
+    }
+
+    private string GetImagePath(string profileName)
+    {
+        if (string.IsNullOrEmpty(profileName))
+            return string.Empty;
+
+        var jpgFileName = Path.ChangeExtension(profileName, ".jpg");
+
+        return Path.Combine("path", jpgFileName);
+    }
+
+    public sealed class AutoCompleteItem(string name, string imagePath)
+    {
+        public string Name { get; set; } = name;
+        public string ImagePath { get; set; } = imagePath;
     }
 }

@@ -1,15 +1,20 @@
-﻿@inject IJSRuntime jsRuntime
+﻿@using System.Runtime.InteropServices
+
+@inject IJSRuntime jsRuntime
 
 <span class="form-inline px-4">
 
     <!-- Continent Combo -->
-    <label>Continent:</label>
-    <select disabled="@IsDisabled" class="form-control" @bind="MapId">
-        @foreach (var kvp in knownMapIds)
-        {
-            <option value="@kvp.Key">@kvp.Value</option>
-        }
-    </select>
+    @if (string.IsNullOrEmpty(OnlyMap))
+    {
+        <label>Continent:</label>
+        <select disabled="@IsDisabled" class="form-control" @bind="MapId">
+            @foreach (var kvp in knownMapIds)
+            {
+                <option value="@kvp.Key">@kvp.Value</option>
+            }
+        </select>
+    }
 
     <!-- From Combo -->
     <label style="margin-left: 10px">From:</label>
@@ -39,6 +44,14 @@
         <option value="2">A* avoid models</option>
     </select>
 
+    <button style="margin-left: 10px" type="button" disabled="@IsDisabled" class="form-control btn btn-primary" @onclick="Draw">
+        @if (IsDisabled)
+        {
+            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+        }
+        Draw
+    </button>
+
     <!-- Search Button -->
     <button style="margin-left: 10px" type="button" disabled="@IsDisabled" class="form-control btn btn-primary" @onclick="StartSearch">
         @if (IsDisabled)
@@ -49,13 +62,25 @@
     </button>
 </span>
 
+<script>
+    showAlert = (message) => {
+        alert(message);
+    }
+</script>
+
 @code {
 
     [Parameter]
     public EventCallback<SearchParam> OnSearch { get; set; }
 
     [Parameter]
+    public EventCallback<SearchParam> OnDraw { get; set; }
+
+    [Parameter]
     public bool IsDisabled { get; set; }
+
+    [Parameter]
+    public string OnlyMap { get; set; }
 
     private float MapId { get; set; }
     private string From { get; set; }
@@ -64,6 +89,16 @@
 
     private readonly List<SearchLocation> knownLocations = new();
     private readonly Dictionary<float, string> knownMapIds = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            PopulateSearchParams();
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
 
     private async Task StartSearch()
     {
@@ -81,17 +116,34 @@
         {
             From = knownLocations.Where(l => l.Description == this.From).FirstOrDefault(),
             To = knownLocations.Where(l => l.Description == this.To).FirstOrDefault(),
-            SearchType = (PathGraph.eSearchScoreSpot)this.SearchType,
+            SearchType = (SearchStrategy)this.SearchType,
             Continent = ContinentDB.IdToName[this.MapId]
         };
 
         await OnSearch.InvokeAsync(searchParameters);
-
     }
 
-    protected override void OnInitialized()
+    private async Task Draw()
     {
-        PopulateSearchParams();
+        string error = string.Empty;
+        if (string.IsNullOrEmpty(From)) { error += "From is required. "; }
+        if (string.IsNullOrEmpty(To)) { error += "To is required. "; }
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            await jsRuntime.InvokeAsync<object>("showAlert", error);
+            return;
+        }
+
+        SearchParam searchParameters = new()
+        {
+            From = knownLocations.Where(l => l.Description == this.From).FirstOrDefault(),
+            To = knownLocations.Where(l => l.Description == this.To).FirstOrDefault(),
+            SearchType = (SearchStrategy)this.SearchType,
+            Continent = ContinentDB.IdToName[this.MapId]
+        };
+
+        await OnDraw.InvokeAsync(searchParameters);
     }
 
     private void PopulateSearchParams()
@@ -170,6 +222,48 @@
                 new(5241, 5922, -60, Northrend, "Sholazar, Spot 3"),
                 new(5194, 5709, -85, Northrend, "Sholazar, Spot 4"),
             });
+        }
+
+        if (OnlyMap != null &&
+            ContinentDB.NameToId.TryGetValue(OnlyMap, out var m))
+        {
+            MapId = m;
+        }
+
+        ReadTeleportsLocationsFile();
+    }
+
+    private void ReadTeleportsLocationsFile()
+    {
+        foreach (ReadOnlySpan<char> line in System.IO.File.ReadLines("wwwroot/teleport_locations.txt"))
+        {
+            ReadOnlySpan<char> trim = line.Trim();
+            if (trim.IsEmpty)
+                continue;
+
+            // id x y z orientation mapId desc
+            Span<Range> ranges = stackalloc Range[7];
+            trim.Split(ranges, ' ');
+
+            float x = float.Parse(trim[ranges[1]]);
+            float y = float.Parse(trim[ranges[2]]);
+            float z = float.Parse(trim[ranges[3]]);
+            float mapId = float.Parse(trim[ranges[5]]);
+
+            string desc = trim[ranges[6]].ToString();
+
+            ref string valueRef = ref CollectionsMarshal.GetValueRefOrAddDefault(knownMapIds, mapId, out bool exists);
+            if (!exists)
+            {
+                valueRef = desc;
+            }
+
+            if (!string.IsNullOrEmpty(OnlyMap) && MapId != mapId)
+            {
+                continue;
+            }
+
+            knownLocations.Add(new(x, y, z, mapId, desc));
         }
     }
 

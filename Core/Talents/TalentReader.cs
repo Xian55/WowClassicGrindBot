@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using Core.Database;
 using Core.Talents;
-using Core.Database;
+
+using System.Collections.Generic;
 
 namespace Core;
 

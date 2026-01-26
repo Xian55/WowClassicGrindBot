@@ -8,6 +8,15 @@
     "MIN_WATER%": 20,
     "MIN_MANA_FIREBALL%": 40
   },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
@@ -33,8 +42,7 @@
         "Name": "AutoAttack",
         "Requirements": [
           "!HasRangedWeapon",
-          "!Casting",
-          "!AutoAttacking"
+          "!Casting"
         ]
       },
       {

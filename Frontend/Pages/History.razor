@@ -4,39 +4,100 @@
 
 @inject IGrindSessionDAO grindSessionDAO
 
-@if (Sessions.Any())
-{
-    <Table class="table table-dark table-striped table-hover" TableItem="GrindSession" Items="Sessions" PageSize="15" ColumnReorder="true" ShowSearchBar="true">
-        <Column TableItem="GrindSession" Title="Date" Field="@(x => x.SessionStart)" Sortable="true" Filterable="true" Width="10%" DefaultSortColumn="true" DefaultSortDescending="true"></Column>
-        <Column TableItem="GrindSession" Title="Path" Field="@(x => x.PathName)" Sortable="true" Filterable="true" Width="15%"></Column>
-        <Column TableItem="GrindSession" Title="Class" Field="@(x => x.PlayerClass)" Sortable="true" Filterable="true" Width="5%"></Column>
-        <Column TableItem="GrindSession" Title="Duration" Field="@(x => x.TotalTimeInMinutes)" Sortable="true" Filterable="true" Width="5%">
-            <Template>
-                @{
-                    <span>@context.TotalTimeInMinutes minutes</span>
-                }
-            </Template>
-        </Column>
-        <Column TableItem="GrindSession" Title="Level" Field="@(x => x.LevelFrom)" Sortable="true" Filterable="true" Width="5%"></Column>
-        <Column TableItem="GrindSession" Title="Exp" Field="@(x => x.ExpGetInBotSession)" Sortable="true" Filterable="true" Width="5%"></Column>
-        <Column TableItem="GrindSession" Title="Exp/Hour" Field="@(x => x.ExperiencePerHour)" Sortable="true" Filterable="true" Width="5%"></Column>
-        <Column TableItem="GrindSession" Title="Mobs" Field="@(x => x.MobsKilled)" Sortable="true" Filterable="true" Width="5%"></Column>
-        <Column TableItem="GrindSession" Title="Mobs/Min" Field="@(x => x.MobsPerMinute)" Sortable="true" Filterable="true" Width="5%"></Column>
-        <Column TableItem="GrindSession" Title="Death" Field="@(x => x.Death)" Sortable="true" Filterable="true" Width="5%"></Column>
-        <Pager ShowPageNumber="true" ShowTotalCount="true" PageSizes="@pageSize" ShowPageSizes="true"></Pager>
-    </Table>
-}
-else
-{
-    <div>No previous sessions!</div>
-}
+<p>
+    Show:
+    <label><input type="checkbox" @bind="showPath" /> path</label>
+</p>
+
+<QuickGrid class="table table-striped table-hover" Items="Filtered" Pagination="@pagination">
+    <PropertyColumn Title="Start Date" Property="@(x => x.SessionStartToLocalTime)" Sortable="true" IsDefaultSortColumn="true"></PropertyColumn>
+    <PropertyColumn Title="Duration Min" Property="@(x => x.TotalTimeInMinutes)" Sortable="true" Align="Align.Right"></PropertyColumn>
+    @if (showPath)
+    {
+        <PropertyColumn Title="Path" Property="@(x => x.PathName)" Sortable="true">
+            <ColumnOptions>
+                <div class="search-box">
+                    <input type="search" autofocus @bind="pathFilter" @bind:event="oninput" placeholder="Path name..." />
+                </div>
+            </ColumnOptions>
+        </PropertyColumn>
+    }
+    <PropertyColumn Title="Class" Property="@(x => x.PlayerClass)" Sortable="true">
+        <ColumnOptions>
+            <div class="search-box">
+                <input type="search" autofocus @bind="classFilter" @bind:event="oninput" placeholder="Class name..." />
+            </div>
+        </ColumnOptions>
+    </PropertyColumn>
+    <PropertyColumn Title="Start Level" Property="@(x => x.LevelFrom)" Sortable="true" Align="Align.Right">
+        <ColumnOptions>
+            <p>
+                Min: <span class="inline-block w-10"><b>@minLevelFilter</b></span>
+                <input type="range" @bind="minLevelFilter" @bind:event="oninput" min="1" max="@MaxLevel" />
+            </p>
+        </ColumnOptions>
+    </PropertyColumn>
+    <PropertyColumn Title="End Level" Property="@(x => x.LevelTo)" Sortable="true" Align="Align.Right">
+        <ColumnOptions>
+            <p>
+                Max: <span class="inline-block w-10"><b>@maxLevelFilter</b></span>
+                <input type="range" @bind="maxLevelFilter" @bind:event="oninput" min="1" max="@MaxLevel" />
+            </p>
+        </ColumnOptions>
+    </PropertyColumn>
+    <PropertyColumn Title="Total Exp" Property="@(x => x.ExpGetInBotSession)" Sortable="true" Align="Align.Right"></PropertyColumn>
+    <PropertyColumn Title="Exp/Hour" Property="@(x => x.ExperiencePerHour)" Sortable="true" Align="Align.Right"></PropertyColumn>
+    <PropertyColumn Title="Mobs" Property="@(x => x.MobsKilled)" Sortable="true" Align="Align.Right"></PropertyColumn>
+    <PropertyColumn Title="Mobs/Min" Property="@(x => x.MobsPerMinute)" Sortable="true" Align="Align.Right"></PropertyColumn>
+    <PropertyColumn Title="Death" Property="@(x => x.Death)" Sortable="true" Align="Align.Right"></PropertyColumn>
+</QuickGrid>
+
+<Paginator State="@pagination" />
 
 @code {
-    private readonly List<int> pageSize = new() { 15, 25, 50, 100 };
-    private IEnumerable<GrindSession> Sessions = null!;
 
-    protected override void OnInitialized()
+    PaginationState pagination = new PaginationState { ItemsPerPage = 15 };
+
+    private IQueryable<GrindSession> Sessions = Enumerable.Empty<GrindSession>().AsQueryable();
+
+    private bool showPath = true;
+
+    private string pathFilter = string.Empty;
+    private string classFilter = string.Empty;
+
+    private int MaxLevel;
+
+    private int minLevelFilter = 1;
+    private int maxLevelFilter = 60;
+
+    private IQueryable<GrindSession> Filtered
     {
-        Sessions = grindSessionDAO.Load();
+        get
+        {
+            var result = Sessions.Where(s => s.LevelFrom <= maxLevelFilter);
+
+            if (!string.IsNullOrEmpty(pathFilter))
+            {
+                result = result.Where(c => c.PathName.Contains(pathFilter, StringComparison.CurrentCultureIgnoreCase));
+            }
+
+            if (!string.IsNullOrEmpty(classFilter))
+            {
+                result = result.Where(c => c.PlayerClass.ToStringF().Contains(classFilter, StringComparison.CurrentCultureIgnoreCase));
+            }
+
+            if (minLevelFilter > 0)
+            {
+                result = result.Where(c => c.LevelTo >= minLevelFilter);
+            }
+
+            return result;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        maxLevelFilter = MaxLevel = ExperienceProvider.MaxLevel;
+        Sessions = (await grindSessionDAO.LoadAsync()).AsQueryable();
     }
 }

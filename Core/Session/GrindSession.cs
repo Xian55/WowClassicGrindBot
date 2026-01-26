@@ -1,5 +1,6 @@
-﻿using System;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+
+using System;
 
 namespace Core.Session;
 
@@ -12,7 +13,15 @@ public sealed class GrindSession
     public string PathName { get; set; } = string.Empty;
     public UnitClass PlayerClass { get; set; }
     public DateTime SessionStart { get; set; }
+
+    [JsonIgnore]
+    public DateTime SessionStartToLocalTime => SessionStart.ToLocalTime();
+
     public DateTime SessionEnd { get; set; }
+
+    [JsonIgnore]
+    public DateTime SessionEndToLocalTime => SessionStart.ToLocalTime();
+
     [JsonIgnore]
     public int TotalTimeInMinutes => (int)(SessionEnd - SessionStart).TotalMinutes;
     public int LevelFrom { get; set; }
@@ -51,10 +60,17 @@ public sealed class GrindSession
 
                 for (int i = 0; i < LevelTo - LevelFrom; i++)
                 {
-                    expSoFar += ExpList[LevelFrom - 1 + i] - XpFrom;
-                    XpFrom = 0;
-                    if (LevelTo > maxLevel)
+                    int index = LevelFrom - 1 + i;
+                    if (index < 0)
+                    {
+                        expSoFar -= XpFrom;
+                        continue;
+                    }
+
+                    if (index >= ExpList.Length)
                         break;
+
+                    expSoFar += ExpList[index];
                 }
 
                 return expSoFar;

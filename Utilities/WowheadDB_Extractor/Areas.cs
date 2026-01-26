@@ -102,7 +102,27 @@ namespace WowheadDB_Extractor
             { "Zul'Drak", 66 },
         };
 
-        public static Dictionary<string, int> List = classic.Union(tbc).Union(wotlk).ToDictionary(k => k.Key, v => v.Value);
+        public static Dictionary<string, int> cata = new()
+        {
+            { "Deepholm", 5042 },
+            { "Tol Barad", 5095 },
+            { "The Lost Isles", 4720 },
+            { "Kezan", 4737 },
+            //{ "Tol Barad Peninsula", 5389 },
+            { "Abyssal Depths", 5145 },
+            { "Kelp'thar Forest", 4815 },
+            { "Ruins of Gilneas", 4706 },
+            { "Ruins of Gilneas City", 5351 },
+            { "Shimmering Expanse", 5144 },
+            { "Stranglethorn Vale", 5339 },
+            { "The Cape of Stranglethorn", 5287 },
+            { "Twilight Highlands", 4922 },
+            { "Vashj'ir", 5146 },
+            { "Southern Barrens", 4709 },
+            { "Uldum", 5034 },
+        };
+
+        public static Dictionary<string, int> List = classic.Union(tbc).Union(wotlk).Union(cata).ToDictionary(k => k.Key, v => v.Value);
 
         public static bool IsClassic(int id)
         {
@@ -117,6 +137,11 @@ namespace WowheadDB_Extractor
         public static bool IsWotlk(int id)
         {
             return wotlk.ContainsValue(id);
+        }
+
+        public static bool IsCata(int id)
+        {
+            return cata.ContainsValue(id);
         }
     }
 }

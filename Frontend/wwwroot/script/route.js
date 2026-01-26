@@ -10,7 +10,7 @@ function dispose() {
     DotNet = null;
 }
 
-function draw() {
+function draw(color3, color4) {
 
     gridNode = document.getElementById("grid")
     panzoom = Panzoom(gridNode, { /*contain: 'outside',*/ excludeClass: 'group2', minScale: 0.99, maxScale: 8, roundPixels: true })
@@ -57,9 +57,9 @@ function draw() {
         .attr("y", function (d) { return d.y; })
         .attr("width", function (d) { return d.width; })
         .attr("height", function (d) { return d.height; })
-        .style("fill", "#444")
+        .style("fill", color3)
         .style("stroke-width", "0.5px")
-        .style("stroke", "#666");
+        .style("stroke", color4);
 }
 
 function showTooltip(evt, text) {

@@ -1,5 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
-using Core.GOAP;
+﻿using Core.GOAP;
+
+using Microsoft.Extensions.Logging;
 
 namespace Core.Goals;
 
@@ -23,11 +24,8 @@ public sealed partial class ConsumeCorpseGoal : GoapGoal
         {
             AddPrecondition(GoapKey.consumablecorpsenearby, true);
         }
-        else
-        {
-            AddPrecondition(GoapKey.damagedone, false);
-            AddPrecondition(GoapKey.damagetaken, false);
-        }
+        AddPrecondition(GoapKey.damagedone, false);
+        AddPrecondition(GoapKey.damagetaken, false);
 
         AddPrecondition(GoapKey.producedcorpse, true);
         AddPrecondition(GoapKey.consumecorpse, false);

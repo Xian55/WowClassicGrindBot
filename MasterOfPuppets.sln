@@ -9,6 +9,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3F5D9F67-D788-4811-BB08-F28134BD5DA4}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		Directory.Packages.props = Directory.Packages.props
+		global.json = global.json
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PathingAPI", "PathingAPI\PathingAPI.csproj", "{1FCAB55D-8AA5-4E68-9502-6C27D9BEF252}"
@@ -30,6 +32,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Frontend", "Frontend\Frontend.csproj", "{A8281286-7AAA-4386-9919-6AB5BEA39BAF}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HeadlessServer", "HeadlessServer\HeadlessServer.csproj", "{8364AC12-DBF5-4DFF-B3A2-87472413DE01}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmarks", "Benchmarks\Benchmarks.csproj", "{488984A0-F158-4EDA-A2CB-57C10D8596E1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -185,6 +189,18 @@ Global
 		{8364AC12-DBF5-4DFF-B3A2-87472413DE01}.Release|x64.Build.0 = Release|x64
 		{8364AC12-DBF5-4DFF-B3A2-87472413DE01}.Release|x86.ActiveCfg = Release|x86
 		{8364AC12-DBF5-4DFF-B3A2-87472413DE01}.Release|x86.Build.0 = Release|x86
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Debug|x64.Build.0 = Debug|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Debug|x86.Build.0 = Debug|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Release|x64.ActiveCfg = Release|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Release|x64.Build.0 = Release|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Release|x86.ActiveCfg = Release|Any CPU
+		{488984A0-F158-4EDA-A2CB-57C10D8596E1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

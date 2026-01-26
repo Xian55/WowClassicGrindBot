@@ -1,26 +1,24 @@
-﻿using System;
-
-using System.Text;
-using System.Runtime.CompilerServices;
-using SixLabors.ImageSharp.PixelFormats;
+﻿using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+
+using System;
+using System.Runtime.CompilerServices;
 
 namespace Core;
 
 public interface IAddonDataProvider : IDisposable
 {
     private static readonly Bgra32 firstColor = new(0, 0, 0, 255);
-    private static readonly Bgra32 lastlColor = new(30, 132, 129, 255);
+    private static readonly Bgra32 lastColor = new(30, 132, 129, 255);
 
     void UpdateData();
     void InitFrames(DataFrame[] frames);
 
     int[] Data { get; }
-    StringBuilder TextBuilder { get; }
 
     [SkipLocalsInit]
-    static unsafe void InternalUpdate(Image<Bgra32> bd,
+    static void InternalUpdate(Image<Bgra32> bd,
         ReadOnlySpan<DataFrame> frames, Span<int> output)
     {
         ref readonly Bgra32 first = ref bd.DangerousGetPixelRowMemory(frames[0].Y)
@@ -30,7 +28,7 @@ public interface IAddonDataProvider : IDisposable
             .Span[frames[^1].X];
 
         if (!first.Equals(firstColor) ||
-            !last.Equals(lastlColor))
+            !last.Equals(lastColor))
         {
             return;
         }
@@ -59,20 +57,20 @@ public interface IAddonDataProvider : IDisposable
     string GetString(int index)
     {
         int color = GetInt(index);
-        if (color == 0 || color > 999999)
+        if ((uint)color > 999999)
             return string.Empty;
 
-        TextBuilder.Clear();
+        Span<char> buffer = stackalloc char[3];
+        int count = 0;
 
-        int n = color / 10000;
-        if (n > 0) TextBuilder.Append((char)n);
+        int n1 = color / 10000;
+        int n2 = color / 100 % 100;
+        int n3 = color % 100;
 
-        n = color / 100 % 100;
-        if (n > 0) TextBuilder.Append((char)n);
+        if (n1 > 0) buffer[count++] = (char)n1;
+        if (n2 > 0) buffer[count++] = (char)n2;
+        if (n3 > 0) buffer[count++] = (char)n3;
 
-        n = color % 100;
-        if (n > 0) TextBuilder.Append((char)n);
-
-        return TextBuilder.ToString();
+        return buffer[..count].ToString();
     }
 }

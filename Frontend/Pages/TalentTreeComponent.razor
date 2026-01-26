@@ -27,34 +27,36 @@
             {
                 <div class="col">
                     <table class="table">
-                        @for (int tier = 1; tier <= maxTier; tier++)
-                        {
-                            <tr>
-                                @for (int col = 1; col <= maxColumn; col++)
-                                {
-                                    var talent = talentReader.Talents.FirstOrDefault(x => x.Value.TabNum == tab && x.Value.TierNum == tier && x.Value.ColumnNum == col);
-                                    if (talent.Key == 0)
+                        <tbody>
+                            @for (int tier = 1; tier <= maxTier; tier++)
+                            {
+                                <tr>
+                                    @for (int col = 1; col <= maxColumn; col++)
                                     {
-                                        <td></td>
-                                    }
-                                    else
-                                    {
-                                        <td>
-                                            @if (talentReader.Spells.TryGetValue(talent.Key, out int spellId))
-                                            {
-                                                <a href="@($"{api.SpellId}{@spellId}")" target="_blank" data-wowhead="item=@spellId" class="small" style="text-decoration:none">
+                                        var talent = talentReader.Talents.FirstOrDefault(x => x.Value.TabNum == tab && x.Value.TierNum == tier && x.Value.ColumnNum == col);
+                                        if (talent.Key == 0)
+                                        {
+                                            <td></td>
+                                        }
+                                        else
+                                        {
+                                            <td>
+                                                @if (talentReader.Spells.TryGetValue(talent.Key, out int spellId))
+                                                {
+                                                    <a href="@($"{api.SpellId}{@spellId}")" target="_blank" data-wowhead="item=@spellId" class="small" style="text-decoration:none">
+                                                        @DisplayName(talent.Value)
+                                                    </a>
+                                                }
+                                                else
+                                                {
                                                     @DisplayName(talent.Value)
-                                                </a>
-                                            }
-                                            else
-                                            {
-                                                @DisplayName(talent.Value)
-                                            }
-                                        </td>
+                                                }
+                                            </td>
+                                        }
                                     }
-                                }
-                            </tr>
-                        }
+                                </tr>
+                            }
+                        </tbody>
                     </table>
                 </div>
             }

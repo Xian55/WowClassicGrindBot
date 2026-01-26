@@ -53,8 +53,7 @@
         "Requirement": "LastMainHandMs<500"
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "!AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

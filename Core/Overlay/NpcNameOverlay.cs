@@ -1,12 +1,12 @@
-﻿using System;
-
-using Core.Goals;
+﻿using Core.Goals;
 
 using GameOverlay.Drawing;
 using GameOverlay.Windows;
 
 using SharedLib.Extensions;
 using SharedLib.NpcFinder;
+
+using System;
 
 using DPoint = SixLabors.ImageSharp.Point;
 using DRectangle = SixLabors.ImageSharp.Rectangle;

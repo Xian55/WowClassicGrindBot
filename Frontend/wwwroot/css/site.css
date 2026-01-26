@@ -1,5 +1,3 @@
-@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
-
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
@@ -111,9 +109,9 @@ app {
     border: none;
 }
 
-.sidebar-text-toggler:focus {
-    outline: none;
-}
+    .sidebar-text-toggler:focus {
+        outline: none;
+    }
 
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
@@ -196,55 +194,8 @@ app {
     width: auto !important;
 }
 
-.table-no-border > thead > tr > th,
-.table-no-border > tbody > tr > th,
-.table-no-border > tfoot > tr > th,
-.table-no-border > thead > tr > td,
-.table-no-border > tbody > tr > td,
-.table-no-border > tfoot > tr > td {
-    border-top: none;
-}
-
-.card-header, .card-header table {
-    background-color: darkslateblue !important;
-}
-
 .hide {
     display: none;
-}
-
-.mat-autocomplete-list {
-    display: block;
-    width: 75%;
-}
-
-.mat-text-field {
-    background-color: #191d21 !important;
-}
-
-.mat-text-field-input, .mdc-text-field__input {
-    color: #d3d3d3 !important;
-}
-
-.mat-text-field, .mdc-text-field, .mdc-text-field--filled, .mdc-ripple-upgraded {
-    display: flex;
-    color: #d3d3d3;
-}
-
-.mat-autocomplete-list-popup {
-    background-color: #191d21;
-}
-
-.mat-autocomplete-list-popup-element {
-    color: #d3d3d3;
-}
-
-.bg-majestic {
-    background-color: #620693;
-}
-
-.bg-red {
-    background-color: #4d120e;
 }
 
 #tooltip {
@@ -263,4 +214,36 @@ app {
 .img-filled-half {
     width: 100%;
     aspect-ratio: 1.5/1;
+}
+
+.poor {
+    color: #9d9d9d;
+}
+
+.common {
+    color: var(--bs-emphasis-color);
+}
+
+.uncommon {
+    color: #1eff00;
+}
+
+.rare {
+    color: #0070dd;
+}
+
+.epic {
+    color: #9345ff;
+}
+
+.legendary {
+    color: #ff8000;
+}
+
+.artifact {
+    color: #e5cc80;
+}
+
+.heirloom {
+    color: #e5cc80;
 }

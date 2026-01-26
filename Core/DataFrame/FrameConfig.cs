@@ -25,7 +25,7 @@ public static class FrameConfig
     {
         try
         {
-            var config = JsonConvert.DeserializeObject<DataFrameConfig>(File.ReadAllText(FrameConfigMeta.DefaultFilename));
+            var config = Load();
 
             bool sameVersion = config.Version == FrameConfigMeta.Version;
             bool sameAddonVersion = config.AddonVersion == addonVersion;
@@ -38,11 +38,16 @@ public static class FrameConfig
         }
     }
 
+    public static DataFrameConfig Load()
+    {
+        return JsonConvert.DeserializeObject<DataFrameConfig>(File.ReadAllText(FrameConfigMeta.DefaultFilename));
+    }
+
     public static DataFrame[] LoadFrames()
     {
         if (Exists())
         {
-            var config = JsonConvert.DeserializeObject<DataFrameConfig>(File.ReadAllText(FrameConfigMeta.DefaultFilename));
+            var config = Load();
             if (config.Version == FrameConfigMeta.Version)
                 return config.Frames;
         }
@@ -52,7 +57,7 @@ public static class FrameConfig
 
     public static DataFrameMeta LoadMeta()
     {
-        var config = JsonConvert.DeserializeObject<DataFrameConfig>(File.ReadAllText(FrameConfigMeta.DefaultFilename));
+        var config = Load();
         if (config.Version == FrameConfigMeta.Version)
             return config.Meta;
 

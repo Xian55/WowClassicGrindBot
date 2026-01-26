@@ -1,11 +1,142 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="sidebar">
-    <NavMenu />
-</div>
+@inject ILogger logger
+@inject IBotController botController
+@inject AddonConfigurator addonConfigurator
+@inject WowProcess process
+@inject StartupClientVersion client
 
-<div class="main">
-    <div class="content px-4">
+@implements IDisposable
+
+<BlazorBootstrapLayout>
+    <SidebarSection>
+        <div class="grid">
+            <ThemeSwitcher Class="ms-5" />
+            <Sidebar2 Href="/"
+                      @ref="sidebar"
+                      Title="Puppet"
+                      DataProvider="Sidebar2DataProvider"
+                      Width="146"
+                      WidthUnit="Unit.Px">
+            </Sidebar2>
+        </div>
+    </SidebarSection>
+
+    <ContentSection>
         @Body
-    </div>
+    </ContentSection>
+</BlazorBootstrapLayout>
+
+@code {
+    private Sidebar2 sidebar = null!;
+    private List<NavItem> navItems = [];
+
+    private bool AddonConfigExists => AddonConfig.Exists() && addonConfigurator.Installed();
+    private bool HideClassConfig => botController.IsBotActive || botController.ClassConfig == null;
+
+    private bool ConfigExists => AddonConfig.Exists() && FrameConfig.Exists();
+
+    protected override void OnInitialized()
+    {
+        addonConfigurator.OnChange += OnChanged;
+        botController.ProfileLoaded += OnChanged;
+        botController.StatusChanged += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        addonConfigurator.OnChange -= OnChanged;
+        botController.ProfileLoaded -= OnChanged;
+        botController.StatusChanged -= OnChanged;
+    }
+
+    private void OnChanged()
+    {
+        base.InvokeAsync(async () =>
+        {
+            await sidebar.RefreshDataAsync();
+        });
+    }
+
+    private async Task<Sidebar2DataProviderResult> Sidebar2DataProvider(Sidebar2DataProviderRequest request)
+    {
+        navItems = ConfigExists ? GetNormalNavItems() : GetConfigNavItems();
+
+        return await Task.FromResult(request.ApplyTo(navItems));
+    }
+
+    private List<NavItem> GetNormalNavItems()
+    {
+        navItems = new List<NavItem>
+        {
+            new() { Id = "0", Href = "/", Text = "Dashboard", Match=NavLinkMatch.All},
+            new() { Id = "1", Href = "/ChangeTheme", Text = "Theme"},
+
+            new() { Id = "3", Href = "/Screenshot", Text = "Screenshot"},
+            new() { Id = "4", Href = "/Swag", Text = "Swag"},
+
+            new() { Id = "6", Href = "/History", Text = "History"},
+
+            new() { Id = "9", Href = "/AddonConfiguration", Text = "Addon Config"},
+            new() { Id = "10", Href = "/FrameConfiguration", Text = "Frame Config"},
+            new() { Id = "11", Href = "/Chat", Text = "Chat"},
+            new() { Id = "12", Href = "/Log", Text = "Log"},
+            new() { Id = "13", Href = "/RestartServer", Text = "Restart"},
+        };
+
+        if (client.Version is ClientVersion.SoM or ClientVersion.TBC)
+        {
+            navItems.Insert(5, new() { Id = "6", Href = "/Leaflet", Text = "Leaflet" });
+        }
+
+        if (!HideClassConfig)
+        {
+            navItems.Insert(2, new() { Id = "2", Href = "/ClassConfigPage", Text = "Class Config" });
+            navItems.Insert(5, new() { Id = "5", Href = "/RecordPath", Text = "Path Editor" });
+            navItems.Insert(7, new() { Id = "7", Href = "/RawPlayerReader", Text = "Raw Values" });
+        }
+
+        if (this.botController.ClassConfig?.Mode == Core.Mode.AttendedGather)
+        {
+            navItems.Insert(8, new() { Id = "8", Href = "/Gather", Text = "Gather" });
+        }
+
+        return navItems;
+    }
+
+    private List<NavItem> GetConfigNavItems()
+    {
+        if (!process.IsRunning)
+        {
+            navItems = new List<NavItem> {
+                new() { Id = "0", IconName = IconName.StopBtn, Text = "Process Not Running" },
+            };
+            return navItems;
+        }
+
+        navItems = new List<NavItem> {
+            new() { Id = "1", Text = "1. Restart Game" },
+        };
+
+        if (process.IsRunning)
+        {
+            navItems.Add(new() { Id = "2", Text = "2. Addon Configuration" });
+        }
+
+        if (AddonConfigExists)
+        {
+            navItems.Add(new() { Id = "3", Text = "3. Restart Game" });
+            navItems.Add(new() { Id = "4", Text = "4. Enter world" });
+            navItems.Add(new() { Id = "5", Text = "5. Frame Configuration" });
+        }
+
+        return navItems;
+    }
+}
+
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
 </div>

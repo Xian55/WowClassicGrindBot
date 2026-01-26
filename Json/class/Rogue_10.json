@@ -10,8 +10,8 @@
         "WhenUsable": true,
         "AfterCastWaitBuff": true,
         "Requirements": [
-          "not Stealth",
-          "not InMeleeRange"
+          "!Stealth",
+          "!InMeleeRange"
         ]
       },
       {
@@ -35,7 +35,7 @@
         "Key": "4",
         "AfterCastAuraExpected": true,
         "Requirements": [
-          "not Slice and Dice",
+          "!Slice and Dice",
           "Combo Point > 1"
         ]
       },
@@ -54,8 +54,7 @@
         "Requirement": "LastMainHandMs<500"
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "not AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

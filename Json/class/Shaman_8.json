@@ -13,7 +13,7 @@
         "Key": "2",
         "HasCastBar": true,
         "Requirements": [
-          "not InMeleeRange",
+          "!InMeleeRange",
           "SpellInRange:0",
           "Stoneskin",
           "Mana%>60"
@@ -25,9 +25,9 @@
         "Key": "2",
         "HasCastBar": true,
         "Requirements": [
-          "not InMeleeRange",
+          "!InMeleeRange",
           "SpellInRange:0",
-          "not Stoneskin",
+          "!Stoneskin",
           "Mana%>70"
         ]
       }
@@ -74,14 +74,13 @@
           "TargetHealth%>50",
           "Mana%>55",
           "BagItem:Item_Earth_Totem",
-          "not Stoneskin"
+          "!Stoneskin"
         ]
       },
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!Casting",
-          "!AutoAttacking"
+          "!Casting"
         ]
       },
       {
@@ -98,7 +97,7 @@
       {
         "Name": "Rockbiter Weapon",
         "Key": "5",
-        "Requirement": "not HasMainHandEnchant",
+        "Requirement": "!HasMainHandEnchant",
         "AfterCastAuraExpected": true
       },
       {
@@ -106,7 +105,7 @@
         "Key": "7",
         "Cooldown": 10000,
         "Requirements": [
-          "not Lightning Shield",
+          "!Lightning Shield",
           "Mana%>50"
         ]
       }

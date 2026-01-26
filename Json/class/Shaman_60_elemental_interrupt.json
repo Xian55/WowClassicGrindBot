@@ -1,0 +1,103 @@
+{
+  "ClassName": "Shaman",
+  "Mode": "AttendedGrind",
+  "Loot": true,
+  "Skin": false,
+  "PathFilename": "_pack\\50-60\\Azshara\\50 - 53 Southridge Beach (mermaids).json",
+  "PathThereAndBack": false,
+  "PathReduceSteps": true,
+  "NPCMaxLevels_Below": 20,
+  "NPCMaxLevels_Above": 2,
+  "Mount": {
+    "Key": "N0"
+  },
+  "IntVariables":{
+    "Earth_Shock_MIN_HP%": 25,
+    "Healing_Wave_MIN_HP%": 20,
+    "Drink_MIN_MANA%": 20,
+    "Food_MIN_HP%": 20
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Chain Lightning",
+        "Key": "2",
+        "HasCastBar": true,
+        "Requirement": "Clearcasting"
+      },
+      {
+        "Name": "Lightning Bolt",
+        "Key": "1",
+        "HasCastBar": true,
+        "Requirement": "!Clearcasting",
+        "Interrupt": "Clearcasting",
+        "AfterCastWaitCastbar": true,
+        "CancelOnInterrupt": true
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Elemental Mastery",
+        "Key": "5",
+        "Requirement": "!Clearcasting && !Elemental Mastery"
+      },
+      {
+        "Name": "Chain Lightning",
+        "Key": "2",
+        "HasCastBar": true,
+        "Requirement": "Clearcasting"
+      },
+      {
+        "Name": "Earth Shock",
+        "Key": "3",
+        "Requirements": [
+          "SpellInRange:1",
+          "TargetAlive && TargetHealth% < Earth_Shock_MIN_HP%"
+        ]
+      },
+      {
+        "Name": "Lightning Bolt",
+        "Key": "1",
+        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
+        "Requirement": "!Clearcasting",
+        "Interrupt": "(Clearcasting && CanRun:Chain Lightning) || CanRun:Earth Shock",
+        "CancelOnInterrupt": true
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Lightning Shield",
+        "Key": "7",
+        "Requirement": "!Lightning Shield"
+      },
+      {
+        "Cost": 3,
+        "Name": "Healing Wave",
+        "HasCastBar": true,
+        "Key": "F1",
+        "Requirements": [
+          "Health% < Healing_Wave_MIN_HP%"
+        ]
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < Drink_MIN_MANA%"
+      },
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < Food_MIN_HP%"
+      }
+    ]
+  }
+}

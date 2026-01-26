@@ -1,6 +1,6 @@
-﻿using System.Threading;
+﻿using Microsoft.Extensions.Logging;
 
-using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace Core;
 

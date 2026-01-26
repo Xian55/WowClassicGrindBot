@@ -1,6 +1,15 @@
 {
   "ClassName": "Paladin",
   "PathFilename": "_pack\\1-20\\Draenei\\1-5_Azuremyst Isle.json",
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Combat": {
     "Sequence": [
       {
@@ -9,8 +18,7 @@
         "Requirement": "!Seal of Righteousness"
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "!AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

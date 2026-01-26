@@ -4,18 +4,19 @@
  *
  */
 
-using System;
-using System.Collections.Generic;
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
 using Microsoft.Extensions.Logging;
 
 using PPather;
 using PPather.Triangles;
 
 using SharedLib.Extensions;
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace WowTriangles;
 
@@ -29,6 +30,10 @@ public sealed class TriangleCollection
     private readonly List<Triangle<int>> triangles;
 
     public List<Vector3> Vertecies => vertecies;
+    public List<Triangle<int>> Triangles => triangles;
+
+    public ReadOnlySpan<Vector3> VerteciesSpan => CollectionsMarshal.AsSpan(vertecies);
+    public ReadOnlySpan<Triangle<int>> TrianglesSpan => CollectionsMarshal.AsSpan(triangles);
 
     private TriangleMatrix matrix;
 
@@ -67,7 +72,28 @@ public sealed class TriangleCollection
 
     public TriangleMatrix GetTriangleMatrix()
     {
-        matrix ??= new TriangleMatrix(this, logger);
+        if (matrix != null)
+        {
+            return matrix;
+        }
+
+        long start = Stopwatch.GetTimestamp();
+
+        matrix = new TriangleMatrix(this);
+
+        if (logger.IsEnabled(LogLevel.Trace))
+        {
+            var end = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+
+            logger.LogTrace($"Mesh [||,||] Bounds: " +
+                $"[{Min.X:F4}, {Min.Y:F4}] " +
+                $"[{Max.X:F4}, {Max.Y:F4}] - " +
+                $"{TriangleCount} tri - " +
+                $"{VertexCount} ver - " +
+                $"{matrix.Count} c - " +
+                $"{end}ms");
+        }
+
         return matrix;
     }
 
@@ -78,116 +104,107 @@ public sealed class TriangleCollection
         limit_min = new(min_x, min_y, min_z);
     }
 
+
+
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int AddVertex(float x, float y, float z)
     {
         VerticesSet(VertexCount, x, y, z);
         return VertexCount++;
     }
 
-    // big list if triangles (3 vertice IDs per triangle)
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void AddTriangle(int v0, int v1, int v2, TriangleType flags)
     {
+        VerticesGet(VerteciesSpan, v0, out Vector3 vv0);
+        VerticesGet(VerteciesSpan, v1, out Vector3 vv1);
+        VerticesGet(VerteciesSpan, v2, out Vector3 vv2);
+
         // check limits
-        if (!CheckVertexLimits(v0) &&
-            !CheckVertexLimits(v1) &&
-            !CheckVertexLimits(v2))
+        if (!CheckVertexLimits(vv0) &&
+            !CheckVertexLimits(vv1) &&
+            !CheckVertexLimits(vv2))
             return;
 
         // Create new
-        SetMinMax(v0);
-        SetMinMax(v1);
-        SetMinMax(v2);
+        SetMinMax(ref min, ref max, vv0);
+        SetMinMax(ref min, ref max, vv1);
+        SetMinMax(ref min, ref max, vv2);
 
         TrianglesSet(triangleCount, v0, v1, v2, flags);
         triangleCount++;
     }
 
-    private void SetMinMax(int v)
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void SetMinMax(ref Vector3 min, ref Vector3 max, in Vector3 v)
     {
-        GetVertex(v, out float x, out float y, out float z);
-        if (x < min.X)
-            min.X = x;
-        if (y < min.Y)
-            min.Y = y;
-        if (z < min.Z)
-            min.Z = z;
-
-        if (x > max.X)
-            max.X = x;
-        if (y > max.Y)
-            max.Y = y;
-        if (z > max.Z)
-            max.Z = z;
+        min = Vector3.Min(min, v);
+        max = Vector3.Max(max, v);
     }
 
-    private bool CheckVertexLimits(int v)
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool CheckVertexLimits(in Vector3 v)
     {
-        GetVertex(v, out float x, out float y, out float z);
-
-        return x >= limit_min.X && x <= limit_max.X &&
-           y >= limit_min.Y && y <= limit_max.Y &&
-           z >= limit_min.Z && z <= limit_max.Z;
+        bool withinX = v.X >= limit_min.X && v.X <= limit_max.X;
+        bool withinY = v.Y >= limit_min.Y && v.Y <= limit_max.Y;
+        bool withinZ = v.Z >= limit_min.Z && v.Z <= limit_max.Z;
+        return withinX && withinY && withinZ;
     }
 
-
-    public void GetVertex(int i, out float x, out float y, out float z)
-    {
-        VerticesGet(i, out x, out y, out z);
-    }
-
-    public void GetTriangle(int i,
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void GetTriangle(
+        in ReadOnlySpan<Triangle<int>> span,
+        int i,
         out int v0, out int v1, out int v2, out TriangleType flags)
     {
-        TrianglesGet(i, out v0, out v1, out v2, out flags);
-    }
-
-    public void GetTriangleVertices(int i,
-                                    out float x0, out float y0, out float z0,
-                                    out float x1, out float y1, out float z1,
-                                    out float x2, out float y2, out float z2,
-                                    out TriangleType flags)
-    {
-        TrianglesGet(i, out int v0, out int v1, out int v2, out flags);
-
-        VerticesGet(v0, out x0, out y0, out z0);
-        VerticesGet(v1, out x1, out y1, out z1);
-        VerticesGet(v2, out x2, out y2, out z2);
+        TrianglesGet(span, i, out v0, out v1, out v2, out flags);
     }
 
     [SkipLocalsInit]
-    public void GetTriangleVertices(int i,
-                                    out float x0, out float y0, out float z0,
-                                    out float x1, out float y1, out float z1,
-                                    out float x2, out float y2, out float z2)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void GetTriangleVertices(
+        in ReadOnlySpan<Triangle<int>> tSpan,
+        in ReadOnlySpan<Vector3> vSpan,
+        int triangleIndex,
+        out Vector3 v0, out Vector3 v1, out Vector3 v2, out TriangleType flags)
     {
-        TrianglesGet(i, out int v0, out int v1, out int v2, out _);
+        TrianglesGet(tSpan, triangleIndex, out int vi0, out int vi1, out int vi2, out flags);
 
-        VerticesGet(v0, out x0, out y0, out z0);
-        VerticesGet(v1, out x1, out y1, out z1);
-        VerticesGet(v2, out x2, out y2, out z2);
+        VerticesGet(vSpan, vi0, out v0);
+        VerticesGet(vSpan, vi1, out v1);
+        VerticesGet(vSpan, vi2, out v2);
     }
 
     [SkipLocalsInit]
-    private void VerticesGet(int index, out float x, out float y, out float z)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void VerticesGet(in ReadOnlySpan<Vector3> span, int index, out Vector3 vertex)
     {
-        ReadOnlySpan<Vector3> span = CollectionsMarshal.AsSpan(vertecies);
-        (x, y, z) = span[index];
+        vertex = Unsafe.Add(ref MemoryMarshal.GetReference(span), index);
     }
 
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void VerticesSet(int index, float x, float y, float z)
     {
         vertecies.Insert(index, new(x, y, z));
     }
 
-
     [SkipLocalsInit]
-    private void TrianglesGet(
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void TrianglesGet(
+        in ReadOnlySpan<Triangle<int>> span,
         int index, out int v0, out int v1, out int v2, out TriangleType flags)
     {
-        ReadOnlySpan<Triangle<int>> span = CollectionsMarshal.AsSpan(triangles);
-        (v0, v1, v2, flags) = span[index];
+        (v0, v1, v2, flags) = Unsafe.Add(ref MemoryMarshal.GetReference(span), index);
     }
 
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void TrianglesSet(int index, int v0, int v1, int v2, TriangleType flags)
     {
         triangles.Insert(index, new(v0, v1, v2, flags));

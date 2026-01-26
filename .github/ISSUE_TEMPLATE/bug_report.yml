@@ -19,7 +19,7 @@ body:
     label: Addon Version
     description: |
       You can see the current version upon login, if it dosen't show up, check the AddonName.toc file `## Version:` field.
-    placeholder: "1.7.0"
+    placeholder: "1.7.60"
   validations:
     required: true
 
@@ -29,8 +29,10 @@ body:
     label: World of Warcraft Client
     description: What version of World of Warcraft are are you running?
     options:
+      - World of Warcraft Classic
       - The Burning Crusade Classic
       - Wrath of the Lich King Classic
+      - Cataclysm Classic
       - Season of Mastery
   validations:
     required: true
@@ -52,7 +54,7 @@ body:
     label: Last Good Version
     description: |
       Was it working in a previous version? If yes, which was the last good one?
-    placeholder: "1.7.0"
+    placeholder: "1.7.60"
   validations:
     required: false
 

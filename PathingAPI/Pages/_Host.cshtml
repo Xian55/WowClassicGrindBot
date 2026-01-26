@@ -5,6 +5,11 @@
     Layout = null;
 }
 
+@using Frontend
+
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,6 +23,21 @@
     <link href="_content/MatBlazor/dist/matBlazor.css" rel="stylesheet" />
 
     <script src="/_framework/aspnetcore-browser-refresh.js"></script>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+
+    <script src="_content/Frontend/leaflet-groupedlayercontrol/leaflet.groupedlayercontrol.min.js"></script>
+    <link rel="stylesheet" href="_content/Frontend/leaflet-groupedlayercontrol/leaflet.groupedlayercontrol.min.css" />
+
+    <link rel="stylesheet" href="_content/Frontend/leaflet/leaflet.draw.css" />
+    <script src="_content/Frontend/leaflet/leaflet.draw.js"></script>
+
+    <script src="_content/Frontend/leaflet-pixi/pixi.min.js"></script>
+    <script src="_content/Frontend/leaflet-pixi/PixiOverlay.js"></script>
+
+    <script src="_content/Frontend/script/icon_atlas.js"></script>
+    <script src="_content/Frontend/script/leaflet-watch.js"></script>
 
     <link href="css/site.css" rel="stylesheet" />
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -57,6 +77,15 @@
 
     <script src="_framework/blazor.server.js"></script>
 
+    <script type="text/javascript">
+        caches.delete("js/babylonjs.js").then(function (e) {
+            console.log("'js/babylonjs.js' cache deleted");
+        });
+    </script>
+
     <script src="~/js/babylonjs.js"></script>
+
+    <script src="~/js/signalr.min.js"></script>
+    <script src="~/js/signalr-protocol-msgpack.min.js"></script>
 </body>
 </html>

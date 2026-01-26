@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.Extensions.Logging;
 
-using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace Core;
 
@@ -124,7 +124,7 @@ public sealed class ActionBarPopulator
         string func = GetFunction(abs);
         int slot = abs.KeyAction.SlotIndex + 1;
         content = $"/run {func}({nameOrId})PlaceAction({slot})ClearCursor()--";
-        
+
         return true;
     }
 

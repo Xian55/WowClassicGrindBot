@@ -1,13 +1,14 @@
-﻿using System.IO;
+﻿using Newtonsoft.Json;
 
-using static System.IO.Path;
-using static System.IO.File;
-using Newtonsoft.Json;
+using System.IO;
+
 using static Newtonsoft.Json.JsonConvert;
+using static System.IO.File;
+using static System.IO.Path;
 
 public static class DataConfigMeta
 {
-    public const int Version = 13;
+    public const int Version = 14;
     public const string DefaultFileName = "data_config.json";
 }
 
@@ -36,6 +37,13 @@ public sealed class DataConfig
     public string ExpHistory => Join(Root, "History", Exp);
     [JsonIgnore]
     public string ExpExperience => Join(Root, "experience", Exp);
+    [JsonIgnore]
+    public string Leaflet => Join(Root, "leaflet", Exp);
+    [JsonIgnore]
+    public string Subzones => Join(Root, "subzones", Exp);
+
+    [JsonIgnore]
+    public string NpcSpawnLocations => Join(Root, "npcspawnlocations", Exp);
 
     // at runtime - determined from the running exe file version
     [JsonIgnore]
@@ -60,13 +68,13 @@ public sealed class DataConfig
             var loaded = DeserializeObject<DataConfig>(ReadAllText(DataConfigMeta.DefaultFileName));
             if (loaded.Version == DataConfigMeta.Version)
             {
-                loaded.Exp = client;
+                loaded.Exp = client.ToLowerInvariant();
                 return loaded;
             }
         }
 
         DataConfig newConfig = new DataConfig().Save();
-        newConfig.Exp = client;
+        newConfig.Exp = client.ToLowerInvariant();
         return newConfig;
     }
 
@@ -75,5 +83,19 @@ public sealed class DataConfig
         WriteAllText(DataConfigMeta.DefaultFileName, SerializeObject(this));
 
         return this;
+    }
+
+    public void DeletePPatherCache()
+    {
+        if (!Directory.Exists(PathInfo))
+        {
+            return;
+        }
+
+        var directories = Directory.GetDirectories(PathInfo);
+        foreach (string directory in directories)
+        {
+            Directory.Delete(directory, true);
+        }
     }
 }

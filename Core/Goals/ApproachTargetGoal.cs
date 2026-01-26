@@ -3,16 +3,19 @@
 using Microsoft.Extensions.Logging;
 
 using System;
-using System.Numerics;
+
+using static System.Diagnostics.Stopwatch;
 
 #pragma warning disable 162
 
 namespace Core.Goals;
 
-public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
+public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
 {
     private const bool debug = true;
     private const double STUCK_INTERVAL_MS = 400; // cant be lower than Approach.Cooldown
+    private const double MAX_APPROACH_DURATION_MS = 15_000; // max time to chase to pull
+    private const double MIN_TIME_TILL_IDLE = 2000;
 
     public override float Cost => 8f;
 
@@ -22,26 +25,27 @@ public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
     private readonly PlayerReader playerReader;
     private readonly AddonBits bits;
     private readonly StopMoving stopMoving;
-    private readonly CombatUtil combatUtil;
+    private readonly CombatTracker combatTracker;
     private readonly IMountHandler mountHandler;
     private readonly IBlacklist targetBlacklist;
+    private readonly CombatLog combatLog;
 
-    private DateTime approachStart;
+    private long approachStart;
 
     private double nextStuckCheckTime;
-    private Vector3 playerMap;
 
     private int initialTargetGuid;
     private float initialMinRange;
 
-    private double ApproachDurationMs =>
-        (DateTime.UtcNow - approachStart).TotalMilliseconds;
+    private double ApproachDurationMs => GetElapsedTime(approachStart).TotalMilliseconds;
 
     public ApproachTargetGoal(ILogger<ApproachTargetGoal> logger,
         ConfigurableInput input, Wait wait,
         PlayerReader playerReader, AddonBits addonBits,
-        StopMoving stopMoving, CombatUtil combatUtil, IBlacklist blacklist,
-        IMountHandler mountHandler)
+        StopMoving stopMoving, CombatTracker combatTracker,
+        IBlacklist blacklist,
+        IMountHandler mountHandler,
+        CombatLog combatLog)
         : base(nameof(ApproachTargetGoal))
     {
         this.logger = logger;
@@ -52,9 +56,10 @@ public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
         this.bits = addonBits;
 
         this.stopMoving = stopMoving;
-        this.combatUtil = combatUtil;
+        this.combatTracker = combatTracker;
         this.mountHandler = mountHandler;
         this.targetBlacklist = blacklist;
+        this.combatLog = combatLog;
 
         AddPrecondition(GoapKey.hastarget, true);
         AddPrecondition(GoapKey.targetisalive, true);
@@ -68,19 +73,19 @@ public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
     {
         if (e.GetType() == typeof(ResumeEvent))
         {
-            approachStart = DateTime.UtcNow;
+            approachStart = GetTimestamp();
         }
     }
 
     public override void OnEnter()
     {
-        initialTargetGuid = playerReader.TargetGuid;
+        initialTargetGuid = initialTargetGuid == playerReader.TargetGuid
+            ? -1
+            : playerReader.TargetGuid;
+
         initialMinRange = playerReader.MinRange();
-        playerMap = playerReader.MapPos;
 
-        combatUtil.Update();
-
-        approachStart = DateTime.UtcNow;
+        approachStart = GetTimestamp();
         SetNextStuckTimeCheck();
     }
 
@@ -93,20 +98,24 @@ public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
     {
         wait.Update();
 
-        if (combatUtil.EnteredCombat() && !bits.Target_Combat())
+        if (bits.Combat() && !bits.Target_Combat() &&
+            !combatLog.ToPull.Contains(playerReader.TargetGuid))
         {
             stopMoving.Stop();
+
+            LogPreventExtraPull(logger);
 
             input.PressClearTarget();
             wait.Update();
 
-            combatUtil.AcquiredTarget(5000);
+            combatTracker.AcquiredTarget(5000);
             return;
         }
 
-        if (input.Approach.GetRemainingCooldown() == 0)
+        if (!input.Approach.OnCooldown() && (!bits.SoftInteract() || HasValidSoftInteract()))
         {
             input.PressApproach();
+            wait.Update();
         }
 
         if (!bits.Combat())
@@ -122,20 +131,19 @@ public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
         {
             SetNextStuckTimeCheck();
 
-            Vector3 last = playerMap;
-            playerMap = playerReader.MapPos;
-            if (!combatUtil.IsPlayerMoving(last))
+            if (!bits.Moving())
             {
-                if (playerReader.LastUIError == UI_ERROR.ERR_AUTOFOLLOW_TOO_FAR)
+                if (playerReader.LastUIError is
+                    UI_ERROR.ERR_AUTOFOLLOW_TOO_FAR or UI_ERROR.ERR_BADATTACKPOS)
                 {
                     playerReader.LastUIError = UI_ERROR.NONE;
 
-                    if (debug)
-                        Log($"Too far ({playerReader.MinRange()} yard), start moving forward!");
-
+                    Log($"Target is too far({playerReader.MinRange()} yard) for interact, start moving forward!");
                     input.StartForward(false);
+
                     return;
                 }
+                // TODO: not sure why this is here!
                 else if (playerReader.LastUIError == UI_ERROR.ERR_ATTACK_PACIFIED)
                 {
                     playerReader.LastUIError = UI_ERROR.NONE;
@@ -143,11 +151,11 @@ public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
                     if (mountHandler.IsMounted())
                     {
                         mountHandler.Dismount();
-                        wait.Fixed(playerReader.DoubleNetworkLatency);
 
                         wait.While(bits.Falling);
 
                         input.PressInteract();
+                        wait.Update();
 
                         SetNextStuckTimeCheck();
 
@@ -155,71 +163,67 @@ public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
                     }
                 }
 
-                if (debug)
-                    Log($"Seems stuck! Clear Target.");
+                Log($"Seems stuck! Clear Target.");
 
                 input.PressClearTarget();
-                wait.Update();
                 input.TurnRandomDir(250 + Random.Shared.Next(250));
+                wait.Update();
 
                 return;
             }
         }
 
-        if (ApproachDurationMs > 15_000)
+        if (ApproachDurationMs > MAX_APPROACH_DURATION_MS)
         {
-            if (debug)
-                Log("Too long time. Clear Target. Turn away.");
+            logger.LogWarning("Too long time. Clear Target. Turn away.");
 
             input.PressClearTarget();
-            wait.Update();
             input.TurnRandomDir(250 + Random.Shared.Next(250));
+            wait.Update();
 
             return;
         }
 
-        if (playerReader.TargetGuid == initialTargetGuid)
+        if (playerReader.TargetGuid == initialTargetGuid &&
+            !playerReader.IsInMeleeRange())
         {
             int initialTargetMinRange = playerReader.MinRange();
-            if (input.TargetNearestTarget.GetRemainingCooldown() == 0)
+            if (!input.TargetNearestTarget.OnCooldown())
             {
+                //logger.LogWarning($"Attempt to find closer target IsInMeleeRange:{playerReader.IsInMeleeRange()} - min:{playerReader.MinRange()} | max:{playerReader.MaxRange()} - initialMinRange:{initialTargetMinRange}");
+
                 input.PressNearestTarget();
                 wait.Update();
-            }
 
-            if (playerReader.TargetGuid != initialTargetGuid)
-            {
-                if (bits.Target() && !targetBlacklist.Is())
+                if (bits.Target() && playerReader.TargetGuid != initialTargetGuid)
                 {
+                    if (targetBlacklist.Is())
+                    {
+                        logger.LogWarning($"Losing the target due blacklist!");
+                        return;
+                    }
+
                     if (playerReader.MinRange() < initialTargetMinRange)
                     {
-                        if (debug)
-                            Log($"Found a closer target! {playerReader.MinRange()} < {initialTargetMinRange}");
+                        logger.LogWarning($"Found a closer target! {playerReader.MinRange()} < {initialTargetMinRange}");
 
                         initialMinRange = playerReader.MinRange();
                     }
                     else
                     {
                         initialTargetGuid = -1;
-                        if (debug)
-                            Log("Stick to initial target!");
+                        logger.LogWarning("Stick to initial target!");
 
                         input.PressLastTarget();
                         wait.Update();
                     }
                 }
-                else
-                {
-                    if (debug)
-                        Log($"Lost the target due blacklist!");
-                }
             }
         }
 
-        if (ApproachDurationMs > 2000 && initialMinRange < playerReader.MinRange())
+        if (ApproachDurationMs > MIN_TIME_TILL_IDLE && initialMinRange < playerReader.MinRange())
         {
-            if (debug)
-                Log($"Going away from the target! {initialMinRange} < {playerReader.MinRange()}");
+            Log($"Going away from the target! {initialMinRange} < {playerReader.MinRange()}");
 
             input.PressClearTarget();
             wait.Update();
@@ -233,15 +237,36 @@ public sealed class ApproachTargetGoal : GoapGoal, IGoapEventListener
 
     private void RandomJump()
     {
-        if (ApproachDurationMs > 2000 &&
+        if (ApproachDurationMs > MIN_TIME_TILL_IDLE &&
             input.Jump.SinceLastClickMs > Random.Shared.Next(5000, 25_000))
         {
             input.PressJump();
+            wait.Update();
         }
+    }
+
+    private bool HasValidSoftInteract()
+    {
+        return
+            bits.SoftInteract() &&
+            !bits.SoftInteract_Dead() &&
+            !bits.SoftInteract_Tagged() &&
+            playerReader.SoftInteract_Type == GuidType.Creature;
     }
 
     private void Log(string text)
     {
         logger.LogDebug(text);
     }
+
+
+    #region Logging
+
+    [LoggerMessage(
+        EventId = 4001,
+        Level = LogLevel.Warning,
+        Message = "Clear current target as not in combat!")]
+    static partial void LogPreventExtraPull(ILogger logger);
+
+    #endregion
 }

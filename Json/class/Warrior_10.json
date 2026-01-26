@@ -27,7 +27,6 @@
         "Key": "3",
         "WhenUsable": true,
         "Requirement": "SpellInRange:0",
-        "Form": "Warrior_BattleStance",
         "AfterCastWaitMeleeRange": true
       }
     ]
@@ -51,8 +50,7 @@
         "WhenUsable": true,
         "Requirements": [
           "!Thunder Clap && MobCount > 1"
-        ],
-        "Form": "Warrior_BattleStance"
+        ]
       },
       {
         "Name": "Heroic Strike",
@@ -70,12 +68,10 @@
         "Requirements": [
           "TargetHealth% > 80",
           "!Rend"
-        ],
-        "Form": "Warrior_BattleStance"
+        ]
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "!AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

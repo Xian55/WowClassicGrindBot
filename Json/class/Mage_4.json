@@ -37,8 +37,7 @@
         "Name": "AutoAttack",
         "Requirements": [
           "!HasRangedWeapon",
-          "!Casting",
-          "!AutoAttacking"
+          "!Casting"
         ]
       },
       {
@@ -74,7 +73,7 @@
       {
         "Name": "Arcane Intellect",
         "Key": "4",
-        "Requirement": "not Arcane Intellect"
+        "Requirement": "!Arcane Intellect"
       },
       {
         "Name": "Conjure Drink",

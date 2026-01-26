@@ -1,22 +1,28 @@
 using Core.Goals;
 using Core.GOAP;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Logging;
+
+using Game;
+
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+using PPather.Data;
+
+using SharedLib;
+using SharedLib.NpcFinder;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Threading;
-using Game;
-using PPather.Data;
-using WinAPI;
-using SharedLib.NpcFinder;
-using SharedLib;
 
-using static System.Diagnostics.Stopwatch;
+using WinAPI;
+
 using static Newtonsoft.Json.JsonConvert;
+using static System.Diagnostics.Stopwatch;
 
 namespace Core;
 
@@ -25,6 +31,7 @@ public sealed partial class BotController : IBotController, IDisposable
     private readonly IServiceProvider serviceProvider;
     private readonly ILogger<BotController> logger;
     private readonly IPPather pather;
+    private readonly IPathVizualizer pathViz;
     private readonly MinimapNodeFinder minimapNodeFinder;
     private readonly DataConfig dataConfig;
     private readonly CancellationTokenSource cts;
@@ -48,7 +55,7 @@ public sealed partial class BotController : IBotController, IDisposable
     private const int remotePathingTickMs = 500;
 
     public string SelectedClassFilename { get; private set; } = string.Empty;
-    public string? SelectedPathFilename { get; private set; }
+    public Dictionary<int, string> SelectedPathFilename { get; private set; } = [];
     public ClassConfiguration? ClassConfig { get; private set; }
     public GoapAgent? GoapAgent { get; private set; }
     public RouteInfo? RouteInfo { get; private set; }
@@ -64,7 +71,9 @@ public sealed partial class BotController : IBotController, IDisposable
     public BotController(
         ILogger<BotController> logger,
         CancellationTokenSource cts,
-        IPPather pather, DataConfig dataConfig,
+        IPPather pather,
+        IPathVizualizer pathViz,
+        DataConfig dataConfig,
         WowProcess process,
         IWowScreen screen,
         NpcNameFinder npcNameFinder,
@@ -81,6 +90,7 @@ public sealed partial class BotController : IBotController, IDisposable
 
         this.logger = logger;
         this.pather = pather;
+        this.pathViz = pathViz;
         this.dataConfig = dataConfig;
 
         this.screen = screen;
@@ -115,13 +125,12 @@ public sealed partial class BotController : IBotController, IDisposable
             !Enum.IsDefined<UnitClass>(playerReader.Class) ||
             playerReader.Class == UnitClass.None);
 
-        logger.LogInformation($"{playerReader.Race.ToStringF()} " +
-            $"{playerReader.Class.ToStringF()}!");
+        logger.LogInformation($"{playerReader.Version.ToStringF()} {playerReader.Race.ToStringF()} {playerReader.Class.ToStringF()}!");
 
         screenshotThread = new(ScreenshotThread);
         screenshotThread.Start();
 
-        if (pather is RemotePathingAPI)
+        if (pathViz is not NoPathVisualizer)
         {
             remotePathing = new(RemotePathingThread);
             remotePathing.Start();
@@ -152,11 +161,9 @@ public sealed partial class BotController : IBotController, IDisposable
             addonReader.Update();
 
             AvgScreenLatency = Average(times);
-
             tickCount++;
 
-            // attempt to reduce CPU usage
-            Thread.Sleep(4);
+            Thread.Sleep(2);
         }
         logger.LogWarning("Addon thread stopped!");
 
@@ -180,10 +187,10 @@ public sealed partial class BotController : IBotController, IDisposable
         const int MOD = SIZE - 1;
         Span<double> npc = stackalloc double[SIZE];
 
-        WaitHandle[] waitHandles = new[] {
+        WaitHandle[] waitHandles = [
             cts.Token.WaitHandle,
             npcResetEvent.WaitHandle,
-        };
+        ];
 
         while (true)
         {
@@ -239,35 +246,44 @@ public sealed partial class BotController : IBotController, IDisposable
 
     private void RemotePathingThread()
     {
-        bool newLoaded = false;
+        bool routeChanged = false;
+        RouteInfo? routeInfo = null;
+
         ProfileLoaded += OnProfileLoaded;
-        void OnProfileLoaded() => newLoaded = true;
+        void OnProfileLoaded()
+        {
+            routeChanged = true;
+            routeInfo = sessionScope!.ServiceProvider.GetRequiredService<RouteInfo>();
+        }
 
         Vector3 oldPos = Vector3.Zero;
+        Vector3[] mapRoute = Array.Empty<Vector3>();
 
         while (!cts.IsCancellationRequested)
         {
             cts.Token.WaitHandle.WaitOne(remotePathingTickMs);
 
-            if (sessionScope == null)
+            if (sessionScope == null || routeInfo == null)
                 continue;
 
-            if (newLoaded)
+            if (routeChanged)
             {
-                Vector3[] mapRoute = sessionScope
-                    .ServiceProvider.GetRequiredService<Vector3[]>();
-
-                pather.DrawLines(new()
+                mapRoute = routeInfo.Route;
+                if (mapRoute.Length == 0)
                 {
-                    new LineArgs("grindpath",
-                        mapRoute, 2, playerReader.UIMapId.Value)
-                }).AsTask().Wait(cts.Token);
+                    continue;
+                }
+
+                pather.DrawLines(
+                [
+                    new LineArgs("grindpath", mapRoute, 2, playerReader.UIMapId.Value),
+                ]).AsTask().Wait(cts.Token);
 
                 oldPos = Vector3.Zero;
-                newLoaded = false;
+                routeChanged = false;
             }
 
-            if (playerReader.MapPos != oldPos)
+            if (!routeChanged && playerReader.MapPos != oldPos)
             {
                 oldPos = playerReader.MapPos;
 
@@ -276,6 +292,13 @@ public sealed partial class BotController : IBotController, IDisposable
                     bits.Combat() ? 1 : bits.Target() ? 6 : 2,
                     playerReader.UIMapId.Value))
                     .AsTask().Wait(cts.Token);
+
+                _ = routeInfo.NextPoint();
+
+                if (!routeInfo.Route.SequenceEqual(mapRoute))
+                {
+                    routeChanged = true;
+                }
             }
         }
 
@@ -295,15 +318,18 @@ public sealed partial class BotController : IBotController, IDisposable
         StatusChanged?.Invoke();
     }
 
-    private bool InitialiseFromFile(string classFile, string? pathFile)
+    private bool InitialiseFromFile(string classFile, Dictionary<int, string> pathFiles)
     {
         long startTime = GetTimestamp();
         try
         {
-            ClassConfig = ReadClassConfiguration(classFile);
-            ClassConfig.Initialise(serviceProvider, pathFile);
+            var tryLoadConfig = ReadClassConfiguration(classFile);
+            tryLoadConfig.Initialise(serviceProvider, pathFiles);
 
-            LogProfileLoaded(logger, classFile, ClassConfig.PathFilename);
+            LogProfileLoaded(logger, classFile, tryLoadConfig.PathFilename);
+            ClassConfig = tryLoadConfig;
+
+            ClassConfig.FileName = classFile;
 
             CreateSession(ClassConfig);
         }
@@ -417,11 +443,11 @@ public sealed partial class BotController : IBotController, IDisposable
         ProfileLoaded?.Invoke();
     }
 
-    public void LoadPathProfile(string pathFilename)
+    public void LoadPathProfile(Dictionary<int, string> pathFilenames)
     {
-        if (InitialiseFromFile(SelectedClassFilename, pathFilename))
+        if (InitialiseFromFile(SelectedClassFilename, pathFilenames))
         {
-            SelectedPathFilename = pathFilename;
+            SelectedPathFilename = pathFilenames;
         }
 
         ProfileLoaded?.Invoke();

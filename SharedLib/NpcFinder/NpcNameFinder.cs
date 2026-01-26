@@ -1,15 +1,18 @@
-using SharedLib.Extensions;
 using Microsoft.Extensions.Logging;
-using System;
 
-using System.Linq;
-using System.Runtime.CompilerServices;
+using SharedLib.Extensions;
+
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Advanced;
+
+using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 using static SharedLib.NpcFinder.NpcNameColors;
-using SixLabors.ImageSharp.Advanced;
-using SixLabors.ImageSharp;
 
 namespace SharedLib.NpcFinder;
 
@@ -327,9 +330,9 @@ public sealed partial class NpcNameFinder
 
     #endregion
 
-    public void WaitForUpdate()
+    public void WaitForUpdate(CancellationToken token = default)
     {
-        resetEvent.Wait();
+        resetEvent.Wait(token);
     }
 
     public void Update()
@@ -338,7 +341,7 @@ public sealed partial class NpcNameFinder
         resetEvent.Reset();
 
         ReadOnlySpan<LineSegment> lineSegments =
-            PopulateLines(bitmapProvider, Area, colorMatcher, Area,
+            PopulateLines(colorMatcher, Area,
             ScaleWidth(MinHeight), ScaleWidth(WidthDiff));
 
         Npcs = DetermineNpcs(lineSegments);
@@ -520,11 +523,10 @@ public sealed partial class NpcNameFinder
 
     [SkipLocalsInit]
     private ReadOnlySpan<LineSegment> PopulateLines(
-        IScreenImageProvider provider, Rectangle rect,
         Func<byte, byte, byte, bool> colorMatcher,
         Rectangle area, float minLength, float lengthDiff)
     {
-        const int RESOLUTION = 32;
+        const int RESOLUTION = 16;
         int rowSize = (area.Right - area.Left) / RESOLUTION;
         int height = (area.Bottom - area.Top) / RESOLUTION;
         int totalSize = rowSize * height;
@@ -553,7 +555,7 @@ public sealed partial class NpcNameFinder
             in operation);
 
         pooler.Return(segments);
-        return new(segments, 0, counter.count);
+        return new(segments, 0, Math.Min(segments.Length, counter.count));
     }
 
     public Point ToScreenCoordinates()

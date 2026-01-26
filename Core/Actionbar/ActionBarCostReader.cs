@@ -1,9 +1,9 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+
+using System;
+using System.Runtime.CompilerServices;
 
 using static Core.ActionBar;
-
-using Microsoft.Extensions.Logging;
-using System.Runtime.CompilerServices;
 
 namespace Core;
 

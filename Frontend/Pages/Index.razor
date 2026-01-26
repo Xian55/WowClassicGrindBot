@@ -6,33 +6,61 @@
 @inject IJSRuntime JSRuntime
 @inject AddonConfigurator addonConfigurator
 @inject FrontendUpdate updater // TODO: this is a hack to instantiate this class
+@inject StartupClientVersion client
 
 @implements IDisposable
+
+<style>
+    .main-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .top-section {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .left-panel {
+        flex: 1 1 70%;
+    }
+
+    .right-panel {
+        flex: 1 1 30%;
+        max-width: 300px; /* Optional max width for BagChanges */
+    }
+
+    .bottom-section {
+        width: 100%;
+    }
+</style>
 
 <div class="container-fluid">
     <div class="row">
         @if (AddonConfig.Exists() && FrameConfig.Exists())
         {
-            <div class="col-sm">
-                <ScreenshotComponent Stretch="false" />
-                <table width="100%" style="margin-top: 10px; margin-bottom: 10px;">
-                    <tr>
-                        <td valign="top">
-                            <RouteComponent Size="400" />
-                        </td>
-                        <td valign="top">
-                            <BagChanges />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <ChatComponent MaxHeight="400" />
-                        </td>
-                    </tr>
-                </table>
+            <div class="col-sm main-layout">
+                <div class="top-section">
+                    <div class="left-panel">
+                        <RouteComponent Size="400" />
+                    </div>
+                    <div class="right-panel">
+                        <BagChanges />
+                    </div>
+                </div>
+
+                <div class="bottom-section">
+                    @if (client.Version is ClientVersion.SoM or ClientVersion.TBC)
+                    {
+                        <LeafletComponent Size="400px" />
+                    }
+                </div>
             </div>
 
-            <div class="col-sm" style="margin-left:10px">
+            <div class="col-sm">
                 @if (updateAvailable)
                 {
                     <div class="card" style="margin-bottom: 10px">
@@ -51,7 +79,36 @@
 
                 <BotHeader ShowActiveGoal="false" Hide="@(botController.IsBotActive)" />
                 <ProfileSelectorComponent Hide="@(botController.IsBotActive)" />
-                <PathSelectorComponent Hide="@(botController.IsBotActive)" />
+
+                @if (botController.ClassConfig == null)
+                {
+                    <PathSelectorComponent Hide="@(botController.IsBotActive)" />
+                }
+                else if (!botController.IsBotActive && botController.ClassConfig!.Mode != Mode.AttendedGrind)
+                {
+                    if (botController.ClassConfig!.Paths.Length > 1)
+                    {
+                        <Accordion>
+                            <AccordionItem Title="Override Paths">
+                                <Content>
+                                    @foreach (var pathSettings in botController.ClassConfig!.Paths)
+                                    {
+                                        <PathSelectorComponent Hide="@(botController.IsBotActive)"
+                                                               Target="@(pathSettings)"
+                                                               TargetIndex="@(Array.IndexOf(botController.ClassConfig!.Paths, pathSettings))" />
+                                    }
+                                </Content>
+                            </AccordionItem>
+                        </Accordion>
+                    }
+                    else
+                    {
+                        <PathSelectorComponent Hide="@(botController.IsBotActive)"
+                                               Target="@(botController.ClassConfig!.Paths.First())"
+                                               TargetIndex="0" />
+                    }
+                }
+
                 <GoalsComponent />
             </div>
         }
@@ -75,6 +132,7 @@
     protected override void OnInitialized()
     {
         botController.StatusChanged += OnStatusChanged;
+        botController.ProfileLoaded += OnStatusChanged;
 
         updateAvailable = addonConfigurator.UpdateAvailable();
     }

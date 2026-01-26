@@ -30,7 +30,7 @@
         "Name": "Slice and Dice",
         "Key": "4",
         "Requirements": [
-          "not Slice and Dice",
+          "!Slice and Dice",
           "Combo Point>0"
         ]
       },
@@ -47,8 +47,7 @@
         "Key": "2"
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "not AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",
@@ -76,14 +75,14 @@
         "Name": "poisonmh",
         "HasCastbar": true,
         "Key": "N2",
-        "Requirement": "not HasMainHandEnchant",
+        "Requirement": "!HasMainHandEnchant",
         "AfterCastAuraExpected": true
       },
       {
         "Name": "poisonoh",
         "HasCastbar": true,
         "Key": "N3",
-        "Requirement": "not HasOffHandEnchant",
+        "Requirement": "!HasOffHandEnchant",
         "AfterCastAuraExpected": true
       },
       {

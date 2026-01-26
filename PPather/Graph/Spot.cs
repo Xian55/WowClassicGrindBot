@@ -16,16 +16,18 @@
 
 */
 
+using SharedLib.Extensions;
+
 using System;
 using System.Buffers;
 using System.Numerics;
-using SharedLib.Extensions;
+using System.Runtime.CompilerServices;
 
 namespace PPather.Graph;
 
 public sealed class Spot
 {
-    public const float Z_RESOLUTION = 2.0f; // Z spots max this close
+    public const float Z_RESOLUTION = PathGraph.MinStepLength / 2f; // Z spots max this close
 
     public const uint FLAG_VISITED = 0x0001;
     public const uint FLAG_BLOCKED = 0x0002;
@@ -39,7 +41,7 @@ public sealed class Spot
     public uint flags;
 
     public int n_paths;
-    public float[] paths = Array.Empty<float>(); // 3 floats per outgoing path
+    public float[] paths = []; // 3 floats per outgoing path
 
     public GraphChunk chunk;
     public Spot next;  // list on same x,y, used by chunk
@@ -94,6 +96,7 @@ public sealed class Spot
         return Vector2.Distance(Loc.AsVector2(), s.Loc.AsVector2());
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsCloseZ(float z)
     {
         float dz = z - Loc.Z;
@@ -111,6 +114,7 @@ public sealed class Spot
             chunk.modified = true;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsFlagSet(uint flag)
     {
         return (flags & flag) != 0;
@@ -167,7 +171,7 @@ public sealed class Spot
 
     public bool HasPathTo(float x, float y, float z)
     {
-        ReadOnlySpan<float> pos = stackalloc[] { x, y, z };
+        ReadOnlySpan<float> pos = [x, y, z];
         return paths.AsSpan().IndexOf(pos) != -1;
     }
 
@@ -186,19 +190,21 @@ public sealed class Spot
         if (HasPathTo(x, y, z))
             return;
 
-        int old_size = paths.Length / 3;
+        Span<float> span = paths.AsSpan();
+        int old_size = span.Length / 3;
         if (n_paths + 1 > old_size)
         {
             int new_size = old_size * 2;
             if (new_size < 4)
                 new_size = 4;
             Array.Resize(ref paths, new_size * 3);
+            span = paths.AsSpan();
         }
 
         int off = n_paths * 3;
-        paths[off + 0] = x;
-        paths[off + 1] = y;
-        paths[off + 2] = z;
+        span[off + 0] = x;
+        span[off + 1] = y;
+        span[off + 2] = z;
         n_paths++;
         if (chunk != null)
             chunk.modified = true;
@@ -223,33 +229,37 @@ public sealed class Spot
                 found_index = i;
             }
         }
-        if (found_index != -1)
+
+        if (found_index == -1)
         {
-            for (int i = found_index; i < n_paths - 1; i++)
-            {
-                int off = i * 3;
-                paths[off + 0] = paths[off + 3];
-                paths[off + 1] = paths[off + 4];
-                paths[off + 2] = paths[off + 5];
-            }
-            n_paths--;
-            if (chunk != null)
-                chunk.modified = true;
+            return;
         }
+
+        for (int i = found_index; i < n_paths - 1; i++)
+        {
+            int off = i * 3;
+            paths[off + 0] = paths[off + 3];
+            paths[off + 1] = paths[off + 4];
+            paths[off + 2] = paths[off + 5];
+        }
+        n_paths--;
+        if (chunk != null)
+            chunk.modified = true;
     }
 
     // search stuff
 
     public bool SetSearchID(int id)
     {
-        if (searchID != id)
+        if (searchID == id)
         {
-            closed = false;
-            scoreSet = false;
-            searchID = id;
-            return true;
+            return false;
         }
-        return false;
+
+        closed = false;
+        scoreSet = false;
+        searchID = id;
+        return true;
     }
 
     public bool SearchIsClosed(int id)

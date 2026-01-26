@@ -27,6 +27,10 @@ bld/
 
 # Visual Studio 2015 cache/options directory
 .vs/
+
+# Visual Studio Code
+.vscode/
+
 # Uncomment if you have tasks that create the project's static files in wwwroot
 #wwwroot/
 
@@ -278,6 +282,9 @@ Json/path/_
 # ScreenCaptures
 Json/cap/*.jpg
 
+# leaflet files
+Json/leaflet/**/*.png
+
 # Configs
 **/frame_config.json
 **/addon_config.json
@@ -294,3 +301,6 @@ HeadlessServer/data_config.json
 PathingAPI/frame_config.json
 PathingAPI/addon_config.json
 PathingAPI/data_config.json
+
+# BenchmarkDotNet artifacts
+**/BenchmarkDotNet.Artifacts/

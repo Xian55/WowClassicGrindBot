@@ -2,6 +2,15 @@
   "Log": false,
   "ClassName": "Rogue",
   "PathFilename": "1-5_Gnome.json",
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Combat": {
     "Sequence": [
       {
@@ -14,8 +23,7 @@
         "Key": "2"
       },
       {
-        "Name": "AutoAttack",
-        "Requirement": "!AutoAttacking"
+        "Name": "AutoAttack"
       },
       {
         "Name": "Approach",

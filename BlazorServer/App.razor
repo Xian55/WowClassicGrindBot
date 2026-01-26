@@ -1,5 +1,8 @@
 ﻿@using Frontend
 
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
 @inject IHostEnvironment Env
 
 <!DOCTYPE html>
@@ -10,32 +13,41 @@
     <title>BlazorServer</title>
     <base href="/" />
 
-    <link rel="stylesheet" href="_content/Frontend/css/bootstrap/bootstrap.icons.min.css" />
-    <!--<link rel="stylesheet" href="_content/Frontend/css/bootstrap/bootstrap-theme.min.css" />-->
-    <link rel="stylesheet" href="_content/Frontend/css/bootstrap/bootstrap.min.css" />
-    <link rel="stylesheet" href="_content/Frontend/css/bootstrap/bootstrap-dark.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link href="@Assets["_content/Blazor.Bootstrap/blazor.bootstrap.css"]" rel="stylesheet" />
 
-    <script src="_content/BlazorTable/BlazorTable.min.js"></script>
+    <link href="@Assets["_content/Frontend/css/site.css"]" rel="stylesheet" />
+    <link rel="stylesheet" href="@Assets["_content/Frontend/css/animate-v4.0.0.min.css"]" />
+    <link rel="stylesheet" href="@Assets["_content/Frontend/leaflet-groupedlayercontrol/leaflet.groupedlayercontrol.min.css"]" />
+    <link rel="stylesheet" href="@Assets["_content/Frontend/leaflet/leaflet.draw.css"]" />
 
-    <script src="_content/MatBlazor/dist/matBlazor.js"></script>
-    <link href="_content/MatBlazor/dist/matBlazor.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
 
-    <link href="_content/Frontend/css/site.css" rel="stylesheet" />
-    <script src="_content/Frontend/script/d3.v7.min.js"></script>
+    <link href="@Assets["BlazorServer.styles.css"]" asp-append-version="true" rel="stylesheet" />
 
-    <link rel="stylesheet" href="_content/Frontend/css/animate-v4.0.0.min.css" />
-
-    <script>const whTooltips = { colorLinks: true, iconizeLinks: true, renameLinks: true };</script>
-    <script src="_content/Frontend/script/power.js"></script>
-
-    <script src="_content/Frontend/script/panzoom.min.js"></script>
-    <script src="_content/Frontend/script/gather.js"></script>
-    <script src="_content/Frontend/script/route.js"></script>
+    <HeadOutlet @rendermode="@InteractiveServer" />
 </head>
 <body>
-    <app>
-        <Routes @rendermode="InteractiveServer" />
-    </app>
+    <script src="@Assets["_content/Frontend/teleport_locations.txt"]"></script>
+
+    <script src="@Assets["_content/Frontend/script/d3.v7.min.js"]"></script>
+    <script src="@Assets["_content/Frontend/script/power.js"]" ></script>
+    <script src="@Assets["_content/Frontend/script/panzoom.min.js"]"></script>
+    <script src="@Assets["_content/Frontend/script/gather.js"]"></script>
+    <script src="@Assets["_content/Frontend/script/route.js"]"></script>
+    <script src="@Assets["_content/Frontend/script/autocomplete-image-injector.js"]"></script>
+
+    <script src="@Assets["_content/Frontend/leaflet/leaflet.js"]" ></script>
+
+    <script src="@Assets["_content/Frontend/leaflet-pixi/pixi.min.js"]"></script>
+    <script src="@Assets["_content/Frontend/leaflet-pixi/PixiOverlay.js"]"></script>
+    
+    <script src="@Assets["_content/Frontend/leaflet/leaflet.draw.js"]"></script>
+    <script src="@Assets["_content/Frontend/leaflet-groupedlayercontrol/leaflet.groupedlayercontrol.min.js"]"></script>
+
+    <script src="@Assets["_content/Frontend/script/icon_atlas.js"]"></script>
+    <script src="@Assets["_content/Frontend/script/leaflet-watch.js"]"></script>
 
     <div id="blazor-error-ui">
     @if (Env.IsDevelopment())
@@ -52,6 +64,16 @@
     }
     </div>
 
+    <Routes @rendermode="@InteractiveServer" />
     <script src="_framework/blazor.web.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+    
+    <script src="@Assets["_content/Blazor.Bootstrap/blazor.bootstrap.js"]"></script>
+
+    <!-- Optional extras -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js" integrity="sha512-JPcRR8yFa8mmCsfrw4TNte1ZvF1e3+1SdGMslZvmrzDYxS69J7J49vkFL8u6u8PlPJK+H3voElBtUCzaXj+6ig==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 </body>
 </html>

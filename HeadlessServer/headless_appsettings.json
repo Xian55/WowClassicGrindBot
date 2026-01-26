@@ -1,0 +1,14 @@
+{
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Debug",
+      "Override": {
+        "Microsoft": "Warning",
+        "Microsoft.Hosting.Lifetime": "Information",
+
+        "Game.WowProcessInput": "Warning",
+        "Core.ConfigurableInput": "Warning"
+      }
+    }
+  }
+}

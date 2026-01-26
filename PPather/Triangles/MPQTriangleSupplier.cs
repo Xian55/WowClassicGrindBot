@@ -18,17 +18,20 @@
 
  */
 
-using System;
-using System.Numerics;
-using static System.MathF;
-using Wmo;
-using System.IO;
 using Microsoft.Extensions.Logging;
-using PPather.Triangles.Data;
-using static Wmo.MapTileFile;
+
 using PPather;
+
+using System;
+using System.IO;
+using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Collections.Generic;
+
+using Wmo;
+
+using static System.Diagnostics.Stopwatch;
+using static System.MathF;
+using static Wmo.MapTileFile;
 
 namespace WowTriangles;
 
@@ -72,7 +75,7 @@ public sealed class MPQTriangleSupplier
 
     public static string[] GetArchiveNames(DataConfig dataConfig)
     {
-        return Directory.GetFiles(dataConfig.MPQ);
+        return Directory.GetFiles(dataConfig.MPQ, "*.MPQ");
     }
 
     [SkipLocalsInit]
@@ -86,6 +89,12 @@ public sealed class MPQTriangleSupplier
             return;
 
         int index = chunk_y * WDT.SIZE + chunk_x;
+
+        if (wdt.loaded[index])
+        {
+            return;
+        }
+
         wdtf.LoadMapTile(chunk_x, chunk_y, index);
 
         MapTile mapTile = wdt.maptiles[index];
@@ -108,20 +117,45 @@ public sealed class MPQTriangleSupplier
 
         for (int i = 0; i < mapTile.modelis.Length; i++)
         {
-            AddTriangles(triangles, mapTile.modelis[i]);
+            //if (mi.model.fileName.Contains("bridge"))
+            //AddBoundingTriangles(triangles, mapTile.modelis[i]);
+
+            AddDetailedTriangles(triangles, mapTile.modelis[i]);
         }
 
         wdt.loaded[index] = false;
     }
 
     [SkipLocalsInit]
-    private static void GetChunkCoord(float x, float y, out int chunk_x, out int chunk_y)
+    private static void GetChunkCoordIndex(float x, float y, out int chunk_x, out int chunk_y)
     {
         float xOffset = ChunkReader.ZEROPOINT - y;
         float yOffset = ChunkReader.ZEROPOINT - x;
 
         chunk_x = (int)Round(xOffset / ChunkReader.TILESIZE) - 1;
         chunk_y = (int)Round(yOffset / ChunkReader.TILESIZE) - 1;
+    }
+
+    [SkipLocalsInit]
+    private static void GetChunkCoord1(float x, float y, out int chunk_x, out int chunk_y)
+    {
+        float xOffset = ChunkReader.ZEROPOINT - y;
+        float yOffset = ChunkReader.ZEROPOINT - x;
+
+        chunk_x = (int)Floor(xOffset / ChunkReader.TILESIZE); // - 1
+        chunk_y = (int)Floor(yOffset / ChunkReader.TILESIZE); // - 1
+    }
+
+    [SkipLocalsInit]
+    private static int GetChunkIndex(float x, float y)
+    {
+        float localX = (ChunkReader.ZEROPOINT - y) % ChunkReader.TILESIZE;
+        float localY = (ChunkReader.ZEROPOINT - x) % ChunkReader.TILESIZE;
+
+        int chunkX = (int)(localX / ChunkReader.CHUNKSIZE);
+        int chunkY = (int)(localY / ChunkReader.CHUNKSIZE);
+
+        return (chunkY * MapTile.SIZE) + chunkX;
     }
 
     [SkipLocalsInit]
@@ -136,7 +170,7 @@ public sealed class MPQTriangleSupplier
         {
             for (float y = min_y; y < max_y; y += ChunkReader.TILESIZE)
             {
-                GetChunkCoord(x, y, out int chunk_x, out int chunk_y);
+                GetChunkCoordIndex(x, y, out int chunk_x, out int chunk_y);
                 GetChunkData(tc, chunk_x, chunk_y);
             }
         }
@@ -148,9 +182,9 @@ public sealed class MPQTriangleSupplier
         Span<int> vertices = stackalloc int[9 * 9];
         Span<int> verticesMid = stackalloc int[8 * 8];
 
-        for (int row = 0; row < 9; row++)
+        for (int col = 0; col < 9; col++)
         {
-            for (int col = 0; col < 9; col++)
+            for (int row = 0; row < 9; row++)
             {
                 ChunkGetCoordForPoint(c, row, col, out float x, out float y, out float z);
                 int index = tc.AddVertex(x, y, z);
@@ -158,9 +192,9 @@ public sealed class MPQTriangleSupplier
             }
         }
 
-        for (int row = 0; row < 8; row++)
+        for (int col = 0; col < 8; col++)
         {
-            for (int col = 0; col < 8; col++)
+            for (int row = 0; row < 8; row++)
             {
                 ChunkGetCoordForMiddlePoint(c, row, col, out float x, out float y, out float z);
                 int index = tc.AddVertex(x, y, z);
@@ -168,60 +202,72 @@ public sealed class MPQTriangleSupplier
             }
         }
 
-        for (int row = 0; row < 8; row++)
-        {
-            for (int col = 0; col < 8; col++)
-            {
-                if (!c.isHole(col, row))
-                {
-                    int v0 = vertices[row * 9 + col];
-                    int v1 = vertices[(row + 1) * 9 + col];
-                    int v2 = vertices[(row + 1) * 9 + col + 1];
-                    int v3 = vertices[row * 9 + col + 1];
-                    int vMid = verticesMid[row * 8 + col];
+        const int totalCells = 8 * 8;
 
-                    tc.AddTriangle(v0, v1, vMid, TriangleType.Terrain);
-                    tc.AddTriangle(v1, v2, vMid, TriangleType.Terrain);
-                    tc.AddTriangle(v2, v3, vMid, TriangleType.Terrain);
-                    tc.AddTriangle(v3, v0, vMid, TriangleType.Terrain);
-                }
+        for (int cell = 0; cell < totalCells; cell++)
+        {
+            int row = cell / 8;
+            int col = cell % 8;
+
+            if (c.IsHole(col, row))
+            {
+                continue;
+            }
+
+            int rowIndex9 = row * 9;
+            int rowIndexMid = row * 8;
+
+            // Precompute indices for vertices
+            int v0 = vertices[rowIndex9 + col];
+            int v1 = vertices[(row + 1) * 9 + col];
+            int v2 = vertices[(row + 1) * 9 + col + 1];
+            int v3 = vertices[rowIndex9 + col + 1];
+            int vMid = verticesMid[rowIndexMid + col];
+
+            // Add triangles using precomputed indices
+            tc.AddTriangle(v0, v1, vMid, TriangleType.Terrain);
+            tc.AddTriangle(v1, v2, vMid, TriangleType.Terrain);
+            tc.AddTriangle(v2, v3, vMid, TriangleType.Terrain);
+            tc.AddTriangle(v3, v0, vMid, TriangleType.Terrain);
+        }
+
+        if (!c.haswater)
+        {
+            return;
+        }
+
+        // paint the water
+        for (int col = 0; col < LiquidData.HEIGHT_SIZE; col++)
+        {
+            for (int row = 0; row < LiquidData.HEIGHT_SIZE; row++)
+            {
+                int ii = row * LiquidData.HEIGHT_SIZE + col;
+
+                ChunkGetCoordForPoint(c, row, col, out float x, out float y, out float z);
+                float height = Math.Max(c.water_height[ii], c.water_height1);
+
+                int index = tc.AddVertex(x, y, height);
+
+                vertices[row * LiquidData.HEIGHT_SIZE + col] = index;
             }
         }
 
-        if (c.haswater)
+        for (int col = 0; col < LiquidData.FLAG_SIZE; col++)
         {
-            // paint the water
-            for (int row = 0; row < LiquidData.HEIGHT_SIZE; row++)
-            {
-                for (int col = 0; col < LiquidData.HEIGHT_SIZE; col++)
-                {
-                    int ii = row * LiquidData.HEIGHT_SIZE + col;
-
-                    ChunkGetCoordForPoint(c, row, col, out float x, out float y, out float z);
-                    float height = c.water_height[ii]; // - 1.5f //why this here
-                    int index = tc.AddVertex(x, y, height);
-
-                    vertices[row * LiquidData.HEIGHT_SIZE + col] = index;
-                }
-            }
-
             for (int row = 0; row < LiquidData.FLAG_SIZE; row++)
             {
-                for (int col = 0; col < LiquidData.FLAG_SIZE; col++)
-                {
-                    int ii = row * LiquidData.FLAG_SIZE + col;
+                int ii = row * LiquidData.FLAG_SIZE + col;
 
-                    if (c.water_flags[ii] == 0xf)
-                        continue;
+                if (c.legacyWater && c.water_flags[ii] == 15) // causing holes in the water!
+                    continue;
 
-                    int v0 = vertices[row * LiquidData.HEIGHT_SIZE + col];
-                    int v1 = vertices[(row + 1) * LiquidData.HEIGHT_SIZE + col];
-                    int v2 = vertices[(row + 1) * LiquidData.HEIGHT_SIZE + col + 1];
-                    int v3 = vertices[row * LiquidData.HEIGHT_SIZE + col + 1];
+                int v0 = vertices[row * LiquidData.HEIGHT_SIZE + col];
+                int v1 = vertices[(row + 1) * LiquidData.HEIGHT_SIZE + col];
+                int v2 = vertices[(row + 1) * LiquidData.HEIGHT_SIZE + col + 1];
+                int v3 = vertices[row * LiquidData.HEIGHT_SIZE + col + 1];
 
-                    tc.AddTriangle(v0, v1, v3, TriangleType.Water);
-                    tc.AddTriangle(v1, v2, v3, TriangleType.Water);
-                }
+                tc.AddTriangle(v0, v1, v3, TriangleType.Water);
+                tc.AddTriangle(v1, v2, v3, TriangleType.Water);
             }
         }
     }
@@ -238,7 +284,7 @@ public sealed class MPQTriangleSupplier
         float dir_z = -wi.dir.X;
 
         int maxVertices = 0;
-        WMO wmo = wi.wmo;
+        WMORoot wmo = wi.wmo;
         for (int gi = 0; gi < wmo.groups.Length; gi++)
         {
             WMOGroup g = wmo.groups[gi];
@@ -292,16 +338,20 @@ public sealed class MPQTriangleSupplier
 
             for (int i = 0; i < g.nTriangles; i++)
             {
-                //if ((g.materials[i] & 0x1000) != 0)
-                {
-                    int off = i * 3;
-                    int i0 = vertices[g.triangles[off]];
-                    int i1 = vertices[g.triangles[off + 1]];
-                    int i2 = vertices[g.triangles[off + 2]];
+                Mopy flag = (Mopy)g.materials[i];
 
-                    tc.AddTriangle(i0, i1, i2, TriangleType.Object);
-                    //if(t != -1) s.SetTriangleExtra(t, g.materials[0], 0, 0);
-                }
+                bool isRenderFace = (flag & Mopy.WMO_MATERIAL_RENDER) != 0 && (flag & Mopy.WMO_MATERIAL_DETAIL) == 0;
+                bool isCollision = (flag & Mopy.WMO_MATERIAL_COLLISION) != 0 || isRenderFace;
+
+                if (!isCollision)
+                    continue;
+
+                int off = i * 3;
+                int i0 = vertices[g.triangles[off]];
+                int i1 = vertices[g.triangles[off + 1]];
+                int i2 = vertices[g.triangles[off + 2]];
+
+                tc.AddTriangle(i0, i1, i2, TriangleType.Object);
             }
         }
 
@@ -403,8 +453,14 @@ public sealed class MPQTriangleSupplier
     }
 
     [SkipLocalsInit]
-    private static void AddTriangles(TriangleCollection s, ModelInstance mi)
+    private static void AddDetailedTriangles(TriangleCollection s, ModelInstance mi)
     {
+        Model m = mi.model;
+        if (m.boundingTriangles == null)
+        {
+            return;
+        }
+
         float dx = mi.pos.X;
         float dy = mi.pos.Y;
         float dz = mi.pos.Z;
@@ -412,60 +468,6 @@ public sealed class MPQTriangleSupplier
         float dir_x = mi.dir.Z;
         float dir_y = mi.dir.Y - 90; // -90 is correct!
         float dir_z = -mi.dir.X;
-
-        Model m = mi.model;
-
-        if (m.boundingTriangles == null)
-        {
-            return;
-
-            // /cry no bouding info, revert to normal vertives
-            /*
-				ModelView mv = m.view[0]; // View number 1 ?!?!
-				if (mv == null) return;
-				int[] vertices = new int[m.vertices.Length / 3];
-				for (uint i = 0; i < m.vertices.Length / 3; i++)
-				{
-					float x = m.vertices[i * 3];
-					float y = m.vertices[i * 3 + 2];
-					float z = m.vertices[i * 3 + 1];
-					x *= mi.sc;
-					y *= mi.sc;
-					z *= mi.sc;
-
-					rotate(y, z, dir_x, out y, out z);
-					rotate(x, y, dir_z, out x, out y);
-					rotate(x, z, dir_y, out x, out z);
-
-					float xx = x + dx;
-					float yy = y + dy;
-					float zz = -z + dz;
-
-					float finalx = ChunkReader.ZEROPOINT - zz;
-					float finaly = ChunkReader.ZEROPOINT - xx;
-					float finalz = yy;
-
-					vertices[i] = s.AddVertex(finalx, finaly, finalz);
-				}
-
-				for (int i = 0; i < mv.triangleList.Length / 3; i++)
-				{
-					int off = i * 3;
-					UInt16 vi0 = mv.triangleList[off];
-					UInt16 vi1 = mv.triangleList[off + 1];
-					UInt16 vi2 = mv.triangleList[off + 2];
-
-					int ind0 = mv.indexList[vi0];
-					int ind1 = mv.indexList[vi1];
-					int ind2 = mv.indexList[vi2];
-
-					int v0 = vertices[ind0];
-					int v1 = vertices[ind1];
-					int v2 = vertices[ind2];
-					s.AddTriangle(v0, v1, v2, ChunkedTriangleCollection.TriangleFlagModel);
-				}
-				*/
-        }
 
         int nBoundingVertices = m.boundingVertices.Length / 3;
 
@@ -509,6 +511,95 @@ public sealed class MPQTriangleSupplier
     }
 
     [SkipLocalsInit]
+    private static void AddBoundingTriangles(TriangleCollection s, ModelInstance mi)
+    {
+        Model m = mi.model;
+        if (m.boundingTriangles == null)
+        {
+            return;
+        }
+
+        float dx = mi.pos.X;
+        float dy = mi.pos.Y;
+        float dz = mi.pos.Z;
+
+        float dir_x = mi.dir.Z;
+        float dir_y = mi.dir.Y - 90; // -90 is correct!
+        float dir_z = -mi.dir.X;
+
+        // Calculate bounding box
+        float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue;
+        float maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
+
+        for (int i = 0; i < m.boundingVertices.Length / 3; i++)
+        {
+            int off = i * 3;
+            float x = m.boundingVertices[off];
+            float y = m.boundingVertices[off + 2];
+            float z = m.boundingVertices[off + 1];
+
+            Rotate(z, y, dir_x, out z, out y);
+            Rotate(x, y, dir_z, out x, out y);
+            Rotate(x, z, dir_y, out x, out z);
+
+            x *= mi.scale;
+            y *= mi.scale;
+            z *= mi.scale;
+
+            float xx = x + dx;
+            float yy = y + dy;
+            float zz = -z + dz;
+
+            float finalx = ChunkReader.ZEROPOINT - zz;
+            float finaly = ChunkReader.ZEROPOINT - xx;
+            float finalz = yy;
+
+            if (finalx < minX) minX = finalx;
+            if (finaly < minY) minY = finaly;
+            if (finalz < minZ) minZ = finalz;
+
+            if (finalx > maxX) maxX = finalx;
+            if (finaly > maxY) maxY = finaly;
+            if (finalz > maxZ) maxZ = finalz;
+        }
+
+        // Add bounding box triangles
+        int v0 = s.AddVertex(minX, minY, minZ);
+        int v1 = s.AddVertex(maxX, minY, minZ);
+        int v2 = s.AddVertex(maxX, maxY, minZ);
+        int v3 = s.AddVertex(minX, maxY, minZ);
+        int v4 = s.AddVertex(minX, minY, maxZ);
+        int v5 = s.AddVertex(maxX, minY, maxZ);
+        int v6 = s.AddVertex(maxX, maxY, maxZ);
+        int v7 = s.AddVertex(minX, maxY, maxZ);
+
+        // Bottom face
+        s.AddTriangle(v0, v1, v2, TriangleType.Model);
+        s.AddTriangle(v0, v2, v3, TriangleType.Model);
+
+        // Top face
+        s.AddTriangle(v4, v5, v6, TriangleType.Model);
+        s.AddTriangle(v4, v6, v7, TriangleType.Model);
+
+        // Front face
+        s.AddTriangle(v0, v1, v5, TriangleType.Model);
+        s.AddTriangle(v0, v5, v4, TriangleType.Model);
+
+        // Back face
+        s.AddTriangle(v3, v2, v6, TriangleType.Model);
+        s.AddTriangle(v3, v6, v7, TriangleType.Model);
+
+        // Left face
+        s.AddTriangle(v0, v3, v7, TriangleType.Model);
+        s.AddTriangle(v0, v7, v4, TriangleType.Model);
+
+        // Right face
+        s.AddTriangle(v1, v2, v6, TriangleType.Model);
+        s.AddTriangle(v1, v6, v5, TriangleType.Model);
+    }
+
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void ChunkGetCoordForPoint(MapChunk c, int row, int col,
                                       out float x, out float y, out float z)
     {
@@ -537,5 +628,42 @@ public sealed class MPQTriangleSupplier
 
         nx = (c_y * x) - (s_y * y);
         ny = (s_y * x) + (c_y * y);
+    }
+
+
+    public (int, float) GetAreaIdAndZ(Vector3 p)
+    {
+        long start = GetTimestamp();
+
+        GetChunkCoord1(p.X, p.Y, out int chunk_x, out int chunk_y);
+
+        int index = chunk_y * WDT.SIZE + chunk_x;
+        if (!wdt.loaded[index])
+        {
+            wdtf.LoadMapTile(chunk_x, chunk_y, index);
+        }
+
+        ref readonly MapTile mapTile = ref wdt.maptiles[index];
+        if (!wdt.loaded[index])
+        {
+            return (0, 0);
+        }
+
+        int chunkIndex = GetChunkIndex(p.X, p.Y);
+        if (chunkIndex < 0)
+        {
+            return (0, 0);
+        }
+
+        ref readonly MapChunk chunk = ref mapTile.chunks[chunkIndex];
+        int areaId = (int)chunk.areaID;
+        float z = chunk.ybase;
+
+        if (logger.IsEnabled(LogLevel.Trace))
+        {
+            logger.LogTrace($"GetAreaId: {p.X} {p.Y} {chunkIndex} {areaId} {z} {GetElapsedTime(start).TotalMilliseconds}ms");
+        }
+
+        return (areaId, z);
     }
 }

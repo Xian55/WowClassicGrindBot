@@ -15,23 +15,25 @@
         </div>
         <div class="card-body" style="padding-bottom: 0">
             <table class="table table-bordered">
-                @foreach (var property in addonConfig.GetType().GetProperties())
-                {
-                    <tr>
-                        @switch (Type.GetTypeCode(property.PropertyType))
-                        {
-                            case TypeCode.String:
-                                <td>@(property.Name)</td>
-                                <td>
-                                    <input value="@property.GetValue(addonConfig)?.ToString()"
-                               class="form-control"
-                               disabled="@(property.Name.Contains(nameof(addonConfig.Command)) || addonConfigurator.Installed())"
-                               @onchange="c => { property.SetValue(addonConfig, c.Value); }" />
-                                </td>
-                                break;
-                        }
-                    </tr>
-                }
+                <tbody>
+                    @foreach (var property in addonConfig.GetType().GetProperties())
+                    {
+                        <tr>
+                            @switch (Type.GetTypeCode(property.PropertyType))
+                            {
+                                case TypeCode.String:
+                                    <td>@(property.Name)</td>
+                                    <td>
+                                        <input value="@property.GetValue(addonConfig)?.ToString()"
+                                               class="form-control"
+                                               disabled="@(property.Name.Contains(nameof(addonConfig.Command)) || addonConfigurator.Installed())"
+                                               @onchange="c => { property.SetValue(addonConfig, c.Value); }" />
+                                    </td>
+                                    break;
+                            }
+                        </tr>
+                    }
+                </tbody>
             </table>
         </div>
     </div>
@@ -44,39 +46,41 @@
         </div>
         <div class="card-body" style="padding-bottom: 0">
             <table class="table table-bordered">
-                <tr>
-                    <td style="width:25%">Status</td>
-                    <td>
-                        <label class="form-control" disabled>
-                            @AddonStatus()
-                        </label>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Install path</td>
-                    <td>
-                        <input value="@addonConfigurator.FinalAddonPath" class="form-control" disabled="true" />
-                    </td>
-                </tr>
-                <tr>
-                    <td>Install / Update addon and config</td>
-                    <td>
-                        <button class="btn btn-sm btn-success" @onclick="Install">
-                            <span>Save</span>
-                        </button>
-                    </td>
-                </tr>
-                @if (AddonConfig.Exists())
-                {
+                <tbody>
                     <tr>
-                        <td>Delete current addon and config</td>
+                        <td style="width:25%">Status</td>
                         <td>
-                            <button class="btn btn-sm btn-danger" @onclick="Delete">
-                                <span>Delete</span>
+                            <label class="form-control" disabled>
+                                @AddonStatus()
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Install path</td>
+                        <td>
+                            <input value="@addonConfigurator.FinalAddonPath" class="form-control" disabled="true" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Install / Update addon and config</td>
+                        <td>
+                            <button class="btn btn-sm btn-success" @onclick="Install">
+                                <span>Save</span>
                             </button>
                         </td>
                     </tr>
-                }
+                    @if (AddonConfig.Exists())
+                    {
+                        <tr>
+                            <td>Delete current addon and config</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" @onclick="Delete">
+                                    <span>Delete</span>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
             </table>
         </div>
     </div>

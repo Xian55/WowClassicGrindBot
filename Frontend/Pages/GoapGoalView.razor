@@ -17,7 +17,7 @@
     <td>
         @foreach ((GoapKey key, bool value) in goal.Preconditions)
         {
-            <span style="margin-right:4px;" class="badge @Badge(botController.GoapAgent!.HasState(key) == value)">@(key.ToStringF(value))</span>
+            <Badge style="margin-right:4px;" Color="Badge(botController.GoapAgent!.HasState(key) == value)">@(key.ToStringF(value))</Badge>
         }
         @if (goal.Keys.Length == 1)
         {
@@ -27,7 +27,12 @@
                 Requirement rq = key.RequirementsRuntime[i];
                 if (rq.VisibleIfHasRequirement || !rq.HasRequirement() || ShowAll)
                 {
-                    @(DisplayRequirementBadges(rq))
+                    var enumerator = DisplayRequirementBadges(rq);
+                    while (enumerator.MoveNext())
+                    {
+                        var item = enumerator.Current;
+                        <Badge style="margin-right:4px;" Color="@item.color">@item.text</Badge>
+                    }
                 }
             }
         }
@@ -36,43 +41,50 @@
 @if (goal.Keys.Length > 1 && (IsSelected || Expand))
 {
     <tr>
-        <td colspan="2" style="padding-top: 0 !important; padding-bottom: 0 !important; border-top: 0 !important;">
-            <table style="margin-left: 15px;">
-                @{
-                    int lastKey = KeyAction.LastKeyClicked();
-                    ReadOnlySpan<KeyAction> span = goal.Keys.AsSpan();
-                }
-                @for (int k = 0; k < span.Length; k++)
-                {
-                    KeyAction key = span[k];
+        <td colspan="2">
+            <table class="table table-sm table-striped mb-0">
+                <tbody>
+                    @{
+                        int lastKey = KeyAction.LastKeyClicked();
+                        ReadOnlySpan<KeyAction> span = goal.Keys.AsSpan();
+                    }
+                    @for (int k = 0; k < span.Length; k++)
+                    {
+                        KeyAction key = span[k];
 
-                    int cooldown = 0;
-                    if (key.Slot > 0)
-                        cooldown = ActionBarCooldownReader.Get(key);
+                        int cooldown = 0;
+                        if (key.Slot > 0)
+                            cooldown = ActionBarCooldownReader.Get(key);
 
-                    <tr class="@ActionClass(goal == botController.GoapAgent!.CurrentGoal && lastKey == key.ConsoleKeyFormHash, cooldown)">
-                        <td>
-                            @if (key.HasForm)
-                            {
-                                <img style="margin-right:4px" src="@FormResourceName(key.FormValue)" />
-                            }
-                            <b style="color:@DisplayCanRun(key.CanRun())">@KeyActionSpellName(key)</b>
-                        </td>
-                        <td>
-                            @{
-                                ReadOnlySpan<Requirement> reqSpan = key.RequirementsRuntime.AsSpan();
-                            }
-                            @for (int r = 0; r < reqSpan.Length; r++)
-                            {
-                                Requirement rq = reqSpan[r];
-                                if (rq.VisibleIfHasRequirement || !rq.HasRequirement() || ShowAll)
+                        <tr class="@ActionClass(goal == botController.GoapAgent!.CurrentGoal && lastKey == key.ConsoleKeyFormHash, cooldown)">
+                            <td>
+                                @if (key.HasForm)
                                 {
-                                    @(DisplayRequirementBadges(rq))
+                                    <img style="margin-right:4px" src="@FormResourceName(key.FormValue)" />
                                 }
-                            }
-                        </td>
-                    </tr>
-                }
+                                <b style="color:@DisplayCanRun(key.CanRun())">@KeyActionSpellName(key)</b>
+                            </td>
+                            <td>
+                                @{
+                                    ReadOnlySpan<Requirement> reqSpan = key.RequirementsRuntime.AsSpan();
+                                }
+                                @for (int r = 0; r < reqSpan.Length; r++)
+                                {
+                                    Requirement rq = reqSpan[r];
+                                    if (rq.VisibleIfHasRequirement || !rq.HasRequirement() || ShowAll)
+                                    {
+                                        var enumerator = DisplayRequirementBadges(rq);
+                                        while (enumerator.MoveNext())
+                                        {
+                                            var item = enumerator.Current;
+                                            <Badge style="margin-right:4px;" Color="@item.color">@item.text</Badge>
+                                        }
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
             </table>
         </td>
     </tr>
@@ -95,45 +107,50 @@
     private static readonly Regex regex = new($"({Requirement.And})|({Requirement.Or})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly StringBuilder stringBuilder = new();
 
-    private static MarkupString DisplayRequirementBadges(Requirement requirement)
+    private static IEnumerator<(BadgeColor color, string text)> DisplayRequirementBadges(Requirement requirement)
     {
-        stringBuilder.Clear();
-        foreach (ReadOnlySpan<char> match in regex.Split(requirement.LogMessage()))
+        var renderText = requirement.LogMessage();
+
+        List<(BadgeColor color, string text)> items = new();
+
+        foreach (var part in regex.EnumerateSplits(renderText))
         {
-            if (match.StartsWith(Requirement.And) || match.StartsWith(Requirement.Or))
+            var text = renderText.AsSpan(part);
+            var trimmedPart = text.Trim();
+
+            if (trimmedPart.IsEmpty)
+                continue;
+
+            if (trimmedPart.StartsWith(Requirement.And) || trimmedPart.StartsWith(Requirement.Or))
             {
-                stringBuilder.Append("<span class=\"badge badge-secondary\">");
-                stringBuilder.Append(match.Trim());
-                stringBuilder.Append("</span>\n");
+                items.Add(new(BadgeColor.Secondary, trimmedPart.ToString()));
             }
             else
             {
-                stringBuilder.Append("<span class=\"badge ");
-                stringBuilder.Append(Badge(requirement.HasRequirement()));
-                stringBuilder.Append("\">");
-                stringBuilder.Append(match.Trim());
-                stringBuilder.Append("</span>\n");
+                var color = Badge(requirement.HasRequirement());
+                items.Add(new(color, trimmedPart.ToString()));
             }
         }
-        return new MarkupString(stringBuilder.ToString());
+
+        return items.GetEnumerator();
     }
 
-    private static string Badge(bool value)
+    private static BadgeColor Badge(bool value)
     {
-        return value ? "badge-success" : "badge-danger";
+        return value ? BadgeColor.Success : BadgeColor.Danger;
     }
 
     private static string ActionClass(bool item, int cooldown)
     {
         if (cooldown > 0)
-            return "bg-red animate__animated animate__fadeIn";
+            return "table-danger animate__animated animate__fadeIn";
 
-        return item ? "bg-majestic animate__animated animate__fadeIn" : "table-default";
+        return item ? "table-warning animate__animated animate__fadeIn" : "";
     }
 
     private static string DisplayCanRun(bool item)
     {
-        return item ? "black" : "gray";
+        return item ? "" : "gray";
     }
 
     private string FormResourceName(Form i)

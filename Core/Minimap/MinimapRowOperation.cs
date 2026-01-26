@@ -1,14 +1,14 @@
-﻿using System;
-using System.Runtime.CompilerServices;
-using System.Threading;
-
+﻿using SharedLib;
 using SharedLib.Extensions;
-using SharedLib;
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.PixelFormats;
+
+using System;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Core.Minimap;
 internal readonly struct MinimapRowOperation : IRowOperation<Point>

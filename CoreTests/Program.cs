@@ -1,14 +1,21 @@
-﻿using Serilog;
-using Serilog.Extensions.Logging;
-using SharedLib.NpcFinder;
-using System.Diagnostics;
-using System.Threading;
-using System.Linq;
-using System.Collections.Generic;
-using Core;
-using System;
-using Microsoft.Extensions.Logging;
+﻿using Core;
+
 using Game;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+using Serilog;
+using Serilog.Extensions.Logging;
+
+using SharedLib;
+using SharedLib.NpcFinder;
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading;
 
 #pragma warning disable 0162
 
@@ -21,7 +28,7 @@ internal sealed class Program
 
     private static CancellationTokenSource cts;
     private static WowProcess process;
-    private static IWowScreen screen;
+    private static WowScreenDXGI screen;
 
     private const bool LogOverallTimes = false;
     private const int delay = 150;
@@ -36,6 +43,10 @@ internal sealed class Program
         Log.Logger = logConfig;
         logger = new SerilogLoggerProvider(Log.Logger).CreateLogger(nameof(Program));
 
+
+        //var a = new PPatherV2.PPatherV2(logger, DataConfig.Load("tbc"));
+        //return;
+
         loggerFactory = LoggerFactory.Create(builder =>
         {
             builder.ClearProviders().AddSerilog();
@@ -49,7 +60,7 @@ internal sealed class Program
         ];
 
         cts = new CancellationTokenSource();
-        process = new(cts);
+        process = new(cts, Options.Create<StartupConfigPid>(new() { Id = -1 }));
         screen = new WowScreenDXGI(loggerFactory.CreateLogger<WowScreenDXGI>(), process, mockFrames);
 
         Test_NPCNameFinder();
@@ -222,7 +233,7 @@ internal sealed class Program
     private static void Test_FindTargetByCursor()
     {
         //CursorType cursorType = CursorType.Kill;
-        Span<CursorType> cursorType = stackalloc[] { CursorType.Vendor };
+        ReadOnlySpan<CursorType> cursorType = [CursorType.Vendor];
 
         //NpcNames types = NpcNames.Enemy;
         //NpcNames types = NpcNames.Corpse;
@@ -233,6 +244,8 @@ internal sealed class Program
 
         int count = 2;
         int i = 0;
+
+        screen.Enabled = true;
 
         while (i < count)
         {
@@ -245,5 +258,7 @@ internal sealed class Program
             i++;
             Thread.Sleep(delay);
         }
+
+        screen.Enabled = false;
     }
 }

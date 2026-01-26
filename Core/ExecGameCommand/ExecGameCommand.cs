@@ -1,7 +1,9 @@
 ﻿using Game;
+
+using Microsoft.Extensions.Logging;
+
 using System;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 
 namespace Core;
 
@@ -24,17 +26,21 @@ public sealed class ExecGameCommand
         input.SetForegroundWindow();
         logger.LogInformation(content);
 
+        int duration = string.IsNullOrEmpty(content)
+            ? InputDuration.VeryFastPress
+            : Random.Shared.Next(100, 250);
+
         input.SetClipboard(content);
-        token.WaitHandle.WaitOne(Random.Shared.Next(100, 250));
+        token.WaitHandle.WaitOne(duration);
 
         // Open chat inputbox
-        input.PressRandom(ConsoleKey.Enter, 100, token);
+        input.PressRandom(ConsoleKey.Enter, token: token);
 
         input.PasteFromClipboard();
-        token.WaitHandle.WaitOne(Random.Shared.Next(100, 250));
+        token.WaitHandle.WaitOne(duration);
 
         // Close chat inputbox
-        input.PressRandom(ConsoleKey.Enter, 100, token);
-        token.WaitHandle.WaitOne(Random.Shared.Next(100, 250));
+        input.PressRandom(ConsoleKey.Enter, token: token);
+        token.WaitHandle.WaitOne(duration);
     }
 }

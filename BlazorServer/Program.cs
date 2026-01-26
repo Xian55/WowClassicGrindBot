@@ -1,23 +1,26 @@
-using System;
-using System.Threading;
-
 using Core;
 
 using Frontend;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using Serilog;
-using Serilog.Events;
-using Serilog.Templates.Themes;
 using Serilog.Templates;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.FileProviders;
+using Serilog.Templates.Themes;
+
+using SharedLib.Converters;
+
+using System;
 using System.IO;
+using System.Threading;
 
 namespace BlazorServer;
 
@@ -27,26 +30,36 @@ public static class Program
     {
         while (true)
         {
-            Log.Information($"[{nameof(Program),-15}] Starting blazor server");
+            bool shutdownRequested = false;
+
             try
             {
-                IHost host = CreateApp(args);
-                var logger = host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger>();
-
-                AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs args) =>
+                Log.Information("[Program          ] Starting blazor server");
+                var host = CreateApp(args);
+                var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+                lifetime.ApplicationStopping.Register(() =>
                 {
-                    Exception e = (Exception)args.ExceptionObject;
-                    logger.LogError(e, e.Message);
-                };
+                    shutdownRequested = true;
+                    Log.Warning("[Program          ] Graceful shutdown requested");
+                });
 
                 host.Run();
             }
             catch (Exception ex)
             {
-                Log.Information($"[{nameof(Program),-15}] {ex.Message}");
-                Log.Information("");
+                if (shutdownRequested)
+                {
+                    // We were stopping anyway; don't restart-loop just because Dispose threw.
+                    Log.Error(ex, "[Program          ] Exception during shutdown; exiting without restart");
+                    break;
+                }
 
+                Log.Fatal(ex, "[Program          ] Host crashed – restarting in 3s");
                 Thread.Sleep(3000);
+            }
+            finally
+            {
+                Log.CloseAndFlush();
             }
         }
     }
@@ -73,12 +86,11 @@ public static class Program
             LoggerSink sink = new();
             builder.Services.AddSingleton(sink);
 
-            const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {#if Length(SourceContext) > 0}[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1),-15}] {#end}{@m}\n{@x}";
+            const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {#if Length(SourceContext) > 0}[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1),-17}] {#end}{@m}\n{@x}";
+            //const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {SourceContext}] {@m}\n{@x}";
 
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+                .ReadFrom.Configuration(configuration)
                 .Enrich.FromLogContext()
                 .WriteTo.Sink(sink)
                 .WriteTo.File(new ExpressionTemplate(outputTemplate),
@@ -116,6 +128,28 @@ public static class Program
 
         services.AddCoreFrontend();
 
+        services.AddSingleton(provider =>
+            provider.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions);
+
+        services.Configure<JsonOptions>(options =>
+        {
+            options.SerializerOptions.PropertyNameCaseInsensitive = true;
+            options.SerializerOptions.Converters.Add(new Vector3Converter());
+            options.SerializerOptions.Converters.Add(new Vector4Converter());
+        });
+
+        services.Configure<HostOptions>(o =>
+        {
+            o.ShutdownTimeout = TimeSpan.FromSeconds(1);
+        });
+
+        services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+            options.JsonSerializerOptions.Converters.Add(new Vector3Converter());
+            options.JsonSerializerOptions.Converters.Add(new Vector4Converter());
+        });
+
         services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateOnBuild = true });
     }
@@ -135,18 +169,20 @@ public static class Program
 
         app.UseStaticFiles();
 
-        DataConfig dataConfig = app.Services.GetRequiredService<DataConfig>();
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.Path)),
-            RequestPath = "/path"
-        });
+        app.UseCustomStaticFiles(env);
 
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode()
             .AddAdditionalAssemblies(typeof(Frontend._Imports).Assembly);
 
+        app.UseRouting();
+
         app.UseAntiforgery();
+
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+        });
 
         return app;
     }

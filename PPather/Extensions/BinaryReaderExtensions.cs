@@ -1,23 +1,27 @@
 ﻿using System;
 using System.IO;
 using System.Numerics;
-using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace PPather.Extensions;
 
 public static class BinaryReaderExtensions
 {
-    public static Vector3 ReadVector3(this BinaryReader b)
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static unsafe Vector3 ReadVector3(this BinaryReader b)
     {
-        Span<float> v3 = stackalloc float[3];
-        b.Read(MemoryMarshal.Cast<float, byte>(v3));
-        return new(v3);
+        Vector3 v;
+        Span<byte> buffer = new(&v, sizeof(Vector3));
+        b.Read(buffer);
+        return v;
     }
 
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Vector3 ReadVector3_XZY(this BinaryReader b)
     {
-        Span<float> v3 = stackalloc float[3];
-        b.Read(MemoryMarshal.Cast<float, byte>(v3));
+        Vector3 v3 = ReadVector3(b);
 
         // from format
         // X Z -Y
@@ -25,7 +29,7 @@ public static class BinaryReaderExtensions
         // X Y Z
         (v3[1], v3[2]) = (-v3[2], v3[1]);
 
-        return new(v3);
+        return v3;
     }
 
     public static bool EOF(this BinaryReader b)

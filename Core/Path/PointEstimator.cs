@@ -1,31 +1,18 @@
-﻿using System.Numerics;
+﻿using SharedLib;
+
+using System.Numerics;
 
 namespace Core;
 
 public static class PointEstimator
 {
-    public const float YARD_TO_COORD = 0.035921f;
-
-    public static Vector3 GetPoint(Vector3 map, float wowRad, float rangeYard)
+    public static Vector3 GetMapPos(WorldMapArea wma, Vector3 playerPosW, float wowRad, float distance)
     {
-        //player direction
-        //0.00061
+        Vector2 dir = DirectionCalculator.ToNormalRadianNoFlip(wowRad);
 
-        //player location
-        //37.4017,44.4587
+        Vector3 corpsePosW = new(playerPosW.X + (distance * dir.X), playerPosW.Y + (distance * dir.Y), playerPosW.Z);
 
-        //NPC
-        //37.4016,44.2791
-
-        //~5yard Distance
-        //44.4587 - 44.2791 = 0.1796
-
-        //~1yard Distance
-        //0.1796 / 5 = 0.03592
-
-        float range = rangeYard * YARD_TO_COORD;
-        Vector2 dir = DirectionCalculator.ToNormalRadian(wowRad);
-
-        return new Vector3(map.X + (range * dir.X), map.Y + (range * dir.Y), map.Z);
+        return WorldMapAreaDB.ToMap_FlipXY(corpsePosW, wma);
     }
+
 }

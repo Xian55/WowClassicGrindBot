@@ -35,8 +35,10 @@ public sealed class TargetFocusTargetGoal : GoapGoal
             return false;
 
         return
-            (bits.FocusTarget_Hostile() && bits.FocusTarget_Combat()) ||
-            !bits.FocusTarget_Hostile();
+            !bits.TargetTarget_PlayerOrPet() &&
+            ((bits.FocusTarget_Hostile() && bits.FocusTarget_Combat()) ||
+            !bits.FocusTarget_Hostile() ||
+            CanPull());
     }
 
     public override void OnEnter()
@@ -47,9 +49,9 @@ public sealed class TargetFocusTargetGoal : GoapGoal
 
     public override void Update()
     {
-        if (bits.FocusTarget_Hostile())
+        if (bits.FocusTarget_Hostile() || playerReader.IsTargetCasting())
         {
-            if (bits.FocusTarget_Combat())
+            if (bits.FocusTarget_Combat() || CanPull())
             {
                 input.PressTargetFocus();
                 input.PressTargetOfTarget();
@@ -72,5 +74,10 @@ public sealed class TargetFocusTargetGoal : GoapGoal
             input.PressClearTarget();
             wait.Update();
         }
+    }
+
+    private bool CanPull()
+    {
+        return bits.FocusTarget() && playerReader.IsTargetCasting();
     }
 }

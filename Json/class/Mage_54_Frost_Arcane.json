@@ -104,8 +104,7 @@
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!HasRangedWeapon",
-          "!AutoAttacking"
+          "!HasRangedWeapon"
         ]
       },
       {
@@ -155,7 +154,7 @@
         "Log": false
       },
       {
-        "Name": "Conjure Drink",
+        "Name": "Conjure Water",
         "HasCastBar": true,
         "Key": "9",
         "Requirement": "!BagItem:Item_Conjure_Drink:4",

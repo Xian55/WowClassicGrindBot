@@ -1,7 +1,10 @@
-﻿using System;
-using SixLabors.ImageSharp;
-using Game;
+﻿using Game;
+
 using Microsoft.Extensions.Logging;
+
+using SixLabors.ImageSharp;
+
+using System;
 using System.Threading;
 
 namespace CoreTests;

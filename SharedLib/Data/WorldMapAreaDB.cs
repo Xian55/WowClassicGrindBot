@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+
+using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
-
-using Newtonsoft.Json;
 
 namespace SharedLib;
 
@@ -13,7 +13,11 @@ public sealed class WorldMapAreaDB
 {
     private readonly FrozenDictionary<int, WorldMapArea> wmas;
 
+    public const int AreaIDOffset = 1000000;
+
     public IEnumerable<WorldMapArea> Values => wmas.Values;
+
+    public FrozenDictionary<int, WorldMapArea> AreaHitbox;
 
     public WorldMapAreaDB(DataConfig dataConfig)
     {
@@ -22,16 +26,33 @@ public sealed class WorldMapAreaDB
                 File.ReadAllText(
                     Path.Join(dataConfig.ExpDbc, "WorldMapArea.json")));
 
+
+        Dictionary<int, WorldMapArea> areahitbox = [];
         Dictionary<int, WorldMapArea> wmas = [];
         for (int i = 0; i < span.Length; i++)
+        {
+            if (span[i].AreaID > AreaIDOffset)
+            {
+                areahitbox.TryAdd(span[i].AreaID, span[i]);
+            }
+
+            if (span[i].UIMapId == 0)
+                continue;
             wmas.Add(span[i].UIMapId, span[i]);
+        }
 
         this.wmas = wmas.ToFrozenDictionary();
+        this.AreaHitbox = areahitbox.ToFrozenDictionary();
     }
 
     public int GetAreaId(int uiMap)
     {
         return wmas.TryGetValue(uiMap, out WorldMapArea map) ? map.AreaID : -1;
+    }
+
+    public int GetMapId(int uiMap)
+    {
+        return wmas.TryGetValue(uiMap, out WorldMapArea map) ? map.MapID : -1;
     }
 
     public bool TryGet(int uiMap, out WorldMapArea wma)
@@ -122,6 +143,18 @@ public sealed class WorldMapAreaDB
         }
 
         return maps.First();
+    }
+
+    public WorldMapArea GetByAreaId(int areaId)
+    {
+        return wmas.Values.FirstOrDefault(x => x.AreaID == areaId);
+    }
+
+    public WorldMapArea GetByAreaIdHit(int areaIdHit)
+    {
+        return AreaHitbox.TryGetValue(areaIdHit + AreaIDOffset, out WorldMapArea wma)
+            ? wma
+            : wmas.Values.FirstOrDefault(x => x.AreaID == areaIdHit);
     }
 
 }

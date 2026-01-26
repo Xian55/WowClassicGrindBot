@@ -7,6 +7,9 @@ namespace Core;
 
 public static class PathSimplify
 {
+    public const float DEFAULT = 0.3f;
+    public const float HALF = 0.15f;
+
     // square distance from a Vector3 to a segment
     private static float GetSquareSegmentDistance(in Vector3 p, in Vector3 p1, in Vector3 p2)
     {
@@ -129,10 +132,10 @@ public static class PathSimplify
     /// <param name="tolerance">Tolerance tolerance in the same measurement as the Vector3 coordinates</param>
     /// <param name="highestQuality">Enable highest quality for using Douglas-Peucker, set false for Radial-Distance algorithm</param>
     /// <returns>Simplified list of Vector3</returns>
-    public static Span<Vector3> Simplify(Span<Vector3> points, float tolerance = 0.3f, bool highestQuality = false)
+    public static Span<Vector3> Simplify(Span<Vector3> points, float tolerance = DEFAULT, bool highestQuality = false)
     {
         if (points.Length == 0)
-            return Array.Empty<Vector3>();
+            return [];
 
         float sqTolerance = tolerance * tolerance;
 

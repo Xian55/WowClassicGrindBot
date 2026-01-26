@@ -1,6 +1,6 @@
-﻿using System;
+﻿using SharedLib;
 
-using SharedLib;
+using System;
 
 namespace Core;
 

@@ -1,9 +1,10 @@
-﻿using System.Collections.Specialized;
-using System.Numerics;
-
-using Core.Database;
+﻿using Core.Database;
 
 using SharedLib;
+
+using System;
+using System.Collections.Specialized;
+using System.Numerics;
 
 namespace Core;
 
@@ -46,6 +47,21 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     public float MapX => reader.GetFixed(1) * 10;
     public float MapY => reader.GetFixed(2) * 10;
 
+    public Vector3 TargetMapPos
+    {
+        get
+        {
+            if (!bits.Target())
+            {
+                return Vector3.Zero;
+            }
+
+            float targetDistance = (MaxRange() + MinRange()) / 2;
+
+            return PointEstimator.GetMapPos(WorldMapArea, WorldPos, Direction, targetDistance);
+        }
+    }
+
     public float Direction => reader.GetFixed(3);
 
     public float _Direction() => Direction;
@@ -85,7 +101,7 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     public int PetMaxHealth() => reader.GetInt(38);
     public int PetHealth() => reader.GetInt(39);
     public int PetHealthPercent() => (1 + PetHealth()) * 100 / (1 + PetMaxHealth());
-
+    public bool PetAlive() => PetHealth() > 0;
 
     public SpellInRange SpellInRange { get; }
     public bool WithInPullRange() => SpellInRange.WithinPullRange(this, Class);
@@ -96,12 +112,30 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     public int TargetLevel => reader.GetInt(43) / 100;
     public UnitClassification TargetClassification => (UnitClassification)(reader.GetInt(43) % 100);
 
+    public bool TargetIsElite() => TargetClassification == UnitClassification.Elite;
+
     public int Money => reader.GetInt(44) + (reader.GetInt(45) * 1000000);
 
     // RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
     public UnitRace Race => (UnitRace)(reader.GetInt(46) / 10000);
     public UnitClass Class => (UnitClass)(reader.GetInt(46) / 100 % 100);
-    public ClientVersion Version => (ClientVersion)(reader.GetInt(46) % 10);
+    public ClientVersion Version => (ClientVersion)(reader.GetInt(46) % 100);
+
+    public PlayerFaction Faction => Race switch {
+        UnitRace.Human => PlayerFaction.Alliance,
+        UnitRace.Dwarf => PlayerFaction.Alliance,
+        UnitRace.NightElf => PlayerFaction.Alliance,
+        UnitRace.Gnome => PlayerFaction.Alliance,
+        UnitRace.Draenei => PlayerFaction.Alliance,
+        UnitRace.Worgen => PlayerFaction.Alliance,
+        UnitRace.Orc => PlayerFaction.Horde,
+        UnitRace.Tauren => PlayerFaction.Horde,
+        UnitRace.Undead => PlayerFaction.Horde,
+        UnitRace.Troll => PlayerFaction.Horde,
+        UnitRace.BloodElf => PlayerFaction.Horde,
+        UnitRace.Goblin => PlayerFaction.Horde,
+        _ => throw new ArgumentNullException(nameof(Faction)),
+    };
 
     // 47 empty
 
@@ -121,6 +155,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public int PlayerMaxXp => reader.GetInt(51);
     public int PlayerXpPercent => (1 + PlayerXp.Value) * 100 / (1 + PlayerMaxXp);
+
+    public int _PlayerXpPercent() => PlayerXpPercent;
 
     public RecordInt UIErrorTime { get; } = new(47);
 
@@ -196,14 +232,30 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public int DoubleNetworkLatency => 2 * NetworkLatency;
 
+    public int HalfNetworkLatency => NetworkLatency / 2;
+
     public int SpellQueueTimeMs => reader.GetInt(96) / 10000 % 10000;
 
+    public int _SpellQueueTimeMs() => SpellQueueTimeMs;
+
+    public int _SpellQueueTimeMsNegative() => -SpellQueueTimeMs;
+
+    public int HalfSpellQueueTimeMs => SpellQueueTimeMs / 2;
+
+    // Formula (10 * LootWindowCount) + LootEvent(0-9)
     public RecordInt LootEvent { get; } = new(97);
+    public RecordInt LootWindowCount { get; } = new(97);
 
     public int FocusGuid => reader.GetInt(77);
     public int FocusTargetGuid => reader.GetInt(78);
 
     public int RangedSpeedMs() => reader.GetInt(88) * 10;
+
+    public int SoftInteract_Guid => reader.GetInt(101);
+
+    public int SoftInteract_Id => reader.GetInt(102);
+
+    public GuidType SoftInteract_Type => (GuidType)reader.GetInt(103);
 
     public void Update(IAddonDataProvider reader)
     {
@@ -226,7 +278,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         CastEvent.Update(reader);
         CastSpellId.Update(reader);
 
-        LootEvent.Update(reader);
+        LootEvent.UpdateIncludeLeastSignificantDigit(reader, 10);
+        LootWindowCount.UpdateExcludingLeastSignificantDigits(reader, 10);
 
         GCD.Update(reader);
 
@@ -250,6 +303,7 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         Level.Reset();
 
         LootEvent.Reset();
+        LootWindowCount.Reset();
         UIErrorTime.Reset();
 
         GCD.Reset();

@@ -1,8 +1,7 @@
-using System;
-
 using SixLabors.ImageSharp;
-using System.Runtime.InteropServices;
+
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 [assembly: DisableRuntimeMarshalling]
 
@@ -20,9 +19,9 @@ public static partial class NativeMethods
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct RECT
+    internal readonly record struct RECT
     {
-        public int left, top, right, bottom;
+        public readonly int left, top, right, bottom;
     }
 
     [LibraryImport("user32.dll")]

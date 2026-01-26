@@ -132,7 +132,7 @@ public sealed class SpellInRange : IReader
     public bool WithinCombatRange(PlayerReader playerReader, UnitClass @class) => @class switch
     {
         UnitClass.Warrior => (playerReader.Level.Value >= 4 && Warrior_Rend) || playerReader.IsInMeleeRange(),
-        UnitClass.Rogue => Rogue_SinisterStrike,
+        UnitClass.Rogue => Rogue_SinisterStrike || playerReader.IsInMeleeRange(),
         UnitClass.Priest => Priest_Smite,
         UnitClass.Druid => Druid_Wrath || playerReader.IsInMeleeRange(),
         UnitClass.Paladin => (playerReader.Level.Value >= 4 && Paladin_Judgement) || playerReader.IsInMeleeRange(),
@@ -140,7 +140,7 @@ public sealed class SpellInRange : IReader
         UnitClass.Hunter => (playerReader.Level.Value >= 4 && Hunter_SerpentSting) || Hunter_AutoShoot || playerReader.IsInMeleeRange(),
         UnitClass.Warlock => Warlock_ShadowBolt,
         UnitClass.Shaman => Shaman_LightningBolt,
-        UnitClass.DeathKnight => DeathKnight_IcyTouch,
+        UnitClass.DeathKnight => DeathKnight_IcyTouch || playerReader.IsInMeleeRange(),
         _ => true
     };
 }

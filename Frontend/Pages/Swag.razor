@@ -11,11 +11,11 @@
 
 <BotHeader ShowActiveGoal="false" />
 
-<div class="card mt-1">
-    <div class="card-header">
+<Card class="mt-1">
+    <CardHeader>
         Equipments
-    </div>
-    <div class="card-body">
+    </CardHeader>
+    <CardBody>
         <div class="row p-0 m-0">
             @for (int index = 0; index <= (int)InventorySlotId.Bag_3; index++)
             {
@@ -26,19 +26,24 @@
                 </div>
             }
         </div>
-    </div>
-</div>
+    </CardBody>
+</Card>
 
-<div class="card mt-1">
-    <div class="card-header">
-        Bag Contents
-        <div class="float-right">
-            <Money Value="TotalVendorMoney" />
+<Card class="mt-1">
+    <CardHeader>
+        <div class="d-flex">
+            <div class="p-2 flex-grow-1 bd-highlight">
+                Bag Contents
+            </div>
+            <div class="p-2 bd-highlight">
+                <Money Value="TotalVendorMoney" />
+            </div>
         </div>
-    </div>
-    <div class="card-body" style="padding-bottom: 0">
+    </CardHeader>
+
+    <CardBody style="padding-bottom: 0">
         <table class="table table-sm table-striped table-no-border">
-            <thead class="thead-dark">
+            <thead>
                 <tr>
                     @for (int i = bagReader.Bags.Length - 1; i >= 0; i--)
                     {
@@ -49,31 +54,33 @@
                     }
                 </tr>
             </thead>
-            @for (int slot = 0; slot <= bagReader.BagMaxSlot(); slot++)
-            {
-                <tr>
-                    @for (int bag = bagReader.Bags.Length - 1; bag >= 0; bag--)
-                    {
-                        <td width="20%">
-                            @{
-                                var bagItem = bagReader.BagItems.FirstOrDefault(Exists);
-                                bool Exists(BagItem b) => b.Bag == bag && b.Slot == slot;
-                            }
-                            @if (bagItem != null)
-                            {
-                                <ItemComponent Item="bagItem.Item"
-                                               Count="bagItem.Count"
-                                               LastCount="bagItem.LastCount"
-                                               LastChange="bagItem.LastChange"
-                                               LastUpdated="bagItem.LastUpdated" />
-                            }
-                        </td>
-                    }
-                </tr>
-            }
+            <tbody>
+                @for (int slot = 0; slot <= bagReader.BagMaxSlot(); slot++)
+                {
+                    <tr>
+                        @for (int bag = bagReader.Bags.Length - 1; bag >= 0; bag--)
+                        {
+                            <td width="20%">
+                                @{
+                                    var bagItem = bagReader.BagItems.FirstOrDefault(Exists);
+                                    bool Exists(BagItem b) => b.Bag == bag && b.Slot == slot;
+                                }
+                                @if (bagItem != null)
+                                {
+                                    <ItemComponent Item="bagItem.Item"
+                                                   Count="bagItem.Count"
+                                                   LastCount="bagItem.LastCount"
+                                                   LastChange="bagItem.LastChange"
+                                                   LastUpdated="bagItem.LastUpdated" />
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
         </table>
-    </div>
-</div>
+    </CardBody>
+</Card>
 
 <TalentTreeComponent />
 

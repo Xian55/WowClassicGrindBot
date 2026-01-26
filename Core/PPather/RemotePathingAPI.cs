@@ -1,20 +1,22 @@
-﻿using System.Text.Json;
-using System;
-using System.Linq;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+
 using PPather.Data;
-using System.Text;
-using System.Numerics;
+
 using SharedLib.Converters;
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
 using System.Net.Sockets;
-using System.Diagnostics;
+using System.Numerics;
+using System.Text;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Core;
 
-public sealed class RemotePathingAPI : IPPather, IDisposable
+public sealed class RemotePathingAPI : IPPather, IPathVizualizer, IDisposable
 {
     private readonly ILogger<RemotePathingAPI> logger;
 
@@ -22,8 +24,10 @@ public sealed class RemotePathingAPI : IPPather, IDisposable
     private readonly int port = 5001;
 
     private readonly JsonSerializerOptions options;
-
     private readonly HttpClient client;
+
+    public HttpClient Client => client;
+    public JsonSerializerOptions Options => options;
 
     public RemotePathingAPI(ILogger<RemotePathingAPI> logger,
         string host, int port)
@@ -105,7 +109,7 @@ public sealed class RemotePathingAPI : IPPather, IDisposable
         }
     }
 
-    public Vector3[] FindWorldRoute(int uiMap, Vector3 worldFrom, Vector3 worldTo)
+    public Vector3[] FindWorldRoute(int uiMap, bool startIndoors, Vector3 worldFrom, Vector3 worldTo)
     {
         try
         {
@@ -119,7 +123,8 @@ public sealed class RemotePathingAPI : IPPather, IDisposable
                 $"x2={worldTo.X}&" +
                 $"y2={worldTo.Y}&" +
                 $"z2={worldTo.Z}&" +
-                $"uimap={uiMap}";
+                $"uimap={uiMap}&" +
+                $"startindoors={startIndoors}";
 
             //long timestamp = Stopwatch.GetTimestamp();
 

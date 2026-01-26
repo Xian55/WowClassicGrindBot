@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
-using System.Numerics;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+
 using SharedLib.Extensions;
+
+using System.Collections.Generic;
+using System.Numerics;
 
 namespace WowheadDB;
 

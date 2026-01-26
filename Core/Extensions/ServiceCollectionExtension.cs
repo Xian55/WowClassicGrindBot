@@ -1,6 +1,6 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
 
-using Microsoft.Extensions.DependencyInjection;
+using System;
 
 namespace Core.Extensions;
 public static class ServiceCollectionExtension

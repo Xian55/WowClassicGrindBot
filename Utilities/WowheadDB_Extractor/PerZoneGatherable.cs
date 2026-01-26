@@ -21,11 +21,11 @@ namespace WowheadDB_Extractor
         private readonly string url;
         private readonly GatherFilter filter;
 
-        public PerZoneGatherable(int zoneId, GatherFilter filter)
+        public PerZoneGatherable(string baseUrl, int zoneId, GatherFilter filter)
         {
             this.filter = filter;
 
-            url = $"{ZoneExtractor.BaseUrl()}/npcs?filter={LootRewardFilter}:{(int)filter};{zoneId}:1;0:0";
+            url = $"{baseUrl}/npcs?filter={LootRewardFilter}:{(int)filter};{zoneId}:1;0:0";
         }
 
         public async Task<int[]> Run()
@@ -52,7 +52,7 @@ namespace WowheadDB_Extractor
                     Console.WriteLine($" - {nameof(PerZoneGatherable)}\n {e}");
             }
 
-            return Array.Empty<int>();
+            return [];
         }
 
 

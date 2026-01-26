@@ -5,7 +5,7 @@
 -- Trigger between emitting game data and frame location data
 local SETUP_SEQUENCE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 102
+local NUMBER_OF_FRAMES = 108
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
@@ -16,6 +16,34 @@ local CELL_SPACING = 1 -- 0 or 1
 local GLOBAL_TIME_CELL = NUMBER_OF_FRAMES - 2
 
 -- Dont modify values below
+
+if not Enum or not Enum.PowerType then
+	PowerType = {
+		Mana = 0,
+		Rage = 1,
+		Focus = 2,
+		Energy = 3,
+		ComboPoints = 4,
+		Runes = 5,
+		RunicPower = 6,
+		SoulShards = 7,
+		LunarPower = 8,
+		HolyPower = 9,
+		Alternate = 10,
+		Maelstrom = 11,
+		Chi = 12,
+		Insanity = 13,
+		Obsolete = 14,
+		Obsolete2 = 15,
+		ArcaneCharges = 16,
+		Fury = 17,
+		Pain = 18,
+		NumPowerTypes = 19
+	}
+else
+	PowerType = Enum.PowerType
+end
+-- End of compatibility layer
 
 local Load = select(2, ...)
 local DataToColor = unpack(Load)
@@ -44,7 +72,7 @@ local GetNetStats = GetNetStats
 
 local CreateFrame = CreateFrame
 local SetCVar = SetCVar
-local GetAddOnMetadata = GetAddOnMetadata
+local GetAddOnMetadata = GetAddOnMetadata or C_AddOns.GetAddOnMetadata
 
 local UIErrorsFrame = UIErrorsFrame
 local DEFAULT_CHAT_FRAME = DEFAULT_CHAT_FRAME
@@ -54,9 +82,12 @@ local GetSpellBookItemName = GetSpellBookItemName
 local GetNumTalentTabs = GetNumTalentTabs
 local GetNumTalents = GetNumTalents
 local GetTalentInfo = GetTalentInfo
+local GetNumSpellTabs = GetNumSpellTabs
+local IsSpellKnown = IsSpellKnown
 
 local GetPlayerFacing = GetPlayerFacing
 local UnitLevel = UnitLevel
+local UnitLevelSafe = DataToColor.UnitLevelSafe
 local UnitHealthMax = UnitHealthMax
 local UnitHealth = UnitHealth
 local UnitPowerMax = UnitPowerMax
@@ -75,8 +106,6 @@ local UnitExists = UnitExists
 local UnitGUID = UnitGUID
 local UnitClassification = UnitClassification
 
-local PowerType = Enum.PowerType
-
 local GetMoney = GetMoney
 
 local GetContainerNumSlots = DataToColor.GetContainerNumSlots
@@ -94,8 +123,10 @@ local GetItemInfo = GetItemInfo
 local GetCoinTextureString = GetCoinTextureString
 local UseContainerItem = DataToColor.UseContainerItem
 
+local GetNumLootItems = GetNumLootItems
+
 -- initialization
-local globalCounter = 0
+local globalTick = 0
 local initPhase = 10
 
 DataToColor.DATA_CONFIG = {
@@ -134,7 +165,7 @@ DataToColor.globalTime = 0
 DataToColor.lastLoot = 0
 DataToColor.lastLootResetStart = 0
 
-DataToColor.map = C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
+DataToColor.map = DataToColor.GetBestMapForUnit(DataToColor.C.unitPlayer)
 DataToColor.uiMapId = 0
 DataToColor.uiErrorMessage = 0
 DataToColor.uiErrorMessageTime = 0
@@ -154,44 +185,50 @@ DataToColor.targetChanged = true
 
 DataToColor.autoFollow = false
 DataToColor.moving = false
+DataToColor.channeling = false
 
 DataToColor.playerGUID = UnitGUID(DataToColor.C.unitPlayer)
 DataToColor.petGUID = UnitGUID(DataToColor.C.unitPet)
 
 DataToColor.corpseInRange = 0
 
+DataToColor.softInteractGuid = nil
+
 local bagCache = {}
 
-DataToColor.equipmentQueue = DataToColor.Queue:new()
-DataToColor.bagQueue = DataToColor.Queue:new()
-DataToColor.inventoryQueue = DataToColor.Queue:new()
-DataToColor.gossipQueue = DataToColor.Queue:new()
-DataToColor.actionBarCostQueue = DataToColor.struct:new()
-DataToColor.actionBarCooldownQueue = DataToColor.struct:new()
-DataToColor.spellBookQueue = DataToColor.Queue:new()
-DataToColor.talentQueue = DataToColor.Queue:new()
+DataToColor.equipmentQueue = DataToColor.TimedQueue:new(ITEM_ITERATION_FRAME_CHANGE_RATE, nil)
+DataToColor.bagQueue = DataToColor.TimedQueue:new(ITEM_ITERATION_FRAME_CHANGE_RATE, nil)
+DataToColor.inventoryQueue = DataToColor.TimedQueue:new(ITEM_ITERATION_FRAME_CHANGE_RATE, nil)
+DataToColor.gossipQueue = DataToColor.TimedQueue:new(GOSSIP_ITERATION_FRAME_CHANGE_RATE, 0)
+DataToColor.spellBookQueue = DataToColor.TimedQueue:new(SPELLBOOK_ITERATION_FRAME_CHANGE_RATE, nil)
+DataToColor.talentQueue = DataToColor.TimedQueue:new(TALENT_ITERATION_FRAME_CHANGE_RATE, nil)
+
+DataToColor.actionBarCostQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
+DataToColor.actionBarCooldownQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
 
 DataToColor.eligibleKillCredit = {}
 
-DataToColor.CombatDamageDoneQueue = DataToColor.Queue:new()
-local lastDamageDone = 0
-DataToColor.CombatDamageTakenQueue = DataToColor.Queue:new()
-local lastDamaeTaken = 0
-DataToColor.CombatCreatureDiedQueue = DataToColor.Queue:new()
-local lastDied = 0
-DataToColor.CombatMissTypeQueue = DataToColor.Queue:new()
+DataToColor.CombatDamageDoneQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE, 0)
+DataToColor.CombatDamageTakenQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE, 0)
+DataToColor.CombatCreatureDiedQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE, 0)
+DataToColor.CombatMissTypeQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE, 0)
 
-DataToColor.ChatQueue = DataToColor.Queue:new()
+DataToColor.ChatQueue = DataToColor.TimedQueue:new(CHAT_ITERATION_FRAME_CHANGE_RATE, 0)
 local chatMsgHead = -2
 
 DataToColor.playerPetSummons = {}
 
-DataToColor.playerBuffTime = DataToColor.struct:new()
-DataToColor.targetBuffTime = DataToColor.struct:new()
-DataToColor.targetDebuffTime = DataToColor.struct:new()
-DataToColor.focusBuffTime = DataToColor.struct:new()
+DataToColor.playerBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
+DataToColor.playerDebuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
+DataToColor.targetBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
+DataToColor.targetDebuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
+DataToColor.focusBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
 
 DataToColor.customTrigger1 = {}
+
+DataToColor.sessionKillCount = 0
+
+local SpellQueueWindow = min(tonumber(DataToColor.SafeGetCVar(DataToColor.C.SpellQueueWindow, "0")) or 0, 999)
 
 function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
@@ -220,39 +257,55 @@ end
 
 -- This function runs when addon is initialized/player logs in
 function DataToColor:OnInitialize()
+    DataToColor:CreateConstants()
+    DataToColor:InitStorage()
     DataToColor:SetupRequirements()
     DataToColor:CreateFrames()
     DataToColor:RegisterSlashCommands()
-
-    DataToColor:InitStorage()
+    DataToColor:RegisterEvents()
 
     UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
 
-    DataToColor:RegisterEvents()
-
     local version = GetAddOnMetadata('DataToColor', 'Version')
     DataToColor:Print("Welcome. Using " .. version)
+end
+
+function DataToColor:OnEnteringWorld()
+    DataToColor:InitializeErrorLists()
+
+    DataToColor:PopulateSpellBookInfo()
 
     DataToColor:InitUpdateQueues()
     DataToColor:InitTrigger(DataToColor.customTrigger1)
+
+    DataToColor.Libs.RangeCheck:activate()
 end
 
 function DataToColor:SetupRequirements()
-    SetCVar("autoInteract", 1)
-    SetCVar("autoLootDefault", 1)
-    -- /run SetCVar("cameraSmoothStyle", 2) -- always
-    SetCVar('Contrast', 50, '[]')
-    SetCVar('Brightness', 50, '[]')
-    SetCVar('Gamma', 1, '[]')
+    DataToColor.SafeSetCVar("autoInteract", 1)
+    DataToColor.SafeSetCVar("autoLootDefault", 1)
+    -- /run DataToColor.SafeSetCVar("cameraSmoothStyle", 2) -- always
+    DataToColor.SafeSetCVar('Contrast', 50, '[]')
+    DataToColor.SafeSetCVar('Brightness', 50, '[]')
+    DataToColor.SafeSetCVar('Gamma', 1, '[]')
+end
+
+function DataToColor:CreateConstants()
+    for i = 1, 4 do
+        DataToColor.C.unitPartyNames[i] = DataToColor.C.unitParty .. i
+        DataToColor.C.unitPartyPetNames[i] = DataToColor.C.unitPartyNames[i] .. DataToColor.C.unitPet
+    end
 end
 
 function DataToColor:Reset()
     DataToColor.S.playerSpellBookName = {}
     DataToColor.S.playerSpellBookId = {}
+    DataToColor.S.playerSpellBookIdHighest = {}
+    DataToColor.S.playerSpellBookIconId = {}
 
     DataToColor.playerGUID = UnitGUID(DataToColor.C.unitPlayer)
     DataToColor.petGUID = UnitGUID(DataToColor.C.unitPet)
-    DataToColor.map = C_Map.GetBestMapForUnit(DataToColor.C.unitPlayer)
+    DataToColor.map = DataToColor.GetBestMapForUnit(DataToColor.C.unitPlayer)
 
     DataToColor.eligibleKillCredit = {}
 
@@ -273,19 +326,21 @@ function DataToColor:Reset()
 
     DataToColor.corpseInRange = 0
 
-    globalCounter = 0
-    lastDied = 0
-    lastDamageDone = 0
-    lastDamaeTaken = 0
+    DataToColor.sessionKillCount = 0
+
+    DataToColor.softInteractGuid = nil
+
+    globalTick = 0
 
     bagCache = {}
 
-    DataToColor.actionBarCooldownQueue = DataToColor.struct:new()
+    DataToColor.actionBarCooldownQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
 
-    DataToColor.playerBuffTime = DataToColor.struct:new()
-    DataToColor.targetBuffTime = DataToColor.struct:new()
-    DataToColor.targetDebuffTime = DataToColor.struct:new()
-    DataToColor.focusBuffTime = DataToColor.struct:new()
+    DataToColor.playerBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
+    DataToColor.playerDebuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
+    DataToColor.targetBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
+    DataToColor.targetDebuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
+    DataToColor.focusBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
 
     DataToColor.playerPetSummons = {}
 end
@@ -303,6 +358,7 @@ function DataToColor:FushState()
 
     DataToColor:Reset()
 
+    DataToColor:PopulateSpellBookInfo()
     DataToColor:InitUpdateQueues()
 
     DataToColor:Print('Flush State')
@@ -353,19 +409,26 @@ function DataToColor:InitInventoryQueue(containerID)
 end
 
 function DataToColor:BagSlotChanged(container, slot)
-    local _, count, _, _, _, _, _, _, _, id = GetContainerItemInfo(container, slot)
+    local _, count, _, _, _, _, link = GetContainerItemInfo(container, slot)
+    local id = link and tonumber(link:match("item:(%d+)")) or 0
 
-    if id == nil then
+    if not id then
         count = 0
         id = 0
     end
 
     local index = container * 1000 + slot
-    if bagCache[index] == nil or bagCache[index].id ~= id or bagCache[index].count ~= count then
+    local cache = bagCache[index]
+    if cache then
+        if cache.id ~= id or cache.count ~= count then
+            cache.id = id
+            cache.count = count
+            return true
+        end
+    else
         bagCache[index] = { id = id, count = count }
         return true
     end
-
     return false
 end
 
@@ -385,20 +448,76 @@ function DataToColor:InitActionBarCostQueue()
     end
 end
 
-function DataToColor:InitSpellBookQueue()
-    local num, type = 1, 1
-    while true do
-        local name, _, id = GetSpellBookItemName(num, type)
-        if not name then
-            break
+function DataToColor:PopulateSpellBookInfo()
+    local numLoaded = 0
+    local bookType = "spell"
+
+    -- prepare destination tables
+    local S = DataToColor.S
+    S.playerSpellBookId, S.playerSpellBookName,
+    S.playerSpellBookIconToId, S.playerSpellBookIdHighest = {}, {}, {}, {}
+
+    --------------------------------------------------------------------
+    -- Helper to record one spell safely
+    --------------------------------------------------------------------
+    local function RecordSpell(id, name, texture)
+        if not (id and name and texture) then return end
+        -- prefer number over file path name
+        texture = DataToColor:NormalizeTexture(texture)
+        S.playerSpellBookId[id] = true
+        S.playerSpellBookName[texture] = name
+        S.playerSpellBookIconToId[texture] = id
+        local highest = S.playerSpellBookIdHighest[texture]
+        if not highest or id > highest then
+            S.playerSpellBookIdHighest[texture] = id
+        end
+        numLoaded = numLoaded + 1
+    end
+
+    --------------------------------------------------------------------
+    -- Classic-era clients: no GetNumSpellTabs
+    --------------------------------------------------------------------
+    if not GetNumSpellTabs then
+        local i = 1
+        while true do
+            local name, rank, id
+
+            if GetSpellBookItemName then
+                name, rank, id = GetSpellBookItemName(i, bookType)
+            elseif GetSpellName then
+                name, rank = GetSpellName(i, bookType)
+            end
+
+            if not name then break end
+            id = id or (GetSpellID and GetSpellID(i, bookType))
+            local texture = GetSpellBookItemTexture and GetSpellBookItemTexture(i, bookType)
+            RecordSpell(id, name, texture)
+            i = i + 1
         end
 
-        local texture = GetSpellBookItemTexture(num, type)
-        DataToColor.S.playerSpellBookName[texture] = name
-        DataToColor.S.playerSpellBookId[id] = true
+    --------------------------------------------------------------------
+    -- Cataclysm and later: tab-based spellbook
+    --------------------------------------------------------------------
+    else
+        for tab = 1, GetNumSpellTabs() do
+            local offset, numSlots = select(3, GetSpellTabInfo(tab))
+            for i = offset + 1, offset + numSlots do
+                local slotType, id = GetSpellBookItemInfo(i, bookType)
+                if slotType == "SPELL" and id and (not IsSpellKnown or IsSpellKnown(id)) then
+                    local name = GetSpellBookItemName(i, bookType)
+                    local texture = GetSpellBookItemTexture(i, bookType)
+                    RecordSpell(id, name, texture)
+                end
+            end
+        end
+    end
 
+    --DataToColor:Print(("Loaded %d spells"):format(numLoaded))
+end
+
+function DataToColor:InitSpellBookQueue()
+    for _, id in pairs(DataToColor.S.playerSpellBookIdHighest) do
         DataToColor.spellBookQueue:push(id)
-        num = num + 1
     end
 end
 
@@ -469,7 +588,7 @@ function DataToColor:CreateFrames()
     end
 
     local function updateFrames()
-        if not SETUP_SEQUENCE and globalCounter >= initPhase then
+        if not SETUP_SEQUENCE and globalTick >= initPhase then
             Pixel(int, 0, 0)
             -- The final data square, reserved for additional metadata.
             Pixel(int, 2000001, NUMBER_OF_FRAMES - 1)
@@ -541,51 +660,52 @@ function DataToColor:CreateFrames()
             Pixel(int, UnitHealthMax(DataToColor.C.unitTarget), 18)
             Pixel(int, UnitHealth(DataToColor.C.unitTarget), 19)
 
-            if globalCounter % ITEM_ITERATION_FRAME_CHANGE_RATE == 0 then
-                -- 20
-                local bagNum = DataToColor.bagQueue:shift()
-                if bagNum then
-                    local freeSlots, bagType = GetContainerNumFreeSlots(bagNum)
-                    -- BagType + Index + FreeSpace + BagSlots
-                    Pixel(int, (bagType or 0) * 1000000 + bagNum * 100000 + freeSlots * 1000 + GetContainerNumSlots(bagNum), 20)
-                    --DataToColor:Print("bagQueue bagType:", bagType or 0, " | bagNum: ", bagNum, " | freeSlots: ", freeSlots, " | BagSlots: ", GetContainerNumSlots(bagNum))
-                else
-                    Pixel(int, 0, 20)
+            -- 20
+            local bagNum = DataToColor.bagQueue:shift(globalTick)
+            if bagNum then
+                local freeSlots, bagType = GetContainerNumFreeSlots(bagNum)
+                -- BagType + Index + FreeSpace + BagSlots
+                if Pixel(int, (bagType or 0) * 1000000 + bagNum * 100000 + freeSlots * 1000 + GetContainerNumSlots(bagNum), 20) then
+                    --DataToColor:Print("bagQueue bagType:", bagType or 0, " | bagNum: ", bagNum, " | freeSlots: ", freeSlots, " | BagSlots: ", GetContainerNumSlots(bagNum), " | tick: ", globalTick)
                 end
-
-                -- 21 22
-                local bagSlotNum = DataToColor.inventoryQueue:shift()
-                if bagSlotNum then
-                    bagNum = floor(bagSlotNum / 1000)
-                    bagSlotNum = bagSlotNum - (bagNum * 1000)
-
-                    local _, itemCount, _, _, _, _, _, _, _, itemID = GetContainerItemInfo(bagNum, bagSlotNum)
-
-                    --DataToColor:Print("inventoryQueue: ", bagNum, " ", bagSlotNum, " -> id: ", itemID or 0, " c:", itemCount or 0)
-                    -- 0-4 bagNum + 1-21 itenNum + 1-1000 quantity
-                    Pixel(int, bagNum * 1000000 + bagSlotNum * 10000 + (itemCount or 0), 21)
-
-                    -- itemId 1-999999
-                    Pixel(int, itemID or 0, 22)
-                else
-                    Pixel(int, 0, 21)
-                    Pixel(int, 0, 22)
-                end
-
-                -- 23 24
-                local equipmentSlot = DataToColor.equipmentQueue:shift() or 0
-
-                -- TODO map new slot to old
-                -- should be calculated
-                local slot = equipmentSlot
-                if slot >= 30 then
-                    slot = slot - 11
-                end
-                Pixel(int, slot, 23)
-                local itemId = DataToColor:equipSlotItemId(equipmentSlot)
-                Pixel(int, itemId, 24)
-                --DataToColor:Print("equipmentQueue ", equipmentSlot, " slot -> ", slot, " -> ", itemId)
+            else
+                Pixel(int, 0, 20)
             end
+
+            -- 21 22
+            local bagSlotNum = DataToColor.inventoryQueue:shift(globalTick)
+            if bagSlotNum then
+                bagNum = floor(bagSlotNum / 1000)
+                bagSlotNum = bagSlotNum - (bagNum * 1000)
+
+                local texture, itemCount, locked, quality, readable, lootable, link = GetContainerItemInfo(bagNum, bagSlotNum)
+                local itemID = link and tonumber(link:match("item:(%d+)")) or 0
+
+                -- 0-4 bagNum + 1-21 itenNum + 1-1000 quantity
+                if Pixel(int, bagNum * 1000000 + bagSlotNum * 10000 + (itemCount or 0), 21) then
+                    --DataToColor:Print("inventoryQueue: ", bagNum, " ", bagSlotNum, " -> id: ", itemID or 0, " c:", itemCount or 0)
+                end
+
+                -- itemId 1-999999
+                Pixel(int, itemID or 0, 22)
+            else
+                Pixel(int, 0, 21)
+                Pixel(int, 0, 22)
+            end
+
+            -- 23 24
+            local equipmentSlot = DataToColor.equipmentQueue:shift(globalTick) or 0
+
+            -- TODO map new slot to old
+            -- should be calculated
+            local slot = equipmentSlot
+            if slot >= 30 then
+                slot = slot - 11
+            end
+            Pixel(int, slot, 23)
+            local itemId = DataToColor:equipSlotItemId(equipmentSlot)
+            Pixel(int, itemId, 24)
+            --DataToColor:Print("equipmentQueue ", equipmentSlot, " slot -> ", slot, " -> ", itemId)
 
             Pixel(int, DataToColor:isCurrentAction(1, 24), 25)
             Pixel(int, DataToColor:isCurrentAction(25, 48), 26)
@@ -599,32 +719,31 @@ function DataToColor:CreateFrames()
             Pixel(int, DataToColor:isActionUseable(73, 96), 33)
             Pixel(int, DataToColor:isActionUseable(97, 120), 34)
 
-            if globalCounter % ACTION_BAR_ITERATION_FRAME_CHANGE_RATE == 0 then
-                local costMeta, costValue = DataToColor.actionBarCostQueue:get()
-                if costMeta and costValue then
+            local costMeta, costValue = DataToColor.actionBarCostQueue:getTimed(globalTick)
+            if costMeta and costValue then
+                if DataToColor.actionBarCostQueue:removeWhenExpired(costMeta, globalTick) then
                     --DataToColor:Print("actionBarCostQueue: ", costMeta, " ", costValue)
-                    DataToColor.actionBarCostQueue:remove(costMeta)
                 end
-                Pixel(int, costMeta or 0, 35)
-                Pixel(int, costValue or 0, 36)
+            end
+            Pixel(int, costMeta or 0, 35)
+            Pixel(int, costValue or 0, 36)
 
-                local slot, expireTime = DataToColor.actionBarCooldownQueue:get()
-                if slot then
-                    DataToColor.actionBarCooldownQueue:setDirty(slot)
+            local actionSlot, expireTime = DataToColor.actionBarCooldownQueue:getTimed(globalTick)
+            if actionSlot then
+                DataToColor.actionBarCooldownQueue:setDirtyAfterTime(actionSlot, globalTick)
 
-                    local duration = max(0, floor((expireTime - GetTime()) * 10))
-                    --if duration > 0 then
-                    --    DataToColor:Print("actionBarCooldownQueue: ", slot, " ", duration, " ", expireTime - GetTime())
-                    --end
-                    Pixel(int, slot * 100000 + duration, 37)
+                local duration = max(0, floor((expireTime - GetTime()) * 10))
+                --if duration > 0 then
+                --    DataToColor:Print("actionBarCooldownQueue: ", actionSlot, " ", duration, " ", expireTime - GetTime())
+                --end
+                Pixel(int, actionSlot * 100000 + duration, 37)
 
-                    if duration == 0 then
-                        DataToColor.actionBarCooldownQueue:remove(slot)
-                        --DataToColor:Print("actionBarCooldownQueue: ", slot, " expired")
-                    end
-                else
-                    Pixel(int, 0, 37)
+                if duration == 0 then
+                    DataToColor.actionBarCooldownQueue:removeWhenExpired(actionSlot, globalTick)
+                    --DataToColor:Print("actionBarCooldownQueue: ", actionSlot, " expired")
                 end
+            else
+                Pixel(int, 0, 37)
             end
 
             Pixel(int, UnitHealthMax(DataToColor.C.unitPet), 38)
@@ -634,11 +753,8 @@ function DataToColor:CreateFrames()
             Pixel(int, DataToColor:getAuraMaskForClass(UnitBuff, DataToColor.C.unitPlayer, DataToColor.S.playerBuffs), 41)
             Pixel(int, DataToColor:getAuraMaskForClass(UnitDebuff, DataToColor.C.unitTarget, DataToColor.S.targetDebuffs), 42)
 
-            local targetLevel = UnitLevel(DataToColor.C.unitTarget)
-            if targetLevel == -1 then
-                targetLevel = playerLevel + 10
-            end
-            Pixel(int, targetLevel * 100 + DataToColor.unitClassification[UnitClassification(DataToColor.C.unitTarget)], 43)
+            local targetLevel = UnitLevelSafe(DataToColor.C.unitTarget, playerLevel)
+            Pixel(int, targetLevel * 100 + DataToColor.C.unitClassification[UnitClassification(DataToColor.C.unitTarget)], 43)
 
             -- Amount of money in coppers
             Pixel(int, GetMoney() % 1000000, 44) -- Represents amount of money held (in copper)
@@ -654,11 +770,11 @@ function DataToColor:CreateFrames()
             Pixel(int, DataToColor.uiErrorMessage, 52) -- Last UI Error message
             DataToColor.uiErrorMessage = 0
 
-            Pixel(int, DataToColor:CastingInfoSpellId(DataToColor.C.unitPlayer), 53) -- SpellId being cast
-            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + (GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget) or 0), 54)
+            Pixel(int, DataToColor:CastingInfoSpellId(DataToColor.C.unitPlayer), 53)                                                                                                                                                                               -- SpellId being cast
+            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
 
             local playerBuffCount = DataToColor:populateAuraTimer(UnitBuff, DataToColor.C.unitPlayer, DataToColor.playerBuffTime)
-            local playerDebuffCount = DataToColor:populateAuraTimer(UnitDebuff, DataToColor.C.unitPlayer, nil)
+            local playerDebuffCount = DataToColor:populateAuraTimer(UnitDebuff, DataToColor.C.unitPlayer, DataToColor.playerDebuffTime)
             local targetDebuffCount = DataToColor:populateAuraTimer(UnitDebuff, DataToColor.C.unitTarget, DataToColor.targetDebuffTime)
             local targetBuffCount = DataToColor:populateAuraTimer(UnitBuff, DataToColor.C.unitTarget, DataToColor.targetBuffTime)
             local focusBuffCount = DataToColor:populateAuraTimer(UnitBuff, DataToColor.C.unitFocus, DataToColor.focusBuffTime)
@@ -685,49 +801,23 @@ function DataToColor:CreateFrames()
             Pixel(int, DataToColor.lastCastEvent, 62)
             Pixel(int, DataToColor.lastCastSpellId, 63)
 
-            if globalCounter % COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE == 0 or
-                globalCounter - lastDied > COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE then
-                if Pixel(int, DataToColor.CombatCreatureDiedQueue:shift() or 0, 66) then
-                    lastDied = globalCounter
-                end
-            end
-
-            if globalCounter % COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE == 0 or
-                globalCounter - lastDamageDone > COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE then
-                if Pixel(int, DataToColor.CombatDamageDoneQueue:shift() or 0, 64) then
-                    lastDamageDone = globalCounter
-                end
-            end
-
-            if globalCounter % COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE == 0 or
-                globalCounter - lastDamaeTaken > COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE then
-                if Pixel(int, DataToColor.CombatDamageTakenQueue:shift() or 0, 65) then
-                    lastDamaeTaken = globalCounter
-                end
-            end
-
-            if globalCounter % COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE == 0 then
-                Pixel(int, DataToColor.CombatMissTypeQueue:shift() or 0, 67)
-            end
+            Pixel(int, DataToColor.CombatCreatureDiedQueue:shift(globalTick) or 0, 66)
+            Pixel(int, DataToColor.CombatDamageDoneQueue:shift(globalTick) or 0, 64)
+            Pixel(int, DataToColor.CombatDamageTakenQueue:shift(globalTick) or 0, 65)
+            Pixel(int, DataToColor.CombatMissTypeQueue:shift(globalTick) or 0, 67)
 
             Pixel(int, DataToColor:getGuidFromUnit(DataToColor.C.unitPet), 68)
             Pixel(int, DataToColor:getGuidFromUnit(DataToColor.C.unitPetTarget), 69)
             Pixel(int, DataToColor.CastNum, 70)
 
-            if globalCounter % SPELLBOOK_ITERATION_FRAME_CHANGE_RATE == 0 then
-                Pixel(int, DataToColor.spellBookQueue:shift() or 0, 71)
-            end
+            Pixel(int, DataToColor.spellBookQueue:shift(globalTick) or 0, 71)
 
-            if globalCounter % TALENT_ITERATION_FRAME_CHANGE_RATE == 0 then
-                Pixel(int, DataToColor.talentQueue:shift() or 0, 72)
-            end
+            Pixel(int, DataToColor.talentQueue:shift(globalTick) or 0, 72)
 
-            if globalCounter % GOSSIP_ITERATION_FRAME_CHANGE_RATE == 0 then
-                local gossipNum = DataToColor.gossipQueue:shift()
-                if gossipNum then
-                    --DataToColor:Print("gossipQueue: ", gossipNum)
-                    Pixel(int, gossipNum, 73)
-                end
+            local gossipNum = DataToColor.gossipQueue:shift(globalTick)
+            if gossipNum then
+                --DataToColor:Print("gossipQueue: ", gossipNum)
+                Pixel(int, gossipNum, 73)
             end
 
             Pixel(int, DataToColor:CustomTrigger(DataToColor.customTrigger1), 74)
@@ -742,103 +832,98 @@ function DataToColor:CreateFrames()
                 Pixel(int, DataToColor:getGuidFromUnit(DataToColor.C.unitFocusTarget), 78)
             end
 
-            if globalCounter % AURA_DURATION_ITERATION_FRAME_CHANGE_RATE == 0 then
-                local textureId, expireTime = DataToColor.playerBuffTime:get()
-                if textureId then
-                    DataToColor.playerBuffTime:setDirty(textureId)
+            local textureId, expireTime = DataToColor.playerBuffTime:getTimed(globalTick)
+            if textureId then
+                DataToColor.playerBuffTime:setDirtyAfterTime(textureId, globalTick)
 
-                    local durationSec = max(0, ceil(expireTime - GetTime()))
-                    --DataToColor:Print("player buff update ", textureId, " ", durationSec)
-                    Pixel(int, textureId, 79)
-                    Pixel(int, durationSec, 80)
+                local durationSec = max(0, ceil(expireTime - GetTime()))
+                --DataToColor:Print("player buff update  ", textureId, " ", durationSec)
+                Pixel(int, textureId, 79)
+                Pixel(int, durationSec, 80)
 
-                    if durationSec == 0 then
-                        DataToColor.playerBuffTime:remove(textureId)
-                        --DataToColor:Print("player buff expired ", textureId, " ", durationSec)
-                    end
-                else
-                    Pixel(int, 0, 79)
-                    Pixel(int, 0, 80)
+                if durationSec == 0 then
+                    DataToColor.playerBuffTime:removeWhenExpired(textureId, globalTick)
+                    --DataToColor:Print("player buff expired ", textureId, " ", durationSec)
                 end
-
-                if UnitExists(DataToColor.C.unitTarget) then
-                    textureId, expireTime = DataToColor.targetDebuffTime:get()
-                else
-                    textureId, expireTime = DataToColor.targetDebuffTime:getForced()
-                    expireTime = GetTime()
-                end
-
-                if textureId then
-                    DataToColor.targetDebuffTime:setDirty(textureId)
-
-                    local durationSec = max(0, ceil(expireTime - GetTime()))
-                    --DataToColor:Print("target debuff update ", textureId, " ", durationSec)
-                    Pixel(int, textureId, 81)
-                    Pixel(int, durationSec, 82)
-
-                    if durationSec == 0 then
-                        DataToColor.targetDebuffTime:remove(textureId)
-                        --DataToColor:Print("target debuff expired ", textureId, " ", durationSec)
-                    end
-                else
-                    Pixel(int, 0, 81)
-                    Pixel(int, 0, 82)
-                end
-
-                if UnitExists(DataToColor.C.unitTarget) then
-                    textureId, expireTime = DataToColor.targetBuffTime:get()
-                else
-                    textureId, expireTime = DataToColor.targetBuffTime:getForced()
-                    expireTime = GetTime()
-                end
-
-                if textureId then
-                    DataToColor.targetBuffTime:setDirty(textureId)
-
-                    local durationSec = max(0, ceil(expireTime - GetTime()))
-                    --DataToColor:Print("target buff update ", textureId, " ", durationSec)
-                    Pixel(int, textureId, 83)
-                    Pixel(int, durationSec, 84)
-
-                    if durationSec == 0 then
-                        DataToColor.targetBuffTime:remove(textureId)
-                        --DataToColor:Print("target buff expired ", textureId, " ", durationSec)
-                    end
-                else
-                    Pixel(int, 0, 83)
-                    Pixel(int, 0, 84)
-                end
-
-                if UnitExists(DataToColor.C.unitFocus) then
-                    textureId, expireTime = DataToColor.focusBuffTime:get()
-                else
-                    textureId, expireTime = DataToColor.focusBuffTime:getForced()
-                    expireTime = GetTime()
-                end
-
-                if textureId then
-                    DataToColor.focusBuffTime:setDirty(textureId)
-
-                    local durationSec = max(0, ceil(expireTime - GetTime()))
-                    --DataToColor:Print("focus buff update ", textureId, " ", durationSec)
-                    Pixel(int, textureId, 92)
-                    Pixel(int, durationSec, 93)
-
-                    if durationSec == 0 then
-                        DataToColor.focusBuffTime:remove(textureId)
-                        --DataToColor:Print("focus buff expired ", textureId, " ", durationSec)
-                    end
-                else
-                    Pixel(int, 0, 92)
-                    Pixel(int, 0, 93)
-                end
+            else
+                Pixel(int, 0, 79)
+                Pixel(int, 0, 80)
             end
 
-            local mouseoverLevel = UnitLevel(DataToColor.C.unitmouseover)
-            if mouseoverLevel == -1 then
-                mouseoverLevel = playerLevel + 10
+            if UnitExists(DataToColor.C.unitTarget) then
+                textureId, expireTime = DataToColor.targetDebuffTime:getTimed(globalTick)
+            else
+                textureId, expireTime = DataToColor.targetDebuffTime:getForced(globalTick)
+                expireTime = GetTime()
             end
-            Pixel(int, mouseoverLevel * 100 + DataToColor.unitClassification[UnitClassification(DataToColor.C.unitmouseover)], 85)
+
+            if textureId then
+                DataToColor.targetDebuffTime:setDirtyAfterTime(textureId, globalTick)
+
+                local durationSec = max(0, ceil(expireTime - GetTime()))
+                --DataToColor:Print("target debuff update ", textureId, " ", durationSec)
+                Pixel(int, textureId, 81)
+                Pixel(int, durationSec, 82)
+
+                if durationSec == 0 then
+                    DataToColor.targetDebuffTime:removeWhenExpired(textureId, globalTick)
+                    --DataToColor:Print("target debuff expired ", textureId, " ", durationSec)
+                end
+            else
+                Pixel(int, 0, 81)
+                Pixel(int, 0, 82)
+            end
+
+            if UnitExists(DataToColor.C.unitTarget) then
+                textureId, expireTime = DataToColor.targetBuffTime:getTimed(globalTick)
+            else
+                textureId, expireTime = DataToColor.targetBuffTime:getForced(globalTick)
+                expireTime = GetTime()
+            end
+
+            if textureId then
+                DataToColor.targetBuffTime:setDirtyAfterTime(textureId, globalTick)
+
+                local durationSec = max(0, ceil(expireTime - GetTime()))
+                --DataToColor:Print("target buff update ", textureId, " ", durationSec)
+                Pixel(int, textureId, 83)
+                Pixel(int, durationSec, 84)
+
+                if durationSec == 0 then
+                    DataToColor.targetBuffTime:removeWhenExpired(textureId, globalTick)
+                    --DataToColor:Print("target buff expired ", textureId, " ", durationSec)
+                end
+            else
+                Pixel(int, 0, 83)
+                Pixel(int, 0, 84)
+            end
+
+            if UnitExists(DataToColor.C.unitFocus) then
+                textureId, expireTime = DataToColor.focusBuffTime:getTimed(globalTick)
+            else
+                textureId, expireTime = DataToColor.focusBuffTime:getForced(globalTick)
+                expireTime = GetTime()
+            end
+
+            if textureId then
+                DataToColor.focusBuffTime:setDirtyAfterTime(textureId, globalTick)
+
+                local durationSec = max(0, ceil(expireTime - GetTime()))
+                --DataToColor:Print("focus buff update ", textureId, " ", durationSec)
+                Pixel(int, textureId, 92)
+                Pixel(int, durationSec, 93)
+
+                if durationSec == 0 then
+                    DataToColor.focusBuffTime:removeWhenExpired(textureId, globalTick)
+                    --DataToColor:Print("focus buff expired ", textureId, " ", durationSec)
+                end
+            else
+                Pixel(int, 0, 92)
+                Pixel(int, 0, 93)
+            end
+
+            local mouseoverLevel = UnitLevelSafe(DataToColor.C.unitmouseover, playerLevel)
+            Pixel(int, mouseoverLevel * 100 + DataToColor.C.unitClassification[UnitClassification(DataToColor.C.unitmouseover)], 85)
 
             Pixel(int, DataToColor:NpcId(DataToColor.C.unitmouseover), 86)
             Pixel(int, DataToColor:getGuidFromUnit(DataToColor.C.unitmouseover), 87)
@@ -848,8 +933,6 @@ function DataToColor:CreateFrames()
             Pixel(int, UnitHealthMax(DataToColor.C.unitFocus), 89)
             Pixel(int, UnitHealth(DataToColor.C.unitFocus), 90)
             Pixel(int, DataToColor:getAuraMaskForClass(UnitBuff, DataToColor.C.unitFocus, DataToColor.S.playerBuffs), 91)
-            -- 92 used
-            -- 93 used
 
             -- 94 last cast GCD
             Pixel(int, DataToColor.lastCastGCD, 94)
@@ -858,50 +941,76 @@ function DataToColor:CreateFrames()
             local gcd = floor((DataToColor.gcdExpirationTime - GetTime()) * 1000)
             Pixel(int, max(0, gcd), 95)
 
-            if globalCounter % LATENCY_ITERATION_FRAME_CHANGE_RATE == 0 then
+            if globalTick % LATENCY_ITERATION_FRAME_CHANGE_RATE == 0 then
                 local _, _, lagHome, lagWorld = GetNetStats()
 
-                local spellQueue = min(tonumber(GetCVar(DataToColor.C.SpellQueueWindow)) or 0, 999)
+                -- artificially increase lagWorld to avoid skipping timers
+                lagWorld = max(lagWorld, 10)
+
                 local lag = min(max(lagHome, lagWorld), 9999)
 
-                Pixel(int, 10000 * spellQueue + lag, 96)
+                Pixel(int, 10000 * SpellQueueWindow + lag, 96)
             end
 
             -- Timers
             if DataToColor.lastLoot == DataToColor.C.Loot.Closed and
-                DataToColor.globalTime - DataToColor.lastLootResetStart > LOOT_RESET_RATE then
+                DataToColor.globalTime - DataToColor.lastLootResetStart >= LOOT_RESET_RATE then
                 DataToColor.lastLoot = DataToColor.C.Loot.Corpse
             end
-            Pixel(int, DataToColor.lastLoot, 97)
+            local lootItemCount = GetNumLootItems()
+            Pixel(int, lootItemCount * 10 + DataToColor.lastLoot, 97)
 
-            if globalCounter % CHAT_ITERATION_FRAME_CHANGE_RATE == 0 then
-                local e = DataToColor.ChatQueue:peek()
-                if e == nil then
-                    Pixel(int, 0, 98)
-                    Pixel(int, 0, 99)
+            local e = DataToColor.ChatQueue:peek()
+            if not e then
+                Pixel(int, 0, 98)
+                Pixel(int, 0, 99)
+            else
+                chatMsgHead = chatMsgHead + 3
+                if chatMsgHead > e.length then
+                    DataToColor.ChatQueue:shift(globalTick)
+                    chatMsgHead = -2
                 else
-                    chatMsgHead = chatMsgHead + 3
-                    if chatMsgHead > e.length then
-                        DataToColor.ChatQueue:shift()
-                        chatMsgHead = -2
-                    else
-                        local part = sub(e.msg, chatMsgHead, chatMsgHead + 2)
-                        local number = 0
-                        local length = len(part)
-                        for i = 1, length do
-                            local c = upper(sub(part, i))
-                            local b = byte(c) or 32 -- SPACE character fallback
-                            if b > 100 then
-                                b = 32
-                            end
-                           number = number + (b * IdxToRadix(i + (3 - length)))
+                    local part = sub(e.msg, chatMsgHead, chatMsgHead + 2)
+                    local number = 0
+                    local length = len(part)
+                    for i = 1, length do
+                        local c = upper(sub(part, i))
+                        local b = byte(c) or 32 -- SPACE character fallback
+                        if b > 100 then
+                            b = 32
                         end
-
-                        --print(e.length, chatMsgHead, "'" .. part .. "'", number)
-                        Pixel(int, number, 98)
-                        Pixel(int, e.type * 1000000 + 1000 * e.length + chatMsgHead, 99)
+                        number = number + (b * IdxToRadix(i + (3 - length)))
                     end
+
+                    --print(e.length, chatMsgHead, "'" .. part .. "'", number)
+                    Pixel(int, number, 98)
+                    Pixel(int, e.type * 1000000 + 1000 * e.length + chatMsgHead, 99)
                 end
+            end
+
+            Pixel(int, DataToColor:Bits3(), 100)
+
+            Pixel(int, DataToColor:getGuidFromUUID(DataToColor.softInteractGuid), 101)
+            Pixel(int, DataToColor:getNpcIdFromUUID(DataToColor.softInteractGuid), 102)
+            Pixel(int, DataToColor:getTypeFromUUID(DataToColor.softInteractGuid), 103)
+
+            -- player debuff
+            textureId, expireTime = DataToColor.playerDebuffTime:getTimed(globalTick)
+            if textureId then
+                DataToColor.playerDebuffTime:setDirtyAfterTime(textureId, globalTick)
+
+                local durationSec = max(0, ceil(expireTime - GetTime()))
+                --DataToColor:Print("player debuff update  ", textureId, " ", durationSec)
+                Pixel(int, textureId, 104)
+                Pixel(int, durationSec, 105)
+
+                if durationSec == 0 then
+                    DataToColor.playerDebuffTime:removeWhenExpired(textureId, globalTick)
+                    --DataToColor:Print("player debuff expired ", textureId, " ", durationSec)
+                end
+            else
+                Pixel(int, 0, 104)
+                Pixel(int, 0, 105)
             end
 
             UpdateGlobalTime()
@@ -913,7 +1022,7 @@ function DataToColor:CreateFrames()
 
             DataToColor:Update()
         elseif not SETUP_SEQUENCE then
-            if globalCounter < initPhase then
+            if globalTick < initPhase then
                 for i = 1, NUMBER_OF_FRAMES - 1 do
                     Pixel(int, 0, i)
                     updateCount[i] = 0
@@ -932,7 +1041,7 @@ function DataToColor:CreateFrames()
             end
         end
 
-        globalCounter = globalCounter + 1
+        globalTick = globalTick + 1
     end
 
     local function genFrame(name, x, y)
@@ -973,7 +1082,7 @@ function DataToColor:CreateFrames()
     backgroundframe:SetScript("OnUpdate", updateFrames)
 
     local function DumpCallCount(maxRow)
-        print("Frame        count  val --- globalCounter: " .. globalCounter)
+        print("Frame        count  val --- globalTick: " .. globalTick)
 
         local tbl = {}
         local function byUpdateCountDesc(a, b)
@@ -1025,7 +1134,7 @@ function DataToColor:sell(items)
     end
 
     local item = GetMerchantItemLink(1)
-    if item == nil then
+    if not item then
         DataToColor:Print("Merchant is not open to sell to, please approach and open.")
         return
     end

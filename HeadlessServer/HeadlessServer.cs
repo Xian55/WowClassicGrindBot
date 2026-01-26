@@ -1,6 +1,10 @@
 ﻿using CommandLine;
+
 using Core;
+
 using Microsoft.Extensions.Logging;
+
+using static System.Diagnostics.Stopwatch;
 
 namespace HeadlessServer;
 
@@ -23,7 +27,8 @@ public sealed partial class HeadlessServer
         SpellBookReader spellBookReader,
         BagReader bagReader,
         ExecGameCommand exec,
-        AddonConfigurator addonConfigurator, Wait wait)
+        AddonConfigurator addonConfigurator,
+        Wait wait)
     {
         this.logger = logger;
         this.botController = botController;
@@ -45,28 +50,45 @@ public sealed partial class HeadlessServer
         botController.ToggleBotStatus();
     }
 
+    public void RunLoadOnly(ParserResult<RunOptions> options)
+    {
+        botController.LoadClassProfile(options.Value.ClassConfig!);
+    }
+
     private void InitState()
     {
         addonReader.FullReset();
+        exec.Run("");
         exec.Run($"/{addonConfigurator.Config.CommandFlush}");
+
+        const int CELL_UPDATE_TICK = 5 * 2;
 
         int actionbarCost;
         int spellBook;
         int bag;
 
+        long startTime = GetTimestamp();
         do
         {
             actionbarCost = actionBarCostReader.Count;
             spellBook = spellBookReader.Count;
             bag = bagReader.BagItems.Count;
 
-            wait.Fixed(1000);
+            for (int i = 0; i < CELL_UPDATE_TICK; i++)
+                wait.Update();
 
-            LogInitStateStatus(logger, actionbarCost, spellBook, bag);
+            if (actionbarCost != actionBarCostReader.Count ||
+                spellBook != spellBookReader.Count ||
+                bag != bagReader.BagItems.Count)
+            {
+                LogInitStateStatus(logger, actionbarCost, spellBook, bag);
+            }
         } while (
             actionbarCost != actionBarCostReader.Count ||
             spellBook != spellBookReader.Count ||
             bag != bagReader.BagItems.Count);
+
+        LogInitStateEnd(logger, (float)GetElapsedTime(startTime).TotalSeconds);
     }
 
     #region Logging
@@ -76,6 +98,12 @@ public sealed partial class HeadlessServer
         Level = LogLevel.Information,
         Message = "Actionbar: {actionbar,3} | SpellBook: {spellBook,3} | Bag: {bag,3}")]
     static partial void LogInitStateStatus(ILogger logger, int actionbar, int spellbook, int bag);
+
+    [LoggerMessage(
+        EventId = 4001,
+        Level = LogLevel.Information,
+        Message = "InitState {elapsedSec}sec")]
+    static partial void LogInitStateEnd(ILogger logger, float elapsedSec);
 
     #endregion
 

@@ -1,5 +1,7 @@
-﻿using System.IO;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+
+using System;
+using System.IO;
 
 namespace StormDll;
 
@@ -33,7 +35,7 @@ public sealed class ArchiveSet
         }
     }
 
-    public MpqFileStream GetStream(string fileName)
+    public MpqFileStream GetStream(ReadOnlySpan<char> fileName)
     {
         for (int i = 0; i < archives.Length; i++)
         {
@@ -44,6 +46,17 @@ public sealed class ArchiveSet
 
         logger.LogWarning($"{nameof(fileName)} not found '{fileName}'");
         throw new FileNotFoundException($"{nameof(fileName)} - {fileName}");
+    }
+
+    public bool Exists(ReadOnlySpan<char> fileName)
+    {
+        for (int i = 0; i < archives.Length; i++)
+        {
+            Archive a = archives[i];
+            if (a.HasFile(fileName))
+                return true;
+        }
+        return false;
     }
 
     public void Close()

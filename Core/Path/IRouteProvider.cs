@@ -5,6 +5,8 @@ namespace Core;
 
 public interface IRouteProvider
 {
+    Vector3[] MapRoute();
+
     Vector3[] PathingRoute();
 
     DateTime LastActive { get; }

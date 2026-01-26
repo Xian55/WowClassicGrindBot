@@ -1,0 +1,6 @@
+## Interface: 40300
+## Title: SoundKitBackport
+## Author: Xii
+## Notes: Cataclysm 4.3.4 SOUNDKIT Global variable
+
+SoundKitBackport.lua

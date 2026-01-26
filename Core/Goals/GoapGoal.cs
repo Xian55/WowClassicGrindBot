@@ -19,7 +19,7 @@ public abstract partial class GoapGoal
         {
             keys = value;
             if (keys.Length == 1)
-                DisplayName = $"{Keys[0].Name} [{Keys[0].Key}]";
+                DisplayName = $"{keys[0].Name} [{keys[0].Key}]";
         }
     }
 

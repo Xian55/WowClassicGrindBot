@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
+using static System.Diagnostics.Stopwatch;
 
 namespace Core;
 
@@ -10,9 +12,9 @@ public sealed class RecordInt
 
     public int _Value() => Value;
 
-    public DateTime LastChanged { private set; get; }
+    public long LastChanged { private set; get; }
 
-    public int ElapsedMs() => (int)(DateTime.UtcNow - LastChanged).TotalMilliseconds;
+    public int ElapsedMs() => (int)GetElapsedTime(LastChanged).TotalMilliseconds;
 
     public event Action? Changed;
 
@@ -26,21 +28,14 @@ public sealed class RecordInt
         int temp = Value;
         Value = reader.GetInt(cell);
 
-        if (temp != Value)
+        if (temp == Value)
         {
-            Changed?.Invoke();
-            LastChanged = DateTime.UtcNow;
-            return true;
+            return false;
         }
 
-        return false;
-    }
-
-    public bool UpdatedNoEvent(IAddonDataProvider reader)
-    {
-        int temp = Value;
-        Value = reader.GetInt(cell);
-        return temp != Value;
+        Changed?.Invoke();
+        UpdateTime();
+        return true;
     }
 
     public void Update(IAddonDataProvider reader)
@@ -48,16 +43,47 @@ public sealed class RecordInt
         int temp = Value;
         Value = reader.GetInt(cell);
 
-        if (temp != Value)
+        if (temp == Value)
         {
-            Changed?.Invoke();
-            LastChanged = DateTime.UtcNow;
+            return;
         }
+
+        Changed?.Invoke();
+        UpdateTime();
     }
 
+    public void UpdateExcludingLeastSignificantDigits(IAddonDataProvider reader, int excludeDigit)
+    {
+        int temp = Value / excludeDigit;
+        Value = reader.GetInt(cell) / excludeDigit;
+
+        if (temp == Value)
+        {
+            return;
+        }
+
+        Changed?.Invoke();
+        UpdateTime();
+    }
+
+    public void UpdateIncludeLeastSignificantDigit(IAddonDataProvider reader, int includeDigit)
+    {
+        int temp = Value % includeDigit;
+        Value = reader.GetInt(cell) % includeDigit;
+
+        if (temp == Value)
+        {
+            return;
+        }
+
+        Changed?.Invoke();
+        UpdateTime();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void UpdateTime()
     {
-        LastChanged = DateTime.UtcNow;
+        LastChanged = GetTimestamp();
     }
 
     public void Reset()

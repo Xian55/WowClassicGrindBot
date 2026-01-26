@@ -8,15 +8,10 @@ using System.Threading;
 
 using WinAPI;
 
-#pragma warning disable 162
-
 namespace Game;
 
 public sealed partial class WowProcessInput : IMouseInput
 {
-    private const bool LogInput = false;
-    private const bool LogMove = false;
-
     private readonly ILogger<WowProcessInput> logger;
 
     private readonly WowProcess process;
@@ -59,18 +54,10 @@ public sealed partial class WowProcessInput : IMouseInput
                 return;
         }
 
-        if (LogInput)
-        {
-            if (key == ForwardKey || key == BackwardKey || key == TurnLeftKey || key == TurnRightKey)
-            {
-                if (LogMove)
-                    LogKeyDown(logger, key);
-            }
-            else
-            {
-                LogKeyDown(logger, key);
-            }
-        }
+        //if (IsMovementKey(key))
+        //    LogMoveKeyDown(logger, key);
+        //else
+        //    LogKeyDown(logger, key);
 
         keysDown[(int)key] = true;
         nativeInput.KeyDown((int)key);
@@ -84,18 +71,10 @@ public sealed partial class WowProcessInput : IMouseInput
                 return;
         }
 
-        if (LogInput)
-        {
-            if (key == ForwardKey || key == BackwardKey || key == TurnLeftKey || key == TurnRightKey)
-            {
-                if (LogMove)
-                    LogKeyUp(logger, key);
-            }
-            else
-            {
-                LogKeyUp(logger, key);
-            }
-        }
+        //if (IsMovementKey(key))
+        //    LogMoveKeyUp(logger, key);
+        //else
+        //    LogKeyUp(logger, key);
 
         nativeInput.KeyUp((int)key);
         keysDown[(int)key] = false;
@@ -126,42 +105,26 @@ public sealed partial class WowProcessInput : IMouseInput
         NativeMethods.SetForegroundWindow(process.MainWindowHandle);
     }
 
-    public int PressRandom(ConsoleKey key, int milliseconds)
-    {
-        return PressRandom(key, milliseconds, CancellationToken.None);
-    }
-
-    public int PressRandom(ConsoleKey key, int milliseconds, CancellationToken token)
+    public int PressRandom(ConsoleKey key, int milliseconds = InputDuration.DefaultPress, CancellationToken token = default)
     {
         keysDown[(int)key] = true;
         int elapsedMs = nativeInput.PressRandom((int)key, milliseconds, token);
         keysDown[(int)key] = false;
 
-        if (LogInput)
-        {
-            LogKeyPress(logger, key, elapsedMs);
-        }
+        LogKeyPressRandom(logger, key, elapsedMs);
 
         return elapsedMs;
     }
 
-    public void PressFixed(ConsoleKey key, int milliseconds, CancellationToken token)
+    public void PressFixed(ConsoleKey key, int milliseconds, CancellationToken token = default)
     {
         if (milliseconds < 1)
             return;
 
-        if (LogInput)
-        {
-            if (key == ForwardKey || key == BackwardKey || key == TurnLeftKey || key == TurnRightKey)
-            {
-                if (LogMove)
-                    LogKeyPress(logger, key, milliseconds);
-            }
-            else
-            {
-                LogKeyPress(logger, key, milliseconds);
-            }
-        }
+        if (IsMovementKey(key))
+            LogMoveKeyPress(logger, key, milliseconds);
+        else
+            LogKeyPressFixed(logger, key, milliseconds);
 
         keysDown[(int)key] = true;
         nativeInput.PressFixed((int)key, milliseconds, token);
@@ -196,6 +159,12 @@ public sealed partial class WowProcessInput : IMouseInput
         PressFixed(InteractMouseover, InteractMouseoverPress, token);
     }
 
+    private bool IsMovementKey(ConsoleKey key) =>
+        key == ForwardKey ||
+        key == BackwardKey ||
+        key == TurnLeftKey ||
+        key == TurnRightKey;
+
     [LoggerMessage(
         EventId = 3000,
         Level = LogLevel.Debug,
@@ -210,13 +179,35 @@ public sealed partial class WowProcessInput : IMouseInput
 
     [LoggerMessage(
         EventId = 3002,
-        Level = LogLevel.Debug,
-        Message = @"[{key}] pressed {milliseconds}ms")]
-    static partial void LogKeyPress(ILogger logger, ConsoleKey key, int milliseconds);
+        Level = LogLevel.Information,
+        Message = @"[{key}] press fix {milliseconds}ms")]
+    static partial void LogKeyPressFixed(ILogger logger, ConsoleKey key, int milliseconds);
 
     [LoggerMessage(
         EventId = 3003,
-        Level = LogLevel.Debug,
-        Message = @"[{key}] pressing {milliseconds}ms")]
-    static partial void LogKeyPressNoDelay(ILogger logger, ConsoleKey key, int milliseconds);
+        Level = LogLevel.Information,
+        Message = @"[{key}] press random {milliseconds}ms")]
+    static partial void LogKeyPressRandom(ILogger logger, ConsoleKey key, int milliseconds);
+
+    #region Movement Trance
+
+    [LoggerMessage(
+        EventId = 3004,
+        Level = LogLevel.Trace,
+        Message = @"[{key}] move KeyDown")]
+    static partial void LogMoveKeyDown(ILogger logger, ConsoleKey key);
+
+    [LoggerMessage(
+        EventId = 3005,
+        Level = LogLevel.Trace,
+        Message = @"[{key}] move KeyUp")]
+    static partial void LogMoveKeyUp(ILogger logger, ConsoleKey key);
+
+    [LoggerMessage(
+        EventId = 3006,
+        Level = LogLevel.Trace,
+        Message = @"[{key}] move Pressed {milliseconds}ms")]
+    static partial void LogMoveKeyPress(ILogger logger, ConsoleKey key, int milliseconds);
+
+    #endregion
 }

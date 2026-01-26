@@ -1,12 +1,11 @@
-﻿using System.Collections.Frozen;
+﻿using SharedLib;
+
+using System.Collections.Frozen;
 using System.Collections.Generic;
-using System;
 
-using SharedLib;
-
+using static Newtonsoft.Json.JsonConvert;
 using static System.IO.File;
 using static System.IO.Path;
-using static Newtonsoft.Json.JsonConvert;
 
 namespace Core.Database;
 
@@ -23,17 +22,12 @@ public sealed class ItemDB
 
     public ItemDB(DataConfig dataConfig)
     {
-        ReadOnlySpan<Item> span = DeserializeObject<Item[]>(
+        List<Item> items = DeserializeObject<List<Item>>(
             ReadAllText(Join(dataConfig.ExpDbc, "items.json")))!;
 
-        Dictionary<int, Item> items = [];
-        for (int i = 0; i < span.Length; i++)
-        {
-            items.Add(span[i].Entry, span[i]);
-        }
-        items.Add(Backpack.Entry, Backpack);
+        items.Add(Backpack);
 
-        this.Items = items.ToFrozenDictionary();
+        this.Items = items.ToFrozenDictionary(item => item.Entry);
 
         FoodIds = DeserializeObject<int[]>(
             ReadAllText(Join(dataConfig.ExpDbc, "foods.json")))!;

@@ -1,12 +1,14 @@
-﻿using PPather.Data;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
+
 using PPather;
+using PPather.Data;
+using PPather.Graph;
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using System.Threading.Tasks;
-using System;
-using PPather.Graph;
 
 #pragma warning disable 162
 
@@ -15,6 +17,8 @@ namespace Core;
 public sealed class LocalPathingApi : IPPather
 {
     private const bool debug = false;
+
+    private const SearchStrategy searchStrategy = SearchStrategy.A_Star_With_Model_Avoidance;
 
     private readonly ILogger<LocalPathingApi> logger;
 
@@ -47,7 +51,7 @@ public sealed class LocalPathingApi : IPPather
             service.ToWorld(uiMap, mapFrom.X, mapFrom.Y, mapFrom.Z),
             service.ToWorld(uiMap, mapTo.X, mapTo.Y));
 
-        Path path = service.DoSearch(PathGraph.eSearchScoreSpot.A_Star_With_Model_Avoidance);
+        Path path = service.DoSearch(searchStrategy);
         if (path == null)
         {
             if (debug)
@@ -72,15 +76,15 @@ public sealed class LocalPathingApi : IPPather
         return path.locations.ToArray();
     }
 
-    public Vector3[] FindWorldRoute(int uiMap, Vector3 worldFrom, Vector3 worldTo)
+    public Vector3[] FindWorldRoute(int uiMap, bool startIndoors, Vector3 worldFrom, Vector3 worldTo)
     {
         long timestamp = Stopwatch.GetTimestamp();
 
         service.SetLocations(
-            service.ToWorldZ(uiMap, worldFrom.X, worldFrom.Y, worldFrom.Z),
+            service.ToWorldZ(uiMap, worldFrom.X, worldFrom.Y, worldFrom.Z, startIndoors),
             service.ToWorldZ(uiMap, worldTo.X, worldTo.Y, worldTo.Z));
 
-        Path path = service.DoSearch(PathGraph.eSearchScoreSpot.A_Star_With_Model_Avoidance);
+        Path path = service.DoSearch(searchStrategy);
         if (path == null)
         {
             if (debug)

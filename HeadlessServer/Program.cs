@@ -2,20 +2,30 @@
 
 using Core;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using Serilog;
-using Serilog.Events;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
 
 namespace HeadlessServer;
 
-internal sealed class Program
+public sealed class Program
 {
-    private static void Main(string[] args)
+    public static void Main(string[] args)
     {
+        var environmentName = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+        IConfiguration configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("headless_appsettings.json", optional: true, reloadOnChange: true)
+            .AddJsonFile($"headless_appsettings.{environmentName}.json", optional: true, reloadOnChange: true)
+            .AddEnvironmentVariables()
+            .AddCommandLine(args)
+            .Build();
+
         IServiceCollection services = new ServiceCollection();
 
         ILoggerFactory logFactory = LoggerFactory.Create(builder =>
@@ -25,11 +35,11 @@ internal sealed class Program
 
         services.AddLogging(builder =>
         {
-            const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {#if Length(SourceContext) > 0}[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1),-15}] {#end}{@m}\n{@x}";
+            const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {#if Length(SourceContext) > 0}[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1),-17}] {#end}{@m}\n{@x}";
+            //const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {SourceContext}] {@m}\n{@x}";
 
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .ReadFrom.Configuration(configuration)
                 .Enrich.FromLogContext()
                 .WriteTo.File(new ExpressionTemplate(outputTemplate),
                     path: "headless_out.log",
@@ -43,6 +53,8 @@ internal sealed class Program
         });
 
         ILogger<Program> log = logFactory.CreateLogger<Program>();
+
+        log.LogInformation($"Hosting environment: {environmentName ?? "Production"}");
 
         log.LogInformation(
             $"{Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName} " +
@@ -95,9 +107,17 @@ internal sealed class Program
             logger.LogError(e, e.Message);
         };
 
-        provider
-            .GetRequiredService<HeadlessServer>()
-            .Run(options);
+        HeadlessServer headlessServer = provider.GetRequiredService<HeadlessServer>();
+
+        if (options.Value.LoadOnly)
+        {
+            headlessServer.RunLoadOnly(options);
+            Environment.Exit(0);
+        }
+        else
+        {
+            headlessServer.Run(options);
+        }
 
     Exit:
         Console.ReadKey();

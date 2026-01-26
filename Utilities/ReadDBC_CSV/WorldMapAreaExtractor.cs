@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using SharedLib;
 using nietras.SeparatedValues;
+using System.Linq;
 
 namespace ReadDBC_CSV;
 
@@ -15,7 +16,8 @@ internal sealed class WorldMapAreaExtractor : IExtractor
     [
         "uimap.csv",
         "uimapassignment.csv",
-        "map.csv"
+        "map.csv",
+        "areatable.csv"
     ];
 
     public WorldMapAreaExtractor(string path)
@@ -32,6 +34,13 @@ internal sealed class WorldMapAreaExtractor : IExtractor
         // MapID - AreaID - LocBottom - LocRight - LocTop - LocLeft
         string uimapassignmentFile = Path.Join(path, FileRequirement[1]);
         ExtractBoundaries(uimapassignmentFile, wmas);
+
+        // Extend Subzones
+        ExtendWithSubZones(path, wmas);
+
+        // ParentAreaId - ExplorationLevel
+        string areaTableFile = Path.Join(path, FileRequirement[3]);
+        ExtractParentAndLevel(areaTableFile, wmas);
 
         // Continent / Directory
         string mapFile = Path.Join(path, FileRequirement[2]);
@@ -61,7 +70,8 @@ internal sealed class WorldMapAreaExtractor : IExtractor
             int system = row[systemIndex].Parse<int>();
 
             // 1 ([DEPRECATED] Legacy Taxi)
-            if (system == 1)
+            // 2 (Taxi and Adventure)
+            if (system == 1 || system == 2)
             {
                 continue;
             }
@@ -148,15 +158,124 @@ internal sealed class WorldMapAreaExtractor : IExtractor
         }
     }
 
+    private static void ExtractParentAndLevel(string path, List<WorldMapArea> wmas)
+    {
+        using var reader = Sep.Reader(o => o with
+        {
+            Unescape = true,
+        }).FromFile(path);
+
+        int areaId = reader.Header.IndexOf("ID");
+        int zoneName = reader.Header.IndexOf("ZoneName");
+        int areaNameLang = reader.Header.IndexOf("AreaName_lang");
+        int continentID = reader.Header.IndexOf("ContinentID");
+        int parentAreaId = reader.Header.IndexOf("ParentAreaID");
+        int explorationLevel = reader.Header.IndexOf("ExplorationLevel");
+
+        foreach (SepReader.Row row in reader)
+        {
+            int _areaId = row[areaId].Parse<int>();
+            string _areaNameLang = row[areaNameLang].ToString();
+            string _zoneName = row[zoneName].ToString();
+            int _parentAreaId = row[parentAreaId].Parse<int>();
+            int _contientID = row[continentID].Parse<int>();
+            int _explorationLevel = row[explorationLevel].Parse<int>();
+
+            if (_zoneName.Contains("NightmareGrove"))
+                continue;
+
+            int i = wmas.FindIndex(x => x.AreaID == _areaId);
+            if (i == -1)
+            {
+                //Console.WriteLine($"[{_areaId}] not found {_areaNameLang} {_zoneName}");
+                continue;
+            }
+
+            WorldMapArea wma = wmas[i];
+            var newWma = wma with
+            {
+                MapID = _contientID,
+                ParentAreaId = _parentAreaId,
+                ExplorationLevel = _explorationLevel,
+                AreaName = _areaNameLang,
+            };
+
+            wmas[i] = newWma;
+        }
+    }
+
+    private static void ExtendWithSubZones(string rootPath, List<WorldMapArea> wmas)
+    {
+        var filesWithNumberOnlyInName = Directory.GetFiles(rootPath, "*.json", SearchOption.AllDirectories)
+            .Where(x => Path.GetFileNameWithoutExtension(x).All(char.IsDigit));
+
+        foreach (string file in filesWithNumberOnlyInName)
+        {
+            ReadOnlySpan<SubZoneArea> subzones = JsonConvert.DeserializeObject<SubZoneArea[]>(File.ReadAllText(file));
+
+            foreach (SubZoneArea sub in subzones)
+            {
+                (float left, float right, float top, float bottom) = ConvertCoord(sub);
+
+                // skip if already exists
+                if (wmas.Exists(x => x.AreaID == sub.Id))
+                {
+                    var existing = wmas.Find(x => x.AreaID == sub.Id);
+
+                    WorldMapArea clickWMA = existing with
+                    {
+                        UIMapId = 0,
+                        AreaID = sub.Id + 1000000,
+                        AreaName = "C_" + existing.AreaName,
+                        LocLeft = left,
+                        LocRight = right,
+                        LocTop = top,
+                        LocBottom = bottom,
+                    };
+                    wmas.Add(clickWMA);
+
+                    continue;
+                }
+
+                WorldMapArea wma = new()
+                {
+                    AreaID = sub.Id,
+                    LocLeft = left,
+                    LocRight = right,
+                    LocTop = top,
+                    LocBottom = bottom,
+                };
+
+                wmas.Add(wma);
+            }
+        }
+    }
+
+    private static (float left, float right, float top, float bottom) ConvertCoord(SubZoneArea sub)
+    {
+        return (
+            sub.Min.Y, // left
+            sub.Max.Y, // right
+            sub.Min.X, // top
+            sub.Max.X);// bottom   
+    }
+
+
     private static void ClearEmptyBound(List<WorldMapArea> wmas)
     {
         for (int i = wmas.Count - 1; i >= 0; i--)
         {
-            if (wmas[i].LocBottom == 0 &&
-                wmas[i].LocLeft == 0 &&
-                wmas[i].LocRight == 0 &&
-                wmas[i].LocTop == 0)
+            WorldMapArea wma = wmas[i];
+
+            if ((wma.LocBottom == 0 &&
+                wma.LocLeft == 0 &&
+                wma.LocRight == 0 &&
+                wma.LocTop == 0) ||
+                wma.AreaName == null ||
+                wma.AreaName.Contains("UNUSED") ||
+                wma.AreaName.Contains("DELETE ME"))
             {
+                Console.WriteLine($"{wma}");
                 wmas.RemoveAt(i);
             }
         }

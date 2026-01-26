@@ -1,8 +1,8 @@
-﻿using System.Collections.Generic;
-
-using SharedLib.Extensions;
+﻿using SharedLib.Extensions;
 
 using SixLabors.ImageSharp;
+
+using System.Collections.Generic;
 
 namespace SharedLib.NpcFinder;
 

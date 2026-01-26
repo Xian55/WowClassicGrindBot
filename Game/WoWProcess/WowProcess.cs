@@ -1,8 +1,10 @@
+using Microsoft.Extensions.Options;
+
+using SharedLib;
+
 using System;
 using System.Diagnostics;
 using System.Threading;
-
-using SharedLib;
 
 #nullable enable
 
@@ -10,13 +12,13 @@ namespace Game;
 
 public sealed class WowProcess
 {
-    private static readonly string[] defaultProcessNames = new string[] {
+    private static readonly string[] defaultProcessNames = [
         "Wow",
         "WowClassic",
         "WowClassicT",
         "Wow-64",
         "WowClassicB"
-    };
+    ];
 
     private readonly Thread thread;
     private readonly CancellationToken token;
@@ -44,7 +46,7 @@ public sealed class WowProcess
 
     public bool IsRunning { get; private set; }
 
-    public WowProcess(CancellationTokenSource cts, int pid = -1)
+    private WowProcess(CancellationTokenSource cts, int pid = -1)
     {
         token = cts.Token;
 
@@ -62,7 +64,7 @@ public sealed class WowProcess
         thread.Start();
     }
 
-    public WowProcess(CancellationTokenSource cts, StartupConfigPid pid) : this(cts, pid.Id) { }
+    public WowProcess(CancellationTokenSource cts, IOptions<StartupConfigPid> options) : this(cts, options.Value.Id) { }
 
     private void PollProcessExited()
     {
@@ -112,18 +114,18 @@ public sealed class WowProcess
 
     private (string path, Version version) GetProcessInfo()
     {
-        string path = WinAPI.ExecutablePath.Get(process);
-        if (string.IsNullOrEmpty(path))
-        {
-            throw new NullReferenceException("Unable identify World of Warcraft process path!");
-        }
+        string path = WinAPI.ExecutablePath.Get(process)
+            ?? throw new NullReferenceException("Unable to identify World of Warcraft process path!");
 
-        FileVersionInfo fileVersion = FileVersionInfo.GetVersionInfo(System.IO.Path.Join(path, process.ProcessName + ".exe"));
-        if (Version.TryParse(fileVersion.FileVersion, out Version? v))
+        var exePath = System.IO.Path.Join(path, process.ProcessName + ".exe");
+        FileVersionInfo info = FileVersionInfo.GetVersionInfo(exePath);
+
+        if (info.FileMajorPart > 0)
         {
+            Version v = new(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart, info.FilePrivatePart);
             return (path, v);
         }
 
-        return (path, new());
+        return (path, new Version());
     }
 }

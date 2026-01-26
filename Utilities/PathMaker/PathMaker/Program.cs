@@ -57,7 +57,7 @@ namespace PathMaker
                 }
             }
 
-            return output.ToArray();
+            return [.. output];
         }
 
     }

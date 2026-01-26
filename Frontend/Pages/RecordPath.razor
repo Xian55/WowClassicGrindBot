@@ -35,12 +35,12 @@
             <div>
                 <button class="btn btn-success"
                         disabled=@(editPath.Count == 0)
-                @onclick="() => SaveToFile(false)">
+                        @onclick="() => SaveToFile(false)">
                     Save to new file & use path
                 </button>
                 <button class="btn btn-primary"
                         disabled=@(editPath.Count == 0)
-                @onclick="Use">
+                        @onclick="Use">
                     Use new path without save
                 </button>
                 @if (editPath.Count > 0)
@@ -51,7 +51,7 @@
             <div>
                 <button class="btn btn-warning"
                         disabled=@(editPath.Count == 0)
-                @onclick="() => SaveToFile(true)">
+                        @onclick="() => SaveToFile(true)">
                     Save to <b>@(loadedPathFile)</b>
                 </button>
             </div>
@@ -112,48 +112,50 @@
             if (selectedPoint != default)
             {
                 <table>
-                    <tr>
-                        <td>
-                            <h3>&#128308; Selected</h3>
-                        </td>
-                        <td>
-                            @if (selectedPoint != previewPoint)
-                            {
-                                <h3>&#128993; Preview</h3>
-                            }
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <input type="text" id="posx" class="col-sm-6 form-control" @bind="X" />
-                            <input type="text" id="posy" class="col-sm-6 form-control" @bind="Y" />
-                        </td>
-                        <td>
-                            @if (selectedPoint != previewPoint)
-                            {
-                                <input type="text" class="col-sm-6 form-control" disabled="disabled" @bind="selectedPoint.X" />
-                                <input type="text" class="col-sm-6 form-control" disabled="disabled" @bind="selectedPoint.Y" />
-                            }
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <hr />
-                            <button class="btn btn-danger" @onclick="RemoveAllSelected">Remove</button>
-                            <hr />
-                            <button class="btn btn-warning"
-                                    disabled="@(this.selectedPoint != this.previewPoint ? null : "disabled")"
-                            @onclick="UpdateSelectedWithPreview">
-                                Move to preview
-                            </button>
-                            <hr />
-                            <button class="btn btn-primary" @onclick="UpdateSelectedWithPlayer">Move to player</button>
-                            <hr />
-                            <button class="btn btn-success" @onclick="InsertPlayerLocationAfterSelected">Insert player location after selected</button>
-                        </td>
-                        <td>
-                        </td>
-                    </tr>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <h3>&#128308; Selected</h3>
+                            </td>
+                            <td>
+                                @if (selectedPoint != previewPoint)
+                                {
+                                    <h3>&#128993; Preview</h3>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <input type="text" id="posx" class="col-sm-6 form-control" @bind="X" />
+                                <input type="text" id="posy" class="col-sm-6 form-control" @bind="Y" />
+                            </td>
+                            <td>
+                                @if (selectedPoint != previewPoint)
+                                {
+                                    <input type="text" class="col-sm-6 form-control" disabled="disabled" @bind="selectedPoint.X" />
+                                    <input type="text" class="col-sm-6 form-control" disabled="disabled" @bind="selectedPoint.Y" />
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <hr />
+                                <button class="btn btn-danger" @onclick="RemoveAllSelected">Remove</button>
+                                <hr />
+                                <button class="btn btn-warning"
+                                        disabled="@(this.selectedPoint != this.previewPoint ? null : "disabled")"
+                                        @onclick="UpdateSelectedWithPreview">
+                                    Move to preview
+                                </button>
+                                <hr />
+                                <button class="btn btn-primary" @onclick="UpdateSelectedWithPlayer">Move to player</button>
+                                <hr />
+                                <button class="btn btn-success" @onclick="InsertPlayerLocationAfterSelected">Insert player location after selected</button>
+                            </td>
+                            <td>
+                            </td>
+                        </tr>
+                    </tbody>
                 </table>
 
                 <hr>
@@ -171,14 +173,16 @@
         @if (recording)
         {
             <table>
-                <tr>
-                    <td>
-                        Distance between spots =  @Distance
-                    </td>
-                    <td>
-                        <input class="form-control slider" type="range" min="@MIN_DISTANCE" max="@MAX_DISTANCE" @bind="Distance" style="width:300px; margin-left:20px">
-                    </td>
-                </tr>
+                <tbody>
+                    <tr>
+                        <td>
+                            Distance between spots =  @Distance
+                        </td>
+                        <td>
+                            <input class="form-control slider" type="range" min="@MIN_DISTANCE" max="@MAX_DISTANCE" @bind="Distance" style="width:300px; margin-left:20px">
+                        </td>
+                    </tr>
+                </tbody>
             </table>
         }
 
@@ -189,9 +193,9 @@
             {
                 var point = editPath[i];
                 int index = i;
-                <span class="badge @DisplayBadge(point)" @onclick="() => UpdateSelectedPoint(point, index)">
+                <Badge Color="@DisplayBadge(point)" @onclick="() => UpdateSelectedPoint(point, index)">
                     @point.X.ToString("0.00"),@point.Y.ToString("0.00")&nbsp;
-                </span>
+                </Badge>
             }
         }
     </div>
@@ -206,6 +210,16 @@
 
     protected bool recording;
     protected bool editing;
+
+    // dark theme
+    private string Color3 = Color3Dark;
+    private string Color4 = Color4Dark;
+
+    private const string Color3Dark = "#444";
+    private const string Color4Dark = "#666";
+
+    private const string Color3Light = "#BBBBBB";
+    private const string Color4Light = "#999999";
 
     protected MarkupString PathLines = new MarkupString();
     protected MarkupString PathPoints = new MarkupString();
@@ -247,7 +261,8 @@
 
     private List<Vector3> editPath { get; set; } = new();
 
-    private string loadedPathFile => botController.ClassConfig!.PathFilename.Replace(dataConfig.Path, "");
+    private string loadedPathFile =>
+        botController.ClassConfig!.Paths[0].PathFilename.Replace(dataConfig.Path, "");
 
     private string areaName = string.Empty;
 
@@ -270,7 +285,7 @@
         {
             var dotNetReference = DotNetObjectReference.Create(this);
             await JSRuntime.InvokeVoidAsync("init", dotNetReference);
-            await JSRuntime.InvokeVoidAsync("draw");
+            await JSRuntime.InvokeVoidAsync("draw", Color3, Color4);
 
             UpdateRouteMarkup();
         }
@@ -329,14 +344,14 @@
     }
 
 
-    protected string DisplayBadge(Vector3 point)
+    protected BadgeColor DisplayBadge(Vector3 point)
     {
         if (this.selectedPoint == point)
         {
-            return "badge-danger";
+            return BadgeColor.Danger;
         }
 
-        return "badge-info";
+        return BadgeColor.Info;
     }
 
 

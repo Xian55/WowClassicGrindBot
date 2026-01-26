@@ -90,7 +90,6 @@ public sealed class AssistFocusGoal : GoapGoal
             if (keyAction.BeforeCastDismount && mountHandler.IsMounted())
             {
                 mountHandler.Dismount();
-                wait.Update();
             }
 
             if (castingHandler.CastIfReady(keyAction,

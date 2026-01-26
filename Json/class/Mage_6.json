@@ -42,14 +42,21 @@
       }
     ]
   },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > 1 && Health% < 60) || TargetElite" 
+      }
+    ]
+  },
   "Combat": {
     "Sequence": [
       {
         "Name": "Fire Blast",
         "Key": "5",
-        "WhenUsable": true,
         "Requirements": [
-          "TargetHealth% < 45",
+          "TargetAlive && TargetHealth% < 35",
           "SpellInRange:4"
         ]
       },
@@ -57,10 +64,13 @@
         "Name": "Fireball",
         "Key": "2",
         "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
         "Requirements": [
           "Mana% > MIN_MANA_SPELL%",
           "TargetHealth% > 35"
-        ]
+        ],
+        "Interrupt": "CanRun:Fire Blast",
+        "CancelOnInterrupt": true
       },
       {
         "Name": "Shoot",
@@ -75,8 +85,7 @@
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!HasRangedWeapon",
-          "!AutoAttacking"
+          "!HasRangedWeapon"
         ]
       },
       {

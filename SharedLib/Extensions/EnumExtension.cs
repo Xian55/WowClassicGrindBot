@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -32,12 +32,15 @@ public static class EnumExtensions
             }
         }
         if (bits != 0L)
-            return Enumerable.Empty<Enum>();
+            return [];
+
         if (Convert.ToUInt64(value) != 0L)
             return results.Reverse<Enum>();
+
         if (bits == Convert.ToUInt64(value) && values.Length > 0 && Convert.ToUInt64(values[0]) == 0L)
             return values.Take(1);
-        return Enumerable.Empty<Enum>();
+
+        return [];
     }
 
     private static IEnumerable<Enum> GetFlagValues(Type enumType)
@@ -46,10 +49,13 @@ public static class EnumExtensions
         foreach (var value in Enum.GetValues(enumType).Cast<Enum>())
         {
             ulong bits = Convert.ToUInt64(value);
+
             if (bits == 0L)
-                //yield return value;
-                continue; // skip the zero value
-            while (flag < bits) flag <<= 1;
+                continue;
+
+            while (flag < bits)
+                flag <<= 1;
+
             if (flag == bits)
                 yield return value;
         }

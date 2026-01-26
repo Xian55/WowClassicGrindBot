@@ -1,9 +1,13 @@
-﻿using System;
+﻿using GregsStack.InputSimulatorStandard.Native;
+
 using SixLabors.ImageSharp;
+
+using System;
 using System.Threading;
-using GregsStack.InputSimulatorStandard.Native;
-using static WinAPI.NativeMethods;
+
 using TextCopy;
+
+using static WinAPI.NativeMethods;
 
 namespace Game;
 

@@ -96,7 +96,6 @@
       {
         "Name": "AutoAttack",
         "Requirements": [
-          "!AutoAttacking",
           "!Divine Protection",
           "!Blessing of Protection"
         ]

@@ -1,0 +1,260 @@
+{
+  "ClassName": "Priest",
+  "Loot": true,
+  "Paths": [
+    {
+      "PathFilename": "1-5_Gnome.json",
+      "PathThereAndBack": false,
+      "PathReduceSteps": false,
+      "Requirements": [
+        "Level < 4"
+      ],
+      "SideActivityRequirements": [ "PathDist <= 20" ]  
+    },
+    {
+      "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\1-4_Dun Morogh.json",
+      "PathThereAndBack": true,
+      "PathReduceSteps": false,
+      "Requirements": [
+        "Level < 5"
+      ],
+      "SideActivityRequirements": [ "PathDist <= 20" ]  
+    },
+    {
+      "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\4-6_Dun Morogh.json",
+      "PathThereAndBack": false,
+      "PathReduceSteps": false,
+      "SideActivityRequirements": [ "PathDist <= 20" ]  
+    }
+  ],
+  "IntVariables": {
+    "MIN_TARGET_HP%": 20,
+    "MIN_HP_BEFORE_HEAL%": 25,
+    "MIN_MANA_OFFENSIVE%": 55,
+    "MIN_MANA_DRINK%": 20,
+    "MIN_HP_EAT%": 30,
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+    "SPELL_RANK_SHIELD": 17,
+    "SPELL_RANK_PAIN": 594,
+    "SPELL_RANK_RENEW": 139, 
+    "SPELL_RANK_FLASH": 2061,
+    "SPELL_RANK_FORTITUDE": 1243,
+    "SPELL_RANK_INNER_FIRE": 588,
+    "Debuff_Weakened_Soul": 135871
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Power Word: Shield",
+        "Key": "6",
+        "WhenUsable": true,
+        "AfterCastWaitBuff": true,
+        "AfterCastWaitGCD": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_SHIELD", 
+          "Debuff_Weakened_Soul == 0",
+          "!Shield"
+        ]
+      },
+      {
+        "Name": "Shadow Word: Pain",
+        "Key": "5",
+        "BeforeCastStop": true,
+        "BeforeCastFaceTarget": true,
+        "AfterCastAuraExpected": true,
+        "AfterCastWaitBuff": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_PAIN",
+          "Mana% > MIN_MANA_OFFENSIVE%"
+        ]
+      },
+      {
+        "Name": "Smite",
+        "Key": "2",
+        "HasCastBar": true,
+        "Requirements": [
+          "Mana% > MIN_MANA_OFFENSIVE%"
+        ]
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "AfterCastDelay": 500,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "InMeleeRange || MIN_MANA_OFFENSIVE% < Mana%",
+          "!Casting",
+          "!Shooting"
+        ]
+      }
+    ]
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite" 
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Power Word: Shield",
+        "Key": "6",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_PAIN",
+          "Mana% < MIN_HP_BEFORE_HEAL%",
+          "Debuff_Weakened_Soul == 0",
+          "!Shield"
+        ]
+      },
+      {
+        "Name": "Renew",
+        "Key": "4",
+        "Requirements": [
+          "Spell:SPELL_RANK_RENEW",
+          "!Renew",
+          "Mana% > MIN_HP_BEFORE_HEAL%"
+        ] 
+      },
+      {
+        "Name": "Flash Heal",
+        "Key": "7",
+        "HasCastBar": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_FLASH",
+          "Shield",
+          "Mana% > MIN_HP_BEFORE_HEAL%"
+        ] 
+      },
+      {
+        "Name": "Lesser Heal",
+        "Key": "3",
+        "HasCastBar": true,
+        "Requirements": [
+          "!Spell:SPELL_RANK_FLASH",
+          "Health% < MIN_HP_BEFORE_HEAL%",
+          "!Shield",
+          "Mana% > MIN_HP_BEFORE_HEAL%"
+        ] 
+      },
+      {
+        "Name": "Smite",
+        "Key": "2",
+        "HasCastBar": true,
+        "Requirements": [
+          "Mana% > MIN_MANA_OFFENSIVE%",
+          "!InMeleeRange || Shield",
+          "TargetHealth% > MIN_TARGET_HP%"
+        ]
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "AfterCastDelay": 500,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "!HasRangedWeapon",
+          "!Casting",
+          "!Shooting"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "InMeleeRange || Mana% < MIN_MANA_OFFENSIVE%",
+          "!Casting",
+          "!Shooting",
+          "AutoAttacking"
+        ]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Cost": 3,
+        "Name": "Power Word: Fortitude",
+        "Key": "9",
+        "WhenUsable": true,
+        "InCombat": "i dont care",
+        "Requirements": [
+          "Spell:SPELL_RANK_FORTITUDE",
+          "!Fortitude"
+        ]
+      },
+      {
+        "Cost": 3,
+        "Name": "Inner Fire",
+        "Key": "8",
+        "WhenUsable": true,
+        "InCombat": "i dont care",
+        "Requirements": [
+          "Spell:SPELL_RANK_INNER_FIRE",
+          "!Inner Fire"
+        ]
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_HP_EAT%"
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < MIN_MANA_DRINK%"
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Key": "C",
+        "Requirement": "Durability% < 35"//,
+        //"PathFilename": "5_Gnome_Vendor.json" // closest repair will be picked
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Key": "C",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]//,
+        //"PathFilename": "5_Gnome_Vendor.json" // closest vendor will be picked
+      }
+    ]
+  }
+}

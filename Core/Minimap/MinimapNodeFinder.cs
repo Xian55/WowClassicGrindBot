@@ -1,7 +1,4 @@
-﻿using System;
-using System.Buffers;
-
-using Core.Minimap;
+﻿using Core.Minimap;
 
 using Microsoft.Extensions.Logging;
 
@@ -9,6 +6,9 @@ using SharedLib;
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Advanced;
+
+using System;
+using System.Buffers;
 
 namespace Core;
 

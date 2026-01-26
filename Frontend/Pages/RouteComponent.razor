@@ -17,20 +17,19 @@
 
 @implements IDisposable
 
-<div class="card">
-    <div class="card-header">
-        <table width="100%">
-            <tr>
-                <td>Route @routeSymbol</td>
-                <td>
-                    <div class="float-right">
-                        [@PlayerReader.MapX.ToString("00.0000"),@PlayerReader.MapY.ToString("00.0000")] @(AreaName) (@PlayerReader.UIMapId.Value)
-                    </div>
-                </td>
-            </tr>
-        </table>
-    </div>
-    <div class="card-body" style="padding: 0 0 0 0">
+<Card>
+    <CardHeader>
+        <div class="d-flex">
+            <div class="p-2 flex-grow-1 bd-highlight">
+                Route @routeSymbol
+            </div>
+
+            <div class="p-2 bd-highlight">
+                [@PlayerReader.MapX.ToString("00.0000"),@PlayerReader.MapY.ToString("00.0000")] @(AreaName) (@PlayerReader.UIMapId.Value)
+            </div>
+        </div>
+    </CardHeader>
+    <CardBody style="padding: 0 0 0 0">
         <div id="grid">
             <svg width="@(Size+2)px" height="@(Size+2)px" style="margin-top:0px">
                 <g class="background">
@@ -50,17 +49,24 @@
                                     <polygon points="5,0 8.5,8.5 1.5,8.5 5,0" fill="@colour" />
                                 </svg>
                             </g>
+
+                            @if (Bits.Target())
+                            {
+                                <g fill="@(Bits.Target_Combat() ? "Red" : "Yellow")">
+                                    @((MarkupString)botController.RouteInfo.RenderPoint(PlayerReader.TargetMapPos))
+                                </g>
+                            }
                         }
                     }
 
-                    <g stroke-width="1" stroke="gray">
+                    <g stroke-width="1" stroke="@Color1">
                         @this.PathLines
                     </g>
-                    <g fill="white">
+                    <g fill="@Color2">
                         @this.PathPoints
                     </g>
 
-                    <g stroke-width="1" stroke="white">
+                    <g stroke-width="1" stroke="@Color2">
                         @this.RouteToWaypointLines
                     </g>
                     <g fill="green">
@@ -90,8 +96,8 @@
                 </g>
             </svg>
         </div>
-    </div>
-</div>
+    </CardBody>
+</Card>
 
 @code {
 
@@ -107,6 +113,24 @@
 
     private MarkupString PathLines = new();
     private MarkupString PathPoints = new();
+
+    // dark theme
+    private string Color1 = Color1Dark;
+    private string Color2 = Color2Dark;
+    private string Color3 = Color3Dark;
+    private string Color4 = Color4Dark;
+
+    private const string Color1Dark = "gray";
+    private const string Color2Dark = "white";
+    private const string Color3Dark = "#444";
+    private const string Color4Dark = "#666";
+
+    private const string Color1Light = "#BFBFBF";
+    private const string Color2Light = "#000000";
+    private const string Color3Light = "#BBBBBB";
+    private const string Color4Light = "#999999";
+
+    private bool themeChanged = false;
 
     private Timer refreshTimer = new Timer();
 
@@ -142,9 +166,10 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender || themeChanged)
         {
-            await JSRuntime.InvokeAsync<string>("draw");
+            await JSRuntime.InvokeVoidAsync("draw", Color3, Color4);
+            themeChanged = false;
         }
     }
 
@@ -156,6 +181,26 @@
         botController.RouteInfo.SetCanvasSize(Size);
 
         RefreshPathMarkup();
+    }
+
+    private void OnThemeChanged(string themeName)
+    {
+        if (themeName == "dark")
+        {
+            Color1 = Color1Dark;
+            Color2 = Color2Dark;
+            Color3 = Color3Dark;
+            Color4 = Color4Dark;
+        }
+        else
+        {
+            Color1 = Color1Light;
+            Color2 = Color2Light;
+            Color3 = Color3Light;
+            Color4 = Color4Light;
+        }
+
+        themeChanged = true;
     }
 
 
@@ -257,7 +302,10 @@
     {
         if (botController.ClassConfig == null) return;
 
-        routeSymbol = botController.ClassConfig.PathThereAndBack ?
+        PathSettings? first = botController.ClassConfig.Paths.First(x => x.CanRun());
+        if (first == null) return;
+
+        routeSymbol = first.PathThereAndBack ?
         new MarkupString("<span style=\"font-size: 125%;\">⥹</span>") :
         new MarkupString("<span style=\"font-size: 125%;\">⟳</span>");
     }

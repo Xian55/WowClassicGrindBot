@@ -1,13 +1,18 @@
 ﻿using Core.Database;
 using Core.GOAP;
-using SharedLib.NpcFinder;
+
 using Microsoft.Extensions.Logging;
-using WowheadDB;
+
+using SharedLib;
+using SharedLib.Extensions;
+using SharedLib.NpcFinder;
+
+using System;
 using System.Collections.Generic;
 using System.Numerics;
-using SharedLib.Extensions;
-using System;
 using System.Threading;
+
+using WowheadDB;
 
 namespace Core.Goals;
 
@@ -16,8 +21,6 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
     public override float Cost => 4.6f;
 
     private const int MAX_TIME_TO_REACH_MELEE = 10000;
-    private const int MAX_TIME_TO_DETECT_LOOT = 2 * CastingHandler.GCD;
-    private const int MAX_TIME_TO_WAIT_NPC_NAME = 1000;
 
     private readonly ILogger<LootGoal> logger;
     private readonly ConfigurableInput input;
@@ -30,32 +33,29 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
     private readonly BagReader bagReader;
     private readonly ClassConfiguration classConfig;
     private readonly NpcNameTargeting npcNameTargeting;
-    private readonly CombatUtil combatUtil;
     private readonly CombatLog combatLog;
     private readonly PlayerDirection playerDirection;
     private readonly GoapAgentState state;
 
     private readonly CancellationToken token;
 
-    private readonly List<CorpseEvent> corpseLocations = new();
+    private readonly List<CorpseEvent> corpseLocations = [];
 
-    private bool gatherCorpse;
+    private bool canGather;
     private int targetId;
-    private int bagHashNewOrStackGain;
-    private int money;
 
-    public LootGoal(ILogger<LootGoal> logger, ConfigurableInput input, Wait wait,
+    public LootGoal(ILogger<LootGoal> logger,
+        ConfigurableInput input, Wait wait,
         PlayerReader playerReader, AreaDB areaDb, BagReader bagReader,
         StopMoving stopMoving, AddonBits bits,
         ClassConfiguration classConfig, NpcNameTargeting npcNameTargeting,
-        CombatUtil combatUtil, PlayerDirection playerDirection,
+        PlayerDirection playerDirection,
         GoapAgentState state, CombatLog combatLog,
         CancellationTokenSource cts)
         : base(nameof(LootGoal))
     {
         this.logger = logger;
         this.input = input;
-
         this.wait = wait;
         this.playerReader = playerReader;
         this.bits = bits;
@@ -65,102 +65,168 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
         this.combatLog = combatLog;
         this.classConfig = classConfig;
         this.npcNameTargeting = npcNameTargeting;
-        this.combatUtil = combatUtil;
         this.playerDirection = playerDirection;
         this.state = state;
 
         this.token = cts.Token;
-
+        AddPrecondition(GoapKey.pulled, false);
+        AddPrecondition(GoapKey.dangercombat, false);
         AddPrecondition(GoapKey.shouldloot, true);
         AddEffect(GoapKey.shouldloot, false);
     }
 
     public override void OnEnter()
     {
-        combatUtil.Update();
+        stopMoving.StopForward();
 
-        wait.While(LootReset);
+        float e = wait.UntilCount(Loot.RESET_UPDATE_COUNT, LootReset);
+        if (e < 0)
+        {
+            LogWarnWindowStillOpen(logger, playerReader.LootWindowCount.Value, e);
+            wait.Fixed(Loot.LOOT_PER_ITEM_TIME_MS);
+        }
 
         if (combatLog.DamageTakenCount() == 0)
         {
-            float eMs = wait.Until(Loot.LOOTFRAME_AUTOLOOT_DELAY, bits.NoTarget);
-            LogLostTarget(logger, eMs);
+            WaitForLosingTarget();
         }
 
-        bagHashNewOrStackGain = bagReader.HashNewOrStackGain;
-        money = playerReader.Money;
+        CheckInventoryFull();
 
-        if (bagReader.BagsFull())
+        if (TryLoot())
         {
-            logger.LogWarning("Inventory is full");
-        }
-
-        bool success = false;
-        if (input.KeyboardOnly)
-        {
-            success = LootKeyboard();
+            HandleSuccessfulLoot();
         }
         else
         {
-            if (state.LastCombatKillCount == 1)
-            {
-                success = LootKeyboard();
-            }
-
-            if (!success)
-            {
-                success = LootMouse();
-            }
+            HandleFailedLoot();
         }
 
+        CleanUpAfterLooting();
+
+        ClearTargetIfNeeded();
+    }
+
+    private void WaitForLosingTarget()
+    {
+        float elapsedMs = wait.Until(playerReader.DoubleNetworkLatency, bits.NoTarget);
+
+        LogLostTarget(logger, elapsedMs);
+    }
+
+    private void CheckInventoryFull()
+    {
+        if (!bagReader.BagsFull())
+            return;
+
+        logger.LogWarning("Inventory is full");
+    }
+
+    private bool TryLoot()
+    {
+        bool keyboardSuccessful = LootKeyboard();
+        if (!keyboardSuccessful)
+        {
+            LogKeyboardLootFailed(logger, bits.Target());
+        }
+        else
+        {
+            return true;
+        }
+
+        return !input.KeyboardOnly && LootMouse();
+    }
+
+    private void HandleSuccessfulLoot()
+    {
+        int maxTimeLootWindowOpenMs =
+            Math.Max(playerReader.DoubleNetworkLatency, Loot.LOOTFRAME_OPEN_TIME_MS);
+
+        float windowOpenElapsedMs = wait.Until(maxTimeLootWindowOpenMs,
+            LootWindowOpen,
+            TryPressSafeApproachOnCooldown);
+
+        int availableItems = playerReader.LootWindowCount.Value;
+        state.RecentlyLooted.Add(playerReader.TargetGuid);
+
+        int maxTimeLootWindowClosedMs =
+            Math.Max(playerReader.LootWindowCount.Value, 1) *
+            (playerReader.DoubleNetworkLatency + Loot.LOOT_PER_ITEM_TIME_MS);
+
+        float windowClosedElapsedMs = wait.Until(maxTimeLootWindowClosedMs, LootWindowClosed);
+
+        bool success = windowOpenElapsedMs >= 0 && windowClosedElapsedMs >= 0;
         if (success)
         {
-            float e = wait.Until(MAX_TIME_TO_DETECT_LOOT, LootWindowClosedOrBagOrMoneyChanged, input.PressApproachOnCooldown);
-            success = e >= 0;
-            if (success && !bagReader.BagsFull())
-            {
-                LogLootSuccess(logger, e);
-            }
-            else
-            {
-                SendGoapEvent(ScreenCaptureEvent.Default);
-                LogLootFailed(logger, e);
-            }
-
-            gatherCorpse &= success;
-
-            if (gatherCorpse)
-            {
-                state.GatherableCorpseCount++;
-
-                CorpseEvent? ce = GetClosestCorpse();
-                if (ce != null)
-                    SendGoapEvent(new SkinCorpseEvent(ce.MapLoc, ce.Radius, targetId));
-            }
+            LogLootSuccess(logger, availableItems, windowOpenElapsedMs, windowClosedElapsedMs);
         }
         else
         {
             SendGoapEvent(ScreenCaptureEvent.Default);
-            Log($"Loot Failed, target not found!");
+            LogLootFailed(logger, windowOpenElapsedMs, windowClosedElapsedMs);
         }
 
+        if (success)
+        {
+            GatherCorpseIfNeeded();
+        }
+
+        if (bits.LootFrameShown())
+        {
+            input.PressESC();
+            wait.Update();
+        }
+    }
+
+    private void GatherCorpseIfNeeded()
+    {
+        if (!canGather)
+            return;
+
+        state.GatherableCorpseCount++;
+
+        CorpseEvent? ce = GetClosestCorpse();
+        if (ce == null)
+            return;
+
+        SendGoapEvent(new SkinCorpseEvent(ce.MapLoc, ce.Radius, targetId));
+    }
+
+    private void HandleFailedLoot()
+    {
+        SendGoapEvent(ScreenCaptureEvent.Default);
+        Log("Loot Failed, target not found!");
+    }
+
+    private void CleanUpAfterLooting()
+    {
         SendGoapEvent(new RemoveClosestPoi(CorpseEvent.NAME));
         state.LootableCorpseCount = Math.Max(0, state.LootableCorpseCount - 1);
 
-        if (!gatherCorpse && bits.Target())
+        if (corpseLocations.Count > 0)
+        {
+            corpseLocations.Remove(GetClosestCorpse()!);
+        }
+    }
+
+    private void ClearTargetIfNeeded()
+    {
+        if (canGather || !bits.Target())
+        {
+            return;
+        }
+
+        if (bits.Target() && bits.Target_Dead())
         {
             input.PressClearTarget();
             wait.Update();
-
-            if (bits.Target())
-            {
-                SendGoapEvent(ScreenCaptureEvent.Default);
-                LogWarning("Unable to clear target! Check Bindpad settings!");
-            }
         }
 
-        if (corpseLocations.Count > 0)
-            corpseLocations.Remove(GetClosestCorpse()!);
+        if (bits.Target())
+        {
+            SendGoapEvent(ScreenCaptureEvent.Default);
+            LogWarning("Unable to clear target! Check Bindpad settings!");
+        }
     }
 
     public void OnGoapEvent(GoapEventArgs e)
@@ -178,83 +244,72 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
         wait.Fixed(playerReader.NetworkLatency);
         npcNameTargeting.WaitForUpdate();
 
-        ReadOnlySpan<CursorType> types = stackalloc[] { CursorType.Loot };
+        ReadOnlySpan<CursorType> types = [CursorType.Loot, CursorType.Vendor];
         if (!npcNameTargeting.FindBy(types, token))
         {
             return false;
         }
 
         Log("Nearest Corpse clicked...");
-        float elapsedMs = wait.Until(playerReader.NetworkLatency, bits.Target);
+        float elapsedMs = wait.Until(playerReader.DoubleNetworkLatency, bits.Target);
         LogFoundNpcNameCount(logger, npcNameTargeting.NpcCount, elapsedMs);
 
         npcNameTargeting.ChangeNpcType(NpcNames.None);
 
-        CheckForGather();
+        CheckForCanGather();
 
-        if (!playerReader.MinRangeZero())
-        {
-            elapsedMs = wait.Until(MAX_TIME_TO_REACH_MELEE,
-                bits.NotMoving, input.PressApproachOnCooldown);
-
-            LogReachedCorpse(logger, elapsedMs);
-
-            return playerReader.MinRangeZero();
-        }
-
-        return true;
+        return (bits.Target() && playerReader.MinRangeZero()) || MoveToTargetAndReached();
     }
 
     private CorpseEvent? GetClosestCorpse()
     {
-        if (corpseLocations.Count == 0)
-            return null;
+        CorpseEvent? closest = null;
 
-        int index = -1;
         float minDistance = float.MaxValue;
-        Vector3 playerMap = playerReader.MapPos;
-        for (int i = 0; i < corpseLocations.Count; i++)
+        Vector3 playerWorldLoc = playerReader.WorldPos;
+
+        foreach (CorpseEvent corpse in corpseLocations)
         {
-            float mapDist = playerMap.MapDistanceXYTo(corpseLocations[i].MapLoc);
-            if (mapDist < minDistance)
+            Vector3 worldPos = WorldMapAreaDB.ToWorld_FlipXY(corpse.MapLoc, playerReader.WorldMapArea);
+
+            float distance = playerWorldLoc.WorldDistanceXYTo(worldPos);
+            if (distance < minDistance)
             {
-                minDistance = mapDist;
-                index = i;
+                minDistance = distance;
+                closest = corpse;
             }
         }
 
-        return corpseLocations[index];
+        return closest;
     }
 
-    private void CheckForGather()
+    private void CheckForCanGather()
     {
         if (!classConfig.GatherCorpse ||
             areaDb.CurrentArea == null)
             return;
 
-        gatherCorpse = false;
         targetId = playerReader.TargetId;
         Area area = areaDb.CurrentArea;
 
-        if ((classConfig.Skin && Array.BinarySearch(area.skinnable, targetId) >= 0) ||
-           (classConfig.Herb && Array.BinarySearch(area.gatherable, targetId) >= 0) ||
-           (classConfig.Mine && Array.BinarySearch(area.minable, targetId) >= 0) ||
-           (classConfig.Salvage && Array.BinarySearch(area.salvegable, targetId) >= 0))
-        {
-            gatherCorpse = true;
-        }
+        canGather = GatherAvailable(classConfig, areaDb, area, targetId);
 
-        LogShouldGather(logger, targetId, gatherCorpse);
+        LogShouldGather(logger, targetId, canGather);
     }
 
-    private bool LootWindowClosedOrBagOrMoneyChanged()
+    private static bool GatherAvailable(ClassConfiguration config, AreaDB areaDB, Area area, int npcId) =>
+        (config.Skin && areaDB.TryGetCreature(npcId, out Creature c) && c.SkinLoot != 0) ||
+        (config.Herb && area.gatherable.AsSpan().BinarySearch(npcId) >= 0) ||
+        (config.Mine && area.minable.AsSpan().BinarySearch(npcId) >= 0) ||
+        (config.Salvage && area.salvegable.AsSpan().BinarySearch(npcId) >= 0);
+
+    private bool LootWindowOpen()
     {
-        // hack: warlock soul shard mechanic marks loot success prematurely
-        return //bagHashNewOrStackGain != bagReader.HashNewOrStackGain ||
-            money != playerReader.Money ||
-            (LootStatus)playerReader.LootEvent.Value is
-            LootStatus.CLOSED;
+        return playerReader.LootWindowCount.Value > 0 ||
+            (LootStatus)playerReader.LootEvent.Value is LootStatus.READY;
     }
+
+    private bool LootWindowClosed() => !bits.LootFrameShown();
 
     private bool LootMouse()
     {
@@ -270,11 +325,11 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
             Vector3 playerMap = playerReader.MapPos;
             CorpseEvent e = GetClosestCorpse()!;
             float heading = DirectionCalculator.CalculateMapHeading(playerMap, e.MapLoc);
-            playerDirection.SetDirection(heading, e.MapLoc);
+            playerDirection.SetDirection(heading);
+            wait.Fixed(playerReader.DoubleNetworkLatency);
+            wait.Update();
 
             logger.LogInformation("Look at possible closest corpse and try once again...");
-
-            wait.Fixed(playerReader.NetworkLatency);
 
             if (FoundByCursor())
             {
@@ -287,46 +342,136 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
 
     private bool LootKeyboard()
     {
-        if (!bits.Target())
+        CorpseEvent? e = GetClosestCorpse();
+        if (e != null)
         {
-            input.PressFastLastTarget();
+            float targetDirection = DirectionCalculator.CalculateMapHeading(playerReader.MapPos, e.MapLoc);
+            playerDirection.SetDirection(targetDirection);
+
+            wait.Fixed(playerReader.DoubleNetworkLatency);
+            wait.Update();
+        }
+
+        if (bits.SoftInteract_Enabled() &&
+            (!bits.SoftInteract() || EligibleCorpseSoftTargetExists()))
+        {
+            input.PressInteract();
             wait.Update();
 
-            if (!bits.Target())
-                return false;
+            if (state.RecentlyLooted.Contains(playerReader.TargetGuid))
+            {
+                logger.LogError("Keyboard target already looted 1");
+                input.PressClearTarget();
+                wait.Update();
+            }
+        }
+
+        if (!bits.Target())
+        {
+            input.PressLastTarget();
+            wait.Update();
+
+            if (state.RecentlyLooted.Contains(playerReader.TargetGuid))
+            {
+                logger.LogError("Keyboard target already looted 2");
+                input.PressClearTarget();
+                wait.Update();
+            }
+        }
+
+        if (bits.Target())
+        {
+            int targetGuid = playerReader.TargetGuid;
+            Log($"Keyboard last target {targetGuid}!");
+            if (state.RecentlyLooted.Contains(targetGuid))
+            {
+                input.PressClearTarget();
+                wait.Update();
+
+                LogWarning($"Keyboard target already looted! {targetGuid}");
+            }
+            else
+            {
+                Log($"Keyboard last target found!");
+            }
+        }
+
+        if (!bits.Target())
+        {
+            LogWarning($"Keyboard No target found!");
+            return false;
         }
 
         if (!bits.Target_Dead())
         {
-            LogWarning("Don't attack alive target!");
+            LogWarning("Keyboard Don't attack alive target!");
+
             input.PressClearTarget();
             wait.Update();
 
             return false;
         }
 
-        CheckForGather();
+        CheckForCanGather();
 
-        Log("Target Last Target Found!");
-        input.PressFastInteract();
-        wait.Update();
+        return (bits.Target() && playerReader.MinRangeZero()) || MoveToTargetAndReached();
+    }
 
-        if (!playerReader.MinRangeZero())
+    private bool EligibleCorpseSoftTargetExists() =>
+        bits.SoftInteract() &&
+        bits.SoftInteract_Hostile() &&
+        bits.SoftInteract_Dead() &&
+        !bits.SoftInteract_Tagged() &&
+        playerReader.SoftInteract_Type == GuidType.Creature;
+
+    private bool MoveToTargetAndReached()
+    {
+        if (!bits.Moving())
         {
-            float elapsedMs = wait.Until(MAX_TIME_TO_REACH_MELEE,
-                bits.NotMoving, input.PressApproachOnCooldown);
+            logger.LogInformation("Moving to corpse...");
+            wait.While(input.Approach.OnCooldown);
 
-            LogReachedCorpse(logger, elapsedMs);
-
-            return playerReader.MinRangeZero();
+            TryPressSafeApproachOnCooldownIfNeeded();
+            float movementStartedMs = wait.Until(input.Approach.PressDuration, bits.Moving);
+            logger.LogWarning("Movement Detected ? {elapsedMs}ms", movementStartedMs);
         }
 
-        return true;
+        float elapsedMs = wait.Until(MAX_TIME_TO_REACH_MELEE,
+            NotMovingOrLootAvailable, TryPressSafeApproachOnCooldownIfNeeded);
+
+        LogReachedCorpse(logger, bits.Target(), bits.Moving(), playerReader.MinRangeZero(), elapsedMs);
+
+        return bits.Target() && playerReader.MinRangeZero();
     }
+
+    private bool NotMovingOrLootAvailable() => !bits.Target() || bits.NotMoving() || playerReader.LootWindowCount.Value > 0;
+
+    private void TryPressSafeApproachOnCooldownIfNeeded()
+    {
+        if (bits.Target() && (!bits.SoftInteract() || EligibleCorpseSoftTargetExists()))
+        {
+            if (!bits.Moving() && !playerReader.IsInMeleeRange())
+            {
+                if (input.PressedApproachOnCooldown())
+                {
+                    wait.Update();
+                }
+            }
+        }
+    }
+
+    private void TryPressSafeApproachOnCooldown()
+    {
+        if (bits.Target() && input.PressedApproachOnCooldown())
+        {
+            wait.Update();
+        }
+    }
+
 
     private bool LootReset()
     {
-        return (LootStatus)playerReader.LootEvent.Value != LootStatus.CORPSE;
+        return (LootStatus)playerReader.LootEvent.Value == LootStatus.CORPSE;
     }
 
     #region Logging
@@ -344,14 +489,14 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
     [LoggerMessage(
         EventId = 0130,
         Level = LogLevel.Information,
-        Message = "Loot Successful {elapsedMs}ms")]
-    static partial void LogLootSuccess(ILogger logger, float elapsedMs);
+        Message = "Loot Successful items: {count} - open: {openElapsedMs}ms - close: {closedElapsedMs}ms")]
+    static partial void LogLootSuccess(ILogger logger, int count, float openElapsedMs, float closedElapsedMs);
 
     [LoggerMessage(
         EventId = 0131,
         Level = LogLevel.Information,
-        Message = "Loot Failed {elapsedMs}ms")]
-    static partial void LogLootFailed(ILogger logger, float elapsedMs);
+        Message = "Loot Failed open: {openElapsedMs}ms - close: {closedElapsedMs}ms")]
+    static partial void LogLootFailed(ILogger logger, float openElapsedMs, float closedElapsedMs);
 
     [LoggerMessage(
         EventId = 0132,
@@ -362,20 +507,32 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
     [LoggerMessage(
         EventId = 0133,
         Level = LogLevel.Information,
-        Message = "Reached corpse ? {elapsedMs}ms")]
-    static partial void LogReachedCorpse(ILogger logger, float elapsedMs);
+        Message = "Has target ? {hasTarget} | moving ? {moving} | meleeRange ? {meleeRange} | Reached corpse ? {elapsedMs}ms")]
+    static partial void LogReachedCorpse(ILogger logger, bool hasTarget, bool moving, bool meleeRange, float elapsedMs);
 
     [LoggerMessage(
         EventId = 0134,
         Level = LogLevel.Information,
-        Message = "Should gather {targetId} ? {gatherCorpse}")]
-    static partial void LogShouldGather(ILogger logger, int targetId, bool gatherCorpse);
+        Message = "Should gather {targetId} ? {shouldGather}")]
+    static partial void LogShouldGather(ILogger logger, int targetId, bool shouldGather);
 
     [LoggerMessage(
         EventId = 0135,
         Level = LogLevel.Information,
         Message = "Lost target {elapsedMs}ms")]
     static partial void LogLostTarget(ILogger logger, float elapsedMs);
+
+    [LoggerMessage(
+        EventId = 0136,
+        Level = LogLevel.Error,
+        Message = "Keyboard loot failed! Has target ? {hasTarget}")]
+    static partial void LogKeyboardLootFailed(ILogger logger, bool hasTarget);
+
+    [LoggerMessage(
+        EventId = 0147,
+        Level = LogLevel.Warning,
+        Message = "OnEnter window still open! Available Loot: {count} {elapsedMs}ms")]
+    static partial void LogWarnWindowStillOpen(ILogger logger, int count, float elapsedMs);
 
     #endregion
 }

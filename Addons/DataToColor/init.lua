@@ -32,5 +32,9 @@ do
 	end
 
 	E:AddLib('AceAddon', AceAddon, AceAddonMinor)
-	E:AddLib('RangeCheck', 'LibRangeCheck-2.0')
+
+	local rangeCheck2 = _G.LibStub('LibRangeCheck-2.0', true)
+	local rangeCheck3 = _G.LibStub('LibRangeCheck-3.0', true)
+
+	E:AddLib('RangeCheck', rangeCheck2 or rangeCheck3, 0)
 end

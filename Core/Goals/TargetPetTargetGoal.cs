@@ -37,6 +37,11 @@ public sealed class TargetPetTargetGoal : GoapGoal
         AddEffect(GoapKey.hastarget, true);
     }
 
+    public override bool CanRun()
+    {
+        return playerReader.PetAlive() && bits.Pet_Defensive();
+    }
+
     public override void Update()
     {
         input.PressTargetPet();
