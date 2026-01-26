@@ -2339,9 +2339,9 @@ The available modes are:
 
 ## Other devices
 
-The user interface is shown in a browser on port **5000** [http://localhost:5000](http://localhost:5000). This allows you to view it from another device on your lan.
+The user interface is shown in a browser on port **5000** [http://wowbot.local:5000](http://wowbot.local:5000). This allows you to view it from another device on your lan.
 
-To access you PC port **5000** from another device, you will need to open up port **5000** in your firewall.
+If you do not accept the "Allow" prompt when you first start the BlazorServer app you will need to open up port **5000** in your firewall.
 
 Control Panel\System and Security\Windows Defender Firewall - Advanced Settings
 
