@@ -3,12 +3,15 @@
 @using Core.GOAP
 @using Core.Goals
 @using System.Text.RegularExpressions
+@using SharedLib
 
 @inject WApi api
 
 @inject IBotController botController
 
 @inject ActionBarCooldownReader ActionBarCooldownReader
+
+@inject KeyBindingsReader keyBindingsReader
 
 <tr class="@ActionClass(IsSelected, 0)">
     <td>
@@ -166,11 +169,37 @@
         return new MarkupString(goal.DisplayName);
     }
 
+    private string GetKeyDisplay(KeyAction keyAction)
+    {
+        // If Key is explicitly set, use it
+        if (!string.IsNullOrEmpty(keyAction.Key))
+            return keyAction.Key;
+
+        // If Slot is set, resolve the key binding
+        if (keyAction.Slot > 0)
+        {
+            var bindingId = KeyReader.SlotToBindingID(keyAction.Slot);
+            if (bindingId != BindingID.None &&
+                keyBindingsReader.TryGetBinding(bindingId, out var key, out var modifier))
+            {
+                var modPrefix = modifier != ModifierKey.None ? modifier.ToPrefix() : "";
+                return $"{modPrefix}{key}";
+            }
+            // Fallback to slot number if binding not found
+            return $"Slot {keyAction.Slot}";
+        }
+
+        return "";
+    }
+
     public MarkupString KeyActionSpellName(KeyAction keyAction)
     {
-        if (keyAction.SpellId == 0)
-            return new MarkupString($"{keyAction.Name} [{keyAction.Key}]");
+        string keyDisplay = GetKeyDisplay(keyAction);
+        string keyPart = !string.IsNullOrEmpty(keyDisplay) ? $" [{keyDisplay}]" : "";
 
-        return new($"<a href=\"{api.SpellId}{keyAction.SpellId}\" target=\"_blank\" data-wowhead=\"spell={keyAction.SpellId}\" style=\"text-decoration:none;color:inherit\">{keyAction.Name} [{keyAction.Key}]</a>");
+        if (keyAction.SpellId == 0)
+            return new MarkupString($"{keyAction.Name}{keyPart}");
+
+        return new($"<a href=\"{api.SpellId}{keyAction.SpellId}\" target=\"_blank\" data-wowhead=\"spell={keyAction.SpellId}\" style=\"text-decoration:none;color:inherit\">{keyAction.Name}{keyPart}</a>");
     }
 }
