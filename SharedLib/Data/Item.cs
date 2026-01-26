@@ -6,4 +6,5 @@ public readonly record struct Item
     public string Name { get; init; }
     public int Quality { get; init; }
     public int SellPrice { get; init; }
+    public int TextureId { get; init; }
 }

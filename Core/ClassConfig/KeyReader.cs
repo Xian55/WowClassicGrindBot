@@ -31,6 +31,12 @@ public static class KeyReader
     public static SpellBookReader? SpellBookReader { get; set; }
 
     /// <summary>
+    /// Static reference to ItemDB for item alias (Food/Drink) resolution.
+    /// Set during initialization.
+    /// </summary>
+    public static ItemDB? ItemDB { get; set; }
+
+    /// <summary>
     /// Default WoW keybindings mapping BindingID to ConsoleKey.
     /// These represent the expected in-game bindings for non-actionbar keys.
     /// </summary>
@@ -209,9 +215,9 @@ public static class KeyReader
         if (char.IsLower(key.Name[0]))
             return false;
 
-        // Skip item aliases (Food, Drink, etc.)
+        // Try resolving item aliases (Food, Drink, etc.) via texture lookup
         if (IsItemAlias(key.Name))
-            return false;
+            return ResolveFromItemAlias(key);
 
         // Guard rail: Skip if spell is not known by the player
         // This prevents trying to resolve spells the player hasn't learned yet
@@ -254,6 +260,31 @@ public static class KeyReader
                name.Equals("Bandage", StringComparison.OrdinalIgnoreCase) ||
                name.Equals("Hearthstone", StringComparison.OrdinalIgnoreCase) ||
                name.Equals("Mount", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Resolves Slot and ConsoleKey by finding an item alias (Food/Drink) on the action bar via texture matching.
+    /// Used when only the item alias Name is specified in the config without Key or Slot.
+    /// </summary>
+    private static bool ResolveFromItemAlias(KeyAction key)
+    {
+        if (ItemDB == null || TextureReader == null || !TextureReader.IsInitialized)
+            return false;
+
+        IEnumerable<int> textures = key.Name switch
+        {
+            var n when n.Equals("Drink", StringComparison.OrdinalIgnoreCase) => ItemDB.GetDrinkTextures(),
+            var n when n.Equals("Water", StringComparison.OrdinalIgnoreCase) => ItemDB.GetDrinkTextures(),
+            var n when n.Equals("Food", StringComparison.OrdinalIgnoreCase) => ItemDB.GetFoodTextures(),
+            _ => []
+        };
+
+        var (slot, _) = TextureReader.FindSlotByTextures(textures);
+        if (slot <= 0)
+            return false;
+
+        key.Slot = slot;
+        return ResolveFromSlot(key);
     }
 
     /// <summary>
