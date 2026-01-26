@@ -5,13 +5,14 @@
 @inject SpellBookReader spellBookReader
 @inject SpellIconDB spellIconDB
 @inject WApi api
+@inject IAddonReader addonReader
+
+@implements IDisposable
 
 <div class="card mt-1">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Spellbook (@spellBookReader.Count spells)</span>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="Refresh">
-            Refresh
-        </button>
+        <InitButton />
     </div>
     <div class="card-body p-0">
         @if (spellBookReader.Count == 0)
@@ -70,11 +71,42 @@
 @code {
     private record SpellDisplayEntry(Spell Spell, string? IconUrl);
 
+    private List<SpellDisplayEntry> cachedSpells = [];
+    private int lastHash;
+
+    protected override void OnInitialized()
+    {
+        addonReader.AddonDataChanged += OnAddonDataChanged;
+    }
+
+    public void Dispose()
+    {
+        addonReader.AddonDataChanged -= OnAddonDataChanged;
+    }
+
+    private void OnAddonDataChanged()
+    {
+        // Only update UI if spellbook hash changed
+        if (lastHash != spellBookReader.Hash)
+        {
+            base.InvokeAsync(StateHasChanged);
+        }
+    }
+
     private List<SpellDisplayEntry> GetSortedSpells()
     {
-        var entries = new List<SpellDisplayEntry>();
+        // Return cached list if hash hasn't changed
+        if (lastHash == spellBookReader.Hash && cachedSpells.Count > 0)
+        {
+            return cachedSpells;
+        }
 
-        foreach (int spellId in spellBookReader.SpellIds)
+        lastHash = spellBookReader.Hash;
+
+        // Iterate over stable snapshot array
+        int[] spellIds = spellBookReader.SpellIds;
+        var entries = new List<SpellDisplayEntry>(spellIds.Length);
+        foreach (int spellId in spellIds)
         {
             if (spellBookReader.TryGetValue(spellId, out Spell spell))
             {
@@ -84,10 +116,12 @@
         }
 
         // Sort by name, then by level (for ranked spells)
-        return entries
+        cachedSpells = entries
             .OrderBy(e => GetBaseSpellName(e.Spell.Name))
             .ThenBy(e => e.Spell.Level)
             .ToList();
+
+        return cachedSpells;
     }
 
     private static string GetBaseSpellName(string name)
@@ -98,10 +132,5 @@
             return name.Substring(0, parenIndex).Trim();
         }
         return name;
-    }
-
-    private void Refresh()
-    {
-        StateHasChanged();
     }
 }

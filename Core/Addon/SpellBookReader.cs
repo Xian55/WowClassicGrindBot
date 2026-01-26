@@ -13,10 +13,12 @@ public sealed class SpellBookReader : IReader
 
     private readonly HashSet<int> spells = [];
     private readonly HashSet<string> spellNames = new(StringComparer.OrdinalIgnoreCase);
+    private int[] spellIdsSnapshot = [];
 
     public SpellDB SpellDB { get; }
     public int Count => spells.Count;
-    public IReadOnlyCollection<int> SpellIds => spells;
+    public int Hash { get; private set; }
+    public int[] SpellIds => spellIdsSnapshot;
 
     public SpellBookReader(SpellDB spellDB)
     {
@@ -31,10 +33,14 @@ public sealed class SpellBookReader : IReader
         int spellId = reader.GetInt(cSpellId);
         if (spellId == 0) return;
 
-        spells.Add(spellId);
-        if (TryGetValue(spellId, out Spell spell))
+        if (spells.Add(spellId))
         {
-            spellNames.Add(spell.Name);
+            Hash++;
+            spellIdsSnapshot = [.. spells];
+            if (TryGetValue(spellId, out Spell spell))
+            {
+                spellNames.Add(spell.Name);
+            }
         }
     }
 
@@ -42,6 +48,8 @@ public sealed class SpellBookReader : IReader
     {
         spells.Clear();
         spellNames.Clear();
+        spellIdsSnapshot = [];
+        Hash++;
     }
 
     public bool Has(int id)
