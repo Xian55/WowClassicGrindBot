@@ -206,7 +206,7 @@ public sealed partial class KeyAction
         }
         else if (Slot == 0)
         {
-            LogInputNonActionbar(logger, Name, Key, ConsoleKey);
+            LogInputNonActionbar(logger, Name, Key, Modifier.ToPrefix(), ConsoleKey);
         }
     }
 
@@ -368,8 +368,8 @@ public sealed partial class KeyAction
     [LoggerMessage(
         EventId = 0004,
         Level = LogLevel.Information,
-        Message = "[{name,-17}] Non Actionbar {key} -> {consoleKey}")]
-    static partial void LogInputNonActionbar(ILogger logger, string name, string key, ConsoleKey consoleKey);
+        Message = "[{name,-17}] Non Actionbar {key} -> {modifier}{consoleKey}")]
+    static partial void LogInputNonActionbar(ILogger logger, string name, string key, string modifier, ConsoleKey consoleKey);
 
     [LoggerMessage(
         EventId = 0005,
