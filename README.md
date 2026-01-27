@@ -2341,6 +2341,12 @@ The available modes are:
 
 The user interface is shown in a browser on port **5000** [http://wowbot.local:5000](http://wowbot.local:5000). This allows you to view it from another device on your lan.
 
+If you are running multiple bots on the same network, you can use a custom name per bot, in powershell run:
+
+```$env:MDNS_HOSTNAME = 'yourcustomname'```
+
+Now the UI will be available at [http://yourcustomname.local:5000](http://yourcustomname.local:5000).
+
 If you do not accept the "Allow" prompt when you first start the BlazorServer app you will need to open up port **5000** in your firewall.
 
 Control Panel\System and Security\Windows Defender Firewall - Advanced Settings
