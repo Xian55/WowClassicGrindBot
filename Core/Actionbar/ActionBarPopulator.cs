@@ -22,17 +22,20 @@ public sealed class ActionBarPopulator
 
     private readonly ILogger<ActionBarPopulator> logger;
     private readonly ClassConfiguration config;
+    private readonly AddonConfig addonConfig;
     private readonly BagReader bagReader;
     private readonly EquipmentReader equipmentReader;
     private readonly ExecGameCommand execGameCommand;
 
     public ActionBarPopulator(ILogger<ActionBarPopulator> logger,
-        ClassConfiguration config, BagReader bagReader,
-        EquipmentReader equipmentReader, ExecGameCommand execGameCommand)
+        ClassConfiguration config, AddonConfigurator addonConfigurator,
+        BagReader bagReader, EquipmentReader equipmentReader,
+        ExecGameCommand execGameCommand)
     {
         this.logger = logger;
 
         this.config = config;
+        this.addonConfig = addonConfigurator.Config;
         this.bagReader = bagReader;
         this.equipmentReader = equipmentReader;
         this.execGameCommand = execGameCommand;
@@ -108,35 +111,33 @@ public sealed class ActionBarPopulator
         items.Add(new(name, keyAction, isItem));
     }
 
-    private static bool ScriptBuilder(ActionBarSlotItem abs, out string content)
+    private bool ScriptBuilder(ActionBarSlotItem abs, out string content)
     {
-        string nameOrId = $"\"{abs.Name}\"";
-        if (int.TryParse(abs.Name, out int id))
+        int actionSlot = abs.KeyAction.SlotIndex + 1;
+
+        // For items, use PickupItem with item ID
+        if (abs.IsItem)
         {
-            nameOrId = id.ToString();
-            if (nameOrId == "0")
+            if (int.TryParse(abs.Name, out int itemId) && itemId > 0)
             {
-                content = "";
-                return false;
+                content = $"/run PickupItem({itemId})PlaceAction({actionSlot})ClearCursor()--";
+                return true;
             }
+            content = "";
+            return false;
         }
 
-        string func = GetFunction(abs);
-        int slot = abs.KeyAction.SlotIndex + 1;
-        content = $"/run {func}({nameOrId})PlaceAction({slot})ClearCursor()--";
+        // For macros (lowercase names), use PickupMacro
+        if (char.IsLower(abs.Name[0]))
+        {
+            content = $"/run PickupMacro(\"{abs.Name}\")PlaceAction({actionSlot})ClearCursor()--";
+            return true;
+        }
 
+        // For spells, use addon's PS() function which searches spellbook by name prefix
+        // This handles ranked spells like "Immolate(Rank 9)" by matching "Immolate"
+        content = $"/run {addonConfig.Title}:PS(\"{abs.Name}\",{actionSlot})";
         return true;
-    }
-
-    private static string GetFunction(ActionBarSlotItem a)
-    {
-        if (a.IsItem)
-            return "PickupItem";
-
-        if (char.IsLower(a.Name[0]))
-            return "PickupMacro";
-
-        return "PickupSpellBookItem";
     }
 
     /// <summary>

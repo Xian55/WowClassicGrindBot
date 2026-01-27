@@ -956,6 +956,7 @@ else
             actionBarPopulator = new(
                 logFactory.CreateLogger<ActionBarPopulator>(),
                 botController.ClassConfig,
+                addonConfigurator,
                 bagReader,
                 equipmentReader,
                 exec);

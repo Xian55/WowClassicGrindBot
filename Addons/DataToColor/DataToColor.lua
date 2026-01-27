@@ -388,6 +388,7 @@ function DataToColor:ClearAllQueues()
     DataToColor.ChatQueue:clear()
     DataToColor.bindingQueue:clear()
     DataToColor.actionBarTextureQueue:clear()
+    DataToColor.actionBarMacroQueue:clear()
 end
 
 function DataToColor:FushState()
@@ -423,6 +424,7 @@ function DataToColor:InitUpdateQueues()
     DataToColor:InitTalentQueue()
     DataToColor:InitBindingQueue()
     DataToColor:InitActionBarTextureQueue()
+    DataToColor:InitActionBarMacroQueue()
 end
 
 function DataToColor:InitEquipmentQueue()
@@ -873,6 +875,9 @@ function DataToColor:CreateFrames()
             -- Action bar texture queue (slot 107)
             Pixel(int, DataToColor.actionBarTextureQueue:shift(globalTick) or 0, 107)
 
+            -- Action bar macro queue (slot 108)
+            Pixel(int, DataToColor.actionBarMacroQueue:shift(globalTick) or 0, 108)
+
             local gossipNum = DataToColor.gossipQueue:shift(globalTick)
             if gossipNum then
                 --DataToColor:Print("gossipQueue: ", gossipNum)
@@ -1229,4 +1234,23 @@ function DataToColor:sell(items)
     else
         DataToColor:Print("No grey items were sold.")
     end
+end
+
+-- Place Spell on action bar by searching spellbook for name prefix
+-- Usage: /run DataToColor:PS("Immolate",1)
+-- Handles ranked spells like "Immolate(Rank 9)" by matching prefix
+function DataToColor:PS(name, slot)
+    local bookType = "spell"
+    for i = 1, 500 do
+        local n = GetSpellBookItemName(i, bookType)
+        if not n then break end
+        -- Match exact name or name with rank suffix (e.g., "Immolate" matches "Immolate(Rank 9)")
+        if n == name or n:find("^" .. name .. "[%s%(]") then
+            PickupSpellBookItem(i, bookType)
+            PlaceAction(slot)
+            ClearCursor()
+            return true
+        end
+    end
+    return false
 end

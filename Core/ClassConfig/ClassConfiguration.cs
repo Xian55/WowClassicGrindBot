@@ -91,6 +91,10 @@ public sealed partial class ClassConfiguration
     public ConsoleKey TurnLeftKey { get; init; } = ConsoleKey.LeftArrow;
     public ConsoleKey TurnRightKey { get; init; } = ConsoleKey.RightArrow;
 
+    // Cached macro KeyActions for efficient re-resolution on action bar changes
+    private readonly List<KeyAction> macroActions = [];
+    public IReadOnlyList<KeyAction> MacroActions => macroActions;
+
     public void Initialise(IServiceProvider sp, Dictionary<int, string> overridePathFile)
     {
         Approach.Key = Interact.Key;
@@ -199,6 +203,19 @@ public sealed partial class ClassConfiguration
 
             keyActions.Init(logger, Log,
                 playerReader, globalTime, factory);
+        }
+
+        // Cache macro KeyActions (lowercase names) for efficient action bar change handling
+        macroActions.Clear();
+        foreach ((string _, KeyActions keyActions) in groups)
+        {
+            foreach (KeyAction action in keyActions.Sequence)
+            {
+                if (!string.IsNullOrEmpty(action.Name) && char.IsLower(action.Name[0]))
+                {
+                    macroActions.Add(action);
+                }
+            }
         }
 
         GatherFindKeyConfig = new KeyAction[GatherFindKeys.Length];

@@ -27,6 +27,7 @@ EventHandlers.lua
 SetupDefaultBindings.lua
 
 ActionBarTextures.lua
+ActionBarMacros.lua
 
 DataToColor.lua
 

@@ -52,6 +52,7 @@ public static class DependencyInjection
         s.ForwardSingleton<ChatReader, IReader>();
         s.ForwardSingleton<KeyBindingsReader, IReader>();
         s.ForwardSingleton<ActionBarTextureReader, IReader>();
+        s.ForwardSingleton<ActionBarMacroReader, IReader>();
 
         s.ForwardSingleton<ActionBarCostReader, IReader>();
         s.ForwardSingleton<ActionBarCooldownReader, IReader>();
@@ -147,6 +148,7 @@ public static class DependencyInjection
         s.ForwardSingleton<AuraTimeReader<IFocusBuffTimeReader>>(sp);
 
         s.ForwardSingleton<ActionBarTextureReader>(sp);
+        s.ForwardSingleton<ActionBarMacroReader>(sp);
         s.ForwardSingleton<ActionBarSlotValidator>(sp);
 
         return s;

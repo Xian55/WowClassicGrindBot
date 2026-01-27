@@ -14,8 +14,11 @@ local GetActionTexture = GetActionTexture
 -- Stance Bar 4 (Moonkin): slots 109-120
 
 -- Map actual slot to index (1-84 for compact encoding)
+-- Exposed on DataToColor for reuse by ActionBarMacros.lua
 local SlotToIndex = {}
 local IndexToSlot = {}
+DataToColor.SlotToIndex = SlotToIndex
+DataToColor.IndexToSlot = IndexToSlot
 
 -- Main bar: slots 1-12 -> indices 1-12
 for i = 1, 12 do
