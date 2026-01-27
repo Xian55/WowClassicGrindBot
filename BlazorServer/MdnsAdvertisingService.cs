@@ -30,7 +30,7 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
 
     // Cached IP addresses - refreshed when network interfaces change
     private IPAddress[] _cachedAddresses = [];
-    private readonly object _addressLock = new();
+    private readonly Lock _addressLock = new();
 
     public MdnsAdvertisingService(ILogger<MdnsAdvertisingService> logger)
     {
@@ -77,7 +77,7 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
             }
         }
 
-        lock (_addressLock)
+        using (_addressLock.EnterScope())
         {
             _cachedAddresses = addresses.ToArray();
         }
@@ -85,7 +85,7 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
 
     private IPAddress[] GetCachedAddresses()
     {
-        lock (_addressLock)
+        using (_addressLock.EnterScope())
         {
             return _cachedAddresses;
         }
