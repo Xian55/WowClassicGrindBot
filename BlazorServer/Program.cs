@@ -143,6 +143,12 @@ public static class Program
             o.ShutdownTimeout = TimeSpan.FromSeconds(1);
         });
 
+        // Register mDNS advertising service for http://wowbot.local access
+        if(Environment.GetEnvironmentVariable("USE_MDNS") != null)
+        {
+            services.AddHostedService<MdnsAdvertisingService>();
+        }
+
         services.AddControllers().AddJsonOptions(options =>
         {
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
