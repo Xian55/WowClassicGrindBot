@@ -528,6 +528,14 @@ public sealed partial class ActionBarSlotValidator
         if (name.EndsWith(" Aura", StringComparison.OrdinalIgnoreCase))
             return true;
 
+        // Equipment-based actions (texture changes with equipped item)
+        if (name.Equals("Shoot", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (name.Equals("Trinket 1", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (name.Equals("Trinket 2", StringComparison.OrdinalIgnoreCase))
+            return true;
+
         return false;
     }
 

@@ -62,4 +62,18 @@ public sealed class ItemDB
                 yield return item.TextureId;
         }
     }
+
+    /// <summary>
+    /// Gets the texture ID for an item by its item ID.
+    /// </summary>
+    public bool TryGetTexture(int itemId, out int textureId)
+    {
+        if (Items.TryGetValue(itemId, out Item item) && item.TextureId > 0)
+        {
+            textureId = item.TextureId;
+            return true;
+        }
+        textureId = 0;
+        return false;
+    }
 }

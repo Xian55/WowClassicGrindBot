@@ -19,6 +19,12 @@ public static class KeyReader
     public static ActionBarTextureReader? TextureReader { get; set; }
 
     /// <summary>
+    /// Static reference to ActionBarMacroReader for macro slot detection by name hash.
+    /// Set during initialization.
+    /// </summary>
+    public static ActionBarMacroReader? MacroReader { get; set; }
+
+    /// <summary>
     /// Static reference to SpellIconDB for spell name to texture lookup.
     /// Set during initialization.
     /// </summary>
@@ -35,6 +41,12 @@ public static class KeyReader
     /// Set during initialization.
     /// </summary>
     public static ItemDB? ItemDB { get; set; }
+
+    /// <summary>
+    /// Static reference to EquipmentReader for equipment-based item alias resolution (Trinket 1/2, Shoot).
+    /// Set during initialization.
+    /// </summary>
+    public static EquipmentReader? EquipmentReader { get; set; }
 
     /// <summary>
     /// Default WoW keybindings mapping BindingID to ConsoleKey.
@@ -188,7 +200,20 @@ public static class KeyReader
             }
         }
 
-        // Priority 4: Resolve from spell Name via action bar textures
+        // Priority 4: Resolve from macro Name via action bar macro hashes
+        // Detects which slot the macro is in by matching name hash
+        // Macros have lowercase names (e.g., "cancelform")
+        // Note: Unlike spells, macros are detected even with BaseAction=true
+        // because macros cannot be detected via texture matching
+        if (!string.IsNullOrEmpty(key.Name) && char.IsLower(key.Name[0]))
+        {
+            if (ResolveFromMacroName(key))
+            {
+                return true;
+            }
+        }
+
+        // Priority 5: Resolve from spell Name via action bar textures
         // Detects which slot the spell is in by matching texture IDs
         if (!string.IsNullOrEmpty(key.Name) && !key.BaseAction)
         {
@@ -198,8 +223,32 @@ public static class KeyReader
             }
         }
 
-        // Neither BindingID, Key, Slot, nor spell Name could be resolved
+        // Neither BindingID, Key, Slot, macro Name, nor spell Name could be resolved
         return false;
+    }
+
+    /// <summary>
+    /// Resolves Slot and ConsoleKey by finding the macro on the action bar via name hash matching.
+    /// Used when the macro Name is specified (lowercase names indicate macros).
+    /// </summary>
+    private static bool ResolveFromMacroName(KeyAction key)
+    {
+        if (MacroReader == null || !MacroReader.IsInitialized)
+            return false;
+
+        // Determine preferred slot range based on Form (if any)
+        (int preferredMin, int preferredMax) = GetPreferredSlotRange(key);
+
+        // Find the slot on the action bar by macro name hash
+        int slot = MacroReader.FindSlotByMacroName(key.Name, preferredMin, preferredMax);
+        if (slot == 0)
+            return false;
+
+        // Set the slot
+        key.Slot = slot;
+
+        // Now resolve the key from the slot
+        return ResolveFromSlot(key);
     }
 
     /// <summary>
@@ -259,7 +308,10 @@ public static class KeyReader
                name.Equals("Water", StringComparison.OrdinalIgnoreCase) ||
                name.Equals("Bandage", StringComparison.OrdinalIgnoreCase) ||
                name.Equals("Hearthstone", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Mount", StringComparison.OrdinalIgnoreCase);
+               name.Equals("Mount", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Trinket 1", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Trinket 2", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Shoot", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -280,18 +332,45 @@ public static class KeyReader
         };
 
         var (slot, _) = TextureReader.FindSlotByTextures(textures);
-        if (slot <= 0)
-            return false;
+        if (slot > 0)
+        {
+            key.Slot = slot;
+            return ResolveFromSlot(key);
+        }
 
-        key.Slot = slot;
-        return ResolveFromSlot(key);
+        // Handle equipment-based items (Trinket 1/2, Shoot)
+        if (EquipmentReader != null)
+        {
+            int itemId = key.Name switch
+            {
+                var n when n.Equals("Trinket 1", StringComparison.OrdinalIgnoreCase)
+                    => EquipmentReader.GetId((int)InventorySlotId.Trinket_1),
+                var n when n.Equals("Trinket 2", StringComparison.OrdinalIgnoreCase)
+                    => EquipmentReader.GetId((int)InventorySlotId.Trinket_2),
+                var n when n.Equals("Shoot", StringComparison.OrdinalIgnoreCase)
+                    => EquipmentReader.GetId((int)InventorySlotId.Ranged),
+                _ => 0
+            };
+
+            if (itemId > 0 && ItemDB.TryGetTexture(itemId, out int textureId))
+            {
+                int equipSlot = TextureReader.FindSlotByTexture(textureId);
+                if (equipSlot > 0)
+                {
+                    key.Slot = equipSlot;
+                    return ResolveFromSlot(key);
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
     /// Gets the preferred slot range for a KeyAction based on its Form.
     /// Returns (0, 0) if no preference (search all bars).
     /// </summary>
-    private static (int min, int max) GetPreferredSlotRange(KeyAction key)
+    public static (int min, int max) GetPreferredSlotRange(KeyAction key)
     {
         if (!key.HasForm)
             return (0, 0);
@@ -358,7 +437,7 @@ public static class KeyReader
     /// Resolves ConsoleKey and Modifier from Slot number.
     /// Used for action bar spells when neither BindingID nor Key is specified.
     /// </summary>
-    private static bool ResolveFromSlot(KeyAction key)
+    public static bool ResolveFromSlot(KeyAction key)
     {
         BindingID bindingId = SlotToBindingID(key.Slot);
         if (bindingId == BindingID.None)
