@@ -107,7 +107,8 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
         {
             // Initialize IP address cache
             RefreshIPAddressCache();
-
+            
+            // Using Application started event to get the port from Kestral
             _startedRegistration = _lifetime.ApplicationStarted.Register(() =>
             {
                 var addressFeature = _server.Features.Get<IServerAddressesFeature>();
