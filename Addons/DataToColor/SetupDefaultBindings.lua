@@ -148,12 +148,14 @@ DataToColor.bindingQueue = DataToColor.TimedQueue:new(5, nil)
 local bindingCache = {}
 
 -- Custom secure button definitions (bindingId -> click command)
--- Format: "CLICK FrameName:LeftButton" is how WoW stores click bindings
+-- Uses BindPad addon's secure button with wildcard attributes
+-- Note: BindPad addon must be installed for custom actions to work
+-- Format: "CLICK BindPadMacro:actionName" triggers *macrotext-actionName
 local CustomBindings = {
-    ["CUSTOM_STOPATTACK"] = "CLICK Custom_StopAttack:LeftButton",
-    ["CUSTOM_CLEARTARGET"] = "CLICK Custom_ClearTarget:LeftButton",
-    ["CUSTOM_CONFIG"] = "CLICK Custom_Config:LeftButton",
-    ["CUSTOM_FLUSH"] = "CLICK Custom_Flush:LeftButton",
+    ["CUSTOM_STOPATTACK"] = "CLICK BindPadMacro:stopattack",
+    ["CUSTOM_CLEARTARGET"] = "CLICK BindPadMacro:cleartarget",
+    ["CUSTOM_CONFIG"] = "CLICK BindPadMacro:config",
+    ["CUSTOM_FLUSH"] = "CLICK BindPadMacro:flush",
 }
 
 -- Encoding format (24 bits) with modifier support:
@@ -367,47 +369,52 @@ function DataToColor:SetEssentialBindings()
 end
 
 -- ========================
--- Creates a secure action button that acts like a macro but doesn't use macro slots
--- This is the same technique BindPad uses
-local function EnsureSecureButton(name, macrotext)
-  local frameName = "Custom_" .. name
-  local btn = _G[frameName]
-
-  if not btn then
-    btn = CreateFrame("Button", frameName, UIParent, "SecureActionButtonTemplate")
-    btn:Hide() -- Keep it invisible
-  end
-
-  btn:SetAttribute("type", "macro")
-  btn:SetAttribute("macrotext", macrotext)
-
-  return frameName
-end
-
--- Utility actions: name must match the suffix in CustomBindings table
--- Using ALT-DELETE/ALT-INSERT as they work with PostMessage and are unlikely to conflict
+-- Utility actions using BindPad-style approach:
+-- - Single button defined in XML (BindPadMacro)
+-- - Wildcard attributes: *type* and *macrotext-actionName
+-- - Bindings use format: CLICK BindPadMacro:actionName
 local UtilityActions = {
   {
-    name = "StopAttack",      -- Creates Custom_StopAttack
+    actionName = "stopattack",
     key = "ALT-DELETE",
-    macrotext = "/stopattack\n/stopcasting", -- \n/petfollow
+    macrotext = "/stopattack\n/stopcasting",
   },
   {
-    name = "ClearTarget",     -- Creates Custom_ClearTarget
+    actionName = "cleartarget",
     key = "ALT-INSERT",
     macrotext = "/cleartarget",
   },
   {
-    name = "Config",          -- Creates Custom_Config
+    actionName = "config",
     key = "SHIFT-PAGEUP",
     macrotext = "/dc",
   },
   {
-    name = "Flush",           -- Creates Custom_Flush
+    actionName = "flush",
     key = "SHIFT-PAGEDOWN",
     macrotext = "/dcflush",
   },
 }
+
+-- Sets up the BindPadMacro button with wildcard attributes
+-- Requires BindPad addon to be installed (provides the working secure button)
+local function SetupMacroButton()
+  local btn = BindPadMacro
+  if not btn then
+    DataToColor:Print("ERROR: BindPadMacro not found! Install BindPad addon.")
+    return false
+  end
+
+  -- Set wildcard type for all button clicks
+  btn:SetAttribute("*type*", "macro")
+
+  -- Set wildcard macrotext for each action
+  for _, action in ipairs(UtilityActions) do
+    btn:SetAttribute("*macrotext-" .. action.actionName, action.macrotext)
+  end
+
+  return true
+end
 
 function DataToColor:CreateSecureButtons()
   if InCombatLockdown and InCombatLockdown() then
@@ -415,20 +422,23 @@ function DataToColor:CreateSecureButtons()
     return
   end
 
+  -- Setup the macro button with wildcard attributes
+  if not SetupMacroButton() then
+    return
+  end
+
   local wasChanged = false
 
   for _, action in ipairs(UtilityActions) do
-    local frameName = EnsureSecureButton(action.name, action.macrotext)
-
-    -- Check if already bound correctly via the CLICK command
-    local clickCommand = "CLICK " .. frameName .. ":LeftButton"
+    -- Binding format: CLICK BindPadMacro:actionName
+    local clickCommand = "CLICK BindPadMacro:" .. action.actionName
     if not IsAlreadyBound(action.key, clickCommand) then
-      -- Unbind the key first, then bind to our secure button
+      -- Unbind the key first, then bind to our button with action suffix
       SetBinding(action.key)
-      local ok = SetBindingClick(action.key, frameName)
+      local ok = SetBinding(action.key, clickCommand)
       if ok then
         wasChanged = true
-        DataToColor:Print(string.format("  Bound: %s -> %s", action.key, action.name))
+        DataToColor:Print(string.format("  Bound: %s -> %s", action.key, action.actionName))
       end
     end
   end
@@ -449,10 +459,9 @@ end
 -- Checks if essential bindings are missing
 -- Returns true if any critical bindings need to be set up
 local function NeedsBindingSetup()
-  -- Check if custom actions are bound
+  -- Check if custom actions are bound (using new format)
   for _, action in ipairs(UtilityActions) do
-    local frameName = "Custom_" .. action.name
-    local clickCommand = "CLICK " .. frameName .. ":LeftButton"
+    local clickCommand = "CLICK BindPadMacro:" .. action.actionName
     local key1, key2 = GetBindingKey(clickCommand)
     if not key1 and not key2 then
       return true -- At least one custom action is not bound
@@ -500,10 +509,8 @@ function DataToColor:AutoSetupBindingsIfNeeded()
     DataToColor:SetEssentialBindings()
     DataToColor:CreateSecureButtons()
   else
-    -- Just ensure secure buttons exist (without re-binding)
-    for _, action in ipairs(UtilityActions) do
-      EnsureSecureButton(action.name, action.macrotext)
-    end
+    -- Just ensure the macro button is set up (without re-binding)
+    SetupMacroButton()
     -- Initialize binding queue
     DataToColor:InitBindingQueue()
   end
