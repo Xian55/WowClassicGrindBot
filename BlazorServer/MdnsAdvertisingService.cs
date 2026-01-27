@@ -3,6 +3,9 @@ using Makaretu.Dns;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+
 using System;
 using System.Linq;
 using System.Net;
@@ -20,9 +23,11 @@ namespace BlazorServer;
 public sealed class MdnsAdvertisingService : IHostedService, IDisposable
 {
     private readonly ILogger<MdnsAdvertisingService> _logger;
-    private readonly int _port;
+    private int _port;
     private readonly string _hostname;
-
+    private readonly IServer _server;
+    private readonly IHostApplicationLifetime _lifetime;
+    private CancellationTokenRegistration _startedRegistration;
     private MulticastService? _multicastService;
     private ServiceDiscovery? _serviceDiscovery;
     private ServiceProfile? _serviceProfile;
@@ -32,11 +37,16 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
     private IPAddress[] _cachedAddresses = [];
     private readonly Lock _addressLock = new();
 
-    public MdnsAdvertisingService(ILogger<MdnsAdvertisingService> logger)
+    public MdnsAdvertisingService(
+        ILogger<MdnsAdvertisingService> logger, 
+        IServer server,
+        IHostApplicationLifetime lifetime)
     {
         _logger = logger;
+        _server = server;
+        _lifetime = lifetime;
         _hostname = Environment.GetEnvironmentVariable("MDNS_HOSTNAME") ?? "wowbot";
-        _port = GetServerPort();
+        _port = 5000;
 
         // Subscribe to network address changes
         NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
@@ -98,40 +108,57 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
             // Initialize IP address cache
             RefreshIPAddressCache();
 
-            _multicastService = new MulticastService();
-            _serviceDiscovery = new ServiceDiscovery(_multicastService);
-
-            // Respond to direct hostname queries (e.g., ping wowbot.local)
-            _multicastService.QueryReceived += OnQueryReceived;
-
-            // Create service profile
-            _serviceProfile = new ServiceProfile(
-                instanceName: _hostname,
-                serviceName: "_http._tcp",
-                port: (ushort)_port);
-
-            // Add TXT records
-            _serviceProfile.AddProperty("path", "/");
-            _serviceProfile.AddProperty("server", "BlazorServer");
-
-            // Start the multicast service
-            _multicastService.Start();
-            _logger.LogInformation("mDNS: Multicast service started");
-
-            // Advertise and announce the service
-            _serviceDiscovery.Advertise(_serviceProfile);
-            _serviceDiscovery.Announce(_serviceProfile);
-            _isAdvertising = true;
-
-            // Also announce our hostname A record
-            AnnounceHostname();
-
-            if(_logger.IsEnabled(LogLevel.Information)) 
+            _startedRegistration = _lifetime.ApplicationStarted.Register(() =>
             {
-                _logger.LogInformation(
-                    "mDNS: Service advertised at http://{Hostname}.local:{Port}",
-                    _hostname, _port);
-            }
+                var addressFeature = _server.Features.Get<IServerAddressesFeature>();
+                if (addressFeature != null)
+                {
+                    foreach (var address in addressFeature.Addresses)
+                    {
+                        if (Uri.TryCreate(address, UriKind.Absolute, out var uri))
+                        {
+                            _port = uri.Port;
+                            _logger.LogDebug("mDNS: Detected server port {Port} from {Address}", _port, address);
+                            break;
+                        }
+                    }
+                }
+
+                _multicastService = new MulticastService();
+                _serviceDiscovery = new ServiceDiscovery(_multicastService);
+
+                // Respond to direct hostname queries (e.g., ping wowbot.local)
+                _multicastService.QueryReceived += OnQueryReceived;
+
+                // Create service profile
+                _serviceProfile = new ServiceProfile(
+                    instanceName: _hostname,
+                    serviceName: "_http._tcp",
+                    port: (ushort)_port);
+
+                // Add TXT records
+                _serviceProfile.AddProperty("path", "/");
+                _serviceProfile.AddProperty("server", "BlazorServer");
+
+                // Start the multicast service
+                _multicastService.Start();
+                _logger.LogInformation("mDNS: Multicast service started");
+
+                // Advertise and announce the service
+                _serviceDiscovery.Advertise(_serviceProfile);
+                _serviceDiscovery.Announce(_serviceProfile);
+                _isAdvertising = true;
+
+                // Also announce our hostname A record
+                AnnounceHostname();
+
+                if(_logger.IsEnabled(LogLevel.Information)) 
+                {
+                    _logger.LogInformation(
+                        "mDNS: Service advertised at http://{Hostname}.local:{Port}",
+                        _hostname, _port);
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -292,23 +319,6 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
         }
 
         return Task.CompletedTask;
-    }
-
-    private static int GetServerPort()
-    {
-        var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
-        if (!string.IsNullOrEmpty(urls))
-        {
-            foreach (var url in urls.Split(';'))
-            {
-                if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
-                {
-                    return uri.Port;
-                }
-            }
-        }
-
-        return 5000;
     }
 
     public void Dispose()
