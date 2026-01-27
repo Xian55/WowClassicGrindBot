@@ -5,6 +5,9 @@ using Microsoft.Extensions.Logging;
 
 using System;
 using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,7 +15,7 @@ namespace BlazorServer;
 
 /// <summary>
 /// Background service that advertises the Blazor Server via mDNS,
-/// making it accessible at http://wowbot.local
+/// making it accessible at http://wowbot.local or whatever is set at MDNS_HOSTNAME
 /// </summary>
 public sealed class MdnsAdvertisingService : IHostedService, IDisposable
 {
@@ -23,89 +26,269 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
     private MulticastService? _multicastService;
     private ServiceDiscovery? _serviceDiscovery;
     private ServiceProfile? _serviceProfile;
+    private bool _isAdvertising;
+
+    // Cached IP addresses - refreshed when network interfaces change
+    private IPAddress[] _cachedAddresses = [];
+    private readonly object _addressLock = new();
 
     public MdnsAdvertisingService(ILogger<MdnsAdvertisingService> logger)
     {
         _logger = logger;
-        _hostname = "wowbot";
+        _hostname = Environment.GetEnvironmentVariable("MDNS_HOSTNAME") ?? "wowbot";
         _port = GetServerPort();
+
+        // Subscribe to network address changes
+        NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
+    }
+
+    private void OnNetworkAddressChanged(object? sender, EventArgs e)
+    {
+        _logger.LogDebug("mDNS: Network address changed, refreshing IP cache");
+        RefreshIPAddressCache();
+
+        // Re-announce with new addresses
+        if (_isAdvertising)
+        {
+            AnnounceHostname();
+        }
+    }
+
+    private void RefreshIPAddressCache()
+    {
+        var addresses = new System.Collections.Generic.List<IPAddress>();
+
+        foreach (var netInterface in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (netInterface.OperationalStatus != OperationalStatus.Up)
+                continue;
+
+            if (netInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                continue;
+
+            var ipProps = netInterface.GetIPProperties();
+            foreach (var addr in ipProps.UnicastAddresses)
+            {
+                if (addr.Address.AddressFamily == AddressFamily.InterNetwork ||
+                    addr.Address.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    addresses.Add(addr.Address);
+                }
+            }
+        }
+
+        lock (_addressLock)
+        {
+            _cachedAddresses = addresses.ToArray();
+        }
+    }
+
+    private IPAddress[] GetCachedAddresses()
+    {
+        lock (_addressLock)
+        {
+            return _cachedAddresses;
+        }
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
         try
         {
+            // Initialize IP address cache
+            RefreshIPAddressCache();
+
             _multicastService = new MulticastService();
             _serviceDiscovery = new ServiceDiscovery(_multicastService);
 
-            // Log discovered network interfaces
-            _multicastService.NetworkInterfaceDiscovered += (s, e) =>
-            {
-                foreach (var nic in e.NetworkInterfaces)
-                {
-                    _logger.LogDebug("[mDNS             ] Discovered NIC '{NicName}'", nic.Name);
-                }
-            };
+            // Respond to direct hostname queries (e.g., ping wowbot.local)
+            _multicastService.QueryReceived += OnQueryReceived;
 
-            // Log available IP addresses
-            foreach (var ip in MulticastService.GetIPAddresses())
-            {
-                _logger.LogDebug("[mDNS             ] Available IP: {IpAddress}", ip);
-            }
-
-            // Create service profile - this automatically handles hostname and IP resolution
+            // Create service profile
             _serviceProfile = new ServiceProfile(
                 instanceName: _hostname,
                 serviceName: "_http._tcp",
                 port: (ushort)_port);
 
-            // Add TXT records with service info
+            // Add TXT records
             _serviceProfile.AddProperty("path", "/");
             _serviceProfile.AddProperty("server", "BlazorServer");
 
+            // Start the multicast service
             _multicastService.Start();
+            _logger.LogInformation("mDNS: Multicast service started");
 
-            // Probe to check if name is available, then advertise and announce
-            if (!_serviceDiscovery.Probe(_serviceProfile))
+            // Advertise and announce the service
+            _serviceDiscovery.Advertise(_serviceProfile);
+            _serviceDiscovery.Announce(_serviceProfile);
+            _isAdvertising = true;
+
+            // Also announce our hostname A record
+            AnnounceHostname();
+
+            if(_logger.IsEnabled(LogLevel.Information)) 
             {
-                _serviceDiscovery.Advertise(_serviceProfile);
-                _serviceDiscovery.Announce(_serviceProfile);
-
                 _logger.LogInformation(
-                    "[mDNS             ] Advertising service at http://{Hostname}.local:{Port}",
+                    "mDNS: Service advertised at http://{Hostname}.local:{Port}",
                     _hostname, _port);
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "[mDNS             ] Service name '{Hostname}' already in use on network",
-                    _hostname);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[mDNS             ] Failed to start mDNS advertising");
+            _logger.LogError(ex, "mDNS: Failed to start advertising");
         }
 
         return Task.CompletedTask;
     }
 
+    private void OnQueryReceived(object? sender, MessageEventArgs e)
+    {
+        var domainName = $"{_hostname}.local";
+
+        foreach (var question in e.Message.Questions)
+        {
+            // Check if someone is asking for our hostname
+            if (question.Name.ToString().Equals(domainName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug("mDNS: Received query for {Name} (Type: {Type})", question.Name, question.Type);
+                }
+
+                var response = e.Message.CreateResponse();
+                var addresses = GetCachedAddresses();
+
+                foreach (var ip in addresses)
+                {
+                    if (question.Type == DnsType.A && ip.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        response.Answers.Add(new ARecord
+                        {
+                            Name = domainName,
+                            Address = ip,
+                            TTL = TimeSpan.FromMinutes(2)
+                        });
+                        if (_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            _logger.LogDebug("mDNS: Responding with A record: {Ip}", ip);
+                        }
+                    }
+                    else if (question.Type == DnsType.AAAA && ip.AddressFamily == AddressFamily.InterNetworkV6)
+                    {
+                        response.Answers.Add(new AAAARecord
+                        {
+                            Name = domainName,
+                            Address = ip,
+                            TTL = TimeSpan.FromMinutes(2)
+                        });
+                        if (_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            _logger.LogDebug("mDNS: Responding with AAAA record: {Ip}", ip);
+                        }
+                    }
+                    else if (question.Type == DnsType.ANY)
+                    {
+                        if (ip.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            response.Answers.Add(new ARecord
+                            {
+                                Name = domainName,
+                                Address = ip,
+                                TTL = TimeSpan.FromMinutes(2)
+                            });
+                        }
+                        else if (ip.AddressFamily == AddressFamily.InterNetworkV6 && !ip.IsIPv6LinkLocal)
+                        {
+                            response.Answers.Add(new AAAARecord
+                            {
+                                Name = domainName,
+                                Address = ip,
+                                TTL = TimeSpan.FromMinutes(2)
+                            });
+                        }
+                    }
+                }
+
+                if (response.Answers.Count > 0)
+                {
+                    _multicastService?.SendAnswer(response);
+                }
+            }
+        }
+    }
+
+    private void AnnounceHostname()
+    {
+        if (_multicastService == null) return;
+
+        var domainName = $"{_hostname}.local";
+        var response = new Message();
+        response.QR = true; // This is a response
+        response.AA = true; // Authoritative answer
+
+        foreach (var ip in GetCachedAddresses())
+        {
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                response.Answers.Add(new ARecord
+                {
+                    Name = domainName,
+                    Address = ip,
+                    TTL = TimeSpan.FromMinutes(2)
+                });
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug("mDNS: Announcing A record: {Hostname} -> {Ip}", domainName, ip);
+                }
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6 && !ip.IsIPv6LinkLocal)
+            {
+                response.Answers.Add(new AAAARecord
+                {
+                    Name = domainName,
+                    Address = ip,
+                    TTL = TimeSpan.FromMinutes(2)
+                });
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug("mDNS: Announcing AAAA record: {Hostname} -> {Ip}", domainName, ip);
+                }
+            }
+        }
+
+        if (response.Answers.Count > 0)
+        {
+            _multicastService.SendAnswer(response);
+        }
+    }
+
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("[mDNS             ] Stopping mDNS advertising");
+        _logger.LogInformation("mDNS: Stopping advertising");
+
+        // Unsubscribe from network changes
+        NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged;
 
         try
         {
-            if (_serviceProfile != null)
+            if (_isAdvertising && _serviceProfile != null && _serviceDiscovery != null)
             {
-                _serviceDiscovery?.Unadvertise(_serviceProfile);
+                _serviceDiscovery.Unadvertise(_serviceProfile);
+                _isAdvertising = false;
             }
-            _serviceDiscovery?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "mDNS: Error during unadvertise");
+        }
+
+        try
+        {
             _multicastService?.Stop();
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "[mDNS             ] Error during mDNS shutdown");
+            _logger.LogDebug(ex, "mDNS: Error stopping multicast service");
         }
 
         return Task.CompletedTask;
@@ -113,7 +296,6 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
 
     private static int GetServerPort()
     {
-        // Default Kestrel port; can be overridden via configuration
         var urls = Environment.GetEnvironmentVariable("ASPNETCORE_URLS");
         if (!string.IsNullOrEmpty(urls))
         {
@@ -126,7 +308,7 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
             }
         }
 
-        return 5000; // Default port
+        return 5000;
     }
 
     public void Dispose()
