@@ -144,7 +144,10 @@ public static class Program
         });
 
         // Register mDNS advertising service for http://wowbot.local access
-        services.AddHostedService<MdnsAdvertisingService>();
+        if(Environment.GetEnvironmentVariable("USE_MDNS") != null)
+        {
+            services.AddHostedService<MdnsAdvertisingService>();
+        }
 
         services.AddControllers().AddJsonOptions(options =>
         {
