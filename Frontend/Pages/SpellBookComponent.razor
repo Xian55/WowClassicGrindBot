@@ -3,7 +3,7 @@
 @using SharedLib
 
 @inject SpellBookReader spellBookReader
-@inject SpellIconDB spellIconDB
+@inject IconDB iconDB
 @inject WApi api
 @inject IAddonReader addonReader
 
@@ -110,7 +110,7 @@
         {
             if (spellBookReader.TryGetValue(spellId, out Spell spell))
             {
-                string? iconUrl = spellIconDB.GetIconUrlForSpell(spellId, 36);
+                string? iconUrl = iconDB.GetIconUrlForSpell(spellId, 36);
                 entries.Add(new SpellDisplayEntry(spell, iconUrl));
             }
         }

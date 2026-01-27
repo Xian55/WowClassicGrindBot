@@ -107,7 +107,7 @@ public static class DependencyInjection
         s.ForwardSingleton<CreatureDB>(sp);
         s.ForwardSingleton<FactionTemplateDB>(sp);
         s.ForwardSingleton<SpellDB>(sp);
-        s.ForwardSingleton<SpellIconDB>(sp);
+        s.ForwardSingleton<IconDB>(sp);
         s.ForwardSingleton<TalentDB>(sp);
 
         s.ForwardSingleton<AddonReader>(sp);
@@ -210,7 +210,7 @@ public static class DependencyInjection
         s.AddSingleton<CreatureDB>();
         s.AddSingleton<FactionTemplateDB>();
         s.AddSingleton<SpellDB>();
-        s.AddSingleton<SpellIconDB>();
+        s.AddSingleton<IconDB>();
         s.AddSingleton<TalentDB>();
 
         s.AddAddonComponents();

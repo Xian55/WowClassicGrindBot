@@ -4,7 +4,7 @@
 @inject ActionBarSlotValidator actionBarSlotValidator
 @inject SpellBookReader spellBookReader
 @inject IBotController botController
-@inject Core.Database.SpellIconDB spellIconDB
+@inject Core.Database.IconDB iconDB
 @inject PlayerReader playerReader
 @inject ILoggerFactory logFactory
 @inject BagReader bagReader
@@ -1262,7 +1262,7 @@ else
             parts.Add($"Texture: {textureId}");
 
             // Try to get spell names for this texture
-            var spellNames = spellIconDB.GetSpellNamesForDisplay(textureId);
+            var spellNames = iconDB.GetSpellNamesForDisplay(textureId);
             if (spellNames.Length > 0)
             {
                 parts.Add($"Spells: {string.Join(", ", spellNames.Take(3))}");
@@ -1334,7 +1334,7 @@ else
         if (!actionBarTextureReader.TryGetTexture(slot, out int textureId) || textureId <= 0)
             return null;
 
-        return spellIconDB.GetIconUrl(textureId, 36);
+        return iconDB.GetIconUrl(textureId, 36);
     }
 
     private void BuildExpectedBindings()

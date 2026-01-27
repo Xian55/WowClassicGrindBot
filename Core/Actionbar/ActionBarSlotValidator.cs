@@ -41,7 +41,7 @@ public enum SlotValidationStatus
 public sealed partial class ActionBarSlotValidator
 {
     private readonly ILogger<ActionBarSlotValidator> logger;
-    private readonly SpellIconDB spellIconDB;
+    private readonly IconDB iconDB;
     private readonly ActionBarTextureReader textureReader;
     private readonly PlayerReader playerReader;
     private readonly SpellBookReader spellBookReader;
@@ -51,13 +51,13 @@ public sealed partial class ActionBarSlotValidator
 
     public ActionBarSlotValidator(
         ILogger<ActionBarSlotValidator> logger,
-        SpellIconDB spellIconDB,
+        IconDB iconDB,
         ActionBarTextureReader textureReader,
         PlayerReader playerReader,
         SpellBookReader spellBookReader)
     {
         this.logger = logger;
-        this.spellIconDB = spellIconDB;
+        this.iconDB = iconDB;
         this.textureReader = textureReader;
         this.playerReader = playerReader;
         this.spellBookReader = spellBookReader;
@@ -131,12 +131,12 @@ public sealed partial class ActionBarSlotValidator
             return SlotValidationStatus.Valid;
 
         // Check if spell icon DB has this texture
-        ReadOnlySpan<int> spellIds = spellIconDB.GetSpellIds(textureId);
+        ReadOnlySpan<int> spellIds = iconDB.GetSpellIds(textureId);
         if (spellIds.IsEmpty)
             return SlotValidationStatus.UnknownTexture;
 
         // Check if the expected spell uses this texture
-        if (spellIconDB.SpellNameUsesTexture(keyAction.Name, textureId))
+        if (iconDB.SpellNameUsesTexture(keyAction.Name, textureId))
             return SlotValidationStatus.Valid;
 
         return SlotValidationStatus.Mismatch;
@@ -158,7 +158,7 @@ public sealed partial class ActionBarSlotValidator
 
             if (textureId > 0 && status != SlotValidationStatus.Valid)
             {
-                possibleSpells = spellIconDB.GetSpellNamesForDisplay(textureId);
+                possibleSpells = iconDB.GetSpellNamesForDisplay(textureId);
             }
         }
 
@@ -175,7 +175,7 @@ public sealed partial class ActionBarSlotValidator
     /// </summary>
     public void ValidateAndLog(IEnumerable<KeyAction> keyActions)
     {
-        if (spellIconDB.IconToSpells.Count == 0)
+        if (iconDB.IconToSpells.Count == 0)
         {
             LogValidationSkipped(logger);
             return;
@@ -218,7 +218,7 @@ public sealed partial class ActionBarSlotValidator
                         // Only report mismatch if we know the spell (can verify texture)
                         issueCount++;
                         LogMismatch(logger, keyAction.Name, actualSlot,
-                            spellIconDB.GetSpellNamesForDisplay(
+                            iconDB.GetSpellNamesForDisplay(
                                 textureReader.SlotTextures[actualSlot]));
                     }
                     else
@@ -469,7 +469,7 @@ public sealed partial class ActionBarSlotValidator
             return false;
 
         // Get all texture IDs that could represent this spell
-        List<int> textureIds = spellIconDB.GetTexturesForSpellName(name);
+        List<int> textureIds = iconDB.GetTexturesForSpellName(name);
         if (textureIds.Count == 0)
             return false;
 

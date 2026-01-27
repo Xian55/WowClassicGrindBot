@@ -35,7 +35,7 @@ internal sealed class Program
         "item",
         "consumable",
         "spell",
-        "spellicon",
+        "icon",
         "talent",
         "worldmap"
     ];
@@ -132,10 +132,10 @@ internal sealed class Program
                 ["spells.json"]));
         }
 
-        if (runAll || extractorsToRun.Contains("spellicon"))
+        if (runAll || extractorsToRun.Contains("icon"))
         {
             generatedFiles.AddRange(await RunExtractor(
-                new SpellIconExtractor(dataPath),
+                new IconExtractor(dataPath),
                 dataPath, build,
                 ["spelliconmap.json", "iconnames.json"]));
         }

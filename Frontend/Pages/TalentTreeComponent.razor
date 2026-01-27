@@ -4,7 +4,7 @@
 @inject IAddonReader addonReader
 @inject WApi api
 @inject TalentReader talentReader
-@inject SpellIconDB spellIconDB
+@inject IconDB iconDB
 
 <div class="card mt-1">
     <div class="card-header">
@@ -45,7 +45,7 @@
                                      <td class="align-middle">
                                                 @if (talentReader.Spells.TryGetValue(talent.Key, out int spellId))
                                                 {
-                                                    var iconUrl = spellIconDB.GetIconUrlForSpell(spellId, 18);
+                                                    var iconUrl = iconDB.GetIconUrlForSpell(spellId, 18);
                                                     <a href="@($"{api.SpellId}{spellId}")" target="_blank" data-wowhead="spell=@spellId" class="small" style="text-decoration:none">
                                                         @if (!string.IsNullOrEmpty(iconUrl))
                                                         {

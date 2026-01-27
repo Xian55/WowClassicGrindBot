@@ -36,7 +36,7 @@ ReadDBC_CSV [options] [extractors...]
 | `item` | items.json | Item data (id, name, quality, sell price, texture) |
 | `consumable` | foods.json, waters.json | Food and drink item IDs |
 | `spell` | spells.json | Spell data (id, name, level) |
-| `spellicon` | spelliconmap.json, iconnames.json | Spell texture mappings |
+| `icon` | spelliconmap.json, iconnames.json | Icon texture mappings (all icons from Interface\Icons) |
 | `talent` | talents.json | Talent tree data |
 | `worldmap` | worldmaparea.json | World map area data |
 
@@ -116,9 +116,9 @@ Extracts spell data (id, name, level).
 **Produces:**
 - spells.json
 
-### Spell Icon Extractor
+### Icon Extractor
 
-Builds texture ID to spell ID mappings for action bar slot detection.
+Extracts all icons from Interface\Icons and builds texture ID to spell ID mappings for action bar slot detection.
 
 **Required CSV files:**
 - spellmisc.csv
@@ -126,8 +126,8 @@ Builds texture ID to spell ID mappings for action bar slot detection.
 - manifestinterfacedata.csv
 
 **Produces:**
-- spelliconmap.json - Maps texture ID to spell IDs
-- iconnames.json - Maps texture ID to icon names
+- spelliconmap.json - Maps texture ID to spell IDs (for spell validation)
+- iconnames.json - Maps texture ID to icon names (ALL icons from Interface\Icons, ~31,000+)
 
 ### Talent Extractor
 

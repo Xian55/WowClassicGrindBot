@@ -13,7 +13,7 @@ using static System.IO.Path;
 
 namespace Core.Database;
 
-public sealed class SpellIconDB
+public sealed class IconDB
 {
     private const string SpellIconMapFile = "spelliconmap.json";
     private const string IconNamesFile = "iconnames.json";
@@ -24,7 +24,7 @@ public sealed class SpellIconDB
     public FrozenDictionary<int, int[]> IconToSpells { get; }
     public FrozenDictionary<int, string> IconNames { get; }
 
-    public SpellIconDB(ILogger<SpellIconDB> logger, DataConfig dataConfig, SpellDB spellDB)
+    public IconDB(ILogger<IconDB> logger, DataConfig dataConfig, SpellDB spellDB)
     {
         this.spellDB = spellDB;
 
@@ -32,7 +32,7 @@ public sealed class SpellIconDB
         string spellMapPath = Join(dataConfig.ExpDbc, SpellIconMapFile);
         if (!File.Exists(spellMapPath))
         {
-            logger.LogWarning("SpellIconDB: {path} not found. Spell validation disabled.", spellMapPath);
+            logger.LogWarning("IconDB: {path} not found. Spell validation disabled.", spellMapPath);
             IconToSpells = FrozenDictionary<int, int[]>.Empty;
             IconNames = FrozenDictionary<int, string>.Empty;
             return;
@@ -49,13 +49,13 @@ public sealed class SpellIconDB
 
         IconToSpells = spellMapBuilder.ToFrozenDictionary();
 
-        logger.LogInformation("SpellIconDB: Loaded {count} texture mappings", IconToSpells.Count);
+        logger.LogInformation("IconDB: Loaded {count} texture mappings", IconToSpells.Count);
 
         // Load icon names
         string iconNamesPath = Join(dataConfig.ExpDbc, IconNamesFile);
         if (!File.Exists(iconNamesPath))
         {
-            logger.LogWarning("SpellIconDB: {path} not found. Icon URLs unavailable.", iconNamesPath);
+            logger.LogWarning("IconDB: {path} not found. Icon URLs unavailable.", iconNamesPath);
             IconNames = FrozenDictionary<int, string>.Empty;
             return;
         }
@@ -71,10 +71,10 @@ public sealed class SpellIconDB
 
         IconNames = iconNamesBuilder.ToFrozenDictionary();
 
-        logger.LogInformation("SpellIconDB: Loaded {count} icon names", IconNames.Count);
+        logger.LogInformation("IconDB: Loaded {count} icon names", IconNames.Count);
 
         // Set static reference for KeyReader spell name resolution
-        KeyReader.SpellIconDB = this;
+        KeyReader.IconDB = this;
     }
 
     /// <summary>

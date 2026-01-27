@@ -7,7 +7,7 @@ using nietras.SeparatedValues;
 
 namespace ReadDBC_CSV;
 
-internal sealed class SpellIconExtractor : IExtractor
+internal sealed class IconExtractor : IExtractor
 {
     private readonly string path;
 
@@ -18,7 +18,7 @@ internal sealed class SpellIconExtractor : IExtractor
         "manifestinterfacedata.csv",
     ];
 
-    public SpellIconExtractor(string path)
+    public IconExtractor(string path)
     {
         this.path = path;
     }
@@ -73,15 +73,14 @@ internal sealed class SpellIconExtractor : IExtractor
         File.WriteAllText(spellMapPath, JsonConvert.SerializeObject(spellMapOutput, Formatting.Indented));
         Console.WriteLine($"Wrote {spellMapPath}");
 
-        // Output iconnames.json: textureId -> iconName (only for icons used by spells)
-        var usedIconNames = iconToSpells.Keys
-            .Where(iconNames.ContainsKey)
-            .OrderBy(x => x)
-            .ToDictionary(x => x.ToString(), x => iconNames[x]);
+        // Output iconnames.json: textureId -> iconName (ALL icons from Interface\Icons\)
+        var allIconNames = iconNames
+            .OrderBy(x => x.Key)
+            .ToDictionary(x => x.Key.ToString(), x => x.Value);
 
         string iconNamesPath = Path.Join(path, "iconnames.json");
-        File.WriteAllText(iconNamesPath, JsonConvert.SerializeObject(usedIconNames, Formatting.Indented));
-        Console.WriteLine($"Wrote {iconNamesPath} ({usedIconNames.Count} icons)");
+        File.WriteAllText(iconNamesPath, JsonConvert.SerializeObject(allIconNames, Formatting.Indented));
+        Console.WriteLine($"Wrote {iconNamesPath} ({allIconNames.Count} icons)");
     }
 
     private static Dictionary<int, int> ExtractSpellToIcon(string path)

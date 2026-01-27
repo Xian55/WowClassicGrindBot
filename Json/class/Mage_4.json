@@ -76,7 +76,7 @@
         "Requirement": "!Arcane Intellect"
       },
       {
-        "Name": "Conjure Drink",
+        "Name": "Conjure Water",
         "Key": "9",
         "HasCastBar": true,
         "Requirement": "!BagItem:Item_Conjure_Drink:4",

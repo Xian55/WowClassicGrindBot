@@ -25,10 +25,10 @@ public static class KeyReader
     public static ActionBarMacroReader? MacroReader { get; set; }
 
     /// <summary>
-    /// Static reference to SpellIconDB for spell name to texture lookup.
+    /// Static reference to IconDB for spell name to texture lookup.
     /// Set during initialization.
     /// </summary>
-    public static SpellIconDB? SpellIconDB { get; set; }
+    public static IconDB? IconDB { get; set; }
 
     /// <summary>
     /// Static reference to SpellBookReader for checking if spells are known.
@@ -257,7 +257,7 @@ public static class KeyReader
     /// </summary>
     private static bool ResolveFromSpellName(KeyAction key)
     {
-        if (SpellIconDB == null || TextureReader == null || !TextureReader.IsInitialized)
+        if (IconDB == null || TextureReader == null || !TextureReader.IsInitialized)
             return false;
 
         // Skip macros (lowercase names)
@@ -277,7 +277,7 @@ public static class KeyReader
         }
 
         // Get all texture IDs that could represent this spell
-        List<int> textureIds = SpellIconDB.GetTexturesForSpellName(key.Name);
+        List<int> textureIds = IconDB.GetTexturesForSpellName(key.Name);
         if (textureIds.Count == 0)
             return false;
 
