@@ -4,9 +4,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using System;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,18 +36,51 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
         try
         {
             _multicastService = new MulticastService();
+            _serviceDiscovery = new ServiceDiscovery(_multicastService);
 
-            // Advertise the hostname (wowbot.local)
-            AdvertiseHostname();
+            // Log discovered network interfaces
+            _multicastService.NetworkInterfaceDiscovered += (s, e) =>
+            {
+                foreach (var nic in e.NetworkInterfaces)
+                {
+                    _logger.LogDebug("[mDNS             ] Discovered NIC '{NicName}'", nic.Name);
+                }
+            };
 
-            // Advertise the HTTP service
-            AdvertiseHttpService();
+            // Log available IP addresses
+            foreach (var ip in MulticastService.GetIPAddresses())
+            {
+                _logger.LogDebug("[mDNS             ] Available IP: {IpAddress}", ip);
+            }
+
+            // Create service profile - this automatically handles hostname and IP resolution
+            _serviceProfile = new ServiceProfile(
+                instanceName: _hostname,
+                serviceName: "_http._tcp",
+                port: (ushort)_port);
+
+            // Add TXT records with service info
+            _serviceProfile.AddProperty("path", "/");
+            _serviceProfile.AddProperty("server", "BlazorServer");
 
             _multicastService.Start();
 
-            _logger.LogInformation(
-                "[mDNS             ] Advertising service at http://{Hostname}.local:{Port}",
-                _hostname, _port);
+            // Probe to check if name is available, then advertise and announce
+            if (!_serviceDiscovery.Probe(_serviceProfile))
+            {
+                _serviceDiscovery.Advertise(_serviceProfile);
+                _serviceDiscovery.Announce(_serviceProfile);
+
+                _logger.LogInformation(
+                    "[mDNS             ] Advertising service at http://{Hostname}.local:{Port}",
+                    _hostname, _port);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "[mDNS             ] Service name '{Hostname}' already in use on network",
+                    _hostname);
+            }
         }
         catch (Exception ex)
         {
@@ -65,7 +96,10 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
 
         try
         {
-            _serviceDiscovery?.Unadvertise(_serviceProfile);
+            if (_serviceProfile != null)
+            {
+                _serviceDiscovery?.Unadvertise(_serviceProfile);
+            }
             _serviceDiscovery?.Dispose();
             _multicastService?.Stop();
         }
@@ -75,102 +109,6 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
         }
 
         return Task.CompletedTask;
-    }
-
-    private void AdvertiseHostname()
-    {
-        if (_multicastService == null) return;
-
-        // Register A records for each network interface IP
-        _multicastService.QueryReceived += (s, e) =>
-        {
-            var query = e.Message;
-            foreach (var question in query.Questions)
-            {
-                if (question.Name.ToString().Equals($"{_hostname}.local", StringComparison.OrdinalIgnoreCase))
-                {
-                    var response = query.CreateResponse();
-
-                    foreach (var ip in GetLocalIPAddresses())
-                    {
-                        if (ip.AddressFamily == AddressFamily.InterNetwork)
-                        {
-                            response.Answers.Add(new ARecord
-                            {
-                                Name = $"{_hostname}.local",
-                                Address = ip,
-                                TTL = TimeSpan.FromMinutes(2)
-                            });
-                        }
-                        else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
-                        {
-                            response.Answers.Add(new AAAARecord
-                            {
-                                Name = $"{_hostname}.local",
-                                Address = ip,
-                                TTL = TimeSpan.FromMinutes(2)
-                            });
-                        }
-                    }
-
-                    if (response.Answers.Count > 0)
-                    {
-                        _multicastService.SendAnswer(response);
-                    }
-                }
-            }
-        };
-    }
-
-    private void AdvertiseHttpService()
-    {
-        if (_multicastService == null) return;
-
-        _serviceDiscovery = new ServiceDiscovery(_multicastService);
-
-        // Create service profile for HTTP
-        _serviceProfile = new ServiceProfile(
-            instanceName: _hostname,
-            serviceName: "_http._tcp",
-            port: (ushort)_port);
-
-        _serviceProfile.HostName = $"{_hostname}.local";
-
-        // Add TXT records with service info
-        _serviceProfile.AddProperty("path", "/");
-        _serviceProfile.AddProperty("server", "BlazorServer");
-
-        _serviceDiscovery.Advertise(_serviceProfile);
-    }
-
-    private static IPAddress[] GetLocalIPAddresses()
-    {
-        var addresses = new List<IPAddress>();
-
-        foreach (var netInterface in NetworkInterface.GetAllNetworkInterfaces())
-        {
-            if (netInterface.OperationalStatus != OperationalStatus.Up)
-                continue;
-
-            if (netInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                continue;
-
-            var ipProps = netInterface.GetIPProperties();
-            foreach (var addr in ipProps.UnicastAddresses)
-            {
-                if (addr.Address.AddressFamily == AddressFamily.InterNetwork ||
-                    addr.Address.AddressFamily == AddressFamily.InterNetworkV6)
-                {
-                    // Skip link-local IPv6 addresses
-                    if (addr.Address.IsIPv6LinkLocal)
-                        continue;
-
-                    addresses.Add(addr.Address);
-                }
-            }
-        }
-
-        return addresses.ToArray();
     }
 
     private static int GetServerPort()
