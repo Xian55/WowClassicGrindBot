@@ -3,6 +3,7 @@ using Core.Database;
 using Microsoft.Extensions.Logging;
 
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 
 namespace Core;
@@ -48,6 +49,14 @@ public sealed partial class ActionBarSlotValidator
 
     // Maps spell names to their known Form (built from KeyActions that have Form specified)
     private Dictionary<string, Form> spellToForm = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Equipment-based actions whose icons change with equipped items.
+    /// </summary>
+    private static readonly FrozenSet<string> DynamicIconNames = FrozenSet.ToFrozenSet(
+    [
+        "Shoot", "Auto Shot", "Trinket 1", "Trinket 2"
+    ], StringComparer.OrdinalIgnoreCase);
 
     public ActionBarSlotValidator(
         ILogger<ActionBarSlotValidator> logger,
@@ -520,20 +529,16 @@ public sealed partial class ActionBarSlotValidator
     /// </summary>
     private static bool HasDynamicIcon(string name)
     {
-        // Hunter Aspects
+        // Exact match equipment-based actions
+        if (DynamicIconNames.Contains(name))
+            return true;
+
+        // Hunter Aspects (prefix pattern)
         if (name.StartsWith("Aspect of", StringComparison.OrdinalIgnoreCase))
             return true;
 
-        // Paladin Auras
+        // Paladin Auras (suffix pattern)
         if (name.EndsWith(" Aura", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        // Equipment-based actions (texture changes with equipped item)
-        if (name.Equals("Shoot", StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (name.Equals("Trinket 1", StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (name.Equals("Trinket 2", StringComparison.OrdinalIgnoreCase))
             return true;
 
         return false;

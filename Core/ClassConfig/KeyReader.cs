@@ -106,6 +106,15 @@ public static class KeyReader
         { " ", ConsoleKey.Spacebar },
     };
 
+    /// <summary>
+    /// Known item aliases for consumables and equipment-based actions.
+    /// </summary>
+    private static readonly FrozenSet<string> ItemAliases = FrozenSet.ToFrozenSet(
+    [
+        "Food", "Drink", "Water", "Bandage", "Hearthstone",
+        "Mount", "Trinket 1", "Trinket 2", "Shoot", "Auto Shot"
+    ], StringComparer.OrdinalIgnoreCase);
+
     private static FrozenDictionary<ConsoleKey, string> BuildConsoleKeyToWoWKey()
     {
         var dict = new Dictionary<ConsoleKey, string>
@@ -299,20 +308,9 @@ public static class KeyReader
 
     /// <summary>
     /// Checks if the name is a known item alias (Food, Drink, etc.)
-    /// These are consumables placed on action bars, not spells.
+    /// These are consumables or equipment-based actions placed on action bars.
     /// </summary>
-    public static bool IsItemAlias(string name)
-    {
-        return name.Equals("Food", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Drink", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Water", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Bandage", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Hearthstone", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Mount", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Trinket 1", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Trinket 2", StringComparison.OrdinalIgnoreCase) ||
-               name.Equals("Shoot", StringComparison.OrdinalIgnoreCase);
-    }
+    public static bool IsItemAlias(string name) => ItemAliases.Contains(name);
 
     /// <summary>
     /// Resolves Slot and ConsoleKey by finding an item alias (Food/Drink) on the action bar via texture matching.
@@ -338,7 +336,7 @@ public static class KeyReader
             return ResolveFromSlot(key);
         }
 
-        // Handle equipment-based items (Trinket 1/2, Shoot)
+        // Handle equipment-based items (Trinket 1/2, Shoot, Auto Shot)
         if (EquipmentReader != null)
         {
             int itemId = key.Name switch
@@ -348,6 +346,8 @@ public static class KeyReader
                 var n when n.Equals("Trinket 2", StringComparison.OrdinalIgnoreCase)
                     => EquipmentReader.GetId((int)InventorySlotId.Trinket_2),
                 var n when n.Equals("Shoot", StringComparison.OrdinalIgnoreCase)
+                    => EquipmentReader.GetId((int)InventorySlotId.Ranged),
+                var n when n.Equals("Auto Shot", StringComparison.OrdinalIgnoreCase)
                     => EquipmentReader.GetId((int)InventorySlotId.Ranged),
                 _ => 0
             };
