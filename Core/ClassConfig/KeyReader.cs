@@ -285,8 +285,11 @@ public static class KeyReader
                 return false;
         }
 
-        // Get all texture IDs that could represent this spell
-        int[] textureIds = IconDB.GetTexturesForSpellName(key.Name);
+        // Get texture IDs - use precomputed family textures for dynamic icon spells
+        int[] textureIds = IconDB.HasDynamicIcon(key.Name)
+            ? IconDB.GetFamilyTextures(key.Name)
+            : IconDB.GetTexturesForSpellName(key.Name);
+
         if (textureIds.Length == 0)
             return false;
 

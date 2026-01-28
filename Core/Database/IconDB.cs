@@ -30,6 +30,11 @@ public sealed class IconDB
     // Reverse index: spell ID -> texture ID
     private readonly FrozenDictionary<int, int> spellIdToTexture;
 
+    // Precomputed family textures for dynamic icon spells
+    // Key: spell name prefix/suffix pattern, Value: all texture IDs for that family
+    private readonly int[] aspectTextures;
+    private readonly int[] auraTextures;
+
     public IconDB(ILogger<IconDB> logger, DataConfig dataConfig, SpellDB spellDB)
     {
         this.spellDB = spellDB;
@@ -43,6 +48,8 @@ public sealed class IconDB
             IconNames = FrozenDictionary<int, string>.Empty;
             spellNameToTextures = FrozenDictionary<string, int[]>.Empty;
             spellIdToTexture = FrozenDictionary<int, int>.Empty;
+            aspectTextures = [];
+            auraTextures = [];
             return;
         }
 
@@ -86,6 +93,30 @@ public sealed class IconDB
         spellNameToTextures = nameToTexturesBuilder
             .ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
         spellIdToTexture = idToTextureBuilder.ToFrozenDictionary();
+
+        // Build family textures for dynamic icon spells
+        HashSet<int> aspectTextureSet = [];
+        HashSet<int> auraTextureSet = [];
+
+        foreach (var (spellName, textureIds) in spellNameToTextures)
+        {
+            if (spellName.StartsWith("Aspect of", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (int id in textureIds)
+                    aspectTextureSet.Add(id);
+            }
+            else if (spellName.EndsWith(" Aura", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (int id in textureIds)
+                    auraTextureSet.Add(id);
+            }
+        }
+
+        aspectTextures = [.. aspectTextureSet];
+        auraTextures = [.. auraTextureSet];
+
+        logger.LogDebug("IconDB: Built {aspectCount} aspect textures, {auraCount} aura textures",
+            aspectTextures.Length, auraTextures.Length);
 
         logger.LogInformation("IconDB: Loaded {count} texture mappings", IconToSpells.Count);
 
@@ -256,5 +287,30 @@ public sealed class IconDB
         if (parenIndex > 0)
             return name[..parenIndex].TrimEnd();
         return name.Trim();
+    }
+
+    /// <summary>
+    /// Gets precomputed texture IDs for a spell family (all Aspects or all Auras).
+    /// Returns empty array if not a family spell.
+    /// </summary>
+    public int[] GetFamilyTextures(string spellName)
+    {
+        if (spellName.StartsWith("Aspect of", StringComparison.OrdinalIgnoreCase))
+            return aspectTextures;
+        if (spellName.EndsWith(" Aura", StringComparison.OrdinalIgnoreCase))
+            return auraTextures;
+        return [];
+    }
+
+    /// <summary>
+    /// Checks if the spell has a dynamic icon (Aspects, Auras).
+    /// </summary>
+    public static bool HasDynamicIcon(string name)
+    {
+        if (name.StartsWith("Aspect of", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (name.EndsWith(" Aura", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
     }
 }
