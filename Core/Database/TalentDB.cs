@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using SharedLib;
 
 using System;
+using System.Linq;
 
 using static Newtonsoft.Json.JsonConvert;
 using static System.IO.File;
@@ -54,6 +55,35 @@ public sealed class TalentDB
             logger.LogError($"Failed to read {path}: {ex.Message}");
             return [];
         }
+    }
+
+    /// <summary>
+    /// Gets all talent tree elements for a specific class, organized by tree index.
+    /// Returns array of 3 trees, each containing talents sorted by tier and column.
+    /// </summary>
+    public TalentTreeElement[][] GetTalentTreesForClass(UnitClass @class)
+    {
+        int classMask = (int)Math.Pow(2, (int)@class - 1);
+
+        // Get tab IDs for this class, ordered by OrderIndex (0, 1, 2)
+        var classTabs = talentTabs
+            .Where(t => t.ClassMask == classMask)
+            .OrderBy(t => t.OrderIndex)
+            .ToArray();
+
+        var result = new TalentTreeElement[classTabs.Length][];
+
+        for (int i = 0; i < classTabs.Length; i++)
+        {
+            int tabId = classTabs[i].Id;
+            result[i] = talentTreeElements
+                .Where(e => e.TabID == tabId)
+                .OrderBy(e => e.TierID)
+                .ThenBy(e => e.ColumnIndex)
+                .ToArray();
+        }
+
+        return result;
     }
 
     public bool Update(ref Talent talent, UnitClass @class, out int spellId)

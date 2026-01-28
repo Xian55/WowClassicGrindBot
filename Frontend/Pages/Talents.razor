@@ -1,0 +1,166 @@
+@page "/Talents"
+
+@using Core.Talents
+@using Core.Database
+@using SharedLib
+
+@inject IAddonReader addonReader
+@inject WowProcessInput wowInput
+@inject WApi api
+@inject TalentReader talentReader
+@inject TalentDB talentDB
+@inject IconDB iconDB
+@inject PlayerReader playerReader
+@inject SpellDB spellDB
+
+@implements IDisposable
+
+<Card>
+    <CardHeader>
+        <div class="d-flex justify-content-between align-items-center">
+            <span>Talents</span>
+            <div class="d-flex align-items-center gap-3">
+                <Badge Color="BadgeColor.Info">Points Spent: @talentReader.Count</Badge>
+                <Button Color="ButtonColor.Primary" Size="ButtonSize.Small" @onpointerup="InitState">
+                    Init State
+                </Button>
+            </div>
+        </div>
+    </CardHeader>
+    <CardBody>
+        <div class="row g-2">
+            @foreach (var (tree, treeIndex) in talentTrees.Select((t, i) => (t, i)))
+            {
+                <div class="col-12 col-lg-4">
+                    <div class="talent-tree">
+                        @for (int tier = 0; tier <= tree.Max(t => t.TierID); tier++)
+                        {
+                            <div class="talent-tier d-flex justify-content-center gap-1">
+                                @for (int col = 0; col <= 3; col++)
+                                {
+                                    var talent = tree.FirstOrDefault(t => t.TierID == tier && t.ColumnIndex == col);
+                                    @if (talent.SpellIds != null && talent.SpellIds.Length > 0 && talent.SpellIds[0] != 0)
+                                    {
+                                        var spellId = talent.SpellIds[0];
+                                        var spentRank = GetSpentRank(treeIndex + 1, tier + 1, col + 1);
+                                        var isSpent = spentRank > 0;
+
+                                        <div class="talent-icon-wrapper @(isSpent ? "" : "talent-unspent")">
+                                            <a href="@($"{api.SpellId}{spellId}")" target="_blank">
+                                                <img src="@iconDB.GetIconUrlForSpell(spellId, 36)"
+                                                     class="talent-icon"
+                                                     title="@GetTalentName(spellId)" />
+                                            </a>
+                                            @if (isSpent)
+                                            {
+                                                <span class="talent-rank-badge">@spentRank</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="talent-placeholder"></div>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </CardBody>
+</Card>
+
+<style>
+    .talent-tree {
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 8px;
+        padding: 10px;
+    }
+    .talent-tier {
+        margin-bottom: 4px;
+    }
+    .talent-icon-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 36px;
+        height: 36px;
+    }
+    .talent-placeholder {
+        width: 36px;
+        height: 36px;
+    }
+    .talent-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 4px;
+        border: 2px solid #4a4a4a;
+    }
+    .talent-unspent .talent-icon {
+        filter: grayscale(100%) brightness(0.5);
+        border-color: #2a2a2a;
+    }
+    .talent-rank-badge {
+        position: absolute;
+        bottom: -2px;
+        right: -2px;
+        background: rgba(0, 0, 0, 0.9);
+        color: #00ff00;
+        font-size: 11px;
+        font-weight: bold;
+        padding: 0 3px;
+        border-radius: 2px;
+        border: 1px solid #00aa00;
+    }
+</style>
+
+@code {
+    private TalentTreeElement[][] talentTrees = [];
+
+    protected override void OnInitialized()
+    {
+        if (playerReader.Class != UnitClass.None)
+        {
+            talentTrees = talentDB.GetTalentTreesForClass(playerReader.Class);
+        }
+
+        addonReader.AddonDataChanged += OnDataChanged;
+    }
+
+    public void Dispose()
+    {
+        addonReader.AddonDataChanged -= OnDataChanged;
+    }
+
+    private void OnDataChanged()
+    {
+        if (talentTrees.Length == 0 && playerReader.Class != UnitClass.None)
+        {
+            talentTrees = talentDB.GetTalentTreesForClass(playerReader.Class);
+        }
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void InitState()
+    {
+        addonReader.FullReset();
+        wowInput.PressFlushKey();
+    }
+
+    private int GetSpentRank(int tab, int tier, int column)
+    {
+        foreach (var (hash, talent) in talentReader.Talents)
+        {
+            if (talent.TabNum == tab && talent.TierNum == tier && talent.ColumnNum == column)
+                return talent.CurrentRank;
+        }
+        return 0;
+    }
+
+    private string GetTalentName(int spellId)
+    {
+        if (spellDB.Spells.TryGetValue(spellId, out var spell))
+            return spell.Name;
+        return "";
+    }
+}
