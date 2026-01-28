@@ -162,14 +162,14 @@ The application now **automatically reads your in-game keybindings** instead of 
 **What Changed:**
 1. The addon now sends your actual WoW keybindings to the application
 2. Modifier keys (Shift, Ctrl, Alt) are now fully supported
-3. BindPad addon is no longer needed and has been removed
+3. BindPad addon is bundled and used internally for secure macro buttons
 4. Custom actions (StopAttack, ClearTarget) now use Alt-modified keys by default
 
 **Migration Steps:**
 
 1. **Update the Addon**: Copy the new `DataToColor` addon to your WoW Addons folder, replacing the old version.
 
-2. **Remove BindPad** (optional): The BindPad addon is no longer required. You can safely delete it from your Addons folder.
+2. **Install BindPad**: Copy the `BindPad` addon from the `Addons/BindPad/` folder to your WoW Addons folder. This is required for TBC Classic 2.5.5+ compatibility.
 
 3. **First Login**: On first login after the update, the addon will:
    - Automatically set up essential keybindings if they are missing
@@ -616,13 +616,13 @@ On non-US keyboard layouts, the physical key that produces `-` or `=` may have a
    <img alt="Screenshot" src="./images/keybindings.png" width="75%">
 </a>
 
-## 11. Custom Actions (Replaces BindPad)
+## 11. Custom Actions (Uses BindPad)
 
-**Breaking Change**: The BindPad addon is no longer required or included. The DataToColor addon now creates its own secure action buttons automatically.
+The BindPad addon is bundled in `Addons/BindPad/` and is required for TBC Classic 2.5.5+ compatibility. Blizzard patched `SecureActionButtonTemplate` macrotext in recent clients, breaking dynamically created secure buttons. BindPad's button works due to its initialization approach.
 
 ### How It Works
 
-The addon creates invisible secure buttons that act like macros but do not consume macro slots. These are bound to keys automatically on first run.
+The addon uses BindPad's secure macro button (`BindPadMacro`) internally to execute custom actions like StopAttack and ClearTarget. These are bound to keys automatically on first run.
 
 | Action | Default Key | What It Does |
 | ---- | ---- | ---- |
@@ -642,12 +642,12 @@ Replace `<prefix>` with your addon's command prefix (e.g., `/dcactions` if your 
 
 This creates the secure buttons and binds them to the default keys. The bindings are saved to your current binding set (account-wide or character-specific).
 
-### Migration from BindPad
+### BindPad Setup
 
-If you were previously using BindPad:
-1. You can safely remove the BindPad addon from your Addons folder
-2. The new system will auto-configure on next login
-3. Your old BindPad bindings on `Delete`, `Insert`, etc. may conflict - the new system uses `Alt-Delete`, `Alt-Insert` to avoid conflicts
+BindPad is bundled in `Addons/BindPad/` and must be installed:
+1. Copy the `BindPad` folder to your WoW `Interface/AddOns/` directory
+2. Enable the BindPad addon in your addon list
+3. The DataToColor addon will automatically use BindPad's secure button for custom actions
 
 ### Why Alt-Modified Keys?
 
