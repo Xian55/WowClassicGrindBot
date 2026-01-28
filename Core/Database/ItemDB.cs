@@ -34,5 +34,46 @@ public sealed class ItemDB
 
         DrinkIds = DeserializeObject<int[]>(
             ReadAllText(Join(dataConfig.ExpDbc, "waters.json")))!;
+
+        // Set static reference for KeyReader item alias resolution
+        KeyReader.ItemDB = this;
+    }
+
+    /// <summary>
+    /// Gets texture IDs for all known food items.
+    /// </summary>
+    public IEnumerable<int> GetFoodTextures()
+    {
+        foreach (int itemId in FoodIds)
+        {
+            if (Items.TryGetValue(itemId, out Item item) && item.TextureId > 0)
+                yield return item.TextureId;
+        }
+    }
+
+    /// <summary>
+    /// Gets texture IDs for all known drink items.
+    /// </summary>
+    public IEnumerable<int> GetDrinkTextures()
+    {
+        foreach (int itemId in DrinkIds)
+        {
+            if (Items.TryGetValue(itemId, out Item item) && item.TextureId > 0)
+                yield return item.TextureId;
+        }
+    }
+
+    /// <summary>
+    /// Gets the texture ID for an item by its item ID.
+    /// </summary>
+    public bool TryGetTexture(int itemId, out int textureId)
+    {
+        if (Items.TryGetValue(itemId, out Item item) && item.TextureId > 0)
+        {
+            textureId = item.TextureId;
+            return true;
+        }
+        textureId = 0;
+        return false;
     }
 }

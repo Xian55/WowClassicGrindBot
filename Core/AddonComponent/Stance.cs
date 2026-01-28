@@ -49,9 +49,8 @@ public sealed class Stance : IReader
                 switch (form)
                 {
                     case Form.Druid_Cat:
+                    case Form.Druid_Cat_Prowl: // Prowl doesn't change action bar in Classic
                         return StanceActionBar.DruidCat;
-                    case Form.Druid_Cat_Prowl:
-                        return StanceActionBar.DruidCatProwl;
                     case Form.Druid_Bear:
                         return StanceActionBar.DruidBear;
                     case Form.Druid_Moonkin:

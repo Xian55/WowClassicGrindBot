@@ -3,12 +3,15 @@
 @using Core.GOAP
 @using Core.Goals
 @using System.Text.RegularExpressions
+@using SharedLib
 
 @inject WApi api
 
 @inject IBotController botController
 
 @inject ActionBarCooldownReader ActionBarCooldownReader
+
+@inject KeyBindingsReader keyBindingsReader
 
 <tr class="@ActionClass(IsSelected, 0)">
     <td>
@@ -40,54 +43,45 @@
 </tr>
 @if (goal.Keys.Length > 1 && (IsSelected || Expand))
 {
-    <tr>
-        <td colspan="2">
-            <table class="table table-sm table-striped mb-0">
-                <tbody>
-                    @{
-                        int lastKey = KeyAction.LastKeyClicked();
-                        ReadOnlySpan<KeyAction> span = goal.Keys.AsSpan();
-                    }
-                    @for (int k = 0; k < span.Length; k++)
+    int lastKey = KeyAction.LastKeyClicked();
+    ReadOnlySpan<KeyAction> span = goal.Keys.AsSpan();
+
+    @for (int k = 0; k < span.Length; k++)
+    {
+        KeyAction key = span[k];
+
+        int cooldown = 0;
+        if (key.Slot > 0)
+            cooldown = ActionBarCooldownReader.Get(key);
+
+        <tr class="@ActionClass(goal == botController.GoapAgent!.CurrentGoal && lastKey == key.ConsoleKeyFormHash, cooldown) goal-child-row">
+            <td class="goal-child-cell">
+                @if (key.HasForm)
+                {
+                    <img style="margin-right:4px" src="@FormResourceName(key.FormValue)" />
+                }
+                <b style="color:@DisplayCanRun(key.CanRun())">@KeyActionSpellName(key)</b>
+            </td>
+            <td>
+                @{
+                    ReadOnlySpan<Requirement> reqSpan = key.RequirementsRuntime.AsSpan();
+                }
+                @for (int r = 0; r < reqSpan.Length; r++)
+                {
+                    Requirement rq = reqSpan[r];
+                    if (rq.VisibleIfHasRequirement || !rq.HasRequirement() || ShowAll)
                     {
-                        KeyAction key = span[k];
-
-                        int cooldown = 0;
-                        if (key.Slot > 0)
-                            cooldown = ActionBarCooldownReader.Get(key);
-
-                        <tr class="@ActionClass(goal == botController.GoapAgent!.CurrentGoal && lastKey == key.ConsoleKeyFormHash, cooldown)">
-                            <td>
-                                @if (key.HasForm)
-                                {
-                                    <img style="margin-right:4px" src="@FormResourceName(key.FormValue)" />
-                                }
-                                <b style="color:@DisplayCanRun(key.CanRun())">@KeyActionSpellName(key)</b>
-                            </td>
-                            <td>
-                                @{
-                                    ReadOnlySpan<Requirement> reqSpan = key.RequirementsRuntime.AsSpan();
-                                }
-                                @for (int r = 0; r < reqSpan.Length; r++)
-                                {
-                                    Requirement rq = reqSpan[r];
-                                    if (rq.VisibleIfHasRequirement || !rq.HasRequirement() || ShowAll)
-                                    {
-                                        var enumerator = DisplayRequirementBadges(rq);
-                                        while (enumerator.MoveNext())
-                                        {
-                                            var item = enumerator.Current;
-                                            <Badge style="margin-right:4px;" Color="@item.color">@item.text</Badge>
-                                        }
-                                    }
-                                }
-                            </td>
-                        </tr>
+                        var enumerator = DisplayRequirementBadges(rq);
+                        while (enumerator.MoveNext())
+                        {
+                            var item = enumerator.Current;
+                            <Badge style="margin-right:4px;" Color="@item.color">@item.text</Badge>
+                        }
                     }
-                </tbody>
-            </table>
-        </td>
-    </tr>
+                }
+            </td>
+        </tr>
+    }
 }
 
 @code {
@@ -166,11 +160,37 @@
         return new MarkupString(goal.DisplayName);
     }
 
+    private string GetKeyDisplay(KeyAction keyAction)
+    {
+        // If Key is explicitly set, use it
+        if (!string.IsNullOrEmpty(keyAction.Key))
+            return keyAction.Key;
+
+        // If Slot is set, resolve the key binding
+        if (keyAction.Slot > 0)
+        {
+            var bindingId = KeyReader.SlotToBindingID(keyAction.Slot);
+            if (bindingId != BindingID.None &&
+                keyBindingsReader.TryGetBinding(bindingId, out var key, out var modifier))
+            {
+                var modPrefix = modifier != ModifierKey.None ? modifier.ToPrefix() : "";
+                return $"{modPrefix}{key}";
+            }
+            // Fallback to slot number if binding not found
+            return $"Slot {keyAction.Slot}";
+        }
+
+        return "";
+    }
+
     public MarkupString KeyActionSpellName(KeyAction keyAction)
     {
-        if (keyAction.SpellId == 0)
-            return new MarkupString($"{keyAction.Name} [{keyAction.Key}]");
+        string keyDisplay = GetKeyDisplay(keyAction);
+        string keyPart = !string.IsNullOrEmpty(keyDisplay) ? $" [{keyDisplay}]" : "";
 
-        return new($"<a href=\"{api.SpellId}{keyAction.SpellId}\" target=\"_blank\" data-wowhead=\"spell={keyAction.SpellId}\" style=\"text-decoration:none;color:inherit\">{keyAction.Name} [{keyAction.Key}]</a>");
+        if (keyAction.SpellId == 0)
+            return new MarkupString($"{keyAction.Name}{keyPart}");
+
+        return new($"<a href=\"{api.SpellId}{keyAction.SpellId}\" target=\"_blank\" data-wowhead=\"spell={keyAction.SpellId}\" style=\"text-decoration:none;color:inherit\">{keyAction.Name}{keyPart}</a>");
     }
 }

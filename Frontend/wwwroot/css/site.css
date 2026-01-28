@@ -247,3 +247,20 @@ app {
 .heirloom {
     color: #e5cc80;
 }
+
+/* Goals view - child row indentation */
+.goal-child-row {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.goal-child-cell {
+    padding-left: 1.5rem !important;
+}
+
+.goal-child-row td:first-child {
+    border-left: 3px solid rgba(0, 123, 255, 0.3);
+}
+
+[data-bs-theme="dark"] .goal-child-row {
+    background-color: rgba(255, 255, 255, 0.02);
+}

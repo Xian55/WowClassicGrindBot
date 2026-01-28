@@ -73,19 +73,17 @@ public sealed class Test_Input
         logger.LogInformation($"{nameof(Mouse_Clicks)} Finished");
     }
 
-    public void Clipboard()
+    public void SendText()
     {
-        input.SetClipboard("/help");
-
         // Open chat inputbox
         input.PressRandom(ConsoleKey.Enter, delay);
 
-        input.PasteFromClipboard();
+        input.SendText("/help");
         token.WaitHandle.WaitOne(delay);
 
         // Close chat inputbox
         input.PressRandom(ConsoleKey.Enter, delay);
 
-        logger.LogInformation($"{nameof(Clipboard)} Finished");
+        logger.LogInformation($"{nameof(SendText)} Finished");
     }
 }

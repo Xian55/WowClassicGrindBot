@@ -1,0 +1,1642 @@
+@implements IDisposable
+@inject KeyBindingsReader keyBindingsReader
+@inject ActionBarTextureReader actionBarTextureReader
+@inject ActionBarSlotValidator actionBarSlotValidator
+@inject SpellBookReader spellBookReader
+@inject IBotController botController
+@inject Core.Database.IconDB iconDB
+@inject PlayerReader playerReader
+@inject ILoggerFactory logFactory
+@inject BagReader bagReader
+@inject EquipmentReader equipmentReader
+@inject ExecGameCommand exec
+@inject AddonConfigurator addonConfigurator
+@inject WowProcessInput wowInput
+@inject IAddonReader addonReader
+@inject ActionBarCostReader actionBarCostReader
+@inject ActionBarCooldownReader actionBarCooldownReader
+@inject ActionBarBits<IUsableAction> usableAction
+@inject ActionBarBits<ICurrentAction> currentAction
+
+@if (botController.ClassConfig == null)
+{
+    <div class="card mt-1">
+        <div class="card-header">
+            Keyboard Bindings
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                Please load a class profile first to view key bindings.
+            </div>
+        </div>
+    </div>
+}
+else
+{
+<div class="card mt-1">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Keyboard Bindings</span>
+        <div class="d-flex align-items-center">
+            @if (validationSummary.MissingCount > 0)
+            {
+                <span class="badge bg-warning me-1">@validationSummary.MissingCount missing</span>
+            }
+            @if (validationSummary.BoundCount > 0)
+            {
+                <span class="badge bg-success me-1">@validationSummary.BoundCount OK</span>
+            }
+            <span class="badge @(keyBindingsReader.IsInitialized ? "bg-info" : "bg-secondary") me-2">
+                @(keyBindingsReader.IsInitialized ? $"{keyBindingsReader.Count} in-game" : "Loading...")
+            </span>
+            @if (HasMissingActionBarBindings())
+            {
+                <button class="btn btn-sm btn-outline-warning me-1" @onclick="SetupBindings" title="Run /@addonConfigurator.Config.CommandBindings to set default action bar key bindings">
+                    Setup Bindings
+                </button>
+            }
+            @if (HasMissingCustomActions())
+            {
+                <button class="btn btn-sm btn-outline-warning me-1" @onclick="SetupActions" title="Run /@addonConfigurator.Config.CommandActions to create custom action buttons">
+                    Setup Actions
+                </button>
+            }
+            <button class="btn btn-sm btn-primary me-1" @onclick="SyncActionBar" disabled="@(actionBarPopulator == null)">
+                <span>Sync Actionbar</span>
+            </button>
+            <button class="btn btn-sm btn-primary" @onclick="InitState">
+                <span>Init State</span>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (validationSummary.MissingCount > 0)
+        {
+            <div class="alert alert-warning mb-2 p-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Missing key bindings!</strong> Set these bindings in-game or run <code>/@addonConfigurator.Config.CommandBindings</code> to apply defaults.
+                    </div>
+                    <button class="btn btn-sm btn-outline-warning" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#mismatchDetails">
+                        Details
+                    </button>
+                </div>
+                <div class="collapse mt-2" id="mismatchDetails">
+                    <table class="table table-sm table-dark mb-0">
+                        <thead>
+                            <tr>
+                                <th>Binding</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var issue in GetValidationIssues())
+                            {
+                                <tr>
+                                    <td>@issue.BindingId.ToStringF()</td>
+                                    <td><span class="badge bg-warning">Not bound in-game</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+
+        <div class="keyboard-wrapper">
+        <div class="keyboard-layout">
+        <div class="keyboard-container">
+            @* Function Row - Slots 61-72 *@
+            <div class="keyboard-row">
+                <div class="key key-sm">Esc</div>
+                @for (int i = 1; i <= 12; i++)
+                {
+                    var fKey = GetConsoleKey($"F{i}");
+                    int slot = 60 + i;
+                    var action = GetActionForSlot(slot);
+                    var iconUrl = GetIconUrl(slot);
+                    <div class="key key-sm @GetKeyClass(fKey) @GetActionClass(action, slot)" title="@GetCombinedTooltip(fKey, slot, action)">
+                        @if (iconUrl != null)
+                        {
+                            <img src="@iconUrl" class="key-icon" alt="" />
+                        }
+                        else
+                        {
+                            <span>F@(i)</span>
+                            @if (action != null)
+                            {
+                                <div class="key-spell">@TruncateName(action.Name, 6)</div>
+                            }
+                            else if (GetBindingLabel(fKey) is string label)
+                            {
+                                <div class="key-binding">@label</div>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+
+            @* Number Row - Slots 1-12 *@
+            <div class="keyboard-row">
+                <div class="key">`</div>
+                @foreach (var key in numberRowKeys)
+                {
+                    var consoleKey = GetConsoleKey(key);
+                    int slot = GetMainBarSlot(key);
+                    var action = GetActionForSlot(slot);
+                    var iconUrl = GetIconUrl(slot);
+                    <div class="key @GetKeyClass(consoleKey) @GetActionClass(action, slot)" title="@GetCombinedTooltip(consoleKey, slot, action)">
+                        @if (iconUrl != null)
+                        {
+                            <img src="@iconUrl" class="key-icon" alt="" />
+                        }
+                        else
+                        {
+                            <span>@key</span>
+                            @if (action != null)
+                            {
+                                <div class="key-spell">@TruncateName(action.Name, 6)</div>
+                            }
+                            else if (GetBindingLabel(consoleKey) is string label)
+                            {
+                                <div class="key-binding">@label</div>
+                            }
+                        }
+                    </div>
+                }
+                <div class="key key-wide">Bksp</div>
+            </div>
+
+            @* QWERTY Row *@
+            <div class="keyboard-row">
+                <div class="key key-tab">Tab</div>
+                @foreach (var key in qwertyRowKeys)
+                {
+                    var consoleKey = GetConsoleKey(key);
+                    <div class="key @GetKeyClass(consoleKey)" title="@GetKeyTooltip(consoleKey)">
+                        @key
+                        @if (GetBindingLabel(consoleKey) is string label)
+                        {
+                            <div class="key-binding">@label</div>
+                        }
+                    </div>
+                }
+            </div>
+
+            @* ASDF Row *@
+            <div class="keyboard-row">
+                <div class="key key-caps">Caps</div>
+                @foreach (var key in asdfRowKeys)
+                {
+                    var consoleKey = GetConsoleKey(key);
+                    <div class="key @GetKeyClass(consoleKey)" title="@GetKeyTooltip(consoleKey)">
+                        @key
+                        @if (GetBindingLabel(consoleKey) is string label)
+                        {
+                            <div class="key-binding">@label</div>
+                        }
+                    </div>
+                }
+                <div class="key key-enter">Enter</div>
+            </div>
+
+            @* ZXCV Row *@
+            <div class="keyboard-row">
+                <div class="key key-shift">Shift</div>
+                @foreach (var key in zxcvRowKeys)
+                {
+                    var consoleKey = GetConsoleKey(key);
+                    <div class="key @GetKeyClass(consoleKey)" title="@GetKeyTooltip(consoleKey)">
+                        @key
+                        @if (GetBindingLabel(consoleKey) is string label)
+                        {
+                            <div class="key-binding">@label</div>
+                        }
+                    </div>
+                }
+                <div class="key key-shift">Shift</div>
+            </div>
+
+            @* Space Row *@
+            <div class="keyboard-row">
+                <div class="key key-ctrl">Ctrl</div>
+                <div class="key key-sm">Win</div>
+                <div class="key key-sm">Alt</div>
+                @{
+                    var spaceKey = ConsoleKey.Spacebar;
+                }
+                <div class="key key-space @GetKeyClass(spaceKey)" title="@GetKeyTooltip(spaceKey)">
+                    Space
+                    @if (GetBindingLabel(spaceKey) is string spaceLabel)
+                    {
+                        <div class="key-binding">@spaceLabel</div>
+                    }
+                </div>
+                <div class="key key-sm">Alt</div>
+                <div class="key key-sm">Win</div>
+                <div class="key key-ctrl">Ctrl</div>
+            </div>
+        </div>
+
+        @* Navigation Keys *@
+        <div class="keyboard-container mt-2">
+            <div class="keyboard-row">
+                @{
+                    var insertKey = ConsoleKey.Insert;
+                    var homeKey = ConsoleKey.Home;
+                    var pageUpKey = ConsoleKey.PageUp;
+                }
+                <div class="key key-nav @GetKeyClass(insertKey)" title="@GetKeyTooltip(insertKey)">
+                    Ins
+                    @if (GetBindingLabel(insertKey) is string insLabel)
+                    {
+                        <div class="key-binding">@insLabel</div>
+                    }
+                </div>
+                <div class="key key-nav @GetKeyClass(homeKey)" title="@GetKeyTooltip(homeKey)">
+                    Home
+                    @if (GetBindingLabel(homeKey) is string homeLabel)
+                    {
+                        <div class="key-binding">@homeLabel</div>
+                    }
+                </div>
+                <div class="key key-nav @GetKeyClass(pageUpKey)" title="@GetKeyTooltip(pageUpKey)">
+                    PgUp
+                    @if (GetBindingLabel(pageUpKey) is string pgUpLabel)
+                    {
+                        <div class="key-binding">@pgUpLabel</div>
+                    }
+                </div>
+            </div>
+            <div class="keyboard-row">
+                @{
+                    var deleteKey = ConsoleKey.Delete;
+                    var endKey = ConsoleKey.End;
+                    var pageDownKey = ConsoleKey.PageDown;
+                }
+                <div class="key key-nav @GetKeyClass(deleteKey)" title="@GetKeyTooltip(deleteKey)">
+                    Del
+                    @if (GetBindingLabel(deleteKey) is string delLabel)
+                    {
+                        <div class="key-binding">@delLabel</div>
+                    }
+                </div>
+                <div class="key key-nav @GetKeyClass(endKey)" title="@GetKeyTooltip(endKey)">
+                    End
+                    @if (GetBindingLabel(endKey) is string endLabel)
+                    {
+                        <div class="key-binding">@endLabel</div>
+                    }
+                </div>
+                <div class="key key-nav @GetKeyClass(pageDownKey)" title="@GetKeyTooltip(pageDownKey)">
+                    PgDn
+                    @if (GetBindingLabel(pageDownKey) is string pgDnLabel)
+                    {
+                        <div class="key-binding">@pgDnLabel</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* Numpad - Slots 49-58 *@
+        <div class="keyboard-container mt-2">
+            <div class="keyboard-row">
+                @for (int i = 7; i <= 9; i++)
+                {
+                    var numKey = GetNumpadKey(i);
+                    int slot = GetNumpadSlot(i);
+                    var action = GetActionForSlot(slot);
+                    var iconUrl = GetIconUrl(slot);
+                    <div class="key key-num @GetKeyClass(numKey) @GetActionClass(action, slot)" title="@GetCombinedTooltip(numKey, slot, action)">
+                        @if (iconUrl != null)
+                        {
+                            <img src="@iconUrl" class="key-icon" alt="" />
+                        }
+                        else
+                        {
+                            <span>@i</span>
+                            @if (action != null)
+                            {
+                                <div class="key-spell">@TruncateName(action.Name, 5)</div>
+                            }
+                            else if (GetBindingLabel(numKey) is string label)
+                            {
+                                <div class="key-binding">@label</div>
+                            }
+                        }
+                    </div>
+                }
+                @{
+                    var addKey = ConsoleKey.Add;
+                }
+                <div class="key key-num @GetKeyClass(addKey)" title="@GetKeyTooltip(addKey)">
+                    +
+                    @if (GetBindingLabel(addKey) is string addLabel)
+                    {
+                        <div class="key-binding">@addLabel</div>
+                    }
+                </div>
+            </div>
+            <div class="keyboard-row">
+                @for (int i = 4; i <= 6; i++)
+                {
+                    var numKey = GetNumpadKey(i);
+                    int slot = GetNumpadSlot(i);
+                    var action = GetActionForSlot(slot);
+                    var iconUrl = GetIconUrl(slot);
+                    <div class="key key-num @GetKeyClass(numKey) @GetActionClass(action, slot)" title="@GetCombinedTooltip(numKey, slot, action)">
+                        @if (iconUrl != null)
+                        {
+                            <img src="@iconUrl" class="key-icon" alt="" />
+                        }
+                        else
+                        {
+                            <span>@i</span>
+                            @if (action != null)
+                            {
+                                <div class="key-spell">@TruncateName(action.Name, 5)</div>
+                            }
+                            else if (GetBindingLabel(numKey) is string label)
+                            {
+                                <div class="key-binding">@label</div>
+                            }
+                        }
+                    </div>
+                }
+                @{
+                    var subKey = ConsoleKey.Subtract;
+                }
+                <div class="key key-num @GetKeyClass(subKey)" title="@GetKeyTooltip(subKey)">
+                    -
+                    @if (GetBindingLabel(subKey) is string subLabel)
+                    {
+                        <div class="key-binding">@subLabel</div>
+                    }
+                </div>
+            </div>
+            <div class="keyboard-row">
+                @for (int i = 1; i <= 3; i++)
+                {
+                    var numKey = GetNumpadKey(i);
+                    int slot = GetNumpadSlot(i);
+                    var action = GetActionForSlot(slot);
+                    var iconUrl = GetIconUrl(slot);
+                    <div class="key key-num @GetKeyClass(numKey) @GetActionClass(action, slot)" title="@GetCombinedTooltip(numKey, slot, action)">
+                        @if (iconUrl != null)
+                        {
+                            <img src="@iconUrl" class="key-icon" alt="" />
+                        }
+                        else
+                        {
+                            <span>@i</span>
+                            @if (action != null)
+                            {
+                                <div class="key-spell">@TruncateName(action.Name, 5)</div>
+                            }
+                            else if (GetBindingLabel(numKey) is string label)
+                            {
+                                <div class="key-binding">@label</div>
+                            }
+                        }
+                    </div>
+                }
+                @{
+                    var mulKey = ConsoleKey.Multiply;
+                }
+                <div class="key key-num @GetKeyClass(mulKey)" title="@GetKeyTooltip(mulKey)">
+                    *
+                    @if (GetBindingLabel(mulKey) is string mulLabel)
+                    {
+                        <div class="key-binding">@mulLabel</div>
+                    }
+                </div>
+            </div>
+            <div class="keyboard-row">
+                @{
+                    var num0Key = ConsoleKey.NumPad0;
+                    var divKey = ConsoleKey.Divide;
+                    int num0Slot = GetNumpadSlot(0);
+                    var num0Action = GetActionForSlot(num0Slot);
+                    var num0IconUrl = GetIconUrl(num0Slot);
+                }
+                <div class="key key-num key-num0 @GetKeyClass(num0Key) @GetActionClass(num0Action, num0Slot)" title="@GetCombinedTooltip(num0Key, num0Slot, num0Action)">
+                    @if (num0IconUrl != null)
+                    {
+                        <img src="@num0IconUrl" class="key-icon" alt="" />
+                    }
+                    else
+                    {
+                        <span>0</span>
+                        @if (num0Action != null)
+                        {
+                            <div class="key-spell">@TruncateName(num0Action.Name, 8)</div>
+                        }
+                        else if (GetBindingLabel(num0Key) is string num0Label)
+                        {
+                            <div class="key-binding">@num0Label</div>
+                        }
+                    }
+                </div>
+                <div class="key key-num @GetKeyClass(divKey)" title="@GetKeyTooltip(divKey)">
+                    /
+                    @if (GetBindingLabel(divKey) is string divLabel)
+                    {
+                        <div class="key-binding">@divLabel</div>
+                    }
+                </div>
+            </div>
+        </div>
+        </div> @* keyboard-layout *@
+
+        @* Stance/Form Bars *@
+        @if (GetStanceBars() is var stanceBars && stanceBars.Length > 0)
+        {
+            <div class="stance-bars mt-3">
+                <h6 class="text-muted mb-2">Stance/Form Bars</h6>
+                <div class="d-flex flex-wrap gap-3">
+                    @foreach (var stance in stanceBars)
+                    {
+                        <div class="stance-bar-section">
+                            <div class="stance-bar-label">@stance.Name</div>
+                            <div class="keyboard-container">
+                                <div class="keyboard-row">
+                                    @for (int i = 1; i <= 12; i++)
+                                    {
+                                        int slot = stance.BaseSlot + i;
+                                        var action = GetActionForSlot(slot);
+                                        var iconUrl = GetIconUrl(slot);
+                                        var hasTexture = actionBarTextureReader.TryGetTexture(slot, out int textureId);
+                                        <div class="key key-sm @GetSlotValidationClass(slot, action)" title="@GetStanceSlotTooltip(slot, action)">
+                                            @if (iconUrl != null)
+                                            {
+                                                <img src="@iconUrl" class="key-icon" alt="" />
+                                            }
+                                            else if (action != null)
+                                            {
+                                                <span class="key-slot">@i</span>
+                                                <div class="key-spell">@TruncateName(action.Name, 5)</div>
+                                            }
+                                            else if (hasTexture && textureId > 0)
+                                            {
+                                                <span class="key-slot">@i</span>
+                                                <div class="key-spell">tex:@textureId</div>
+                                            }
+                                            else
+                                            {
+                                                <span class="key-slot-empty">@i</span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        </div> @* keyboard-wrapper *@
+
+        @* Legend *@
+        <div class="mt-3">
+            <span class="badge bg-success me-2">Bound in-game</span>
+            <span class="badge bg-warning text-dark me-2">Not bound</span>
+            <span class="badge bg-info me-2">In-game (extra)</span>
+            <span class="badge bg-primary me-2">Configured Action</span>
+            <span class="badge" style="background:#3a3a5e">In-game Action</span>
+        </div>
+
+        @* Missing Spells Section *@
+        @{
+            var actionBarIssues = GetActionBarIssues();
+            var resolvableIssues = actionBarIssues.Where(i => i.CanResolve).ToList();
+            var hardErrors = actionBarIssues.Where(i => !i.CanResolve).ToList();
+        }
+        @if (actionBarIssues.Count > 0)
+        {
+            <div class="mt-3 border-top pt-3">
+                <h6 class="text-muted mb-2">Action Bar Issues</h6>
+
+                @if (resolvableIssues.Count > 0)
+                {
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-warning">Resolvable (@resolvableIssues.Count)</span>
+                            @if (resolvableIssues.Count > 1)
+                            {
+                                <button class="btn btn-sm btn-outline-success" @onclick="ResolveAllActionBarIssues">
+                                    Resolve All
+                                </button>
+                            }
+                        </div>
+                        <table class="table table-sm table-dark mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Spell</th>
+                                    <th>Slot</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var issue in resolvableIssues)
+                                {
+                                    <tr>
+                                        <td>@issue.SpellName</td>
+                                        <td>@issue.Slot</td>
+                                        <td>
+                                            @if (issue.Status == SlotValidationStatus.EmptySlot)
+                                            {
+                                                <span class="badge bg-warning text-dark">Empty</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger">Mismatch</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-xs btn-outline-success" @onclick="() => ResolveActionBarIssue(issue)">
+                                                Place
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                @if (hardErrors.Count > 0)
+                {
+                    <div class="mb-2">
+                        <span class="text-danger">Manual Resolution Required (@hardErrors.Count)</span>
+                        <table class="table table-sm table-dark mb-0 mt-2">
+                            <thead>
+                                <tr>
+                                    <th>Spell</th>
+                                    <th>Issue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var issue in hardErrors)
+                                {
+                                    <tr>
+                                        <td>@issue.SpellName</td>
+                                        <td><span class="text-danger">No slot configured - add Key or Slot to profile</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+
+        @* All Bindings Section *@
+        <div class="mt-3 border-top pt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="text-muted mb-0">All In-Game Bindings (@keyBindingsReader.Count)</h6>
+                <button class="btn btn-sm btn-outline-secondary" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#allBindingsSection">
+                    Toggle
+                </button>
+            </div>
+            <div class="collapse" id="allBindingsSection">
+                <table class="table table-sm table-dark mb-0">
+                    <thead>
+                        <tr>
+                            <th>Binding ID</th>
+                            <th>Keys (click to test)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var bindingId in GetAllBindingIds())
+                        {
+                            var hasKey1 = keyBindingsReader.TryGetBinding(bindingId, out var key1, out var mod1);
+                            var hasKey2 = keyBindingsReader.TryGetSecondaryBinding(bindingId, out var key2, out var mod2);
+
+                            @if (hasKey1 || hasKey2)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="@GetBindingIdClass(bindingId)">@bindingId.ToStringF()</span>
+                                    </td>
+                                    <td>
+                                        @if (hasKey1)
+                                        {
+                                            <button class="btn btn-xs btn-outline-info me-1"
+                                                    @onclick="() => TestKey(key1, mod1)"
+                                                    title="Send @FormatKeyWithModifier(key1, mod1) to game">
+                                                @FormatKeyWithModifier(key1, mod1)
+                                            </button>
+                                        }
+                                        @if (hasKey2)
+                                        {
+                                            <button class="btn btn-xs btn-outline-secondary"
+                                                    @onclick="() => TestKey(key2, mod2)"
+                                                    title="Send @FormatKeyWithModifier(key2, mod2) to game">
+                                                @FormatKeyWithModifier(key2, mod2)
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+<style>
+    .keyboard-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .keyboard-layout {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        transform-origin: top left;
+    }
+
+    .keyboard-container {
+        display: inline-block;
+        background: #2d2d2d;
+        padding: 10px;
+        border-radius: 8px;
+        flex-shrink: 0;
+    }
+
+    .keyboard-row {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 4px;
+    }
+
+    .key {
+        min-width: 40px;
+        height: 40px;
+        background: #404040;
+        border: 1px solid #555;
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: #ccc;
+        position: relative;
+        cursor: default;
+    }
+
+    .key:hover {
+        background: #505050;
+    }
+
+    .key-binding {
+        font-size: 8px;
+        color: #aaa;
+        max-width: 38px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .key-bound {
+        background: #1a5c1a;
+        border-color: #2d8a2d;
+    }
+
+    .key-mismatch {
+        background: #8a2d2d;
+        border-color: #b33;
+    }
+
+    .key-expected {
+        background: #6e5c1a;
+        border-color: #b9a029;
+    }
+
+    .key-ingame {
+        background: #1a4a6e;
+        border-color: #2980b9;
+    }
+
+    .key-sm { min-width: 35px; }
+    .key-wide { min-width: 60px; }
+    .key-tab { min-width: 55px; }
+    .key-caps { min-width: 65px; }
+    .key-enter { min-width: 75px; }
+    .key-shift { min-width: 85px; }
+    .key-ctrl { min-width: 50px; }
+    .key-space { min-width: 200px; }
+    .key-nav { min-width: 45px; }
+    .key-num { min-width: 40px; }
+    .key-num0 { min-width: 84px; }
+
+    /* Action Bar Spell on Key */
+    .key-spell {
+        font-size: 8px;
+        color: #7cb3d9;
+        max-width: 38px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .key-action {
+        background: #2a4a5e;
+        border-color: #3a6a8e;
+    }
+
+    .key-ingame-action {
+        background: #3a3a5e;
+        border-color: #5a5a8e;
+    }
+
+    /* Validation states for stance bar slots */
+    .key-valid {
+        background: #1a5c1a;
+        border-color: #2d8a2d;
+    }
+
+    .key-empty-warning {
+        background: #8a6b1a;
+        border-color: #b9a029;
+    }
+
+    /* Spell icon on key */
+    .key-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 3px;
+        object-fit: cover;
+    }
+
+    .key-num .key-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .key-sm .key-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    /* Stance bar styling */
+    .stance-bars {
+        border-top: 1px solid #444;
+        padding-top: 15px;
+    }
+
+    .stance-bar-section {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .stance-bar-label {
+        font-size: 11px;
+        color: #aaa;
+        padding-left: 10px;
+    }
+
+    .key-slot {
+        font-size: 10px;
+        color: #888;
+    }
+
+    .key-slot-empty {
+        font-size: 10px;
+        color: #555;
+    }
+
+    /* Responsive scaling */
+    @@media (max-width: 1200px) {
+        .keyboard-layout {
+            transform: scale(0.85);
+        }
+        .stance-bars {
+            transform: scale(0.85);
+            transform-origin: top left;
+        }
+    }
+
+    @@media (max-width: 992px) {
+        .keyboard-layout {
+            transform: scale(0.75);
+        }
+        .stance-bars {
+            transform: scale(0.75);
+            transform-origin: top left;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .keyboard-layout {
+            transform: scale(0.6);
+        }
+        .stance-bars {
+            transform: scale(0.6);
+            transform-origin: top left;
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .keyboard-layout {
+            transform: scale(0.45);
+        }
+        .keyboard-wrapper {
+            margin-bottom: -150px; /* Compensate for scaled whitespace */
+        }
+        .stance-bars {
+            transform: scale(0.45);
+            transform-origin: top left;
+            margin-bottom: -80px;
+        }
+    }
+
+    @@media (max-width: 400px) {
+        .keyboard-layout {
+            transform: scale(0.35);
+        }
+        .keyboard-wrapper {
+            margin-bottom: -200px;
+        }
+        .stance-bars {
+            transform: scale(0.35);
+            transform-origin: top left;
+            margin-bottom: -100px;
+        }
+    }
+
+    .btn-xs {
+        padding: 0.15rem 0.4rem;
+        font-size: 0.75rem;
+        line-height: 1.3;
+    }
+</style>
+
+@code {
+    private readonly string[] numberRowKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="];
+    private readonly string[] qwertyRowKeys = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]", "\\"];
+    private readonly string[] asdfRowKeys = ["A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'"];
+    private readonly string[] zxcvRowKeys = ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"];
+
+    // Main action bar keys (1-9, 0, -, =) map to slots 1-12
+    private readonly string[] mainBarKeys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="];
+
+    private Dictionary<ConsoleKey, BindingID> expectedBindings = [];
+    private Dictionary<ConsoleKey, BindingID> actualBindings = [];
+    private Dictionary<ConsoleKey, BindingID> actualSecondaryBindings = [];
+    private Dictionary<BindingID, ConsoleKey> expectedByBindingId = [];
+    private Dictionary<int, KeyAction> slotToAction = [];
+    private ValidationSummary validationSummary = new();
+    private List<ValidationIssue> validationIssues = [];
+    private ActionBarPopulator? actionBarPopulator;
+
+    private record ValidationSummary
+    {
+        public int BoundCount { get; set; }
+        public int MissingCount { get; set; }
+    }
+
+    private record ValidationIssue(
+        BindingID BindingId,
+        bool IsMissing);
+
+    private List<ActionBarIssue> GetActionBarIssues()
+    {
+        var config = botController.ClassConfig;
+        if (config == null) return [];
+
+        // Use centralized validation from ActionBarSlotValidator
+        return actionBarSlotValidator.GetIssues(config);
+    }
+
+    private void ResolveActionBarIssue(ActionBarIssue issue)
+    {
+        if (!issue.CanResolve || issue.Slot <= 0)
+            return;
+
+        actionBarPopulator?.Place(issue.KeyAction);
+    }
+
+    private void ResolveAllActionBarIssues()
+    {
+        var issues = GetActionBarIssues().Where(i => i.CanResolve).ToList();
+        foreach (var issue in issues)
+        {
+            ResolveActionBarIssue(issue);
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        keyBindingsReader.BindingChanged += OnBindingChanged;
+        actionBarTextureReader.TextureChanged += OnTextureChanged;
+
+        if (botController.ClassConfig == null)
+            return;
+
+        BuildExpectedBindings();
+        BuildActualBindings();
+        BuildSlotMappings();
+        BuildValidationSummary();
+        CreateActionBarPopulator();
+    }
+
+    private void CreateActionBarPopulator()
+    {
+        if (botController.ClassConfig != null)
+        {
+            actionBarPopulator = new(
+                logFactory.CreateLogger<ActionBarPopulator>(),
+                botController.ClassConfig,
+                addonConfigurator,
+                bagReader,
+                equipmentReader,
+                exec);
+        }
+    }
+
+    private void SyncActionBar()
+    {
+        actionBarPopulator?.Execute();
+    }
+
+    private void InitState()
+    {
+        addonReader.FullReset();
+        wowInput.PressFlushKey();
+    }
+
+    private void SetupBindings()
+    {
+        // Run /{prefix}bindings to set default action bar key bindings
+        exec.Run($"/{addonConfigurator.Config.CommandBindings}");
+    }
+
+    private void SetupActions()
+    {
+        // Run /{prefix}actions to create custom action buttons (DC_STOPATTACK, DC_CLEARTARGET, DC_FOLLOWTARGET)
+        exec.Run($"/{addonConfigurator.Config.CommandActions}");
+    }
+
+    /// <summary>
+    /// Checks if any MULTIACTIONBAR or ACTIONBUTTON bindings are missing.
+    /// </summary>
+    private bool HasMissingActionBarBindings()
+    {
+        return validationIssues.Any(issue =>
+            issue.BindingId.ToString().StartsWith("MULTIACTIONBAR") ||
+            issue.BindingId.ToString().StartsWith("ACTIONBUTTON"));
+    }
+
+    /// <summary>
+    /// Checks if any CUSTOM_ action bindings are missing.
+    /// </summary>
+    private bool HasMissingCustomActions()
+    {
+        return validationIssues.Any(issue =>
+            issue.BindingId.ToString().StartsWith("CUSTOM_"));
+    }
+
+    private void OnBindingChanged(BindingID bindingId)
+    {
+        // Re-build actual bindings and validation when a binding changes
+        InvokeAsync(() =>
+        {
+            BuildActualBindings();
+            BuildValidationSummary();
+            StateHasChanged();
+        });
+    }
+
+    private void OnTextureChanged(int slot, int textureId)
+    {
+        // Re-render when action bar texture changes
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        keyBindingsReader.BindingChanged -= OnBindingChanged;
+        actionBarTextureReader.TextureChanged -= OnTextureChanged;
+    }
+
+    // Maps spell names to their known Form (inferred from actions that have Form specified)
+    private Dictionary<string, Form> spellToForm = new(StringComparer.OrdinalIgnoreCase);
+
+    private void BuildSlotMappings()
+    {
+        slotToAction.Clear();
+        spellToForm.Clear();
+        var config = botController.ClassConfig!;
+
+        // Collect all KeyActions from all sequences
+        var allActions = new List<KeyAction>();
+        allActions.AddRange(config.Pull.Sequence);
+        allActions.AddRange(config.Combat.Sequence);
+        allActions.AddRange(config.Adhoc.Sequence);
+        allActions.AddRange(config.Parallel.Sequence);
+        allActions.AddRange(config.NPC.Sequence);
+        allActions.AddRange(config.Flee.Sequence);
+        allActions.AddRange(config.AssistFocus.Sequence);
+
+        // First pass: build spell-to-form mapping from actions that have Form specified
+        foreach (var action in allActions)
+        {
+            if (action.HasForm && !string.IsNullOrEmpty(action.Name))
+            {
+                spellToForm.TryAdd(action.Name, action.FormValue);
+            }
+        }
+
+        // Second pass: map actions to their actual slots (with form inference)
+        foreach (var action in allActions)
+        {
+            if (action.Slot > 0)
+            {
+                // Convert form-specific actions to their actual stance bar slot
+                int actualSlot = GetActualSlot(action);
+                if (!slotToAction.ContainsKey(actualSlot))
+                {
+                    slotToAction[actualSlot] = action;
+                }
+            }
+        }
+    }
+
+    private int GetActualSlot(KeyAction action)
+    {
+        // If action already has a form, use standard conversion
+        if (action.HasForm)
+        {
+            return Stance.ToSlot(action, playerReader);
+        }
+
+        // Check if this spell name is known to require a specific form
+        if (!string.IsNullOrEmpty(action.Name) &&
+            spellToForm.TryGetValue(action.Name, out Form inferredForm) &&
+            inferredForm != Form.None &&
+            action.Slot <= ActionBar.MAIN_ACTIONBAR_SLOT)
+        {
+            // Calculate stance bar slot using the inferred form
+            int stanceOffset = (int)FormToStanceActionBar(playerReader.Class, inferredForm);
+            return action.Slot + stanceOffset;
+        }
+
+        // Warriors are always in a stance - main bar is always a stance bar
+        if (playerReader.Class == UnitClass.Warrior &&
+            action.Slot <= ActionBar.MAIN_ACTIONBAR_SLOT &&
+            playerReader.Form != Form.None)
+        {
+            int stanceOffset = (int)FormToStanceActionBar(UnitClass.Warrior, playerReader.Form);
+            return action.Slot + stanceOffset;
+        }
+
+        // No form inference needed, use the slot as-is
+        return action.Slot;
+    }
+
+    private static StanceActionBar FormToStanceActionBar(UnitClass @class, Form form)
+    {
+        return @class switch
+        {
+            UnitClass.Druid => form switch
+            {
+                Form.Druid_Cat => StanceActionBar.DruidCat,
+                Form.Druid_Cat_Prowl => StanceActionBar.DruidCatProwl,
+                Form.Druid_Bear => StanceActionBar.DruidBear,
+                Form.Druid_Moonkin => StanceActionBar.DruidMoonkin,
+                _ => StanceActionBar.None
+            },
+            UnitClass.Warrior => form switch
+            {
+                Form.Warrior_BattleStance => StanceActionBar.WarriorBattleStance,
+                Form.Warrior_DefensiveStance => StanceActionBar.WarriorDefensiveStance,
+                Form.Warrior_BerserkerStance => StanceActionBar.WarriorBerserkerStance,
+                _ => StanceActionBar.None
+            },
+            UnitClass.Rogue => form == Form.Rogue_Stealth ? StanceActionBar.RogueStealth : StanceActionBar.None,
+            UnitClass.Priest => form == Form.Priest_Shadowform ? StanceActionBar.PriestShadowform : StanceActionBar.None,
+            _ => StanceActionBar.None
+        };
+    }
+
+    private int GetMainBarSlot(string key)
+    {
+        // Main bar: 1-9 = slots 1-9, 0 = slot 10, - = slot 11, = = slot 12
+        return key switch
+        {
+            "1" => 1, "2" => 2, "3" => 3, "4" => 4, "5" => 5,
+            "6" => 6, "7" => 7, "8" => 8, "9" => 9, "0" => 10,
+            "-" => 11, "=" => 12,
+            _ => 0
+        };
+    }
+
+    private int GetNumpadSlot(int num)
+    {
+        // Numpad: 1-9 = slots 49-57, 0 = slot 58
+        return num == 0 ? 58 : 48 + num;
+    }
+
+    private KeyAction? GetActionForSlot(int slot)
+    {
+        return slotToAction.TryGetValue(slot, out var action) ? action : null;
+    }
+
+    private string GetActionClass(KeyAction? action, int slot = 0)
+    {
+        // Use the same validation logic as stance bars
+        return GetSlotValidationClass(slot, action);
+    }
+
+    private string GetSlotInfo(KeyAction? action)
+    {
+        if (action == null)
+            return "";
+
+        var parts = new List<string>();
+
+        // Cost info
+        var cost = actionBarCostReader.Get(action);
+        if (cost.Cost > 0)
+            parts.Add($"{cost.Cost} {cost.PowerType.ToStringF()}");
+
+        // Cooldown info
+        int cdMs = actionBarCooldownReader.Get(action);
+        if (cdMs > 0)
+            parts.Add($"CD: {cdMs / 1000f:F1}s");
+
+        // Usable/Current status
+        if (currentAction.Is(action))
+            parts.Add("Active");
+        else if (!usableAction.Is(action))
+            parts.Add("Not Usable");
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "";
+    }
+
+    private string GetCombinedTooltip(ConsoleKey key, int slot, KeyAction? action)
+    {
+        var parts = new List<string>();
+
+        // Show what's bound to this key in-game
+        if (actualBindings.TryGetValue(key, out var primary))
+        {
+            parts.Add($"Binding: {primary.ToStringF()}");
+        }
+
+        // Show slot info
+        if (action != null)
+        {
+            parts.Add($"Slot {slot}: {action.Name}");
+        }
+        else if (slot > 0)
+        {
+            // Show texture from game if we have it
+            if (actionBarTextureReader.TryGetTexture(slot, out var textureId))
+            {
+                parts.Add($"Slot {slot}: In-game (tex:{textureId})");
+            }
+            else
+            {
+                parts.Add($"Slot {slot}: Empty");
+            }
+        }
+
+        // Add slot-based reader info (cost, cooldown, usable status)
+        string slotInfo = GetSlotInfo(action);
+        if (!string.IsNullOrEmpty(slotInfo))
+            parts.Add(slotInfo);
+
+        return parts.Count > 0 ? string.Join(" | ", parts) : key.ToString();
+    }
+
+    private string TruncateName(string name, int maxLength)
+    {
+        if (string.IsNullOrEmpty(name))
+            return "";
+        return name.Length <= maxLength ? name : name[..maxLength];
+    }
+
+    private record StanceBarInfo(string Name, int BaseSlot);
+
+    private StanceBarInfo[] GetStanceBars()
+    {
+        return playerReader.Class switch
+        {
+            UnitClass.Warrior => [
+                new("Battle Stance", 72),
+                new("Defensive Stance", 84),
+                new("Berserker Stance", 96)
+            ],
+            UnitClass.Druid => [
+                new("Cat Form", 72),
+                new("Cat Form (Prowl)", 84),
+                new("Bear Form", 96),
+                new("Moonkin Form", 108)
+            ],
+            UnitClass.Rogue => [
+                new("Stealth", 72)
+            ],
+            UnitClass.Priest => [
+                new("Shadowform", 72)
+            ],
+            _ => []
+        };
+    }
+
+    private string GetStanceSlotTooltip(int slot, KeyAction? action)
+    {
+        var parts = new List<string> { $"Slot {slot}" };
+
+        if (actionBarTextureReader.TryGetTexture(slot, out var textureId) && textureId > 0)
+        {
+            parts.Add($"Texture: {textureId}");
+
+            // Try to get spell names for this texture
+            var spellNames = iconDB.GetSpellNamesForDisplay(textureId);
+            if (spellNames.Length > 0)
+            {
+                parts.Add($"Spells: {string.Join(", ", spellNames.Take(3))}");
+            }
+        }
+
+        if (action != null)
+        {
+            parts.Add($"Config: {action.Name}");
+
+            // Show validation status
+            var status = GetSlotValidationStatus(slot, action);
+            parts.Add($"Status: {status}");
+
+            // Add slot-based reader info (cost, cooldown, usable status)
+            string slotInfo = GetSlotInfo(action);
+            if (!string.IsNullOrEmpty(slotInfo))
+                parts.Add(slotInfo);
+        }
+
+        return string.Join(" | ", parts);
+    }
+
+    private string GetSlotValidationClass(int slot, KeyAction? action)
+    {
+        if (action == null)
+        {
+            // No configured action - show if there's something in-game
+            if (actionBarTextureReader.HasAction(slot))
+                return "key-ingame-action";
+            return "";
+        }
+
+        // Has configured action - check validation
+        var status = GetSlotValidationStatus(slot, action);
+        return status switch
+        {
+            "Valid" => "key-valid",
+            "Macro" => "key-action",      // Macros skip validation, show as configured
+            "Item" => "key-action",        // Items skip validation, show as configured
+            "Unknown" => "key-action",     // Unknown texture (item/macro), show as configured
+            "Empty" => "key-empty-warning",
+            "Mismatch" => "key-mismatch",
+            _ => "key-action"
+        };
+    }
+
+    private string GetSlotValidationStatus(int slot, KeyAction action)
+    {
+        // Use centralized validation from ActionBarSlotValidator
+        SlotValidationStatus status = actionBarSlotValidator.Validate(action);
+
+        return status switch
+        {
+            SlotValidationStatus.Valid => "Valid",
+            SlotValidationStatus.NotOnActionBar => "Valid", // Base actions without slots
+            SlotValidationStatus.EmptySlot => "Empty",
+            SlotValidationStatus.Mismatch => "Mismatch",
+            SlotValidationStatus.UnknownTexture => "Unknown",
+            _ => "Valid"
+        };
+    }
+
+    private string? GetIconUrl(int slot)
+    {
+        if (slot <= 0)
+            return null;
+
+        if (!actionBarTextureReader.TryGetTexture(slot, out int textureId) || textureId <= 0)
+            return null;
+
+        return iconDB.GetIconUrl(textureId, 36);
+    }
+
+    private void BuildExpectedBindings()
+    {
+        // First, add defaults from KeyBindingDefaults
+        foreach (var kvp in KeyBindingDefaults.Bindings)
+        {
+            var binding = kvp.Value;
+            expectedBindings[binding.ConsoleKey] = binding.BindingID;
+            expectedByBindingId[binding.BindingID] = binding.ConsoleKey;
+        }
+
+        // Then override with ClassConfig key actions (these take precedence)
+        foreach (var keyAction in GetAllKeyActions())
+        {
+            if (keyAction.BindingID != BindingID.None && keyAction.ConsoleKey != ConsoleKey.NoName)
+            {
+                // Remove old key mapping if the binding moved to a different key
+                if (expectedByBindingId.TryGetValue(keyAction.BindingID, out var oldKey) && oldKey != keyAction.ConsoleKey)
+                {
+                    expectedBindings.Remove(oldKey);
+                }
+
+                expectedBindings[keyAction.ConsoleKey] = keyAction.BindingID;
+                expectedByBindingId[keyAction.BindingID] = keyAction.ConsoleKey;
+            }
+        }
+    }
+
+    private void BuildActualBindings()
+    {
+        foreach (var kvp in keyBindingsReader.Bindings)
+        {
+            // kvp.Value is now (ConsoleKey Key, ModifierKey Modifier)
+            actualBindings[kvp.Value.Key] = kvp.Key;
+        }
+        foreach (var kvp in keyBindingsReader.SecondaryBindings)
+        {
+            actualSecondaryBindings[kvp.Value.Key] = kvp.Key;
+        }
+    }
+
+    private void BuildValidationSummary()
+    {
+        validationSummary = new ValidationSummary();
+        validationIssues.Clear();
+
+        // Check all required BindingIDs - we only care if they exist in-game, not what key they're bound to
+        foreach (var bindingId in expectedByBindingId.Keys)
+        {
+            // Check if the binding exists in-game (primary or secondary)
+            if (keyBindingsReader.TryGetBinding(bindingId, out _, out _) ||
+                keyBindingsReader.TryGetSecondaryBinding(bindingId, out _, out _))
+            {
+                // Binding exists - any key+modifier is fine
+                validationSummary.BoundCount++;
+            }
+            else
+            {
+                // Binding not found in-game - warn user to set it
+                validationSummary.MissingCount++;
+                validationIssues.Add(new ValidationIssue(bindingId, true));
+            }
+        }
+    }
+
+    private IEnumerable<ValidationIssue> GetValidationIssues() => validationIssues;
+
+    private IEnumerable<KeyAction> GetAllKeyActions()
+    {
+        var config = botController.ClassConfig!;
+        yield return config.Jump;
+        yield return config.Interact;
+        yield return config.InteractMouseOver;
+        yield return config.Approach;
+        yield return config.AutoAttack;
+        yield return config.TargetLastTarget;
+        yield return config.StandUp;
+        yield return config.ClearTarget;
+        yield return config.StopAttack;
+        yield return config.TargetNearestTarget;
+        yield return config.TargetTargetOfTarget;
+        yield return config.TargetPet;
+        yield return config.PetAttack;
+        yield return config.TargetFocus;
+        yield return config.FollowTarget;
+        yield return config.Mount;
+    }
+
+    private ConsoleKey GetConsoleKey(string key)
+    {
+        return key switch
+        {
+            "1" => ConsoleKey.D1, "2" => ConsoleKey.D2, "3" => ConsoleKey.D3,
+            "4" => ConsoleKey.D4, "5" => ConsoleKey.D5, "6" => ConsoleKey.D6,
+            "7" => ConsoleKey.D7, "8" => ConsoleKey.D8, "9" => ConsoleKey.D9,
+            "0" => ConsoleKey.D0, "-" => ConsoleKey.OemMinus, "=" => ConsoleKey.OemPlus,
+            "F1" => ConsoleKey.F1, "F2" => ConsoleKey.F2, "F3" => ConsoleKey.F3,
+            "F4" => ConsoleKey.F4, "F5" => ConsoleKey.F5, "F6" => ConsoleKey.F6,
+            "F7" => ConsoleKey.F7, "F8" => ConsoleKey.F8, "F9" => ConsoleKey.F9,
+            "F10" => ConsoleKey.F10, "F11" => ConsoleKey.F11, "F12" => ConsoleKey.F12,
+            _ when key.Length == 1 && char.IsLetter(key[0]) =>
+                Enum.Parse<ConsoleKey>(key.ToUpper()),
+            "[" => ConsoleKey.Oem4, "]" => ConsoleKey.Oem6, "\\" => ConsoleKey.Oem5,
+            ";" => ConsoleKey.Oem1, "'" => ConsoleKey.Oem7,
+            "," => ConsoleKey.OemComma, "." => ConsoleKey.OemPeriod, "/" => ConsoleKey.Oem2,
+            _ => ConsoleKey.NoName
+        };
+    }
+
+    private ConsoleKey GetNumpadKey(int num)
+    {
+        return num switch
+        {
+            0 => ConsoleKey.NumPad0, 1 => ConsoleKey.NumPad1, 2 => ConsoleKey.NumPad2,
+            3 => ConsoleKey.NumPad3, 4 => ConsoleKey.NumPad4, 5 => ConsoleKey.NumPad5,
+            6 => ConsoleKey.NumPad6, 7 => ConsoleKey.NumPad7, 8 => ConsoleKey.NumPad8,
+            9 => ConsoleKey.NumPad9, _ => ConsoleKey.NoName
+        };
+    }
+
+    private string GetKeyClass(ConsoleKey key)
+    {
+        bool hasActualPrimary = actualBindings.ContainsKey(key);
+        bool hasActualSecondary = actualSecondaryBindings.ContainsKey(key);
+        bool hasActual = hasActualPrimary || hasActualSecondary;
+
+        if (hasActual)
+        {
+            // Key has an in-game binding
+            var bindingId = hasActualPrimary ? actualBindings[key] : actualSecondaryBindings[key];
+
+            // Is this a required binding from our config/defaults?
+            if (expectedByBindingId.ContainsKey(bindingId))
+            {
+                return "key-bound"; // Green: required binding is set in-game
+            }
+            else
+            {
+                return "key-ingame"; // Blue: in-game binding not in our required list
+            }
+        }
+        else if (expectedBindings.ContainsKey(key))
+        {
+            // This key is expected to have a binding, but doesn't in-game
+            var expectedBindingId = expectedBindings[key];
+            if (!keyBindingsReader.TryGetBinding(expectedBindingId, out _, out _) &&
+                !keyBindingsReader.TryGetSecondaryBinding(expectedBindingId, out _, out _))
+            {
+                return "key-expected"; // Yellow: binding not found in-game at all
+            }
+        }
+
+        return "";
+    }
+
+    private string? GetBindingLabel(ConsoleKey key)
+    {
+        if (expectedBindings.TryGetValue(key, out var bindingId))
+        {
+            return GetShortName(bindingId);
+        }
+        if (actualBindings.TryGetValue(key, out bindingId))
+        {
+            return GetShortName(bindingId);
+        }
+        return null;
+    }
+
+    private string GetShortName(BindingID bindingId)
+    {
+        return bindingId switch
+        {
+            BindingID.JUMP => "Jump",
+            BindingID.INTERACTTARGET => "Interact",
+            BindingID.INTERACTMOUSEOVER => "IntMO",
+            BindingID.TARGETLASTTARGET => "LastTgt",
+            BindingID.SITORSTAND => "Sit",
+            BindingID.STOPATTACK => "Stop",
+            BindingID.TARGETNEARESTENEMY => "TabTgt",
+            BindingID.ASSISTTARGET => "Assist",
+            BindingID.TARGETPET => "TgtPet",
+            BindingID.PETATTACK => "PetAtk",
+            BindingID.TARGETFOCUS => "Focus",
+            BindingID.FOLLOWTARGET => "Follow",
+            BindingID.STARTATTACK => "Attack",
+            BindingID.MOVEFORWARD => "Fwd",
+            BindingID.MOVEBACKWARD => "Back",
+            BindingID.STRAFELEFT => "StrfL",
+            BindingID.STRAFERIGHT => "StrfR",
+            BindingID.TURNLEFT => "TurnL",
+            BindingID.TURNRIGHT => "TurnR",
+            _ => bindingId.ToStringF()
+        };
+    }
+
+    private string GetKeyTooltip(ConsoleKey key)
+    {
+        var parts = new List<string>();
+
+        // Show what's bound to this key in-game
+        if (actualBindings.TryGetValue(key, out var primary))
+        {
+            // Get the modifier for this binding
+            if (keyBindingsReader.Bindings.Values.FirstOrDefault(b => b.Key == key) is var binding && binding.Key != ConsoleKey.NoName)
+            {
+                var modPrefix = binding.Modifier != ModifierKey.None ? $"{binding.Modifier.ToPrefix()}" : "";
+                parts.Add($"In-Game: {modPrefix}{primary.ToStringF()}");
+            }
+            else
+            {
+                parts.Add($"In-Game: {primary.ToStringF()}");
+            }
+        }
+        if (actualSecondaryBindings.TryGetValue(key, out var secondary))
+        {
+            parts.Add($"Secondary: {secondary.ToStringF()}");
+        }
+
+        // If this key is in our defaults but not bound, note that
+        if (expectedBindings.TryGetValue(key, out var expectedBindingId))
+        {
+            if (!keyBindingsReader.TryGetBinding(expectedBindingId, out _, out _) &&
+                !keyBindingsReader.TryGetSecondaryBinding(expectedBindingId, out _, out _))
+            {
+                parts.Add($"Default: {expectedBindingId.ToStringF()} (NOT BOUND)");
+            }
+        }
+
+        return parts.Count > 0 ? string.Join(" | ", parts) : key.ToString();
+    }
+
+    #region Bindings List Helpers
+
+    /// <summary>
+    /// Returns all BindingID values that are tracked by the addon.
+    /// </summary>
+    private IEnumerable<BindingID> GetAllBindingIds()
+    {
+        // Return all BindingIDs that are in either primary or secondary bindings
+        var allIds = new HashSet<BindingID>();
+
+        foreach (var kvp in keyBindingsReader.Bindings)
+            allIds.Add(kvp.Key);
+
+        foreach (var kvp in keyBindingsReader.SecondaryBindings)
+            allIds.Add(kvp.Key);
+
+        // Sort by category for better display
+        return allIds.OrderBy(b => GetBindingCategory(b)).ThenBy(b => b.ToString());
+    }
+
+    private int GetBindingCategory(BindingID bindingId)
+    {
+        var name = bindingId.ToString();
+        if (name.StartsWith("MOVE") || name.StartsWith("STRAFE") || name.StartsWith("TURN") || name == "JUMP" || name == "SITORSTAND")
+            return 0; // Movement
+        if (name.StartsWith("TARGET") || name.StartsWith("ASSIST") || name.StartsWith("FOCUS"))
+            return 1; // Targeting
+        if (name.StartsWith("ACTIONBUTTON"))
+            return 2; // Main action bar
+        if (name.StartsWith("MULTIACTIONBAR2"))
+            return 3; // Bottom right bar
+        if (name.StartsWith("MULTIACTIONBAR1"))
+            return 4; // Bottom left bar
+        if (name.StartsWith("CUSTOM_"))
+            return 5; // Custom actions
+        if (name.StartsWith("PET") || name.StartsWith("INTERACT") || name.StartsWith("FOLLOW"))
+            return 6; // Interaction
+        return 99; // Other
+    }
+
+    private string GetBindingIdClass(BindingID bindingId)
+    {
+        var name = bindingId.ToString();
+        if (name.StartsWith("CUSTOM_"))
+            return "text-warning";
+        if (name.StartsWith("ACTIONBUTTON"))
+            return "text-info";
+        if (name.StartsWith("MULTIACTIONBAR"))
+            return "text-success";
+        return "";
+    }
+
+    private string FormatKeyWithModifier(ConsoleKey key, ModifierKey modifier)
+    {
+        var modPrefix = modifier != ModifierKey.None ? modifier.ToPrefix() : "";
+        return $"{modPrefix}{key}";
+    }
+
+    private void TestKey(ConsoleKey key, ModifierKey modifier)
+    {
+        // Send the key press to the game
+        if (modifier != ModifierKey.None)
+        {
+            wowInput.PressRandomWithModifier(key, modifier, 50);
+        }
+        else
+        {
+            wowInput.PressRandom(key, 50);
+        }
+    }
+
+    #endregion
+}

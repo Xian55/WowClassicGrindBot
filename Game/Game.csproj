@@ -1,9 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="GregsStack.InputSimulatorStandard" />
     <PackageReference Include="Microsoft.Extensions.Options" />
-    <PackageReference Include="TextCopy" />
     <PackageReference Include="Vortice.Direct3D11" />
   </ItemGroup>
 

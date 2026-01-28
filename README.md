@@ -19,6 +19,19 @@ Classic (Since 2019)
 * 4.4.x - Cataclysm [Limitations](#supporting-cataclysm-classic-and-above-limitations)
 * 5.5.x - Mist of Pandaria [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [TODO 702](https://github.com/Xian55/WowClassicGrindBot/issues/702)
 
+# Quick Start
+
+For experienced users, here's the minimal setup:
+
+1. **Prerequisites**: Windows 10+, [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+2. **Download**: Clone or download this repository
+3. **MPQ Files**: Download [MPQ files](#21-using-v1-localremote-pathing) and place in `Json\MPQ\`
+4. **Build**: Run `BlazorServer\build.bat` or open solution in Visual Studio
+5. **Configure**: Start WoW, run `BlazorServer\run.bat`, configure addon in browser
+6. **Play**: Load a class profile, press Start
+
+For detailed instructions, continue reading below.
+
 # Components
 
 - **Addon**: Modified [Happy-Pixels](https://github.com/FreeHongKongMMO/Happy-Pixels) to read the game state.
@@ -33,11 +46,18 @@ Further detail about the architecture can be found in [Blog post](http://www.cod
 
 # Pathfinders
 
+Pathfinding allows the bot to navigate the game world - walking around obstacles, across terrain, and to your defined routes. Different pathfinder backends exist because WoW's map data format changed over time (MPQ to CASC).
+
+**Which should you use?**
+- **Most users**: V1 Local is easiest (just download MPQ files, no extra services needed)
+- **Best quality**: V3 Remote provides the most accurate navigation but requires running an external service
+- **Cataclysm+**: Only V3 Remote works (game uses CASC format instead of MPQ)
+
 * World map - Outdoor there are multiple solutions - *by default the app attempts to discover the available services in the following order*:
-    * **V3 Remote**: Out of process [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord)
-    * **V1 Remote**: Out of process [PathingAPI](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PathingAPI) more info [here](#v1-remote-pathing---pathingapi)
-    * **V1 Local**: In process [PPather](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PPather)
-* World map - Indoors pathfinder only works properly if `PathFilename` is exists.
+    * **V3 Remote**: Out of process [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord) - Best navigation quality, works with all versions
+    * **V1 Remote**: Out of process [PathingAPI](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PathingAPI) more info [here](#v1-remote-pathing---pathingapi) - Good quality, MPQ-based
+    * **V1 Local**: In process [PPather](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PPather) - Simplest setup, MPQ-based
+* World map - Indoors pathfinder only works properly if `PathFilename` exists.
 * Dungeons / instances **not** supported!
 
 # Supporting Cataclysm Classic and above limitations
@@ -58,8 +78,11 @@ V1 Local and V1 Remote does not have the capability as of this moment to read th
 
 - Highly configurable combat rotation described in [Class Configuration](#12-class-configuration)
 - Utilizing the Actionbar related APIs to retrieve ActionbarSlot (usable, cost)
-- Remap essential keybindings and support more Actionbar slots up to `34`
-- Added a new input system to handle modifier keys
+- **Automatic Keybinding Detection**: The addon reads your actual in-game keybindings, so you can use your own key setup
+- **Modifier Key Support**: Support for Shift, Ctrl, and Alt modifiers (e.g., `Shift-1`, `Alt-F1`). Note: Only single modifiers are supported, not combinations like `Shift-Alt-1`.
+- **Action Bar Validation**: Verifies that spells are placed in the correct action bar slots and warns about mismatches
+- **Auto-Setup**: Essential keybindings and custom actions are automatically configured on first run
+- Support for up to `34` action bar slots across Main, Bottom Right, and Bottom Left action bars
 
 ## Navigation and Grind Features
 
@@ -84,7 +107,9 @@ V1 Local and V1 Remote does not have the capability as of this moment to read th
 - Frontend Runtime Class Profile picker
 - Frontend Runtime Path Profile autocomplete search
 - Frontend Edit the loaded profile
-- Frontend `ActionbarPopulator` One click to populate Actionbar based on [Class Configuration](#12-class-configuration)
+- Frontend `ActionbarPopulator` One click to populate Actionbar based on [Class Configuration](#12-class-configuration). Uses naming convention: lowercase = macro, capitalized = spell.
+- Frontend `Key Bindings` page to view detected in-game keybindings and test key presses
+- Frontend `Spell Book` page to view known spells and their spell IDs
 - `DataConfig`: change where the external data(DBC, MPQ, profiles) can be found
 - `NPCNameFinder`: extended to friendly/neutral units
 - Support more resolutions
@@ -124,6 +149,59 @@ V1 Local and V1 Remote does not have the capability as of this moment to read th
    <img alt="Death Knight 2" src="https://i.imgur.com/3nXwSoy.jpeg" width="50%">
 </a>
 
+# Important: Migration Guide for Existing Users
+
+If you are upgrading from a previous version, please read this section carefully.
+
+## Breaking Changes
+
+### Keybinding System Overhaul
+
+The application now **automatically reads your in-game keybindings** instead of requiring manual configuration. This is a significant improvement but requires some migration steps.
+
+**What Changed:**
+1. The addon now sends your actual WoW keybindings to the application
+2. Modifier keys (Shift, Ctrl, Alt) are now fully supported
+3. BindPad addon is bundled and used internally for secure macro buttons
+4. Custom actions (StopAttack, ClearTarget) now use Alt-modified keys by default
+
+**Migration Steps:**
+
+1. **Update the Addon**: Copy the new `DataToColor` addon to your WoW Addons folder, replacing the old version.
+
+2. **Install BindPad**: Copy the `BindPad` addon from the `Addons/BindPad/` folder to your WoW Addons folder. This is required for TBC Classic 2.5.5+ compatibility.
+
+3. **First Login**: On first login after the update, the addon will:
+   - Automatically set up essential keybindings if they are missing
+   - Create secure action buttons for StopAttack, ClearTarget, etc.
+   - Read and send all your keybindings to the application
+
+4. **Check Your Class Profile**: The default keys for some BaseActions have changed:
+   | Action | Old Default | New Default |
+   | --- | --- | --- |
+   | Interact | `I` | `Alt-Home` |
+   | InteractMouseOver | `J` | `Alt-End` |
+   | ClearTarget | `Insert` | `Alt-Insert` |
+   | StopAttack | `Delete` | `Alt-Delete` |
+   | TargetFocus | `PageUp` | `Alt-PageUp` |
+   | FollowTarget | `PageDown` | `Alt-PageDown` |
+
+   If your class profile overrides these keys, you may need to update them.
+
+5. **In-Game Verification**: After logging in, you can verify the bindings are working:
+   - Press `Shift-PageUp` to toggle addon config mode (should see "Config mode" / "Normal mode" messages)
+   - Press `Shift-PageDown` to flush addon state (should see "Flush State" message)
+
+### Troubleshooting
+
+If bindings are not working after migration:
+1. Make sure you are not in combat when logging in (bindings cannot be set in combat)
+2. Run `/<prefix>actions` to manually create and bind the custom actions (e.g., `/dcactions`)
+3. Run `/<prefix>bindings` to set up default action bar bindings (e.g., `/dcbindings`)
+4. Check the Frontend "Key Bindings" page to see what bindings the addon detected
+
+**Note**: The command prefix (e.g., `dc`) is derived from your addon title. If you named your addon "daq" during setup, use `/daqactions`, `/daqbindings`, etc.
+
 # Issues and Ideas
 
 Create an issue with the given template.
@@ -137,6 +215,22 @@ You are welcome to create pull requests. Some ideas of things that could be impr
 * Feel free to ask questions by opening new issues
 
 # Getting it working
+
+This section guides you through the complete setup process. Here's an overview of what you'll do:
+
+| Step | What You'll Do | Why It's Needed |
+| --- | --- | --- |
+| 1 | Download repository | Get the application source code |
+| 2 | Download MPQ/navmesh files | Provides world geometry for pathfinding |
+| 3 | Configure system requirements | Ensure WoW displays correctly for pixel reading |
+| 4 | Build the application | Compile the source code into runnable programs |
+| 5 | Configure the addon | Set up communication between WoW and the application |
+| 6 | Start the dashboard | Launch the web interface for control and monitoring |
+| 7 | (Optional) HeadlessServer | Run without UI for lower resource usage |
+| 8-11 | Configure WoW client | Set up keybindings and interface options |
+| 12 | Create class profile | Define your combat rotation and behavior |
+
+**Tip**: Steps 1-6 are one-time setup. After initial setup, you'll only need to start WoW, run the application, and load a profile.
 
 ## 1. Download this repository
 
@@ -270,8 +364,7 @@ or look at the `BlazorServer\build.bat`, or look at the `HeadlessServer\build.ba
 
 The app reads the game state using small blocks of color shown at the top of the screen by an Addon. This needs to be configured.
 
-1. Look at `C:\WowClassicGrindBot\BlazorServer` called `run.bat` or `rundev.bat`.
-    * `rundev.bat` has a more verbose logging.
+1. Look at `C:\WowClassicGrindBot\BlazorServer` and run `run.bat`.
 
 1. The **WoW client** must be already running, and make sure to logged with your character.
 
@@ -370,40 +463,92 @@ Need to make sure that certain interface options are set.
 
 The most important are `Click-to-Move` and `Do Not Flash Screen at Low Health`.
 
-From the main menu (ESC) set the following under Interface Options:
+### 8.1 Auto-Configured Settings
 
-| Interface Option | Value |
-| ---- | ---- |
-| Controls - Enable Interact Key | **true** |
-| Controls - Auto Loot | &#9745; |
-| Controls - Interact on Left click | &#9744; |
-| Combat - Do Not Flash Screen at Low Health | &#9745; |
-| Combat - Auto Self Cast | &#9745; |
-| Names - NPC Names | &#9745; |
-| Names - Enemy Units (V) | &#9744; |
-| Camera - Auto-Follow Speed | **Fast** |
-| Camera - Camera Following Style | **Always** |
-| Mouse - Click-to-Move | &#9745; |
-| Mouse - Click-to-Move Camera Style | **Always** |
-| Accessibility - Cursor Size | **32x32** |
-| Accessibility - Minimum Character Name Size | Recommended value is **6**. |
+The addon automatically configures the following CVars when it loads. You do not need to set these manually:
+
+| Category | Setting | Value | Purpose |
+| ---- | ---- | ---- | ---- |
+| Gameplay | Auto Interact | On | Automatic interaction |
+| Gameplay | Auto Loot | On | Automatic looting |
+| Gameplay | NPC Names | On | Required for NPC name detection |
+| Camera | Camera Following Style | Always | Smooth camera tracking |
+| Camera | Click-to-Move Camera Style | Always | Consistent camera behavior |
+| Camera | Auto-Follow Speed | Max | Fast camera response |
+| Graphics | Anti-Aliasing | None | Required for pixel reading |
+| Graphics | Vertical Sync | Off | Reduces input lag |
+| Graphics | Render Scale | 100% | Accurate pixel colors |
+| Graphics | Glow Effect | Off | Clean pixel reading |
+| Display | Contrast | 50 | Calibrated for pixel reading |
+| Display | Brightness | 50 | Calibrated for pixel reading |
+| Display | Gamma | 1.0 | Calibrated for pixel reading |
+
+### 8.2 Manual Settings
+
+The following settings must still be configured manually from the main menu (ESC) -> Interface Options:
+
+| Interface Option | Value | Why |
+| ---- | ---- | ---- |
+| Controls - Enable Interact Key | **true** | Required for INTERACTTARGET binding to work |
+| Controls - Interact on Left click | &#9744; | Prevents accidental interactions while navigating |
+| Combat - Do Not Flash Screen at Low Health | &#9745; | Screen flashing corrupts pixel color reading |
+| Combat - Auto Self Cast | &#9745; | Buffs/heals automatically target self when no target |
+| Names - Enemy Units (V) | &#9744; | Health bars can obscure NPC names, interfering with detection |
+| Accessibility - Cursor Size | **32x32** | Larger cursor is easier for the bot to detect and classify |
+| Accessibility - Minimum Character Name Size | **6** | Ensures NPC names are large enough to be detected reliably |
 
 ## 9. Configure the Wow Client - Key Bindings
 
-From the main menu (ESC) -> `Key Bindings` set the following:
+**Important Change**: The addon now automatically reads your in-game keybindings. You no longer need to manually configure most keybindings in the class profile - the addon will detect and use whatever keys you have bound in WoW.
 
-`Movement Keys`:
+### 9.1 Automatic Keybinding Detection
 
-| In-Game | ClassConfiguration Name | Default [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) |
+When the addon loads, it reads your current keybindings from the game and sends them to the application. This means:
+
+- You can keep using your existing keybinding setup
+- Modifier keys (Shift, Ctrl, Alt) are fully supported
+- The application will use whatever keys you have bound for each action
+
+### 9.2 Auto-Setup of Essential Bindings
+
+On first run (or if essential bindings are missing), the addon will automatically set up:
+
+**Targeting and Interaction:**
+| Binding | Default Key | Why Needed |
+| ---- | ---- | ---- |
+| Target Nearest Enemy | `Tab` | Primary method for finding and engaging enemies |
+| Target Last Target | `G` | Re-targets last killed mob for looting |
+| Assist Target | `F` | Targets your target's target (useful for assist mode) |
+| Target Pet | `NumpadMultiply` | Required for pet class healing/buffing pet |
+| Pet Attack | `NumpadMinus` | Commands pet to attack current target |
+| Interact With Target | `Alt-Home` | Opens loot windows, talks to NPCs, interacts with objects |
+| Interact With Mouseover | `Alt-End` | Used by NPC name targeting for mouse-based interaction |
+| Target Focus | `Alt-PageUp` | Used in Assist Focus mode to target the leader (TBC+) |
+| Target Party Member 1 | `Alt-PageUp` | Vanilla alternative (no focus system) |
+| Follow Target | `Alt-PageDown` | Used in Assist Focus mode to follow the leader |
+
+**Custom Actions (Secure Buttons):**
+| Binding | Default Key | Why Needed |
+| ---- | ---- | ---- |
+| Stop Attack | `Alt-Delete` | Stops combat when fleeing or to prevent accidental pulls |
+| Clear Target | `Alt-Insert` | Clears target to allow fresh targeting |
+| Config Toggle | `Shift-PageUp` | Toggles addon config mode for frame setup |
+| Flush State | `Shift-PageDown` | Resets addon data queues when state gets out of sync |
+
+**Note**: The command prefix (e.g., `dc`) is derived from your addon title configured during setup. If your addon is named "daq", commands would be `/daq`, `/daqflush`, etc.
+
+### 9.3 Movement Keys
+
+Movement keys are still configured in the [Class Configuration](#12-class-configuration) file since they may vary per profile:
+
+| In-Game | ClassConfiguration Name | Default |
 | ---- | ---- | ---- |
 | Move Forward | ForwardKey | `UpArrow` |
 | Move Backward | BackwardKey | `DownArrow` |
 | Turn Left | TurnLeftKey | `LeftArrow` |
 | Turn Right | TurnRightKey | `RightArrow` |
-| Jump | Jump.Key | `Spacebar` |
-| Sit/Move down | StandUp.Key | `X` |
 
-To change the default movement keys from arrows to `WASD` in the [Class Configuration](#12-class-configuration) file or look at the example `Json\class\Warrior_1_MovementKeys.json`
+To use `WASD` movement, add to your class profile (or see `Json\class\Warrior_1_MovementKeys.json`):
 ```json
 "ForwardKey": 87,   // W
 "BackwardKey": 83,  // S
@@ -411,64 +556,105 @@ To change the default movement keys from arrows to `WASD` in the [Class Configur
 "TurnRightKey": 68, // D
 ```
 
-`Targeting`:
+### 9.4 Manual Binding Setup (Optional)
 
-| In-Game | HotKey | ClassConfiguration KeyAction | Description |
-| ---- | ---- | ---- | ---- |
-| Target Nearest Enemy | `Tab` | TargetNearestTarget | ---- |
-| Target Pet | `Multiply` | TargetPet | Only pet based class |
-| Target Last Target | `G` | TargetLastTarget | Loot last target |
-| Interact With Mouseover | `J` | InteractMouseOver | Mouse based actions |
-| Interact With Target | `I` | Interact | Targeting and combat |
-| Assist Target | `F` | TargetTargetOfTarget | ---- |
-| Pet attack | `Subtract` | PetAttack | Only pet based class |
-| Target Focus | `PageUp` | TargetFocus | TBC or Wrath version, `"AssistFocus"` Mode |
-| Target Party Member 1 | `PageUp` | TargetFocus | Vanilla version, `"AssistFocus"` Mode |
+If you prefer to set up bindings manually or the auto-setup didn't work, you can use these slash commands:
+
+| Command | Description |
+| ---- | ---- |
+| `/<prefix>bindings` | Sets up default action bar keybindings (F1-F12, Numpad) |
+| `/<prefix>actions` | Creates and binds the custom secure action buttons |
+
+**Note**: Replace `<prefix>` with your addon's command prefix (e.g., `/dcbindings` if your prefix is `dc`). The prefix is derived from the addon title you configured during setup.
+
+These commands save bindings to your current binding set (account-wide or character-specific).
 
 ## 10.1. Actionbar Key Bindings:
 
-The default class profiles assumes the following `Keybinds` setup while using **English Keyboard** layout.
+The addon reads your actual action bar keybindings from the game. You can use any keys you prefer, including modifier combinations.
 
-In total, `34` customizable key can be configured.
+### Supported Action Bars
 
-Highly recommended to use the default setup, in order to get properly working the `ActionBarSlotCost` and `ActionBarSlotUsable` features!
-
-| Actionbar |ActionSlot | Key | Description |
+| Actionbar | Slot Range | Default Keys | WoW Binding Names |
 | --- | --- | --- | --- |
-| Main | 1-12 | 1,2,3 .. 9,0,-,= | 0 is the 10th key. |
-| Bottom Right | 49-58 | N1,N2,N3 .. N9,N0 | N means Numpad 0 is the 10th key |
-| Bottom Left | 61-72 | F1,F2,F3 .. F11,F12 | F means Functions |
+| Main | 1-12 | `1,2,3..9,0,-,=` | ACTIONBUTTON1-12 |
+| Bottom Right | 49-60 | `Numpad1-9, Numpad0` | MULTIACTIONBAR2BUTTON1-12 |
+| Bottom Left | 61-72 | `F1-F12` | MULTIACTIONBAR1BUTTON1-12 |
+
+### Using Your Own Keybindings
+
+The application will automatically detect whatever keys you have bound to your action bars. For example:
+- If you bound `Shift-1` to action slot 1, the app will press `Shift-1`
+- If you bound `Q` to Bottom Left slot 61, the app will press `Q`
+
+### Quick Setup with Default Bindings
+
+If you want to use the recommended default bindings, run `/dcbindings` in-game. This will set up:
+- Bottom Right bar (slots 49-60): `Numpad1` through `Numpad0`
+- Bottom Left bar (slots 61-72): `F1` through `F12`
+
+The Main action bar (slots 1-12) keybindings are left unchanged since most players already have these configured.
+
+### Action Bar Validation
+
+The frontend now includes an **Action Bar Validation** feature that checks if your spells are placed in the correct slots. If there are mismatches:
+- A warning badge will appear showing the number of issues
+- You can click to see which spells need to be moved
+- Use the **Sync Actionbar** button to automatically place spells in the correct slots
+
+### Known Limitation: Main Action Bar Slots 11 and 12
+
+The Main Action Bar slots 11 and 12 use the `-` and `=` keys respectively. These keys are mapped to `OemMinus` and `OemPlus` ConsoleKey values, which are **keyboard layout dependent**.
+
+**Currently, slots 11 and 12 only work correctly with US English keyboard layout.**
+
+On non-US keyboard layouts, the physical key that produces `-` or `=` may have a different virtual key code. As a workaround:
+- Avoid using slots 11 and 12 on the Main Action Bar
+- Use the Bottom Right (Numpad) or Bottom Left (F1-F12) action bars instead, which work on all keyboard layouts
 
 <a href="./images/keybindings.png" target="_blank">
    <img alt="Screenshot" src="./images/keybindings.png" width="75%">
 </a>
 
-## 11. Configure the Wow Client - Bindpad addon
+## 11. Custom Actions (Uses BindPad)
 
-Bindpad allows keys to be easily bound to commands and macros. Type `/bindpad` to show it.
+The BindPad addon is bundled in `Addons/BindPad/` and is required for TBC Classic 2.5.5+ compatibility. Blizzard patched `SecureActionButtonTemplate` macrotext in recent clients, breaking dynamically created secure buttons. BindPad's button works due to its initialization approach.
 
-For each of the following click + to add a new key binding.
+### How It Works
 
-|  Key |  Command | Note |
+The addon uses BindPad's secure macro button (`BindPadMacro`) internally to execute custom actions like StopAttack and ClearTarget. These are bound to keys automatically on first run.
+
+| Action | Default Key | What It Does |
 | ---- | ---- | ---- |
-| Delete | /stopattack<br>/stopcasting<br>/petfollow | ---- |
-| Insert | /cleartarget | ---- |
-| PageDown | /follow | Only for `"AssistFocus"` Mode |
+| Stop Attack | `Alt-Delete` | Stops attacking and cancels casting |
+| Clear Target | `Alt-Insert` | Clears current target |
+| Config Toggle | `Shift-PageUp` | Toggles addon config mode (`/<prefix>`) |
+| Flush State | `Shift-PageDown` | Refreshes addon state (`/<prefix>flush`) |
 
-<table>
-    <tr>
-        <td>
-            <a href="./images/bindpad_stopattack.png" target="_blank">
-                <img alt="bindpad_stopattack" src="./images/bindpad_stopattack.png" width="100%">
-            </a>
-        </td>
-        <td>
-            <a href="./images/bindpad_cleartarget.png" target="_blank">
-                <img alt="bindpad_cleartarget" src="./images/bindpad_cleartarget.png" width="100%">
-            </a>
-        </td>
-    </tr>
-</table>
+### Manual Setup
+
+If the bindings were not set up automatically (e.g., you were in combat), run:
+```
+/<prefix>actions
+```
+
+Replace `<prefix>` with your addon's command prefix (e.g., `/dcactions` if your prefix is `dc`).
+
+This creates the secure buttons and binds them to the default keys. The bindings are saved to your current binding set (account-wide or character-specific).
+
+### BindPad Setup
+
+BindPad is bundled in `Addons/BindPad/` and must be installed:
+1. Copy the `BindPad` folder to your WoW `Interface/AddOns/` directory
+2. Enable the BindPad addon in your addon list
+3. The DataToColor addon will automatically use BindPad's secure button for custom actions
+
+### Why Alt-Modified Keys?
+
+The custom actions use Alt-modified keys (`Alt-Delete`, `Alt-Insert`, etc.) because:
+- They work reliably with the PostMessage input method (background key sending)
+- They are unlikely to conflict with your existing keybindings
+- They avoid accidentally triggering actions when typing in chat
 
 ## 12. Class Configuration
 
@@ -481,6 +667,20 @@ The configuration file determines what spells the character casts, when pulling 
 Take a look at the class files in [/Json/class/](./Json/class) for examples of what you can do.
 
 Your class file probably exists and just needs to be edited to set the pathing file name.
+
+### Understanding Class Configuration
+
+The class configuration controls all aspects of bot behavior. Here's why each section matters:
+
+| Section | Purpose |
+| --- | --- |
+| **Loot/Skin/Herb/Mine** | Controls what the bot does after killing mobs. Enable based on your character's professions. |
+| **UseMount** | Speeds up travel between grind spots. Disable if you don't have a mount or in areas where mounting is problematic. |
+| **PathFilename** | Defines where the bot walks. Without a path, the bot won't know where to go. |
+| **NPCMaxLevels_Above/Below** | Prevents attacking mobs that are too high (dangerous) or too low (no XP). |
+| **Blacklist** | Avoids specific mobs that cause problems (e.g., quest mobs, mobs with annoying abilities). |
+| **Pull/Combat/Flee** | The core combat rotation. Pull defines how to start fights, Combat is the main rotation, Flee is emergency escape. |
+| **NPC** | Defines vendor/repair routes. Essential for extended grinding sessions. |
 
 | Property Name | Description | Optional | Default value |
 | --- | --- | --- | --- |
@@ -523,26 +723,39 @@ Your class file probably exists and just needs to be edited to set the pathing f
 | --- | --- | --- | --- |
 | `"GatherFindKeys"` | List of strings for switching between gathering profiles | true | `string[]` |
 | --- | --- | --- | --- |
-| BaseActionKeys | --- | --- | --- |
+| BaseActionKeys | Description | Optional | Default value |
 | --- | --- | --- | --- |
-| `"Jump.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to Jump | true | `"Spacebar"` |
-| `"Interact.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to Interact | true | `"I"` |
-| `"TargetLastTarget.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to Target last target | true | `"G"` |
-| `"ClearTarget.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to clear current target | true | `"Insert"` |
-| `"StopAttack.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to stop attack | true | `"Delete"` |
-| `"TargetNearestTarget.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to target nearest target | true | `"Tab"` |
-| `"TargetTargetOfTarget.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to target - target of target | true | `"F"` |
-| `"TargetPet.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to target pet | true | `"Multiply"` |
-| `"PetAttack.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to send attack pet | true | `"Subtract"` |
-| `"Mount.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to use mount | true | `"O"` |
-| `"StandUp.Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to stand up | true | `"X"` |
+| `"Jump.Key"` | Key to Jump | true | `"Spacebar"` |
+| `"Interact.Key"` | Key to Interact with target. Supports modifiers. | true | `"Alt-Home"` |
+| `"InteractMouseOver.Key"` | Key to Interact with mouseover. Supports modifiers. | true | `"Alt-End"` |
+| `"TargetLastTarget.Key"` | Key to Target last target | true | `"G"` |
+| `"ClearTarget.Key"` | Key to clear current target. Supports modifiers. | true | `"Alt-Insert"` |
+| `"StopAttack.Key"` | Key to stop attack. Supports modifiers. | true | `"Alt-Delete"` |
+| `"TargetNearestTarget.Key"` | Key to target nearest enemy | true | `"Tab"` |
+| `"TargetTargetOfTarget.Key"` | Key to target - target of target | true | `"F"` |
+| `"TargetPet.Key"` | Key to target pet | true | `"Multiply"` |
+| `"PetAttack.Key"` | Key to send pet to attack | true | `"Subtract"` |
+| `"TargetFocus.Key"` | Key to target focus (TBC+) or party member 1 (Vanilla). Supports modifiers. | true | `"Alt-PageUp"` |
+| `"FollowTarget.Key"` | Key to follow target. Supports modifiers. | true | `"Alt-PageDown"` |
+| `"Mount.Key"` | Key to use mount | true | `"O"` |
+| `"StandUp.Key"` | Key to stand up / sit down | true | `"X"` |
 | --- | --- | --- | --- |
 | `"ForwardKey"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to move forward | true | `"UpArrow"` |
 | `"BackwardKey"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to move backward | true | `"DownArrow"` |
 | `"TurnLeftKey"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to turn left | true | `"LeftArrow"` |
 | `"TurnRightKey"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to be pressed to turn right | true | `"RightArrow"` |
 
-The following [KeyActions](#keyactions) are `BaseActions`: `Jump`, `Interact`, `TargetLastTarget`, `ClearTarget`, `StopAttack`, `TargetNearestTarget`, `TargetTargetOfTarget`, `TargetPet`, `PetAttack`, `Mount`, `StandUp`. 
+The following [KeyActions](#keyactions) are `BaseActions`: `Jump`, `Interact`, `InteractMouseOver`, `TargetLastTarget`, `ClearTarget`, `StopAttack`, `TargetNearestTarget`, `TargetTargetOfTarget`, `TargetPet`, `PetAttack`, `TargetFocus`, `FollowTarget`, `Mount`, `StandUp`.
+
+**Note on Modifier Keys**: BaseActions that support modifiers can be specified with `Shift-`, `Ctrl-`, or `Alt-` prefixes. For example:
+```json
+"Interact": {
+    "Key": "Alt-Home"
+},
+"ClearTarget": {
+    "Key": "Alt-Insert"
+}
+``` 
 
 Which are shared and unified among [Pull Goal](#pull-goal) and [Combat Goal](#combat-goal).
 
@@ -740,8 +953,9 @@ Can specify conditions with [Requirement(s)](#requirement) in order to create a 
 
 | Property Name | Description | Default value |
 | --- | --- | --- |
-| `"Name"` | Name of the KeyAction. For the `ActionBarPopulator`, lowercase means macro. | `""` |
-| `"Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to press | `""` |
+| `"Name"` | Name of the KeyAction. **Naming convention**: Lowercase names indicate macros (e.g., `"stopattack"`, `"petattack"`), while capitalized names indicate spells (e.g., `"Frostbolt"`, `"Healing Wave"`). This affects how `ActionBarPopulator` and action bar validation handle the entry. | `""` |
+| `"Key"` | [ConsoleKey](https://learn.microsoft.com/en-us/dotnet/api/system.consolekey) to press. Supports modifier prefixes: `Shift-`, `Ctrl-`, `Alt-` (e.g., `"Shift-1"`, `"Alt-F1"`) | `""` |
+| `"Modifier"` | Modifier key to hold while pressing the key. Values: `"None"`, `"Shift"`, `"Ctrl"`, `"Alt"`. Alternative to using prefix in `Key`. **Note**: Combined modifiers (e.g., `Shift-Alt`) are not supported - only single modifiers. | `"None"` |
 | `"Cost"` | [Adhoc Goals](#adhoc-goals) or [NPC Goal](#npc-goals) only, priority | `18` |
 | `"PathFilename"` | [NPC Goal](#npc-goals) only, this is a short path to get close to the NPC to avoid walls etc. | `""` |
 | `"HasCastBar"` | After key press cast bar is expected?<br>By default sets `BeforeCastStop`=`true` | `false` |
@@ -790,6 +1004,25 @@ However you can create complex conditions and branches to suit the situation.
 
 Important, the `AfterCast` prefixed conditions order as is its shows up the the table above.
 
+#### Understanding KeyAction Properties
+
+**Why use these properties?**
+
+| Property Group | Purpose |
+| --- | --- |
+| `HasCastBar` | Tells the bot to wait for the cast to complete before taking the next action. Without this, the bot might interrupt your cast by pressing another key. |
+| `WhenUsable` | Only attempts to cast when the game reports the ability is usable (enough mana/rage/energy, not on cooldown). Prevents wasting key presses. |
+| `Cooldown` | Prevents the bot from spamming the same ability. This is the bot's internal cooldown, not the game's. Set to match GCD (~400ms) for most abilities. |
+| `Form` | For Druids/Warriors - ensures you're in the correct shapeshift/stance before casting. Prevents "Can only use in Cat Form" errors. |
+| `School` | Used with `NpcSchoolImmunity` to skip spells against immune targets (e.g., don't cast Fire spells on fire-immune mobs). |
+| `BeforeCastStop` | Stops movement before casting. Essential for spells with cast bars that can't be cast while moving. |
+| `BeforeCastFaceTarget` | Turns to face the target. Useful for casters who might be kiting and need to turn around to cast. |
+| `AfterCastWaitSwing` | For abilities that reset swing timer (e.g., Heroic Strike). Waits for the swing to land before continuing. |
+| `AfterCastWaitBuff` | Waits until a buff/debuff appears. Useful for DoTs - ensures the DoT landed before moving to next ability. |
+| `AfterCastStepBack` | Creates distance after casting. Useful for kiting - cast, step back, repeat. |
+| `Requirement(s)` | Conditions that must be true to use this ability. Core of the combat rotation logic. |
+| `Interrupt(s)` | Conditions that will interrupt a channeled spell or cancel casting. Useful for react to incoming damage. |
+
 e.g. - bare minimum for a spell which has castbar.
 ```json
 {
@@ -804,6 +1037,22 @@ e.g. - bare minimum for a spell which is instant (no castbar)
 {
     "Name": "Earth Shock",
     "Key": "6"
+}
+```
+
+e.g. - using modifier keys (two equivalent ways)
+```json
+// Option 1: Modifier prefix in Key
+{
+    "Name": "Corruption",
+    "Key": "Shift-1"
+}
+
+// Option 2: Explicit Modifier property
+{
+    "Name": "Corruption",
+    "Key": "D1",
+    "Modifier": "Shift"
 }
 ```
 
@@ -874,7 +1123,22 @@ As a result in order to execute the [Pull Goal](#pull-goal) sequence in respect,
 
 ## Goal Groups
 
+The bot uses a Goal-based AI system (GOAP - Goal Oriented Action Planning). Each goal handles a specific situation. Understanding when each goal activates helps you configure your class profile correctly.
+
+| Goal | When It Activates | What It Does |
+| --- | --- | --- |
+| **Pull** | Target acquired, not in combat | Initiates combat with ranged attacks or by running to target |
+| **Combat** | In combat with a target | Main damage rotation, uses abilities based on requirements |
+| **Flee** | Health too low, outnumbered | Escape combat, run away, heal up |
+| **Adhoc** | Various triggers (buffs, health, etc.) | Background tasks like buffing, eating, drinking |
+| **Parallel** | Runs alongside other goals | Continuous checks like health monitoring |
+| **Wait** | Eating/drinking | Waits for food/drink buffs to complete |
+| **NPC** | Bags full, gear broken, etc. | Travels to vendor/repair NPCs |
+| **AssistFocus** | Focus target set, assist mode | Follows and assists another player |
+
 ### Pull Goal
+
+**Why Pull Goal?** Initiating combat properly matters. Hunters want to open with an arrow, Mages with a frostbolt, Warriors with a charge. Pull Goal defines the opening move(s) used to start each fight - what you cast when you have a target but haven't started fighting yet.
 
 This is the `Sequence` of [KeyAction(s)](#keyaction) that are used when pulling a mob.
 
@@ -897,6 +1161,8 @@ e.g.
 ```
 
 ### Assist Focus Goal
+
+**Why Assist Focus Goal?** For multiboxing or dungeon runs with a friend. The bot follows whoever you set as focus and helps them fight. Useful for running a healer that follows your main, or a DPS that assists your tank.
 
 The `Sequence` of [KeyAction(s)](#keyaction) that are used while the `AssistFocus` Mode is active. 
 
@@ -967,9 +1233,11 @@ e.g. of a Balance Druid
 
 ### Flee Goal
 
-Its an opt-in goal.
+**Why Flee Goal?** Sometimes fights go wrong - you pull an elite, get adds, or just can't win. Flee Goal lets you define "oh no" situations and survival abilities to use while running away. The bot will retrace its steps to safety.
 
-Can define custom rules when the character should try to run away from an encounter which seems to be impossible to survive.
+It's an opt-in goal.
+
+Define custom rules for when the character should run away from an encounter that seems impossible to survive.
 
 The goal will be executed while the player is in combat and the **first** [KeyAction](#keyaction) custom [Requirement(s)](#requirement) are met.
 
@@ -1035,9 +1303,11 @@ Example for accidently pulling en elite mob
 
 ### Combat Goal
 
-The `Sequence` of [KeyAction(s)](#keyaction) that are used when in combat and trying to kill a mob. 
+**Why Combat Goal?** This is the core of your character's fighting ability - the rotation. Combat Goal defines what abilities to use in what order during a fight. The bot continuously checks the list and uses the first ability whose requirements are met.
 
-The combat goal does the first available command on the list. 
+The `Sequence` of [KeyAction(s)](#keyaction) that are used when in combat and trying to kill a mob.
+
+The combat goal does the first available command on the list.
 
 The goal then runs again re-evaluating the list before choosing the first available command again, and so on until the mob is dead.
 
@@ -1064,6 +1334,12 @@ e.g.
 ```
 
 ### Adhoc Goals
+
+**Why Adhoc Goals?** These handle "between fight" activities - things you do when you're not actively killing something. Buffs that expired, health/mana that needs restoring, pet summoning, etc. The bot checks these when out of combat and performs them if conditions are met.
+
+**When to use Adhoc vs Parallel:**
+- **Adhoc**: For actions that need to happen sequentially (eating, buffing, etc.)
+- **Parallel**: For actions that can happen simultaneously (eating AND drinking at the same time)
 
 These `Sequence` of [KeyAction(s)](#keyaction) are done when not in combat and are not on cooldown. Suitable for personal buffs.
 
@@ -1126,9 +1402,11 @@ e.g high level [Warlock](./Json/class/Warlock_66_Demo_pet_pull.json)
 
 ### Parallel Goals
 
-These `Sequence` of [KeyAction(s)](#keyaction) are done when not in combat and are not on cooldown. 
+**Why Parallel Goals?** Some actions can happen at the same time - for example, eating food AND drinking water simultaneously. Parallel Goals press all matching keys together, saving time between fights.
 
-The key presses happens simultaneously on all [KeyAction(s)](#keyaction) which meets the [Requirement(s)](#requirement).
+These `Sequence` of [KeyAction(s)](#keyaction) are done when not in combat and are not on cooldown.
+
+The key presses happen simultaneously on all [KeyAction(s)](#keyaction) which meet the [Requirement(s)](#requirement).
 
 Suitable for `Food` and `Drink`.
 
@@ -1152,7 +1430,9 @@ e.g.
 
 ### Wait Goals
 
-These actions cause to wait while the [Requirement(s)](#requirement) are met, during this time the player going to be idle, until lowered cost action can be executed.
+**Why Wait Goals?** Sometimes you need to pause and wait - for health/mana to regenerate after eating, for a buff to complete its channel, or for a pet to arrive. Wait Goals keep the bot idle until conditions are met.
+
+These actions cause the bot to wait while the [Requirement(s)](#requirement) are met. During this time the player will be idle until a lower cost action can be executed.
 
 e.g.
 ```json
@@ -1173,7 +1453,13 @@ e.g.
 
 ### NPC Goals
 
-These command are for vendoring and repair. It has two modes 
+**Why NPC Goals?** When grinding for extended periods, your bags fill up and equipment breaks. NPC Goals automate trips to vendors and repairers so you don't have to babysit the bot. When bags are full or items are broken, the bot will automatically navigate to the NPC, interact, and return to grinding.
+
+**Choosing between modes:**
+- **Manual Route**: More reliable. You record a path to the NPC. Use this for NPCs in tricky locations (inside buildings, behind obstacles).
+- **Auto Route**: Easier setup but less reliable. Bot finds its own path. Only works well for NPCs in open areas without obstacles.
+
+It has two modes:
 * [Manual NPC Route](#manual-npc-route): have to specify a `"PathFilename"`
 * [Auto NPC Route](#auto-npc-route): based on the `"KeyAction.Name"`, can detect the strategy. **(EXPERIMENTAL)**
 
@@ -1351,12 +1637,30 @@ Meanwhile attempts to
 
 # Requirement
 
-A requirement is something that must be evaluated to be `true` for the [KeyAction](#keyaction) to run. 
+Requirements are the brain of your combat rotation. They define **when** each ability should be used.
+
+**Why are Requirements important?**
+- Without requirements, the bot would spam abilities randomly
+- Requirements let you create intelligent rotations that react to combat situations
+- You can prioritize abilities based on health, mana, buffs, debuffs, and more
+
+A requirement is something that must be evaluated to be `true` for the [KeyAction](#keyaction) to run.
 
 Not all [KeyAction](#keyaction) requires requirement(s), some rely on
-* `Cooldown` - populated manually
-* `ActionBarCooldownReader` - populated automatically
-* `ActionBarCostReader` - populated automatically
+* `Cooldown` - populated manually (you set how often to use)
+* `ActionBarCooldownReader` - populated automatically (reads actual game cooldown)
+* `ActionBarCostReader` - populated automatically (checks if you have enough mana/rage/energy)
+
+**Common Requirement Patterns:**
+
+| Pattern | Example | Use Case |
+| --- | --- | --- |
+| Use on cooldown | No requirement, rely on Cooldown | Main damage abilities |
+| Use when buff missing | `"!Battle Shout"` | Self-buffs |
+| Use at low health | `"Health% < 30"` | Emergency heals, healthstones |
+| Use at high resource | `"Rage > 50"` | Resource dump abilities |
+| Use when target debuff missing | `"!Target.Sunder Armor"` | Maintain debuffs on target |
+| Use to finish target | `"Target Health% < 20"` | Execute-style abilities |
 
 Can specify `Requirements` for complex condition.
 
@@ -2244,6 +2548,8 @@ e.g. Rogue_20.json
 
 # Interrupt Requirement
 
+**Why Interrupt Requirements?** Some abilities take time (channeling, long casts, movement abilities). Interrupt Requirements let you abort these early when conditions change - for example, stop casting a heal if the target dies, or stop kiting when the enemy starts casting.
+
 Every [KeyAction](#keyaction) has individual Interrupt(s) condition(s) which are [Requirement(s)](#requirement) to stop execution before fully finishing it.
 
 As of now every [Goal groups](#goal-groups) has a default Interrupt.
@@ -2314,7 +2620,9 @@ The key takeaway here is that the `Earth Shock` spell has higher priority.
 ---
 # Modes
 
-The default mode for the bot is to grind, but there are other modes. The mode is set in the root of the class file.
+The mode controls how the bot behaves - whether it navigates autonomously, requires your input, or follows another player. Choose based on your playstyle and what you want to automate.
+
+The mode is set in the root of the class file.
 
 e.g. Rogue.json
 ```json
@@ -2325,15 +2633,25 @@ e.g. Rogue.json
 }
 ```
 
-The available modes are:
+## Understanding Modes
+
+| Mode | Best For | You Control | Bot Controls |
+| --- | --- | --- | --- |
+| `"Grind"` | AFK farming | Nothing | Everything (movement, targeting, combat, looting) |
+| `"AttendedGrind"` | Semi-AFK with oversight | Movement & targeting | Combat rotation |
+| `"CorpseRun"` | Instance farming recovery | Nothing | Corpse navigation only |
+| `"AttendedGather"` | Herb/Mining routes | Node interaction | Route following, alerting |
+| `"AssistFocus"` | Dungeon runs, multiboxing | Focus target selection | Following, combat |
+
+## Mode Details
 
 | Mode | Description |
 | --- | --- |
-| `"Grind"` | Default mode.<br>[Follows the Route](#follow-route-goal). Attempts to find Non-Blacklist targets to kill.<br>(*if enabled*) Attempts to `"Loot"` and GatherCorpse nearby corpses.<br>(*if exists*) Executes `"Adhoc"`, `"NPC"`, `"Parallel"`, `"Pull"`, `"Combat"`, `"Wait"` Sequences |
-| `"AttendedGrind"` | Similair to `"Grind"`.<br>Navigation([Follow Route Goal](#follow-route-goal)) disabled.<br>The only difference is that **you** control the route, and select what target to kill. |
-| `"CorpseRun"` | Relies on navigation. [Follows the Route](#follow-route-goal)<br>Runs back to the corpse after dies.<br>Can be useful if you are farming an instance and die, the bot will run you back some or all of the way to the instance entrance. |
-| `"AttendedGather"` | Have to `Start Bot` under `Gather` tab and stay at `Gather` tab.<br>[Follows the Route](#follow-route-goal) and scan the minimap for the yellow nodes which indicate a herb or mining node.<br>Once one or more present, the navigation stops and alerts you by playing beeping sound!<br>**You** have to click at the herb/mine. In the `LogComponent` the necessary prompt going be shown to proceed.<br>**Important note**: `Falling` and `Jumping` means the same thing, if you lose the ground the bot going to take over the control! Be patient.<br>(*if exists*) Executes `"Adhoc"`, `"NPC"`, `"Parallel"`, `"Pull"`, `"Combat"`, `"Wait"` Sequences |
-| `"AssistFocus"` | Navigation([Follow Route Goal](#follow-route-goal)) disabled.<br>Requires a friendly `focus` to exists. Follows the `focus` target.<br>Once a friendly `focustarget` in 11 yard range attempts to Interact with it.<br>Once a hostile `focustarget` in-combat exists, attempts to assist it (kill it).<br>After leaving combat, (*if enabled*) attempts to Loot and GatherCorpse nearby corpses.<br>Works inside Instances.<br>(*if exists*) Executes `"Adhoc"`, `"Parallel"`, `"Pull"`, `"AssistFocus"`, `"Combat"`, `"Wait"` Sequences.<br>**Note**: In Vanilla `focus` dosen't exists, so instead using `party1`. Party is **required**. |
+| `"Grind"` | **Fully autonomous farming.** Default mode.<br>[Follows the Route](#follow-route-goal). Attempts to find Non-Blacklist targets to kill.<br>(*if enabled*) Attempts to `"Loot"` and GatherCorpse nearby corpses.<br>(*if exists*) Executes `"Adhoc"`, `"NPC"`, `"Parallel"`, `"Pull"`, `"Combat"`, `"Wait"` Sequences |
+| `"AttendedGrind"` | **You steer, bot fights.** Similar to `"Grind"` but navigation ([Follow Route Goal](#follow-route-goal)) disabled.<br>Use this when you want to manually choose where to go and what to fight, but let the bot handle combat. Good for testing combat rotations or farming specific mobs. |
+| `"CorpseRun"` | **Automatic corpse recovery.** Relies on navigation. [Follows the Route](#follow-route-goal)<br>Runs back to the corpse after dying.<br>Useful if you are farming an instance and die - the bot will run you back some or all of the way to the instance entrance. |
+| `"AttendedGather"` | **Semi-automated gathering.** Must `Start Bot` under `Gather` tab and stay at `Gather` tab.<br>[Follows the Route](#follow-route-goal) and scans the minimap for yellow nodes indicating herb or mining nodes.<br>Once nodes are detected, navigation stops and alerts you with beeping sound!<br>**You** click the herb/mine. The `LogComponent` shows prompts to proceed.<br>**Important**: `Falling` and `Jumping` are treated the same - if you lose ground contact, the bot takes over control. Be patient.<br>(*if exists*) Executes `"Adhoc"`, `"NPC"`, `"Parallel"`, `"Pull"`, `"Combat"`, `"Wait"` Sequences |
+| `"AssistFocus"` | **Follow and assist another player.** Navigation ([Follow Route Goal](#follow-route-goal)) disabled.<br>Requires a friendly `focus` target. Follows the focus target around.<br>When friendly `focustarget` within 11 yards, attempts to Interact with it.<br>When hostile `focustarget` in combat exists, assists by attacking it.<br>After combat, (*if enabled*) attempts to Loot and GatherCorpse nearby corpses.<br>Works inside instances - great for dungeon runs or multiboxing.<br>(*if exists*) Executes `"Adhoc"`, `"Parallel"`, `"Pull"`, `"AssistFocus"`, `"Combat"`, `"Wait"` Sequences.<br>**Note**: Vanilla doesn't have `focus`, so `party1` is used instead. Party is **required**. |
 
 # User Interface
 
@@ -2367,6 +2685,17 @@ Control Panel\System and Security\Windows Defender Firewall - Advanced Settings
 * Name "Wow bot"
 
 ## Components
+
+The web UI is the primary way to interact with the bot. It shows what the bot is doing, allows you to configure settings, and provides debugging tools. Each component serves a specific purpose:
+
+| Component | Purpose | When to Use |
+| --- | --- | --- |
+| Screenshot | Visual feedback of what the bot "sees" | Debugging detection issues |
+| Player Summary | Character stats and target info | Monitoring bot state |
+| Route | Path visualization and navigation | Creating/editing grind routes |
+| Goal | Shows current AI decision state | Understanding bot behavior |
+| Key Bindings | View detected keybindings | Verifying bindings, testing keys |
+| Spell Book | View known spells with IDs | Finding spell IDs for profiles |
 
 The UI has the following components:
 
@@ -2479,7 +2808,13 @@ The visualisation of the pre-conditions and spell [requirement(s)](#requirement)
 
 # Recording a Path
 
-Various path are needed by the bot:
+**Why paths matter**: The bot needs to know WHERE to grind. A path defines the route your character follows - where to walk, which mobs to encounter, and how to reach vendors. Without a path, the bot doesn't know where to go.
+
+**Types of paths**:
+| Path Type | Purpose | Location in Config |
+| --- | --- | --- |
+| Grind path | Main route for killing mobs | `PathFilename` in class file root |
+| NPC path | Route to reach vendors/repairers through obstacles | `PathFilename` within NPC task |
 
 The path to run when grinding (PathFilename in root of class files).
 ```json
@@ -2619,6 +2954,10 @@ The bot will use the PathingAPI to work out routes, these are shown on the route
 
 # Macros
 
+**Why Macros?** WoW macros combine multiple actions into a single button press. The bot can use macros just like regular abilities - they're essential for complex actions like targeting NPCs for vendoring, combining pet commands, or using multiple ranks of the same item.
+
+**Naming Convention**: When using macros in your class profile, use **lowercase** names (e.g., `"heal"`, `"feedpet"`) to distinguish them from actual spells. This helps the `ActionBarPopulator` correctly identify what to place on the action bar.
+
 Warlock `heal` macro used in warlock profiles.
 ```css
 #showtooltip Create Healthstone
@@ -2661,3 +3000,70 @@ Melee weapon enchant:
 /use 16
 /click StaticPopup1Button1
 ```
+
+# Troubleshooting / FAQ
+
+## Most Common Issue: Game Window Must Be Visible
+
+**The bot reads pixel colors from the top-left corner of the WoW game window.** If anything covers this area, the bot cannot function properly.
+
+**Symptoms:**
+- Bot not responding to game state
+- "Waiting for client" or similar messages
+- Bot actions don't match what's happening in-game
+- Screenshot component shows wrong/static image
+
+**Solution:**
+- **Keep the WoW window uncovered** - don't let browsers, Discord, or other windows overlap it
+- Position the bot's web UI (browser) on a second monitor, or beside the game window
+- If using one monitor, make the WoW window smaller and position it so the top-left corner is always visible
+- Consider using **Windowed** mode instead of Fullscreen for easier window management
+
+**Technical explanation:** The addon encodes game state (health, mana, target info, etc.) as colored pixels in frames positioned at the top-left of the screen. The application captures these pixels via screenshot and decodes them. Any overlay or window covering these pixels will cause incorrect readings.
+
+---
+
+## Addon Issues
+
+**Q: Addon not showing in WoW addon list**
+- Ensure the addon folder is named correctly (should match the Title you configured)
+- Check that the addon is in the correct `Interface\AddOns\` folder for your WoW version
+- Make sure addon files are not inside an extra subfolder
+
+**Q: "Addon blocked" or keybindings not working**
+- You cannot set keybindings while in combat - log out and back in
+- Run `/<prefix>actions` to manually create secure buttons (e.g., `/dcactions`)
+- Check that you're not running conflicting addons
+
+**Q: Pixel reading errors / wrong colors detected**
+- **First check**: Is the WoW window top-left corner visible? See [Most Common Issue](#most-common-issue-game-window-must-be-visible) above
+- The addon auto-configures graphics settings, but verify: Anti-Aliasing = None, Render Scale = 100%
+- Make sure no screen overlays (Discord, GeForce Experience, Steam overlay) are affecting the game window
+- Try running WoW in Windowed mode instead of Fullscreen
+- Disable Windows HDR if enabled
+
+## Application Issues
+
+**Q: Application cannot find WoW process**
+- Make sure WoW is running and you are logged into a character
+- If running multiple WoW clients, use the `-p` parameter to specify the process ID
+
+**Q: Path not found / navigation errors**
+- Ensure MPQ files are downloaded and placed in `Json\MPQ\`
+- For Cataclysm+, you need V3 Remote pathing (AmeisenNavigation)
+
+**Q: Class profile won't load**
+- Check JSON syntax - use a JSON validator
+- Ensure all required fields are present (see [Class Configuration](#12-class-configuration))
+- Check the log output for specific error messages
+
+## Keybinding Issues
+
+**Q: Keys not being pressed / wrong keys pressed**
+- Check the Frontend "Key Bindings" page to verify detected bindings
+- Use the key tester on the Key Bindings page to verify input is working
+- For non-US keyboard layouts, avoid Main Action Bar slots 11-12 (see [Known Limitation](#known-limitation-main-action-bar-slots-11-and-12))
+
+**Q: Modifier keys (Shift/Ctrl/Alt) not working**
+- Only single modifiers are supported, not combinations like Shift-Alt
+- Verify the binding in WoW uses the same modifier

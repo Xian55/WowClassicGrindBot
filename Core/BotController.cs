@@ -41,6 +41,9 @@ public sealed partial class BotController : IBotController, IDisposable
     private readonly AddonBits bits;
     private readonly PlayerReader playerReader;
     private readonly IWowScreen screen;
+    private readonly ActionBarSlotValidator slotValidator;
+    private readonly ActionBarTextureReader textureReader;
+    private readonly ActionBarMacroReader macroReader;
 
     private readonly NpcNameOverlay? npcNameOverlay;
 
@@ -84,7 +87,10 @@ public sealed partial class BotController : IBotController, IDisposable
         MinimapNodeFinder minimapNodeFinder,
         IScreenCapture screenCapture,
         IServiceProvider serviceProvider,
-        IOptions<StartupConfigNpcOverlay> overlayOptions)
+        IOptions<StartupConfigNpcOverlay> overlayOptions,
+        ActionBarSlotValidator slotValidator,
+        ActionBarTextureReader textureReader,
+        ActionBarMacroReader macroReader)
     {
         this.serviceProvider = serviceProvider;
 
@@ -98,6 +104,9 @@ public sealed partial class BotController : IBotController, IDisposable
         this.addonReader = addonReader;
         this.playerReader = playerReader;
         this.bits = bits;
+        this.slotValidator = slotValidator;
+        this.textureReader = textureReader;
+        this.macroReader = macroReader;
 
         this.minimapNodeFinder = minimapNodeFinder;
 
@@ -134,6 +143,83 @@ public sealed partial class BotController : IBotController, IDisposable
         {
             remotePathing = new(RemotePathingThread);
             remotePathing.Start();
+        }
+
+        // Subscribe to texture changes for deferred validation
+        textureReader.TextureChanged += OnTextureChanged;
+
+        // Subscribe to macro changes for deferred key resolution
+        macroReader.MacroChanged += OnMacroChanged;
+    }
+
+    private bool texturesValidated;
+
+    private void OnTextureChanged(int slot, int textureId)
+    {
+        // Only validate once after textures are initialized and profile is loaded
+        if (!texturesValidated && textureReader.IsInitialized && ClassConfig != null)
+        {
+            texturesValidated = true;
+            slotValidator.ValidateClassConfig(ClassConfig);
+        }
+    }
+
+    private void OnMacroChanged(int slot, int nameHash)
+    {
+        // Re-resolve macro keys whenever macros change on the action bar
+        if (ClassConfig != null)
+        {
+            ReResolveMacroKeys(ClassConfig, slot, nameHash);
+        }
+    }
+
+    private void ReResolveMacroKeys(ClassConfiguration config, int changedSlot = 0, int changedHash = 0)
+    {
+        foreach (KeyAction action in config.MacroActions)
+        {
+            int actionHash = ActionBarMacroReader.ComputeDJB2Hash24(action.Name) % 200000;
+
+            // If a specific slot changed, only update actions that match the hash
+            // or actions that were previously on that slot
+            if (changedSlot > 0)
+            {
+                bool hashMatches = changedHash == actionHash;
+                bool wasOnChangedSlot = action.Slot == changedSlot;
+
+                if (!hashMatches && !wasOnChangedSlot)
+                    continue;
+            }
+
+            // Try to find the macro's current slot
+            (int preferredMin, int preferredMax) = KeyReader.GetPreferredSlotRange(action);
+            int newSlot = macroReader.FindSlotByMacroName(action.Name, preferredMin, preferredMax);
+
+            // Update if slot changed or was unresolved
+            if (newSlot != action.Slot || action.ConsoleKey == ConsoleKey.NoName)
+            {
+                int oldSlot = action.Slot;
+                action.Slot = newSlot;
+
+                if (newSlot > 0 && KeyReader.ResolveFromSlot(action))
+                {
+                    if (oldSlot == 0)
+                    {
+                        logger.LogInformation(
+                            $"[{action.Name,-17}] Macro resolved: Slot:{newSlot} -> Key:{action.ConsoleKey}");
+                    }
+                    else if (oldSlot != newSlot)
+                    {
+                        logger.LogInformation(
+                            $"[{action.Name,-17}] Macro moved: Slot:{oldSlot} -> {newSlot} -> Key:{action.ConsoleKey}");
+                    }
+                }
+                else if (newSlot == 0 && oldSlot > 0)
+                {
+                    action.ConsoleKey = ConsoleKey.NoName;
+                    logger.LogWarning(
+                        $"[{action.Name,-17}] Macro removed from action bar (was Slot:{oldSlot})");
+                }
+            }
         }
     }
 
@@ -330,6 +416,18 @@ public sealed partial class BotController : IBotController, IDisposable
             ClassConfig = tryLoadConfig;
 
             ClassConfig.FileName = classFile;
+
+            // Validate action bar slots against expected spells
+            // (may be deferred if textures aren't ready yet)
+            texturesValidated = false;
+            slotValidator.ValidateClassConfig(ClassConfig);
+
+            // Re-resolve macro keys if macro data already arrived
+            // (will be deferred via OnMacroChanged if macros aren't ready yet)
+            if (macroReader.IsInitialized)
+            {
+                ReResolveMacroKeys(ClassConfig);
+            }
 
             CreateSession(ClassConfig);
         }

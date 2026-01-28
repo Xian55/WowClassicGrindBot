@@ -16,11 +16,17 @@ local WOW_PROJECT_WRATH_CLASSIC = WOW_PROJECT_WRATH_CLASSIC
 local WOW_PROJECT_CATACLYSM_CLASSIC = WOW_PROJECT_CATACLYSM_CLASSIC
 local WOW_PROJECT_MAINLINE = WOW_PROJECT_MAINLINE
 
+local buildVersion = select(4, GetBuildInfo())
+local isVanilla = buildVersion < 20000
+
 -- Is this a Legacy client (old retail, e.g., Cataclysm 4.3.4)?
 function DataToColor.IsLegacy()
   return WOW_PROJECT_ID == -1
 end
 
+function DataToColor.IsVanilla()
+  return isVanilla
+end
 
 -- Is this a Classic-era client (any of the Classic versions)?
 function DataToColor.IsClassicEra()
@@ -56,7 +62,6 @@ if DataToColor.IsClassic() then
   LibClassicCasterino = _G.LibStub("LibClassicCasterino")
 end
 
-local buildVersion = select(4, GetBuildInfo())
 local Som140 = DataToColor.IsClassic() and buildVersion == 11400 or buildVersion == 11401 or buildVersion == 11402
 local TBC253 = DataToColor.IsClassic_BCC() and buildVersion >= 20503
 local TBC252 = DataToColor.IsClassic_BCC() and buildVersion >= 20502

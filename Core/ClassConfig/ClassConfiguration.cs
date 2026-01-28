@@ -53,7 +53,7 @@ public sealed partial class ClassConfiguration
     public List<string> SideActivityRequirements = [];
     public PathSettings[] Paths { get; set; } = [];
 
-    public Mode Mode { get; init; } = Mode.Grind;
+    public Mode Mode { get; set; } = Mode.Grind;
 
     public BadZone WrongZone { get; } = new BadZone();
 
@@ -90,6 +90,10 @@ public sealed partial class ClassConfiguration
     public ConsoleKey BackwardKey { get; init; } = ConsoleKey.DownArrow;
     public ConsoleKey TurnLeftKey { get; init; } = ConsoleKey.LeftArrow;
     public ConsoleKey TurnRightKey { get; init; } = ConsoleKey.RightArrow;
+
+    // Cached macro KeyActions for efficient re-resolution on action bar changes
+    private readonly List<KeyAction> macroActions = [];
+    public IReadOnlyList<KeyAction> MacroActions => macroActions;
 
     public void Initialise(IServiceProvider sp, Dictionary<int, string> overridePathFile)
     {
@@ -201,6 +205,19 @@ public sealed partial class ClassConfiguration
                 playerReader, globalTime, factory);
         }
 
+        // Cache macro KeyActions (lowercase names) for efficient action bar change handling
+        macroActions.Clear();
+        foreach ((string _, KeyActions keyActions) in groups)
+        {
+            foreach (KeyAction action in keyActions.Sequence)
+            {
+                if (!string.IsNullOrEmpty(action.Name) && char.IsLower(action.Name[0]))
+                {
+                    macroActions.Add(action);
+                }
+            }
+        }
+
         GatherFindKeyConfig = new KeyAction[GatherFindKeys.Length];
         for (int i = 0; i < GatherFindKeys.Length; i++)
         {
@@ -246,7 +263,10 @@ public sealed partial class ClassConfiguration
                 if (user.Name != baseAction.Name)
                     continue;
 
+                // Copy key-related properties from base action
                 user.Key = baseAction.Key;
+                user.ConsoleKey = baseAction.ConsoleKey;
+                user.BindingID = baseAction.BindingID;
 
                 if (!string.IsNullOrEmpty(baseAction.Requirement))
                     user.Requirement += " " + baseAction.Requirement;

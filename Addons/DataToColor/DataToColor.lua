@@ -5,7 +5,7 @@
 -- Trigger between emitting game data and frame location data
 local SETUP_SEQUENCE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 108
+local NUMBER_OF_FRAMES = 111
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
@@ -71,7 +71,6 @@ local C_Map = C_Map
 local GetNetStats = GetNetStats
 
 local CreateFrame = CreateFrame
-local SetCVar = SetCVar
 local GetAddOnMetadata = GetAddOnMetadata or C_AddOns.GetAddOnMetadata
 
 local UIErrorsFrame = UIErrorsFrame
@@ -234,13 +233,17 @@ function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
     DataToColor:RegisterChatCommand('dccpu', 'GetCPUImpact')
     DataToColor:RegisterChatCommand('dcflush', 'FushState')
+    DataToColor:RegisterChatCommand('dcbindings', 'SetDefaultBindings')
+    DataToColor:RegisterChatCommand('dcactions', 'CreateSecureButtons')
 end
 
 function DataToColor:StartSetup()
     if not SETUP_SEQUENCE then
         SETUP_SEQUENCE = true
+        DataToColor:Print("Config mode")
     else
         SETUP_SEQUENCE = false
+        DataToColor:Print("Normal mode")
     end
 end
 
@@ -279,15 +282,32 @@ function DataToColor:OnEnteringWorld()
     DataToColor:InitTrigger(DataToColor.customTrigger1)
 
     DataToColor.Libs.RangeCheck:activate()
+
+    -- Deferred auto-setup of bindings (1 second delay to ensure everything is ready)
+    DataToColor:ScheduleAutoSetup()
 end
 
 function DataToColor:SetupRequirements()
+    -- Gameplay settings
     DataToColor.SafeSetCVar("autoInteract", 1)
     DataToColor.SafeSetCVar("autoLootDefault", 1)
-    -- /run DataToColor.SafeSetCVar("cameraSmoothStyle", 2) -- always
-    DataToColor.SafeSetCVar('Contrast', 50, '[]')
-    DataToColor.SafeSetCVar('Brightness', 50, '[]')
-    DataToColor.SafeSetCVar('Gamma', 1, '[]')
+    DataToColor.SafeSetCVar("UnitNameNPC", 1)                  -- NPC Names: Enabled
+
+    -- Camera settings (Interface -> Camera / Mouse)
+    DataToColor.SafeSetCVar("cameraSmoothStyle", 2)           -- Camera Following Style: Always
+    DataToColor.SafeSetCVar("cameraSmoothTrackingStyle", 2)   -- Click-to-Move Camera Style: Always
+    DataToColor.SafeSetCVar("cameraFollowSpeed", 100)          -- Auto-Follow Speed: Max
+
+    -- Graphics settings required for pixel reading
+    DataToColor.SafeSetCVar("ffxAntiAliasingMode", 0)  -- Anti-Aliasing: None
+    DataToColor.SafeSetCVar("vsync", 0)                 -- Vertical Sync: Disabled
+    DataToColor.SafeSetCVar("renderScale", 1)           -- Render Scale: 100%
+    DataToColor.SafeSetCVar("ffxGlow", 0)               -- Disable glow effect
+
+    -- Display calibration
+    DataToColor.SafeSetCVar("Contrast", 50)
+    DataToColor.SafeSetCVar("Brightness", 50)
+    DataToColor.SafeSetCVar("Gamma", 1)
 end
 
 function DataToColor:CreateConstants()
@@ -353,10 +373,29 @@ function DataToColor:Update()
     end
 end
 
+function DataToColor:ClearAllQueues()
+    -- Clear TimedQueues
+    DataToColor.equipmentQueue:clear()
+    DataToColor.bagQueue:clear()
+    DataToColor.inventoryQueue:clear()
+    DataToColor.gossipQueue:clear()
+    DataToColor.spellBookQueue:clear()
+    DataToColor.talentQueue:clear()
+    DataToColor.CombatDamageDoneQueue:clear()
+    DataToColor.CombatDamageTakenQueue:clear()
+    DataToColor.CombatCreatureDiedQueue:clear()
+    DataToColor.CombatMissTypeQueue:clear()
+    DataToColor.ChatQueue:clear()
+    DataToColor.bindingQueue:clear()
+    DataToColor.actionBarTextureQueue:clear()
+    DataToColor.actionBarMacroQueue:clear()
+end
+
 function DataToColor:FushState()
     DataToColor.targetChanged = true
 
     DataToColor:Reset()
+    DataToColor:ClearAllQueues()
 
     DataToColor:PopulateSpellBookInfo()
     DataToColor:InitUpdateQueues()
@@ -383,6 +422,9 @@ function DataToColor:InitUpdateQueues()
     DataToColor:InitActionBarCostQueue()
     DataToColor:InitSpellBookQueue()
     DataToColor:InitTalentQueue()
+    DataToColor:InitBindingQueue()
+    DataToColor:InitActionBarTextureQueue()
+    DataToColor:InitActionBarMacroQueue()
 end
 
 function DataToColor:InitEquipmentQueue()
@@ -458,7 +500,17 @@ function DataToColor:PopulateSpellBookInfo()
     S.playerSpellBookIconToId, S.playerSpellBookIdHighest = {}, {}, {}, {}
 
     --------------------------------------------------------------------
+    -- Helper to extract base spell name without rank suffix
+    -- "Frostbolt (Rank 3)" -> "Frostbolt"
+    --------------------------------------------------------------------
+    local function GetBaseSpellName(name)
+        return name:match("^(.-)%s*%(") or name
+    end
+
+    --------------------------------------------------------------------
     -- Helper to record one spell safely
+    -- Groups by base spell name (not texture) to handle spells that
+    -- share icons but are different abilities (e.g., Overpower vs Sword Specialization)
     --------------------------------------------------------------------
     local function RecordSpell(id, name, texture)
         if not (id and name and texture) then return end
@@ -467,9 +519,12 @@ function DataToColor:PopulateSpellBookInfo()
         S.playerSpellBookId[id] = true
         S.playerSpellBookName[texture] = name
         S.playerSpellBookIconToId[texture] = id
-        local highest = S.playerSpellBookIdHighest[texture]
+        -- Group by base spell name, not texture
+        -- This ensures different spells with the same icon are all sent
+        local baseName = GetBaseSpellName(name)
+        local highest = S.playerSpellBookIdHighest[baseName]
         if not highest or id > highest then
-            S.playerSpellBookIdHighest[texture] = id
+            S.playerSpellBookIdHighest[baseName] = id
         end
         numLoaded = numLoaded + 1
     end
@@ -813,6 +868,15 @@ function DataToColor:CreateFrames()
             Pixel(int, DataToColor.spellBookQueue:shift(globalTick) or 0, 71)
 
             Pixel(int, DataToColor.talentQueue:shift(globalTick) or 0, 72)
+
+            -- Key bindings queue (slot 106)
+            Pixel(int, DataToColor.bindingQueue:shift(globalTick) or 0, 106)
+
+            -- Action bar texture queue (slot 107)
+            Pixel(int, DataToColor.actionBarTextureQueue:shift(globalTick) or 0, 107)
+
+            -- Action bar macro queue (slot 108)
+            Pixel(int, DataToColor.actionBarMacroQueue:shift(globalTick) or 0, 108)
 
             local gossipNum = DataToColor.gossipQueue:shift(globalTick)
             if gossipNum then
@@ -1170,4 +1234,23 @@ function DataToColor:sell(items)
     else
         DataToColor:Print("No grey items were sold.")
     end
+end
+
+-- Place Spell on action bar by searching spellbook for name prefix
+-- Usage: /run DataToColor:PS("Immolate",1)
+-- Handles ranked spells like "Immolate(Rank 9)" by matching prefix
+function DataToColor:PS(name, slot)
+    local bookType = "spell"
+    for i = 1, 500 do
+        local n = GetSpellBookItemName(i, bookType)
+        if not n then break end
+        -- Match exact name or name with rank suffix (e.g., "Immolate" matches "Immolate(Rank 9)")
+        if n == name or n:find("^" .. name .. "[%s%(]") then
+            PickupSpellBookItem(i, bookType)
+            PlaceAction(slot)
+            ClearCursor()
+            return true
+        end
+    end
+    return false
 end

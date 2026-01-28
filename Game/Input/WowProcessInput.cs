@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 
+using SharedLib;
+
 using SixLabors.ImageSharp;
 
 using System;
@@ -12,11 +14,15 @@ namespace Game;
 
 public sealed partial class WowProcessInput : IMouseInput
 {
+    // Virtual key codes for modifier keys
+    private const int VK_SHIFT = 0x10;
+    private const int VK_CONTROL = 0x11;
+    private const int VK_MENU = 0x12;  // Alt key
+
     private readonly ILogger<WowProcessInput> logger;
 
     private readonly WowProcess process;
     private readonly InputWindowsNative nativeInput;
-    private readonly InputSimulator simulatorInput;
 
     private readonly BitArray keysDown;
 
@@ -25,6 +31,7 @@ public sealed partial class WowProcessInput : IMouseInput
     public ConsoleKey TurnLeftKey { get; set; }
     public ConsoleKey TurnRightKey { get; set; }
     public ConsoleKey InteractMouseover { get; set; }
+    public ModifierKey InteractMouseoverModifier { get; set; }
     public int InteractMouseoverPress { get; set; }
 
     public WowProcessInput(ILogger<WowProcessInput> logger, CancellationTokenSource cts, WowProcess process)
@@ -35,7 +42,6 @@ public sealed partial class WowProcessInput : IMouseInput
         keysDown = new((int)ConsoleKey.OemClear);
 
         nativeInput = new(process, cts, InputDuration.FastPress);
-        simulatorInput = new(process, cts, InputDuration.FastPress);
     }
 
     public void Reset()
@@ -85,19 +91,9 @@ public sealed partial class WowProcessInput : IMouseInput
         return keysDown[(int)key];
     }
 
-    public void SendText(string payload)
+    public void SendText(string text)
     {
-        simulatorInput.SendText(payload);
-    }
-
-    public void SetClipboard(string text)
-    {
-        simulatorInput.SetClipboard(text);
-    }
-
-    public void PasteFromClipboard()
-    {
-        simulatorInput.PasteFromClipboard();
+        nativeInput.SendText(text);
     }
 
     public void SetForegroundWindow()
@@ -112,6 +108,46 @@ public sealed partial class WowProcessInput : IMouseInput
         keysDown[(int)key] = false;
 
         LogKeyPressRandom(logger, key, elapsedMs);
+
+        return elapsedMs;
+    }
+
+    public int PressRandomWithModifier(ConsoleKey key, ModifierKey modifier, int milliseconds = InputDuration.DefaultPress, CancellationToken token = default)
+    {
+        // If no modifier, use the simple path
+        if (modifier == ModifierKey.None)
+        {
+            return PressRandom(key, milliseconds, token);
+        }
+
+        // Note: PostMessage sends WM_KEYDOWN to the window's message queue.
+        // WoW processes messages in FIFO order, so modifier keys are "pressed"
+        // before the main key. No delay needed between messages.
+        // If WoW uses GetKeyState() instead of tracking WM_KEYDOWN messages,
+        // modifiers may not work - would need SendInput (foreground only).
+
+        // Press modifier(s) down
+        if ((modifier & ModifierKey.Shift) != 0)
+            nativeInput.KeyDown(VK_SHIFT);
+        if ((modifier & ModifierKey.Ctrl) != 0)
+            nativeInput.KeyDown(VK_CONTROL);
+        if ((modifier & ModifierKey.Alt) != 0)
+            nativeInput.KeyDown(VK_MENU);
+
+        // Press actual key
+        keysDown[(int)key] = true;
+        int elapsedMs = nativeInput.PressRandom((int)key, milliseconds, token);
+        keysDown[(int)key] = false;
+
+        // Release modifiers (reverse order)
+        if ((modifier & ModifierKey.Alt) != 0)
+            nativeInput.KeyUp(VK_MENU);
+        if ((modifier & ModifierKey.Ctrl) != 0)
+            nativeInput.KeyUp(VK_CONTROL);
+        if ((modifier & ModifierKey.Shift) != 0)
+            nativeInput.KeyUp(VK_SHIFT);
+
+        LogKeyPressRandomWithModifier(logger, key, modifier, elapsedMs);
 
         return elapsedMs;
     }
@@ -156,7 +192,22 @@ public sealed partial class WowProcessInput : IMouseInput
 
     public void InteractMouseOver(CancellationToken token)
     {
-        PressFixed(InteractMouseover, InteractMouseoverPress, token);
+        if (InteractMouseoverModifier != ModifierKey.None)
+        {
+            PressRandomWithModifier(InteractMouseover, InteractMouseoverModifier, InteractMouseoverPress, token);
+        }
+        else
+        {
+            PressFixed(InteractMouseover, InteractMouseoverPress, token);
+        }
+    }
+
+    /// <summary>
+    /// Presses SHIFT-PAGEDOWN to trigger CUSTOM_FLUSH (/dcflush) in the addon.
+    /// </summary>
+    public void PressFlushKey()
+    {
+        PressRandomWithModifier(ConsoleKey.PageDown, ModifierKey.Shift, 50);
     }
 
     private bool IsMovementKey(ConsoleKey key) =>
@@ -188,6 +239,12 @@ public sealed partial class WowProcessInput : IMouseInput
         Level = LogLevel.Information,
         Message = @"[{key}] press random {milliseconds}ms")]
     static partial void LogKeyPressRandom(ILogger logger, ConsoleKey key, int milliseconds);
+
+    [LoggerMessage(
+        EventId = 3007,
+        Level = LogLevel.Information,
+        Message = @"[{modifier}-{key}] press random {milliseconds}ms")]
+    static partial void LogKeyPressRandomWithModifier(ILogger logger, ConsoleKey key, ModifierKey modifier, int milliseconds);
 
     #region Movement Trance
 

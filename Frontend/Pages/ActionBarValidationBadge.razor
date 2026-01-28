@@ -1,0 +1,63 @@
+@inject ActionBarSlotValidator actionBarSlotValidator
+@inject ActionBarTextureReader actionBarTextureReader
+@inject IBotController botController
+@inject NavigationManager navManager
+
+@implements IDisposable
+
+@if (issueCount > 0)
+{
+    <button class="btn btn-sm btn-outline-warning" @onclick="NavigateToKeyBindings" title="Action bar issues detected - click to view">
+        <span class="badge bg-warning text-dark">@issueCount</span> issues
+    </button>
+}
+
+@code {
+    private int issueCount;
+
+    protected override void OnInitialized()
+    {
+        actionBarTextureReader.TextureChanged += OnTextureChanged;
+        botController.ProfileLoaded += OnProfileLoaded;
+        UpdateIssueCount();
+    }
+
+    public void Dispose()
+    {
+        actionBarTextureReader.TextureChanged -= OnTextureChanged;
+        botController.ProfileLoaded -= OnProfileLoaded;
+    }
+
+    private void OnProfileLoaded()
+    {
+        InvokeAsync(() =>
+        {
+            UpdateIssueCount();
+            StateHasChanged();
+        });
+    }
+
+    private void OnTextureChanged(int slot, int textureId)
+    {
+        InvokeAsync(() =>
+        {
+            UpdateIssueCount();
+            StateHasChanged();
+        });
+    }
+
+    private void UpdateIssueCount()
+    {
+        issueCount = 0;
+
+        if (botController.ClassConfig == null)
+            return;
+
+        issueCount = actionBarSlotValidator.GetIssueCount(botController.ClassConfig);
+    }
+
+    private void NavigateToKeyBindings()
+    {
+        navManager.NavigateTo("/KeyBindings");
+    }
+}

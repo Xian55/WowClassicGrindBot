@@ -1,73 +1,196 @@
 # ReadDBC_CSV
 
-**som_game_build** = 1.15.4.56493
-**tbc_game_build** = 2.5.4.44833
-**wrath_game_build** = 3.4.3.52237
-**cata_game_build** = 4.4.1.56464
+A CLI tool to extract WoW DBC data from [wago.tools](https://wago.tools) and generate JSON files for WowClassicGrindBot.
 
-# ReadDBC_CSV_Consumables - What it does
-* It generates the available Food and Water consumables list based on the given DBC files.
+## Usage
 
-## ReadDBC_CSV_Consumables - Required DBC files
-* data/spell.csv
-https://wago.tools/db2/spell/csv?&build=4.4.0.54647
+```
+ReadDBC_CSV [options] [extractors...]
+```
 
-* data/itemeffect.csv
-https://wago.tools/db2/itemeffect/csv?&build=4.4.0.54647
+### Options
 
-## ReadDBC_CSV_Consumables - Produces
-* data/foods.json
-* data/waters.json
+| Option | Description |
+|--------|-------------|
+| `-v, --version <version>` | Game version (default: som) |
+| `-b, --build <build>` | Override build version (e.g., 3.4.3.54261) |
+| `-c, --clean` | Clean downloaded CSV files before running |
+| `-h, --help` | Show help |
 
+### Supported Versions
+
+| Version | Build | Description |
+|---------|-------|-------------|
+| `som` | 1.15.8.63829 | Season of Discovery / Classic Era (default) |
+| `tbc` | 2.5.4.44833 | TBC Classic |
+| `wrath` | 3.4.5.63697 | WotLK Classic |
+| `cata` | 4.4.2.60895 | Cataclysm Classic |
+| `mop` | 5.5.1.63698 | MoP Remix |
+| `legacy_cata` | 8.1.0.27826 | Legacy Cataclysm data |
+
+### Extractors
+
+| Name | Output Files | Description |
+|------|--------------|-------------|
+| `faction` | factiontemplate.json | Faction template data |
+| `item` | items.json | Item data (id, name, quality, sell price, texture) |
+| `consumable` | foods.json, waters.json | Food and drink item IDs |
+| `spell` | spells.json | Spell data (id, name, level) |
+| `icon` | spelliconmap.json, iconnames.json | Icon texture mappings (all icons from Interface\Icons) |
+| `talent` | talents.json | Talent tree data |
+| `worldmap` | worldmaparea.json | World map area data |
+
+If no extractors are specified, all will run.
+
+## Examples
+
+```bash
+# Run all extractors for default version (SoM)
+ReadDBC_CSV
+
+# Run all extractors for WotLK
+ReadDBC_CSV -v wrath
+
+# Run all extractors for WotLK with a specific build
+ReadDBC_CSV -v wrath -b 3.4.3.54261
+
+# Run only item and consumable extractors for SoM
+ReadDBC_CSV item consumable
+
+# Run spell and talent extractors for TBC
+ReadDBC_CSV -v tbc spell talent
+
+# Clean CSV cache and run item extractor
+ReadDBC_CSV --clean item
+```
+
+## Output
+
+Generated JSON files are automatically copied to:
+```
+WowClassicGrindBot/Json/dbc/{version}/
+```
+
+Downloaded CSV files are cached in:
+```
+Utilities/ReadDBC_CSV/data/
+```
+
+Use `--clean` to remove cached CSVs when switching between versions or builds.
 
 ---
-# ReadDBC_CSV_Spell - What it does
-* It generates the available spell(id, name, level) list based on the given DBC file.
 
-## ReadDBC_CSV_Spell - Required DBC files
-* data/spellname.csv
-https://wago.tools/db2/spellname/csv?&build=4.4.0.54647
+## Extractor Details
 
-* data/spelllevels.csv
-https://wago.tools/db2/spelllevels/csv?&build=4.4.0.54647
+### Item Extractor
 
-## ReadDBC_CSV_Spell - Produces
-* data/spells.json
+Extracts item data including texture IDs for action bar detection.
 
+**Required CSV files:**
+- itemsparse.csv - Item details (name, quality, sell price)
+- item.csv - Item icons (IconFileDataID)
 
----
-# ReadDBC_CSV_Talents - What it does
-* It generates the available talents based on the given DBC file.
+**Produces:**
+- items.json
 
-## ReadDBC_CSV_Talents - Required DBC files
-* data/talenttab.csv
-https://wago.tools/db2/talenttab/csv?&build=4.4.0.54647
+### Consumables Extractor
 
-* data/talent.csv
-https://wago.tools/db2/talent/csv?&build=4.4.0.54647
+Generates food and water item ID lists based on spell descriptions.
 
-## ReadDBC_CSV_Talents - Produces
-* data/talent.json
-* data/talenttab.json
+**Required CSV files:**
+- spell.csv
+- itemeffect.csv
 
+**Produces:**
+- foods.json
+- waters.json
 
----
-# ReadDBC_CSV_WorldMapArea - What it does
-* It generates the WorldMapArea.json list based on the given DBC files.
+### Spell Extractor
 
-## SubZoneArea
-* Requires continent names (like `0.json`, `1.json`) which contains each tile what zone it bounds to.
-* These files can be found under the `json\subzones\EXPANSION` copy these files into `Utilities\ReadDBC_CSV\data` folder.
+Extracts spell data (id, name, level).
 
-## ReadDBC_CSV_WorldMapArea - Required DBC files
-* data/uimap.csv
-https://wago.tools/db2/uimap/csv?&build=4.4.0.54647
+**Required CSV files:**
+- spellname.csv
+- spelllevels.csv
 
-* data/uimapassignment.csv
-https://wago.tools/db2/uimapassignment/csv?&build=4.4.0.54647
+**Produces:**
+- spells.json
 
-* data/map.csv
-https://wago.tools/db2/map/csv?&build=4.4.0.54647
+### Icon Extractor
 
-## ReadDBC_CSV_WorldMapArea - Produces
-* data/WorldMapArea.json
+Extracts all icons from Interface\Icons and builds texture ID to spell ID mappings for action bar slot detection.
+
+**Required CSV files:**
+- spellmisc.csv
+- spellname.csv
+- manifestinterfacedata.csv
+
+**Produces:**
+- spelliconmap.json - Maps texture ID to spell IDs (for spell validation)
+- iconnames.json - Maps texture ID to icon names (ALL icons from Interface\Icons, ~31,000+)
+
+### Talent Extractor
+
+Extracts talent tree data.
+
+**Required CSV files:**
+- talenttab.csv
+- talent.csv
+
+**Produces:**
+- talents.json
+
+### World Map Area Extractor
+
+Extracts world map area data with zone boundaries for minimap click-to-move functionality.
+
+**Required CSV files:**
+- uimap.csv
+- uimapassignment.csv
+- map.csv
+- areatable.csv
+
+**Produces:**
+- worldmaparea.json
+
+#### Subzone Data (Optional but Recommended)
+
+The extractor can extend zone data with subzone boundaries from pre-generated subzone files. These files contain tile-based zone boundaries used for precise click-to-move targeting.
+
+**Subzone files location:**
+```
+WowClassicGrindBot/Json/subzones/{expansion}/
+```
+
+**File format:** Numeric filenames representing continent IDs:
+- `0.json` - Eastern Kingdoms
+- `1.json` - Kalimdor
+- `530.json` - Outland (TBC)
+- `571.json` - Northrend (WotLK)
+- etc.
+
+**To use subzones:**
+1. Copy the appropriate subzone files from `Json/subzones/{expansion}/` to `Utilities/ReadDBC_CSV/data/`
+2. Run the worldmap extractor
+3. The extractor automatically detects and merges any `*.json` files with numeric-only names
+
+**Example:**
+```bash
+# Copy subzone data for Classic
+cp Json/subzones/vanilla/*.json Utilities/ReadDBC_CSV/data/
+
+# Run the extractor
+ReadDBC_CSV -v som worldmap
+```
+
+The subzone data adds clickable area entries (prefixed with `C_`) that provide more precise zone boundaries than the DBC data alone.
+
+### Faction Template Extractor
+
+Extracts faction template data.
+
+**Required CSV files:**
+- factiontemplate.csv
+
+**Produces:**
+- factiontemplate.json

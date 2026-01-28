@@ -2,6 +2,8 @@
 
 using Core;
 
+using Game;
+
 using Microsoft.Extensions.Logging;
 
 using static System.Diagnostics.Stopwatch;
@@ -16,8 +18,8 @@ public sealed partial class HeadlessServer
     private readonly ActionBarCostReader actionBarCostReader;
     private readonly SpellBookReader spellBookReader;
     private readonly BagReader bagReader;
-    private readonly ExecGameCommand exec;
-    private readonly AddonConfigurator addonConfigurator;
+    private readonly KeyBindingsReader keyBindingsReader;
+    private readonly WowProcessInput wowInput;
     private readonly Wait wait;
 
     public HeadlessServer(ILogger<HeadlessServer> logger,
@@ -26,8 +28,8 @@ public sealed partial class HeadlessServer
         ActionBarCostReader actionBarCostReader,
         SpellBookReader spellBookReader,
         BagReader bagReader,
-        ExecGameCommand exec,
-        AddonConfigurator addonConfigurator,
+        KeyBindingsReader keyBindingsReader,
+        WowProcessInput wowInput,
         Wait wait)
     {
         this.logger = logger;
@@ -36,8 +38,8 @@ public sealed partial class HeadlessServer
         this.actionBarCostReader = actionBarCostReader;
         this.spellBookReader = spellBookReader;
         this.bagReader = bagReader;
-        this.exec = exec;
-        this.addonConfigurator = addonConfigurator;
+        this.keyBindingsReader = keyBindingsReader;
+        this.wowInput = wowInput;
         this.wait = wait;
     }
 
@@ -58,14 +60,14 @@ public sealed partial class HeadlessServer
     private void InitState()
     {
         addonReader.FullReset();
-        exec.Run("");
-        exec.Run($"/{addonConfigurator.Config.CommandFlush}");
+        wowInput.PressFlushKey();
 
         const int CELL_UPDATE_TICK = 5 * 2;
 
         int actionbarCost;
         int spellBook;
         int bag;
+        int keyBindings;
 
         long startTime = GetTimestamp();
         do
@@ -73,20 +75,23 @@ public sealed partial class HeadlessServer
             actionbarCost = actionBarCostReader.Count;
             spellBook = spellBookReader.Count;
             bag = bagReader.BagItems.Count;
+            keyBindings = keyBindingsReader.Count;
 
             for (int i = 0; i < CELL_UPDATE_TICK; i++)
                 wait.Update();
 
             if (actionbarCost != actionBarCostReader.Count ||
                 spellBook != spellBookReader.Count ||
-                bag != bagReader.BagItems.Count)
+                bag != bagReader.BagItems.Count ||
+                keyBindings != keyBindingsReader.Count)
             {
-                LogInitStateStatus(logger, actionbarCost, spellBook, bag);
+                LogInitStateStatus(logger, actionbarCost, spellBook, bag, keyBindings);
             }
         } while (
             actionbarCost != actionBarCostReader.Count ||
             spellBook != spellBookReader.Count ||
-            bag != bagReader.BagItems.Count);
+            bag != bagReader.BagItems.Count ||
+            keyBindings != keyBindingsReader.Count);
 
         LogInitStateEnd(logger, (float)GetElapsedTime(startTime).TotalSeconds);
     }
@@ -96,8 +101,8 @@ public sealed partial class HeadlessServer
     [LoggerMessage(
         EventId = 4000,
         Level = LogLevel.Information,
-        Message = "Actionbar: {actionbar,3} | SpellBook: {spellBook,3} | Bag: {bag,3}")]
-    static partial void LogInitStateStatus(ILogger logger, int actionbar, int spellbook, int bag);
+        Message = "Actionbar: {actionbar,3} | SpellBook: {spellBook,3} | Bag: {bag,3} | Bindings: {keyBindings,3}")]
+    static partial void LogInitStateStatus(ILogger logger, int actionbar, int spellbook, int bag, int keyBindings);
 
     [LoggerMessage(
         EventId = 4001,

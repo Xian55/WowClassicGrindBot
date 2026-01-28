@@ -13,7 +13,8 @@ internal sealed class ItemExtractor : IExtractor
 
     public string[] FileRequirement { get; } =
     [
-        "itemsparse.csv"
+        "itemsparse.csv",
+        "item.csv"
     ];
 
     public ItemExtractor(string path)
@@ -23,14 +24,43 @@ internal sealed class ItemExtractor : IExtractor
 
     public void Run()
     {
-        string fileName = Path.Join(path, FileRequirement[0]);
-        List<Item> items = ExtractItems(fileName);
+        // First load icon mappings from item.csv
+        string itemFile = Path.Join(path, FileRequirement[1]);
+        Dictionary<int, int> iconMap = ExtractIconMap(itemFile);
+        Console.WriteLine($"Item icons: {iconMap.Count}");
+
+        // Then load items and join with icons
+        string itemSparseFile = Path.Join(path, FileRequirement[0]);
+        List<Item> items = ExtractItems(itemSparseFile, iconMap);
 
         Console.WriteLine($"Items: {items.Count}");
         File.WriteAllText(Path.Join(path, "items.json"), JsonConvert.SerializeObject(items));
     }
 
-    private static List<Item> ExtractItems(string path)
+    /// <summary>
+    /// Extracts item ID to icon texture ID mapping from item.csv
+    /// </summary>
+    private static Dictionary<int, int> ExtractIconMap(string path)
+    {
+        using var reader = Sep.Reader().FromFile(path);
+
+        int id = reader.Header.IndexOf("ID");
+        int iconFileDataId = reader.Header.IndexOf("IconFileDataID");
+
+        Dictionary<int, int> iconMap = [];
+        foreach (SepReader.Row row in reader)
+        {
+            int itemId = row[id].Parse<int>();
+            int textureId = row[iconFileDataId].Parse<int>();
+            if (textureId > 0)
+            {
+                iconMap[itemId] = textureId;
+            }
+        }
+        return iconMap;
+    }
+
+    private static List<Item> ExtractItems(string path, Dictionary<int, int> iconMap)
     {
         using var reader = Sep.Reader(o => o with
         {
@@ -45,12 +75,16 @@ internal sealed class ItemExtractor : IExtractor
         List<Item> items = [];
         foreach (SepReader.Row row in reader)
         {
+            int itemId = row[id].Parse<int>();
+            iconMap.TryGetValue(itemId, out int textureId);
+
             items.Add(new Item
             {
-                Entry = row[id].Parse<int>(),
+                Entry = itemId,
                 Quality = row[quality].Parse<int>(),
                 Name = row[name].ToString(),
-                SellPrice = row[sellPrice].Parse<int>()
+                SellPrice = row[sellPrice].Parse<int>(),
+                TextureId = textureId
             });
         }
         return items;

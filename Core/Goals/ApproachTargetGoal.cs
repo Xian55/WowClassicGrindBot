@@ -214,8 +214,7 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
                         initialTargetGuid = -1;
                         logger.LogWarning("Stick to initial target!");
 
-                        input.PressLastTarget();
-                        wait.Update();
+                        input.PressLastTargetAndWait(wait, bits.Target);
                     }
                 }
             }

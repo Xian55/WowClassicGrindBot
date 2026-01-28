@@ -23,8 +23,4 @@ public interface IInput
     void LeftClick(Point p);
 
     void SendText(string text);
-
-    void SetClipboard(string text);
-
-    void PasteFromClipboard();
 }

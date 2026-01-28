@@ -4,6 +4,8 @@ using Game;
 
 using Microsoft.Extensions.Logging;
 
+using SharedLib;
+
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -21,7 +23,10 @@ public sealed partial class KeyAction
         set => features[ActionMask.HasCastBar] = value;
     }
     public ConsoleKey ConsoleKey { get; set; }
+    public ModifierKey Modifier { get; set; } = ModifierKey.None;
+    public bool HasModifier => Modifier != ModifierKey.None;
     public string Key { get; set; } = string.Empty;
+    public BindingID BindingID { get; set; }
     public int Slot { get; set; }
     public int SlotIndex { get; private set; }
     public int SpellId { get; set; }
@@ -201,7 +206,7 @@ public sealed partial class KeyAction
         }
         else if (Slot == 0)
         {
-            LogInputNonActionbar(logger, Name, Key, ConsoleKey);
+            LogInputNonActionbar(logger, Name, Key, Modifier.ToPrefix(), ConsoleKey);
         }
     }
 
@@ -363,8 +368,8 @@ public sealed partial class KeyAction
     [LoggerMessage(
         EventId = 0004,
         Level = LogLevel.Information,
-        Message = "[{name,-17}] Non Actionbar {key} -> {consoleKey}")]
-    static partial void LogInputNonActionbar(ILogger logger, string name, string key, ConsoleKey consoleKey);
+        Message = "[{name,-17}] Non Actionbar {key} -> {modifier}{consoleKey}")]
+    static partial void LogInputNonActionbar(ILogger logger, string name, string key, string modifier, ConsoleKey consoleKey);
 
     [LoggerMessage(
         EventId = 0005,

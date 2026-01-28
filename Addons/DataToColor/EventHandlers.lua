@@ -130,6 +130,8 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('PLAYER_STARTED_MOVING', 'PlayerStartedMoving')
     DataToColor:RegisterEvent('PLAYER_STOPPED_MOVING', 'PlayerStoppedMoving')
 
+    DataToColor:RegisterEvent('UPDATE_BINDINGS', 'OnBindingsChanged')
+
     DataToColor:RegisterEvent('CHAT_MSG_WHISPER', 'OnMessageWhisper')
     DataToColor:RegisterEvent('CHAT_MSG_SAY', 'OnMessageSay')
     DataToColor:RegisterEvent('CHAT_MSG_YELL', 'OnMessageYell')
@@ -614,8 +616,12 @@ function DataToColor:OnSpellsChanged(event)
 end
 
 function DataToColor:ActionbarSlotChanged(event, slot)
-    if slot and slot <= DataToColor.C.MAX_ACTIONBAR_SLOT and HasAction(slot) then
-        DataToColor:populateActionbarCost(slot)
+    if slot and slot <= DataToColor.C.MAX_ACTIONBAR_SLOT then
+        if HasAction(slot) then
+            DataToColor:populateActionbarCost(slot)
+        end
+        -- Check for texture change (works for both add and remove)
+        DataToColor:CheckActionBarTextureChange(slot)
     end
 end
 
@@ -668,6 +674,11 @@ end
 
 function DataToColor:PlayerStoppedMoving()
     DataToColor.moving = false
+end
+
+function DataToColor:OnBindingsChanged()
+    -- Check for changed bindings and push only the differences
+    DataToColor:CheckBindingChanges()
 end
 
 function DataToColor:OnMessageWhisper(event, msg, author)
