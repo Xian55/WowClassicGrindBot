@@ -478,8 +478,8 @@ public sealed partial class ActionBarSlotValidator
             return false;
 
         // Get all texture IDs that could represent this spell
-        List<int> textureIds = iconDB.GetTexturesForSpellName(name);
-        if (textureIds.Count == 0)
+        int[] textureIds = iconDB.GetTexturesForSpellName(name);
+        if (textureIds.Length == 0)
             return false;
 
         // Check if any of these textures are on the action bar

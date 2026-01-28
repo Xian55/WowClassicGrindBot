@@ -286,8 +286,8 @@ public static class KeyReader
         }
 
         // Get all texture IDs that could represent this spell
-        List<int> textureIds = IconDB.GetTexturesForSpellName(key.Name);
-        if (textureIds.Count == 0)
+        int[] textureIds = IconDB.GetTexturesForSpellName(key.Name);
+        if (textureIds.Length == 0)
             return false;
 
         // Determine preferred slot range based on Form (if any)

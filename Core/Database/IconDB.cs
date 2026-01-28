@@ -24,6 +24,12 @@ public sealed class IconDB
     public FrozenDictionary<int, int[]> IconToSpells { get; }
     public FrozenDictionary<int, string> IconNames { get; }
 
+    // Reverse index: spell name (lowercase, no rank) -> texture IDs
+    private readonly FrozenDictionary<string, int[]> spellNameToTextures;
+
+    // Reverse index: spell ID -> texture ID
+    private readonly FrozenDictionary<int, int> spellIdToTexture;
+
     public IconDB(ILogger<IconDB> logger, DataConfig dataConfig, SpellDB spellDB)
     {
         this.spellDB = spellDB;
@@ -35,6 +41,8 @@ public sealed class IconDB
             logger.LogWarning("IconDB: {path} not found. Spell validation disabled.", spellMapPath);
             IconToSpells = FrozenDictionary<int, int[]>.Empty;
             IconNames = FrozenDictionary<int, string>.Empty;
+            spellNameToTextures = FrozenDictionary<string, int[]>.Empty;
+            spellIdToTexture = FrozenDictionary<int, int>.Empty;
             return;
         }
 
@@ -48,6 +56,36 @@ public sealed class IconDB
         }
 
         IconToSpells = spellMapBuilder.ToFrozenDictionary();
+
+        // Build reverse indexes
+        var nameToTexturesBuilder = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+        var idToTextureBuilder = new Dictionary<int, int>(IconToSpells.Count * 5); // estimate ~5 spells per texture
+
+        foreach (var (textureId, spellIds) in spellMapBuilder)
+        {
+            foreach (int spellId in spellIds)
+            {
+                // Reverse: spellId -> textureId
+                idToTextureBuilder.TryAdd(spellId, textureId);
+
+                // Reverse: spellName -> textureIds
+                if (spellDB.Spells.TryGetValue(spellId, out Spell spell))
+                {
+                    string baseName = GetBaseSpellNameString(spell.Name);
+                    if (!nameToTexturesBuilder.TryGetValue(baseName, out var list))
+                    {
+                        list = [];
+                        nameToTexturesBuilder[baseName] = list;
+                    }
+                    if (!list.Contains(textureId))
+                        list.Add(textureId);
+                }
+            }
+        }
+
+        spellNameToTextures = nameToTexturesBuilder
+            .ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
+        spellIdToTexture = idToTextureBuilder.ToFrozenDictionary();
 
         logger.LogInformation("IconDB: Loaded {count} texture mappings", IconToSpells.Count);
 
@@ -191,14 +229,8 @@ public sealed class IconDB
     /// </summary>
     public string? GetIconUrlForSpell(int spellId, int size = 56)
     {
-        // Find texture ID for this spell
-        foreach (var (textureId, spellIds) in IconToSpells)
-        {
-            if (Array.IndexOf(spellIds, spellId) >= 0)
-            {
-                return GetIconUrl(textureId, size);
-            }
-        }
+        if (spellIdToTexture.TryGetValue(spellId, out int textureId))
+            return GetIconUrl(textureId, size);
         return null;
     }
 
@@ -206,28 +238,23 @@ public sealed class IconDB
     /// Gets the texture ID(s) for a spell name. Used for reverse lookup.
     /// Returns all textures that could represent this spell.
     /// </summary>
-    public List<int> GetTexturesForSpellName(string spellName)
+    public int[] GetTexturesForSpellName(string spellName)
     {
-        List<int> textures = [];
+        string baseName = GetBaseSpellNameString(spellName);
+        if (spellNameToTextures.TryGetValue(baseName, out int[]? textures))
+            return textures;
+        return [];
+    }
 
-        ReadOnlySpan<char> normalizedInput = GetBaseSpellName(spellName.AsSpan());
-
-        foreach (var (textureId, spellIds) in IconToSpells)
-        {
-            foreach (int spellId in spellIds)
-            {
-                if (spellDB.Spells.TryGetValue(spellId, out Spell spell))
-                {
-                    ReadOnlySpan<char> normalizedSpell = GetBaseSpellName(spell.Name);
-                    if (normalizedInput.Equals(normalizedSpell, StringComparison.OrdinalIgnoreCase))
-                    {
-                        textures.Add(textureId);
-                        break; // Found match for this texture, check next texture
-                    }
-                }
-            }
-        }
-
-        return textures;
+    /// <summary>
+    /// Gets base spell name without rank suffix. Allocates a string.
+    /// "Frostbolt (Rank 3)" -> "Frostbolt"
+    /// </summary>
+    private static string GetBaseSpellNameString(string name)
+    {
+        int parenIndex = name.IndexOf('(');
+        if (parenIndex > 0)
+            return name[..parenIndex].TrimEnd();
+        return name.Trim();
     }
 }
