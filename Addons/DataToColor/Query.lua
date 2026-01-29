@@ -5,6 +5,7 @@ local Range = DataToColor.Libs.RangeCheck
 local bit = bit
 local band = bit.band
 local pcall = pcall
+local next = next
 
 local floor = math.floor
 
@@ -50,6 +51,7 @@ local UnitIsGhost = UnitIsGhost
 local C_DeathInfo = C_DeathInfo
 local UnitAttackSpeed = UnitAttackSpeed
 local UnitRangedDamage = UnitRangedDamage
+local UnitBuff = UnitBuff
 
 local GameMenuFrame = GameMenuFrame
 local LootFrame = LootFrame
@@ -211,11 +213,16 @@ function DataToColor:Set(trigger, input)
     end
 end
 
-function DataToColor:getAuraMaskForClass(func, unitId, table)
+-- Uses next() directly to avoid pairs() iterator allocation
+-- Uses cached aura data to avoid UnitBuff/UnitDebuff string allocations
+function DataToColor:getAuraMaskForClass(func, unitId, tbl)
     local mask = 0
-    for k, v in pairs(table) do
+    -- Determine if we're looking for buffs or debuffs based on the function
+    local isBuff = (func == UnitBuff)
+    local k, v = next(tbl)
+    while k do
         for i = 1, 24 do
-            local name, texture = func(unitId, i)
+            local name, texture = self:GetCachedAuraInfo(isBuff, unitId, i)
             if not name then
                 break
             end
@@ -224,22 +231,31 @@ function DataToColor:getAuraMaskForClass(func, unitId, table)
                 break
             end
         end
+        k, v = next(tbl, k)
     end
     return mask
 end
 
+-- Uses cached aura data to avoid UnitBuff/UnitDebuff string allocations
 function DataToColor:populateAuraTimer(func, unitId, queue)
     local count = 0
 
     self._existingAuras = self._existingAuras or {}
     local existingAuras = self._existingAuras
 
-    for k in pairs(existingAuras) do
+    -- Clear using next() to avoid pairs() iterator allocation
+    local k = next(existingAuras)
+    while k do
+        local nextK = next(existingAuras, k)
         existingAuras[k] = nil
+        k = nextK
     end
 
+    -- Determine if we're looking for buffs or debuffs based on the function
+    local isBuff = (func == UnitBuff)
+
     for i = 1, 40 do
-        local name, texture, duration, expirationTime = DataToColor:GetAuraInfo(func, unitId, i)
+        local name, texture, duration, expirationTime = self:GetCachedAuraInfo(isBuff, unitId, i)
         if not name then
             break
         end
@@ -265,12 +281,16 @@ function DataToColor:populateAuraTimer(func, unitId, queue)
 
     -- Remove unlimited duration Auras.
     -- Such as clickable Mounts and Buffs
+    -- Uses next() directly to avoid pairs() iterator allocation
     if queue then
-        for k in queue:iterator() do
+        local t = queue:getTable()
+        local k = next(t)
+        while k do
             if not existingAuras[k] then
                 --DataToColor:Print(k, " remove unlimited")
                 queue:set(k, GetTime())
             end
+            k = next(t, k)
         end
     end
 

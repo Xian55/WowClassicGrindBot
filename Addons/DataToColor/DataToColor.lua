@@ -235,6 +235,15 @@ function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dcflush', 'FushState')
     DataToColor:RegisterChatCommand('dcbindings', 'SetDefaultBindings')
     DataToColor:RegisterChatCommand('dcactions', 'CreateSecureButtons')
+    DataToColor:RegisterChatCommand('dccache', 'ToggleBitCache')
+end
+
+function DataToColor:ToggleBitCache()
+    if DataToColor.BitCache and DataToColor.BitCache.toggle then
+        DataToColor.BitCache.toggle()
+    else
+        DataToColor:Print("BitCache not available")
+    end
 end
 
 function DataToColor:StartSetup()
@@ -268,12 +277,11 @@ function DataToColor:OnInitialize()
     DataToColor:RegisterEvents()
 
     UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
-
-    local version = GetAddOnMetadata('DataToColor', 'Version')
-    DataToColor:Print("Welcome. Using " .. version)
 end
 
 function DataToColor:OnEnteringWorld()
+    local version = GetAddOnMetadata('DataToColor', 'Version')
+    DataToColor:Print("Welcome. Using " .. version)
     DataToColor:InitializeErrorLists()
 
     DataToColor:PopulateSpellBookInfo()
@@ -282,6 +290,15 @@ function DataToColor:OnEnteringWorld()
     DataToColor:InitTrigger(DataToColor.customTrigger1)
 
     DataToColor.Libs.RangeCheck:activate()
+
+    -- Ensure UIErrorsFrame stays disabled after loading screens
+    UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
+
+    -- Initialize event-driven bit caching
+    DataToColor:RegisterBitCacheEvents()
+
+    -- Initialize event-driven aura caching
+    DataToColor:RegisterAuraCacheEvents()
 
     -- Deferred auto-setup of bindings (1 second delay to ensure everything is ready)
     DataToColor:ScheduleAutoSetup()
@@ -363,6 +380,16 @@ function DataToColor:Reset()
     DataToColor.focusBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
 
     DataToColor.playerPetSummons = {}
+
+    -- Reinitialize bit cache
+    if DataToColor.BitCache and DataToColor.BitCache.reinitialize then
+        DataToColor.BitCache.reinitialize()
+    end
+
+    -- Refresh aura caches
+    if DataToColor.AuraCache and DataToColor.AuraCache.refresh then
+        DataToColor.AuraCache.refresh()
+    end
 end
 
 function DataToColor:Update()
@@ -662,8 +689,9 @@ function DataToColor:CreateFrames()
             Pixel(float, cy * 10, 7)
 
             -- Boolean variables
-            Pixel(int, DataToColor:Bits1(), 8)
-            Pixel(int, DataToColor:Bits2(), 9)
+            -- Use event-driven cached versions (reduces API calls from ~46 to ~5 per frame)
+            Pixel(int, DataToColor:Bits1Cached(), 8)
+            Pixel(int, DataToColor:Bits2Cached(), 9)
 
             Pixel(int, UnitHealthMax(DataToColor.C.unitPlayer), 10)
             Pixel(int, UnitHealth(DataToColor.C.unitPlayer), 11)
@@ -1052,7 +1080,7 @@ function DataToColor:CreateFrames()
                 end
             end
 
-            Pixel(int, DataToColor:Bits3(), 100)
+            Pixel(int, DataToColor:Bits3Cached(), 100)
 
             Pixel(int, DataToColor:getGuidFromUUID(DataToColor.softInteractGuid), 101)
             Pixel(int, DataToColor:getNpcIdFromUUID(DataToColor.softInteractGuid), 102)

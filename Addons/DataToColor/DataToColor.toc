@@ -2,7 +2,7 @@
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Legacy Cataclysm 4.3.0)
-## Version: 1.9.0
+## Version: 1.9.1
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, cTimerBackport
 ## SavedVariables:
@@ -20,6 +20,8 @@ Versions.lua
 
 Constants.lua
 Query.lua
+BitCache.lua
+AuraCache.lua
 
 Storage.lua
 
