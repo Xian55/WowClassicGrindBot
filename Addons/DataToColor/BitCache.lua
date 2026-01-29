@@ -511,7 +511,7 @@ function DataToColor:RegisterBitCacheEvents()
 
     if not cacheInitializedOnce then
         cacheInitializedOnce = true
-        DataToColor:Print("BitCache initialized - event-driven caching enabled")
+        --DataToColor:Print("BitCache initialized - event-driven caching enabled")
     end
 end
 

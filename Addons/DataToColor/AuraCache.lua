@@ -328,7 +328,7 @@ function DataToColor:RegisterAuraCacheEvents()
         RefreshUnitAuras(unit)
     end
 
-    DataToColor:Print("AuraCache initialized - event-driven aura caching enabled")
+    --DataToColor:Print("AuraCache initialized - event-driven aura caching enabled")
 end
 
 -- Force refresh all caches (useful after loading screens)

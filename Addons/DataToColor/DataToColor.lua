@@ -277,12 +277,11 @@ function DataToColor:OnInitialize()
     DataToColor:RegisterEvents()
 
     UIErrorsFrame:UnregisterEvent("UI_ERROR_MESSAGE")
-
-    local version = GetAddOnMetadata('DataToColor', 'Version')
-    DataToColor:Print("Welcome. Using " .. version)
 end
 
 function DataToColor:OnEnteringWorld()
+    local version = GetAddOnMetadata('DataToColor', 'Version')
+    DataToColor:Print("Welcome. Using " .. version)
     DataToColor:InitializeErrorLists()
 
     DataToColor:PopulateSpellBookInfo()
