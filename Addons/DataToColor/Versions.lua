@@ -216,6 +216,24 @@ function DataToColor:GetAuraInfo(func, unit, index)
     return a1, texture, duration, expirationTime
 end
 
+-- Cached version of GetAuraInfo that reads from AuraCache instead of calling WoW API
+-- This avoids string allocations from UnitBuff/UnitDebuff every frame
+function DataToColor:GetCachedAuraInfo(isBuff, unit, index)
+    local name, texture, count, _, duration, expirationTime
+    if isBuff then
+        name, texture, count, _, duration, expirationTime = self:GetCachedBuff(unit, index)
+    else
+        name, texture, count, _, duration, expirationTime = self:GetCachedDebuff(unit, index)
+    end
+
+    if not name then return nil end
+
+    -- Normalize texture (same as GetAuraInfo)
+    texture = self:NormalizeTexture(texture)
+
+    return name, texture, duration or 0, expirationTime or 0
+end
+
 
 --------------------------------------------------------------------------------
 -- CONTAINER API COMPATIBILITY (Bag changes from 10.0)

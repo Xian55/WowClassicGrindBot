@@ -9,6 +9,8 @@ local Load = select(2, ...)
 local DataToColor = unpack(Load)
 
 local GetTime = GetTime
+local next = next
+local pairs = pairs
 
 --------------------------------------------------------------------------------
 -- TimedQueue
@@ -127,9 +129,12 @@ function struct:set(key, value)
 end
 
 -- Gets a key-value pair that is not dirty or has expired.
+-- Uses next() directly to avoid pairs() iterator allocation
 function struct:getTimed(globalTick)
     local time = GetTime()
-    for k, v in pairs(self.entries) do
+    local entries = self.entries
+    local k, v = next(entries)
+    while k do
         if v.dirty == 0 or (v.dirty == 1 and v.value - time <= 0) then
             if self.lastKey ~= k then
                 self.lastKey = k
@@ -137,12 +142,15 @@ function struct:getTimed(globalTick)
             end
             return k, v.value
         end
+        k, v = next(entries, k)
     end
 end
 
 -- Gets a key-value pair, ignoring dirty status.
+-- Uses next() directly to avoid pairs() iterator allocation
 function struct:getForced(globalTick)
-    for k, v in pairs(self.entries) do
+    local k, v = next(self.entries)
+    if k then
         if self.lastKey ~= v.value then
             self.lastKey = v.value
             self.lastChangedTick = globalTick
@@ -152,9 +160,14 @@ function struct:getForced(globalTick)
     end
 end
 
+-- Uses next() directly to avoid pairs() iterator allocation
 function struct:forcedReset()
-    for _, v in pairs(self.table) do
-        v.value = GetTime()
+    local t = self.table
+    local time = GetTime()
+    local k, v = next(t)
+    while k do
+        v.value = time
+        k, v = next(t, k)
     end
 end
 
@@ -194,4 +207,9 @@ end
 
 function struct:iterator()
     return pairs(self.table)
+end
+
+-- Returns the underlying table for direct next() iteration (avoids pairs() allocation)
+function struct:getTable()
+    return self.table
 end

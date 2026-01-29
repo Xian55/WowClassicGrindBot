@@ -151,6 +151,39 @@ function DataToColor:RegisterEvents()
         DataToColor:RegisterEvent('UNIT_SPELLCAST_SUCCEEDED', 'SoM_OnCastSuccess')
         DataToColor:RegisterEvent('UNIT_SPELLCAST_FAILED', 'SoM_OnCastFailed')
     end
+
+    ---------------------------------------------------------------------------
+    -- BitCache events (centralized here to avoid AceEvent overwrites)
+    ---------------------------------------------------------------------------
+    DataToColor:RegisterEvent('UNIT_TARGET', 'OnUnitTarget_BitCache')
+    DataToColor:RegisterEvent('UPDATE_MOUSEOVER_UNIT', 'OnMouseoverChanged_BitCache')
+    DataToColor:RegisterEvent('PLAYER_FOCUS_CHANGED', 'OnFocusChanged_BitCache')
+    DataToColor:RegisterEvent('PLAYER_REGEN_DISABLED', 'OnEnteredCombat')
+    DataToColor:RegisterEvent('UNIT_FLAGS', 'OnUnitFlags_BitCache')
+    DataToColor:RegisterEvent('PLAYER_DEAD', 'OnPlayerDead_BitCache')
+    DataToColor:RegisterEvent('PLAYER_ALIVE', 'OnPlayerAlive_BitCache')
+    DataToColor:RegisterEvent('PLAYER_UNGHOST', 'OnPlayerUnghost_BitCache')
+    DataToColor:RegisterEvent('UNIT_HEALTH', 'OnUnitHealth_BitCache')
+    DataToColor:RegisterEvent('PET_BAR_UPDATE', 'OnPetBarUpdate_BitCache')
+    DataToColor:RegisterEvent('PLAYER_MOUNT_DISPLAY_CHANGED', 'OnMountChanged_BitCache')
+    DataToColor:RegisterEvent('PLAYER_CONTROL_GAINED', 'OnControlChanged_BitCache')
+    DataToColor:RegisterEvent('PLAYER_CONTROL_LOST', 'OnControlChanged_BitCache')
+    DataToColor:RegisterEvent('UPDATE_STEALTH', 'OnStealthChanged_BitCache')
+    DataToColor:RegisterEvent('UNIT_INVENTORY_CHANGED', 'OnInventoryChanged_BitCache')
+    DataToColor:RegisterEvent('UPDATE_INVENTORY_DURABILITY', 'OnDurabilityChanged_BitCache')
+    DataToColor:RegisterEvent('CHARACTER_POINTS_CHANGED', 'OnTalentChanged_BitCache')
+    DataToColor:RegisterEvent('PLAYER_TALENT_UPDATE', 'OnTalentChanged_BitCache')
+    DataToColor:RegisterEvent('START_AUTOREPEAT_SPELL', 'OnSpellStateChanged_BitCache')
+    DataToColor:RegisterEvent('STOP_AUTOREPEAT_SPELL', 'OnSpellStateChanged_BitCache')
+    DataToColor:RegisterEvent('CURRENT_SPELL_CAST_CHANGED', 'OnSpellStateChanged_BitCache')
+    DataToColor:RegisterEvent('MIRROR_TIMER_START', 'OnMirrorTimer_BitCache')
+    DataToColor:RegisterEvent('MIRROR_TIMER_STOP', 'OnMirrorTimer_BitCache')
+    DataToColor:RegisterEvent('LOOT_OPENED', 'OnLootOpened_BitCache')
+
+    -- Classic-only events
+    if DataToColor:IsClassicPreCata() then
+        DataToColor:RegisterEvent('UNIT_HAPPINESS', 'OnPetHappiness_BitCache')
+    end
 end
 
 -- Initialize error message lookup tables
@@ -556,6 +589,11 @@ function DataToColor:OnLootClosed(event)
     DataToColor.lastLoot = DataToColor.C.Loot.Closed
     DataToColor.lastLootResetStart = DataToColor.globalTime
     --DataToColor:Print("OnLootClosed:"..DataToColor.lastLoot)
+
+    -- Update BitCache loot frame state
+    if DataToColor.BitCache and DataToColor.BitCache.bits3 then
+        DataToColor.BitCache.bits3.lootFrameShown = false
+    end
 end
 
 function DataToColor:OnBagUpdate(event, containerID)
@@ -582,6 +620,17 @@ end
 
 function DataToColor:OnPlayerTargetChanged(event)
     DataToColor.targetChanged = true
+
+    -- Update BitCache target state
+    if DataToColor.BitCache and DataToColor.BitCache.updateTarget then
+        DataToColor.BitCache.updateTarget()
+        DataToColor.BitCache.updateTargetTarget()
+    end
+
+    -- Update AuraCache for target
+    if DataToColor.AuraCache and DataToColor.AuraCache.refresh then
+        DataToColor.AuraCache.refresh("target")
+    end
 end
 
 function DataToColor:OnPlayerEquipmentChanged(event, equipmentSlot, hasCurrent)
@@ -650,6 +699,16 @@ function DataToColor:OnPetChanged(event, unit)
     if unit == DataToColor.C.unitPlayer then
         DataToColor.petGUID = UnitGUID(DataToColor.C.unitPet)
     end
+
+    -- Update BitCache pet state
+    if DataToColor.BitCache and DataToColor.BitCache.updatePet then
+        DataToColor.BitCache.updatePet()
+    end
+
+    -- Update AuraCache for pet
+    if DataToColor.AuraCache and DataToColor.AuraCache.refresh then
+        DataToColor.AuraCache.refresh("pet")
+    end
 end
 
 function DataToColor:OnZoneChanged(event)
@@ -658,6 +717,11 @@ end
 
 function DataToColor:OnLeftCombat()
     DataToColor.eligibleKillCredit = {}
+
+    -- Update BitCache combat state (player left combat)
+    if DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.playerInCombat = false
+    end
 end
 
 function DataToColor:AutoFollowBegin()
@@ -722,6 +786,16 @@ end
 function DataToColor:OnPlayerSoftInteractChanged(event, old, new)
     DataToColor.softInteractGuid = new
     --print(event, old, "vs", new, DataToColor:getGuidFromUUID(new), DataToColor:getNpcIdFromUUID(new))
+
+    -- Update BitCache soft interact state
+    if DataToColor.BitCache and DataToColor.BitCache.updateSoftInteract then
+        DataToColor.BitCache.updateSoftInteract()
+    end
+
+    -- Update AuraCache for soft interact target
+    if DataToColor.AuraCache and DataToColor.AuraCache.refresh then
+        DataToColor.AuraCache.refresh("softinteract")
+    end
 end
 
 local CORPSE_RETRIEVAL_DISTANCE = 40
@@ -796,5 +870,155 @@ function DataToColor:ResurrectPlayer()
                 end
             end
         end
+    end
+end
+
+-------------------------------------------------------------------------------
+-- BitCache Event Handlers
+-- These delegate to BitCache update functions to keep event registration centralized
+-------------------------------------------------------------------------------
+
+function DataToColor:OnUnitTarget_BitCache(event, unit)
+    if DataToColor.BitCache and DataToColor.BitCache.updateTargetTarget then
+        if unit == "target" then
+            DataToColor.BitCache.updateTargetTarget()
+        elseif unit == "focus" then
+            DataToColor.BitCache.updateFocus()
+        elseif unit == "pet" then
+            DataToColor.BitCache.updatePet()
+        end
+    end
+end
+
+function DataToColor:OnMouseoverChanged_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.updateMouseover then
+        DataToColor.BitCache.updateMouseover()
+    end
+    if DataToColor.AuraCache and DataToColor.AuraCache.refresh then
+        DataToColor.AuraCache.refresh("mouseover")
+    end
+end
+
+function DataToColor:OnFocusChanged_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.updateFocus then
+        DataToColor.BitCache.updateFocus()
+    end
+    if DataToColor.AuraCache and DataToColor.AuraCache.refresh then
+        DataToColor.AuraCache.refresh("focus")
+    end
+end
+
+function DataToColor:OnEnteredCombat(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.playerInCombat = true
+    end
+end
+
+function DataToColor:OnUnitFlags_BitCache(event, unit)
+    if not DataToColor.BitCache or not DataToColor.BitCache.bits1 then return end
+    if unit == "target" then
+        DataToColor.BitCache.bits1.targetInCombat = UnitAffectingCombat(unit) or false
+    elseif unit == "focus" then
+        DataToColor.BitCache.bits2.focusInCombat = UnitAffectingCombat(unit) or false
+    elseif unit == "focustarget" then
+        DataToColor.BitCache.bits2.focusTargetInCombat = UnitAffectingCombat(unit) or false
+    end
+end
+
+function DataToColor:OnPlayerDead_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.playerIsDeadOrGhost = true
+    end
+end
+
+function DataToColor:OnPlayerAlive_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.playerIsDeadOrGhost = UnitIsDeadOrGhost("player") or false
+    end
+end
+
+function DataToColor:OnPlayerUnghost_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.playerIsDeadOrGhost = UnitIsDeadOrGhost("player") or false
+    end
+end
+
+function DataToColor:OnUnitHealth_BitCache(event, unit)
+    if not DataToColor.BitCache or not DataToColor.BitCache.bits1 then return end
+    if unit == "target" then
+        DataToColor.BitCache.bits1.targetIsDead = UnitIsDead(unit) or false
+    elseif unit == "pet" then
+        DataToColor.BitCache.updatePet()
+    end
+end
+
+function DataToColor:OnPetBarUpdate_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.updatePet then
+        DataToColor.BitCache.updatePet()
+    end
+end
+
+function DataToColor:OnMountChanged_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.isMounted = IsMounted() or false
+    end
+end
+
+function DataToColor:OnControlChanged_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.onTaxi = UnitOnTaxi("player") or false
+    end
+end
+
+function DataToColor:OnStealthChanged_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits2 then
+        DataToColor.BitCache.bits2.isStealthed = IsStealthed() or false
+    end
+end
+
+function DataToColor:OnInventoryChanged_BitCache(event, unit)
+    if unit == "player" and DataToColor.BitCache then
+        if DataToColor.BitCache.updateWeaponEnchant then
+            DataToColor.BitCache.updateWeaponEnchant()
+        end
+        if DataToColor.BitCache.updateEquipment then
+            DataToColor.BitCache.updateEquipment()
+        end
+    end
+end
+
+function DataToColor:OnDurabilityChanged_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.updateEquipment then
+        DataToColor.BitCache.updateEquipment()
+    end
+end
+
+function DataToColor:OnTalentChanged_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.hasUnspentTalents = UnitCharacterPoints("player") > 0
+    end
+end
+
+function DataToColor:OnSpellStateChanged_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.updateSpellState then
+        DataToColor.BitCache.updateSpellState()
+    end
+end
+
+function DataToColor:OnMirrorTimer_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.updateMirrorTimer then
+        DataToColor.BitCache.updateMirrorTimer()
+    end
+end
+
+function DataToColor:OnLootOpened_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits3 then
+        DataToColor.BitCache.bits3.lootFrameShown = true
+    end
+end
+
+function DataToColor:OnPetHappiness_BitCache(event, unit)
+    if unit == "pet" and DataToColor.BitCache and DataToColor.BitCache.bits1 then
+        DataToColor.BitCache.bits1.petIsHappy = GetPetHappiness() == 3
     end
 end

@@ -2,7 +2,7 @@
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Classic)
-## Version: 1.9.0
+## Version: 1.9.1
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:
@@ -17,6 +17,8 @@ Versions.lua
 
 Constants.lua
 Query.lua
+BitCache.lua
+AuraCache.lua
 
 Storage.lua
 
