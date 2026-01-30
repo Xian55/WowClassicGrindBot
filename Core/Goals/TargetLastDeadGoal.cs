@@ -10,12 +10,17 @@ public sealed class TargetLastDeadGoal : GoapGoal
 
     private readonly ILogger logger;
     private readonly ConfigurableInput input;
+    private readonly Wait wait;
+    private readonly AddonBits bits;
 
-    public TargetLastDeadGoal(ILogger logger, ConfigurableInput input)
+    public TargetLastDeadGoal(ILogger logger, ConfigurableInput input,
+        Wait wait, AddonBits bits)
         : base(nameof(TargetLastDeadGoal))
     {
         this.logger = logger;
         this.input = input;
+        this.wait = wait;
+        this.bits = bits;
 
         AddPrecondition(GoapKey.hastarget, false);
         AddPrecondition(GoapKey.producedcorpse, true);
@@ -23,6 +28,6 @@ public sealed class TargetLastDeadGoal : GoapGoal
 
     public override void Update()
     {
-        input.PressLastTarget();
+        input.PressLastTargetAndWait(wait, bits.Target);
     }
 }

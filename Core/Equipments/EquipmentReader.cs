@@ -25,6 +25,9 @@ public sealed class EquipmentReader : IReader
 
         var span = Items.AsSpan();
         span.Fill(ItemDB.EmptyItem);
+
+        // Set static reference for KeyReader equipment-based item alias resolution
+        KeyReader.EquipmentReader = this;
     }
 
     public void Update(IAddonDataProvider reader)

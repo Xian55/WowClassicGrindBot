@@ -24,6 +24,12 @@ public sealed class AddonConfig
     [JsonIgnore]
     public string CommandFlush => Command + "flush";
 
+    [JsonIgnore]
+    public string CommandBindings => Command + "bindings";
+
+    [JsonIgnore]
+    public string CommandActions => Command + "actions";
+
     public bool IsDefault()
     {
         return

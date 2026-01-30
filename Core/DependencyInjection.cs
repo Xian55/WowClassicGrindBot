@@ -50,6 +50,9 @@ public static class DependencyInjection
         s.ForwardSingleton<SpellBookReader, IReader>();
         s.ForwardSingleton<TalentReader, IReader>();
         s.ForwardSingleton<ChatReader, IReader>();
+        s.ForwardSingleton<KeyBindingsReader, IReader>();
+        s.ForwardSingleton<ActionBarTextureReader, IReader>();
+        s.ForwardSingleton<ActionBarMacroReader, IReader>();
 
         s.ForwardSingleton<ActionBarCostReader, IReader>();
         s.ForwardSingleton<ActionBarCooldownReader, IReader>();
@@ -104,6 +107,7 @@ public static class DependencyInjection
         s.ForwardSingleton<CreatureDB>(sp);
         s.ForwardSingleton<FactionTemplateDB>(sp);
         s.ForwardSingleton<SpellDB>(sp);
+        s.ForwardSingleton<IconDB>(sp);
         s.ForwardSingleton<TalentDB>(sp);
 
         s.ForwardSingleton<AddonReader>(sp);
@@ -142,6 +146,10 @@ public static class DependencyInjection
         s.ForwardSingleton<AuraTimeReader<ITargetDebuffTimeReader>>(sp);
         s.ForwardSingleton<AuraTimeReader<ITargetBuffTimeReader>>(sp);
         s.ForwardSingleton<AuraTimeReader<IFocusBuffTimeReader>>(sp);
+
+        s.ForwardSingleton<ActionBarTextureReader>(sp);
+        s.ForwardSingleton<ActionBarMacroReader>(sp);
+        s.ForwardSingleton<ActionBarSlotValidator>(sp);
 
         return s;
     }
@@ -202,9 +210,12 @@ public static class DependencyInjection
         s.AddSingleton<CreatureDB>();
         s.AddSingleton<FactionTemplateDB>();
         s.AddSingleton<SpellDB>();
+        s.AddSingleton<IconDB>();
         s.AddSingleton<TalentDB>();
 
         s.AddAddonComponents();
+
+        s.AddSingleton<ActionBarSlotValidator>();
 
         s.AddSingleton<IBotController, BotController>();
 

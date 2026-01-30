@@ -136,8 +136,7 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
 
             if (!foundTarget && state.LastCombatKillCount == 1)
             {
-                input.PressFastLastTarget();
-                wait.Update();
+                input.PressFastLastTargetAndWait(wait, bits.Target);
 
                 if (bits.Target())
                 {

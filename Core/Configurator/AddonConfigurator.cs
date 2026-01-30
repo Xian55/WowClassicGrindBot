@@ -231,6 +231,8 @@ public sealed partial class AddonConfigurator
                 string path = f.FullName;
                 string text = File.ReadAllText(path);
                 text = text.Replace(DefaultAddonName, Config.Title);
+                // Replace slash commands (e.g., /dc -> /addonname, /dcflush -> /addonnameflush)
+                text = text.Replace("/dc", "/" + Config.Command);
 
                 File.WriteAllText(path, text);
             }

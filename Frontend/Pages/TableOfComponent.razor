@@ -85,7 +85,7 @@
                 for (int i = 0; i < arr.Length; i += ActionBar.NUM_OF_COST)
                 {
                     int index = i / ActionBar.NUM_OF_COST;
-                    string keybind = KeyReader.ActionBarSlotMap.FirstOrDefault(x => x.Value == (index + 1)).Key;
+                    string keybind = KeyBindingDefaults.GetBySlot(index + 1)?.KeyName ?? "?";
                     string name = $"[idx:{i,2} | bar:{keybind,2}]";
                     string allCosts = string.Empty;
 

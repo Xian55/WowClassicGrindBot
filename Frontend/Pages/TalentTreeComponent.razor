@@ -1,8 +1,10 @@
 ﻿@using Core.Talents
+@using Core.Database
 
 @inject IAddonReader addonReader
 @inject WApi api
 @inject TalentReader talentReader
+@inject IconDB iconDB
 
 <div class="card mt-1">
     <div class="card-header">
@@ -40,10 +42,15 @@
                                         }
                                         else
                                         {
-                                            <td>
+                                     <td class="align-middle">
                                                 @if (talentReader.Spells.TryGetValue(talent.Key, out int spellId))
                                                 {
-                                                    <a href="@($"{api.SpellId}{@spellId}")" target="_blank" data-wowhead="item=@spellId" class="small" style="text-decoration:none">
+                                                    var iconUrl = iconDB.GetIconUrlForSpell(spellId, 18);
+                                                    <a href="@($"{api.SpellId}{spellId}")" target="_blank" data-wowhead="spell=@spellId" class="small" style="text-decoration:none">
+                                                        @if (!string.IsNullOrEmpty(iconUrl))
+                                                        {
+                                                            <img src="@iconUrl" alt="" class="me-1" style="width:18px;height:18px;vertical-align:middle;" />
+                                                        }
                                                         @DisplayName(talent.Value)
                                                     </a>
                                                 }

@@ -8,6 +8,7 @@
 @inject SpellBookReader SpellBookReader
 @inject TalentReader TalentReader
 @inject ActionBarCostReader ActionBarCostReader
+@inject KeyBindingsReader KeyBindingsReader
 
 @inject AddonBits Bits
 
@@ -43,7 +44,7 @@
                     <th>Level @playerReader.Level.Value<br>(XP: @((int)playerReader.PlayerXpPercent)%)</th>
                     <th>Health / Resource:</th>
                     <th>Bag Items:</th>
-                    <th>Actionbar / Spell / Talent:</th>
+                    <th>AB / SB / Tal / Bind:</th>
                     <th>Target:</th>
                 </tr>
                 <tr>
@@ -54,7 +55,7 @@
                     <td>@playerReader.HealthCurrent() (@playerReader.HealthPercent() %)<br />@playerReader.PTCurrent() (@playerReader.PTPercentage() %)</td>
 
                     <td>@BagReader.BagItems.Count / @BagReader.SlotCount</td>
-                    <td>@ActionBarCostReader.Count / @SpellBookReader.Count / @TalentReader.Count</td>
+                    <td>@ActionBarCostReader.Count / @SpellBookReader.Count / @TalentReader.Count / @KeyBindingsReader.Count</td>
                     <td>
                         @if (Bits.Target())
                         {

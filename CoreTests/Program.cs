@@ -137,7 +137,7 @@ internal sealed class Program
         Test_Input test = new(logger, cts, process, screen, loggerFactory);
         test.Mouse_Movement();
         test.Mouse_Clicks();
-        test.Clipboard();
+        test.SendText();
     }
 
     private static void Test_CursorGrabber()

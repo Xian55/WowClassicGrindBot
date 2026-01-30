@@ -1,6 +1,6 @@
-﻿@inject IAddonReader addonReader
-@inject AddonConfigurator addonConfigurator
-@inject ExecGameCommand exec
+﻿@using System
+@inject IAddonReader addonReader
+@inject WowProcessInput wowInput
 
 <Button Color="ButtonColor.Primary" @onpointerup="InitState">
     Init State
@@ -10,8 +10,6 @@
     private void InitState()
     {
         addonReader.FullReset();
-        // TODO: this is a hack, we need to find a way to run the command without the need of warmup
-        exec.Run("");
-        exec.Run($"/{addonConfigurator.Config.CommandFlush}");
+        wowInput.PressFlushKey();
     }
 }
