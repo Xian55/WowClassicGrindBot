@@ -280,7 +280,9 @@ public sealed partial class BotController : IBotController, IDisposable
 
         while (true)
         {
-            if (screen.Enabled)
+            bool captureEnabled = screen.Enabled || screen.AlwaysCapture;
+
+            if (captureEnabled)
             {
                 time = GetTimestamp();
                 npcNameFinder.Update();

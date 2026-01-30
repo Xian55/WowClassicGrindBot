@@ -8,6 +8,11 @@ public interface IWowScreen : IRectProvider, IScreenImageProvider, IMinimapImage
 {
     bool Enabled { get; set; }
 
+    /// <summary>
+    /// When true, continue capturing screen frames even if <see cref="Enabled"/> is false.
+    /// </summary>
+    bool AlwaysCapture { get; set; }
+
     bool MinimapEnabled { get; set; }
 
     bool EnablePostProcess { get; set; }

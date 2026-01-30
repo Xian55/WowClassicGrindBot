@@ -5,6 +5,11 @@
 @using SixLabors.ImageSharp.PixelFormats
 @using SixLabors.ImageSharp.Formats.Jpeg
 
+<div class="mb-2 form-check">
+    <input class="form-check-input" type="checkbox" id="captureCombat" @bind="CaptureDuringCombat" />
+    <label class="form-check-label" for="captureCombat">Keep screenshot updating during combat</label>
+</div>
+
 <div class="card" @onclick="Toggle">
     @if (screen.EnablePostProcess)
     {
@@ -20,6 +25,12 @@
 
     [Parameter]
     public bool Stretch { get; set; } = false;
+
+    private bool CaptureDuringCombat
+    {
+        get => screen.AlwaysCapture;
+        set => screen.AlwaysCapture = value;
+    }
 
     protected override void OnAfterRender(bool firstRender)
     {

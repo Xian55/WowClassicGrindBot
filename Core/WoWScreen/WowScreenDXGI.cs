@@ -36,6 +36,7 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
     public event Action? OnChanged;
 
     public bool Enabled { get; set; }
+    public bool AlwaysCapture { get; set; }
     public bool EnablePostProcess { get; set; }
 
     public bool MinimapEnabled { get; set; }
@@ -263,7 +264,7 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         if (frames.Length > 2)
             UpdateAddonImage(texture);
 
-        if (Enabled)
+        if (Enabled || AlwaysCapture)
             UpdateScreenImage(texture);
 
         if (MinimapEnabled)
