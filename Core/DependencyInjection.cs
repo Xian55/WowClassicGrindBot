@@ -236,6 +236,16 @@ public static class DependencyInjection
             sp.GetRequiredService<WowProcessInput>()));
         s.AddSingleton<DiscordBotService>();
 
+        s.AddSingleton<DiscordNotificationService>(sp => new DiscordNotificationService(
+            sp.GetRequiredService<ILogger<DiscordNotificationService>>(),
+            sp.GetRequiredService<ChatReader>(),
+            sp.GetRequiredService<SessionStat>(),
+            sp.GetRequiredService<DataConfig>(),
+            sp.GetRequiredService<CancellationTokenSource>(),
+            sp.GetRequiredService<IBotController>(),
+            sp.GetRequiredService<WowProcessInput>()));
+        s.AddSingleton<DiscordBotService>();
+
         return s;
     }
 

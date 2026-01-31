@@ -15,6 +15,7 @@ public sealed class SessionStat
     public long StartTime { get; set; }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     /// <summary>
     /// Set to true when vendor/repair (AdhocNPCGoal) completes successfully.
     /// Cleared when MailGoal completes successfully.
@@ -22,6 +23,8 @@ public sealed class SessionStat
     /// </summary>
     public bool VendoredOrRepairedRecently { get; set; }
 =======
+=======
+>>>>>>> Stashed changes
     // Stuck tracking - updated by StuckDetector
     private long stuckStartTime;
     private bool isStuck;
@@ -44,6 +47,9 @@ public sealed class SessionStat
             isStuck = false;
         }
     }
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
     public int _Deaths() => Deaths;
