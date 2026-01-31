@@ -609,6 +609,9 @@ async function init(e, c, z, x, y, urlEdit) {
         new L.Control.buttonSkinnablePOI('skinnable').addTo(LeafletMap);
         new L.Control.buttonMineablePOI('Copper Vein').addTo(LeafletMap);
         new L.Control.buttonHerbPOI('Silverleaf').addTo(LeafletMap);
+        new L.Control.buttonMailbox('mailbox').addTo(LeafletMap);
+
+        new L.Control.CoordinateMarker().addTo(LeafletMap);
     }
 
     LeafletMap.on(L.Draw.Event.CREATED, function (e) {
@@ -1730,6 +1733,127 @@ function createLeafletButtonControl({ className = '', iconHTML = '', setImageFn 
     });
 }
 
+// Coordinate Marker Control - allows user to input coordinates and place a marker
+L.Control.CoordinateMarker = L.Control.extend({
+    options: {
+        position: 'topleft'
+    },
+
+    onAdd: function (map) {
+        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control coordinate-marker-control');
+        container.style.backgroundColor = 'white';
+        container.style.padding = '5px';
+
+        const input = L.DomUtil.create('input', '', container);
+        input.type = 'text';
+        input.placeholder = 'x y z [mapId]';
+        input.style.width = '140px';
+        input.style.marginRight = '5px';
+        input.style.border = '1px solid #ccc';
+        input.style.padding = '2px 4px';
+
+        const btn = L.DomUtil.create('button', '', container);
+        btn.innerHTML = '📍';
+        btn.title = 'Add marker at coordinates';
+        btn.style.cursor = 'pointer';
+
+        L.DomEvent.disableClickPropagation(container);
+        L.DomEvent.disableScrollPropagation(container);
+
+        const addCoordinateMarker = () => {
+            const text = input.value.trim();
+            if (!text) return;
+
+            const parts = text.split(/\s+/);
+            if (parts.length < 3) {
+                alert('Format: x y z [mapId]');
+                return;
+            }
+
+            const x = parseFloat(parts[0]);
+            const y = parseFloat(parts[1]);
+            const z = parseFloat(parts[2]);
+            const mapId = parts.length >= 4 ? parseInt(parts[3]) : null;
+
+            if (isNaN(x) || isNaN(y) || isNaN(z)) {
+                alert('Invalid coordinates');
+                return;
+            }
+
+            // Check if we need to switch maps
+            if (mapId !== null && mapId !== config.MapID) {
+                alert(`Map ${mapId} does not match current map ${config.MapID}`);
+                return;
+            }
+
+            addCustomMarker(x, y, z);
+            input.value = '';
+        };
+
+        btn.onclick = addCoordinateMarker;
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                addCoordinateMarker();
+            }
+        };
+
+        return container;
+    }
+});
+
+// Storage for custom coordinate markers
+const customMarkerLayer = L.layerGroup();
+let customMarkerCount = 0;
+
+function addCustomMarker(x, y, z) {
+    const latlng = worldTolatLng(x, y);
+
+    customMarkerCount++;
+    const markerName = `Marker ${customMarkerCount}`;
+
+    const markerIcon = L.divIcon({
+        className: 'poiatlas',
+        iconSize: [aSize, aSize],
+        html: `<div style="background-color: #ff4444; border: 2px solid white; border-radius: 50%; width: 16px; height: 16px; box-shadow: 0 0 4px rgba(0,0,0,0.5);"></div>`
+    });
+
+    const marker = L.marker(latlng, { icon: markerIcon });
+
+    const popupContent = `
+        <b>${markerName}</b><br>
+        X: ${x.toFixed(2)}<br>
+        Y: ${y.toFixed(2)}<br>
+        Z: ${z.toFixed(2)}<br>
+        <button onclick="removeCustomMarker(${customMarkerCount})" style="margin-top:5px;cursor:pointer;">Remove</button>
+    `;
+
+    marker.bindPopup(popupContent);
+    marker.customMarkerId = customMarkerCount;
+
+    addGroupLayer('Custom Markers', 'Custom Markers');
+    addToggleLayer('Custom Markers', markerName, marker);
+    scheduleGroupedLayerControlUpdate();
+
+    // Pan to the marker
+    LeafletMap.setView(latlng, LeafletMap.getZoom());
+}
+
+function removeCustomMarker(markerId) {
+    // Find and remove the marker from layers
+    for (const [name, layer] of Object.entries(layerNames)) {
+        if (layer.customMarkerId === markerId) {
+            LeafletMap.removeLayer(layer);
+            delete layerNames[name];
+            break;
+        }
+    }
+    scheduleGroupedLayerControlUpdate();
+    LeafletMap.closePopup();
+}
+
+// Expose to global scope for popup button
+window.removeCustomMarker = removeCustomMarker;
+
 ///////////////////////////////////////////////////
 
 async function addPoi(areaId) {
@@ -1920,6 +2044,57 @@ async function getAreaOrCache(areaId) {
     return areaCache[areaId] = await response.json();
 }
 
+// Cache for mailbox data per map
+const mailboxCache = {};
+
+async function getMailboxLocations(mapId) {
+    if (mailboxCache[mapId]) return mailboxCache[mapId];
+
+    const url = `/mailboxlocations/${mapId}.json`;
+    const response = await fetch(url);
+    if (!response.ok) return mailboxCache[mapId] = [];
+    return mailboxCache[mapId] = await response.json();
+}
+
+async function addMailboxes() {
+    const groupName = 'Mailboxes';
+
+    addGroupLayer(groupName, groupName);
+
+    const locations = await getMailboxLocations(config.MapID);
+    if (!locations || locations.length === 0) {
+        console.log(`No mailbox locations found for map ${config.MapID}`);
+        return;
+    }
+
+    const texture = getPixiIconTexture('mailbox');
+
+    for (const loc of locations) {
+        const latlng = worldTolatLng(loc.x, loc.y);
+        const sprite = createSprite(latlng, texture);
+        const worldPos = { x: loc.x, y: loc.y, z: loc.z };
+
+        const popupHtml = `
+            <b>Mailbox</b>
+            <br>World: ${loc.x.toFixed(1)}, ${loc.y.toFixed(1)}, ${loc.z.toFixed(1)}
+        `;
+
+        addSpriteClickHandler(sprite, async () => {
+            await showPixiPopup(worldPos, latlng, popupHtml, sprite);
+        });
+
+        pixiOverlay.utils.getContainer().addChild(sprite);
+
+        const groupLayer = createPixiSpriteGroupLayer(groupName, [sprite]);
+        addToggleLayer(groupName, `Mailbox ${loc.x.toFixed(0)}, ${loc.y.toFixed(0)}`, groupLayer, true);
+    }
+
+    scheduleGroupedLayerControlUpdate();
+    schedulePixiRedraw();
+
+    console.log(`Loaded ${locations.length} mailbox locations for map ${config.MapID}`);
+}
+
 async function addNpc(npcType) {
     if (!currentArea) return;
 
@@ -2044,6 +2219,15 @@ L.Control.buttonHerbPOI = createLeafletButtonControl({
     onClick: async () => {
         if (!currentArea) return;
         await addNodeSpawnsToArea(currentArea.AreaID, 'herb');
+        scheduleGroupedLayerControlUpdate();
+    },
+});
+
+L.Control.buttonMailbox = createLeafletButtonControl({
+    className: 'poiatlas',
+    setImageFn: setImage,
+    onClick: async () => {
+        await addMailboxes();
         scheduleGroupedLayerControlUpdate();
     },
 });

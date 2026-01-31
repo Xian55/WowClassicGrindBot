@@ -1,0 +1,81 @@
+{
+  "ClassName": "Warrior",
+  "Mode": "AttendedGrind",
+  "PathFilename": "_pack\\1-20\\Human\\07-10_Elwynn Forest.json",
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Heroic Strike",
+        "Key": "2",
+        "WhenUsable": true,
+        "AfterCastWaitSwing": true,
+        "Requirement": "MainHandSwing > -400"
+      },
+      {
+        "Name": "AutoAttack"
+      },
+      {
+        "Name": "Approach",
+        "Log": false
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < 60",
+        "Cost": 3
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Key": "C",
+        "Requirement": "Durability% < 35"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Key": "C",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        "Cost": 6.5,
+        "Name": "Mail",
+        "Requirements": [
+          "VendoredOrRepairedRecently",
+          "HasMailableItems || HasExcessGold"
+        ]
+      }
+    ]
+  },
+  "Mail": true,
+  "MailConfig": {
+    "RecipientName": "",
+    "MinimumGoldToKeep": 10000,
+    "MinimumItemQuality": 2,
+    "SendGold": true,
+    "SendItems": true,
+    "ExcludedItemIds": [
+      5956,
+      4238
+    ]
+  }
+}

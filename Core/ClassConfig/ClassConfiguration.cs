@@ -1,7 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using Newtonsoft.Json;
+
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -83,6 +86,29 @@ public sealed partial class ClassConfiguration
     public WaitKeyActions Wait { get; } = new();
     public FormKeyActions Form { get; } = new();
 
+    /// <summary>
+    /// Whether mail functionality is enabled for this profile.
+    /// </summary>
+    public bool Mail { get; set; }
+
+    /// <summary>
+    /// External mail configuration filename (relative to Json/mail/).
+    /// If empty, uses inline MailConfig settings.
+    /// </summary>
+    public string MailFilename { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Mail configuration settings (inline or loaded from external file).
+    /// </summary>
+    public MailConfiguration MailConfig { get; set; } = new();
+
+    /// <summary>
+    /// Runtime mail configuration overrides (from UI/localStorage).
+    /// Takes priority over MailConfig when set. Not serialized to JSON.
+    /// </summary>
+    [JsonIgnore]
+    public MailConfiguration? RuntimeMailConfig { get; set; }
+
     public KeyAction[] GatherFindKeyConfig { get; set; } = Array.Empty<KeyAction>();
     public string[] GatherFindKeys { get; init; } = Array.Empty<string>();
 
@@ -130,6 +156,22 @@ public sealed partial class ClassConfiguration
         }
 
         DataConfig dataConfig = sp.GetRequiredService<DataConfig>();
+
+        // Load mail config from external file if MailFilename is specified
+        if (!string.IsNullOrEmpty(MailFilename))
+        {
+            string mailPath = Path.Join(dataConfig.Mail, MailFilename);
+            if (File.Exists(mailPath))
+            {
+                MailConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<MailConfiguration>(
+                    File.ReadAllText(mailPath)) ?? new MailConfiguration();
+                logger.LogInformation("Loaded mail config from {MailPath}", mailPath);
+            }
+            else
+            {
+                logger.LogWarning("Mail config file not found: {MailPath}", mailPath);
+            }
+        }
 
         for (int i = 0; i < Paths.Length; i++)
         {
@@ -247,6 +289,82 @@ public sealed partial class ClassConfiguration
                 logger.LogWarning($"{nameof(GatherCorpse)} " +
                     $"limited to the last target. Rest going to be skipped!");
         }
+
+        // Mail configuration validation
+        // Only warn (don't throw) since BlazorServer users can set recipient at runtime via UI
+        if (Mail && !HasMailRecipient())
+        {
+            logger.LogWarning(
+                $"[Mail] Enabled but no recipient configured yet. " +
+                $"Set via UI (BlazorServer), {MailConfiguration.RecipientEnvVar} env var, " +
+                $"or RecipientName in config.");
+        }
+    }
+
+    /// <summary>
+    /// Gets the effective mail configuration (runtime overrides ?? persisted config).
+    /// </summary>
+    public MailConfiguration GetEffectiveMailConfig()
+    {
+        return RuntimeMailConfig ?? MailConfig;
+    }
+
+    /// <summary>
+    /// Gets the effective recipient name from runtime config, env var, or persisted config.
+    /// Priority: RuntimeMailConfig.RecipientName > MAIL_RECIPIENT env var > MailConfig.RecipientName
+    /// </summary>
+    public string GetEffectiveRecipientName()
+    {
+        // Priority 1: Runtime config recipient
+        if (RuntimeMailConfig != null && !string.IsNullOrWhiteSpace(RuntimeMailConfig.RecipientName))
+        {
+            return RuntimeMailConfig.RecipientName;
+        }
+
+        // Priority 2: Environment variable
+        string? envRecipient = Environment.GetEnvironmentVariable(MailConfiguration.RecipientEnvVar);
+        if (!string.IsNullOrWhiteSpace(envRecipient))
+        {
+            return envRecipient;
+        }
+
+        // Priority 3: Persisted config
+        return MailConfig.RecipientName;
+    }
+
+    /// <summary>
+    /// Returns true if a valid recipient is configured (via runtime config, env var, or JSON).
+    /// </summary>
+    public bool HasMailRecipient()
+    {
+        return !string.IsNullOrWhiteSpace(GetEffectiveRecipientName());
+    }
+
+    /// <summary>
+    /// Gets the effective list of excluded item IDs by merging persisted config with runtime exclusions.
+    /// </summary>
+    public int[] GetEffectiveExcludedItemIds()
+    {
+        if (RuntimeMailConfig == null || RuntimeMailConfig.ExcludedItemIds.Length == 0)
+        {
+            return MailConfig.ExcludedItemIds;
+        }
+
+        return [.. MailConfig.ExcludedItemIds.Union(RuntimeMailConfig.ExcludedItemIds)];
+    }
+
+    /// <summary>
+    /// Gets a FrozenSet of effective excluded item IDs for efficient lookups.
+    /// Merges persisted config with runtime exclusions.
+    /// </summary>
+    public FrozenSet<int> GetEffectiveExcludedItemIdSet()
+    {
+        if (RuntimeMailConfig == null || RuntimeMailConfig.ExcludedItemIds.Length == 0)
+        {
+            return MailConfig.ExcludedItemIdSet;
+        }
+
+        return MailConfig.ExcludedItemIds.Union(RuntimeMailConfig.ExcludedItemIds).ToFrozenSet();
     }
 
     private static void SetBaseActions(

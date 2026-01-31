@@ -1,4 +1,7 @@
-﻿@inject WApi api
+﻿@using Core.Database
+
+@inject WApi api
+@inject ItemDB itemDB
 
 <a href="@($"{api.ItemId}{Item.Entry}")" target="_blank" data-wowhead="item=@Item.Entry" class="small" style="text-decoration:none">
     <b>
@@ -10,11 +13,15 @@
                 <span>&nbsp;</span>
             }
 
-            @if (iconName != string.Empty)
+            @if (!string.IsNullOrEmpty(imgLink))
             {
                 <img src="@imgLink" />
             }
             @Item.Name
+            @if (IsMailable == false)
+            {
+                <span class="text-muted ms-1" style="font-size: 0.7em; opacity: 0.7;">(No Mail)</span>
+            }
             @if (ShowPrice && Item.SellPrice > 0)
             {
                 <Money Value="GetItemPrice()" />
@@ -54,28 +61,29 @@
     [Parameter]
     public DateTime LastUpdated { get; set; } = DateTime.MinValue;
 
-    private string iconName { get; set; } = string.Empty;
-    private string imgLink => string.Format(WApi.TinyIconUrl, iconName);
+    [Parameter]
+    public bool? IsMailable { get; set; }
 
-    private static readonly string[] colors = { "poor", "common", "uncommon", "rare", "epic", "legendary", "artifact", "heirloom" };
+    private string imgLink { get; set; } = string.Empty;
 
-    private static readonly Dictionary<int, string> icons = new()
+    private static readonly string[] colors = ["poor", "common", "uncommon", "rare", "epic", "legendary", "artifact", "heirloom"];
+
+    protected override void OnParametersSet()
     {
-        { -1, "inv_misc_bag_08" } // Backpack
-    };
-
-    protected override async Task OnParametersSetAsync()
-    {
-        if (!ShowIcon || Item.Entry == 0) return;
-
-        if (icons.TryGetValue(Item.Entry, out var icon))
+        if (!ShowIcon || Item.Entry == 0)
         {
-            iconName = icon;
+            imgLink = string.Empty;
             return;
         }
 
-        iconName = await api.RequestItemIconName(Item.Entry);
-        icons.TryAdd(Item.Entry, iconName);
+        // Special case for Backpack
+        if (Item.Entry == -1)
+        {
+            imgLink = "https://render.worldofwarcraft.com/icons/18/inv_misc_bag_08.jpg";
+            return;
+        }
+
+        imgLink = itemDB.GetItemIconUrl(Item.Entry, 18) ?? string.Empty;
     }
 
     private Currency GetItemPrice()

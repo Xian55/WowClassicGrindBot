@@ -56,6 +56,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
     private readonly GossipReader gossipReader;
     private readonly AreaDB areaDB;
     private readonly BagReader bagReader;
+    private readonly SessionStat sessionStat;
 
     private PathState pathState = PathState.Finished;
 
@@ -95,7 +96,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         Wait wait, PlayerReader playerReader, GossipReader gossipReader, AddonBits bits,
         Navigation navigation, StopMoving stopMoving, AreaDB areaDB,
         NpcNameTargeting npcNameTargeting, ClassConfiguration classConfig,
-        BagReader bagReader,
+        BagReader bagReader, SessionStat sessionStat,
         IMountHandler mountHandler, ExecGameCommand exec, CancellationTokenSource cts)
         : base(nameof(AdhocNPCGoal))
     {
@@ -110,6 +111,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         this.npcNameTargeting = npcNameTargeting;
         this.classConfig = classConfig;
         this.bagReader = bagReader;
+        this.sessionStat = sessionStat;
         this.mountHandler = mountHandler;
         token = cts.Token;
         this.execGameCommand = exec;
@@ -359,6 +361,10 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
         if (!OpenMerchantWindow())
             return;
+
+        // Signal that vendor/repair completed successfully
+        // MailGoal uses this to know it can run
+        sessionStat.VendoredOrRepairedRecently = true;
 
         input.PressRandom(ConsoleKey.Escape, InputDuration.DefaultPress);
         input.PressClearTarget();

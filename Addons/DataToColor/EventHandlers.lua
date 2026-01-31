@@ -179,6 +179,8 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('MIRROR_TIMER_START', 'OnMirrorTimer_BitCache')
     DataToColor:RegisterEvent('MIRROR_TIMER_STOP', 'OnMirrorTimer_BitCache')
     DataToColor:RegisterEvent('LOOT_OPENED', 'OnLootOpened_BitCache')
+    DataToColor:RegisterEvent('MAIL_SHOW', 'OnMailShow_BitCache')
+    DataToColor:RegisterEvent('MAIL_CLOSED', 'OnMailClosed_BitCache')
 
     -- Classic-only events
     if DataToColor:IsClassicPreCata() then
@@ -1020,5 +1022,17 @@ end
 function DataToColor:OnPetHappiness_BitCache(event, unit)
     if unit == "pet" and DataToColor.BitCache and DataToColor.BitCache.bits1 then
         DataToColor.BitCache.bits1.petIsHappy = GetPetHappiness() == 3
+    end
+end
+
+function DataToColor:OnMailShow_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits3 then
+        DataToColor.BitCache.bits3.mailFrameShown = true
+    end
+end
+
+function DataToColor:OnMailClosed_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits3 then
+        DataToColor.BitCache.bits3.mailFrameShown = false
     end
 end

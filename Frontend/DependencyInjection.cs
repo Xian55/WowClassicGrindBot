@@ -53,6 +53,12 @@ public static class DependencyInjection
             RequestPath = "/npcspawnlocations"
         });
 
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.MailboxLocations)),
+            RequestPath = "/mailboxlocations"
+        });
+
         return app;
     }
 }

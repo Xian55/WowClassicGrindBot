@@ -99,6 +99,140 @@ V1 Local and V1 Remote does not have the capability as of this moment to read th
 - Added Skinning Goal -> `GatherCorpse` (Skin, Herb, Mine, Salvage)
 - Introduced a concept of `Produce`/`Consume` corpses. Killing multiple enemies in a single combat can consume them all.
 
+## Mail Feature
+
+Automatically mail items and gold to another character when visiting a mailbox.
+
+### Quick Setup
+
+1. Enable mail in your class profile:
+```json
+{
+  "Mail": true,
+  "MailConfig": {
+    "RecipientName": "YourAltCharacter"
+  }
+}
+```
+
+2. The bot will mail items after vendoring/repairing when:
+   - Items meet the quality threshold (default: Green/Uncommon)
+   - Player has excess gold above minimum threshold
+   - Player is at a mailbox
+
+### Configuration Options
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Mail` | bool | `false` | Enable/disable mail for this profile |
+| `MailFilename` | string | `""` | External mail config file (relative to `Json/mail/`) |
+| `MailConfig.RecipientName` | string | `""` | Character name to send mail to |
+| `MailConfig.MinimumGoldToKeep` | int | `10000` | Minimum gold to keep (in copper, 10000 = 1g) |
+| `MailConfig.MinimumItemQuality` | int | `2` | Minimum item quality (0=Grey, 1=White, 2=Green, 3=Blue, 4=Epic) |
+| `MailConfig.SendGold` | bool | `true` | Whether to send excess gold |
+| `MailConfig.SendItems` | bool | `true` | Whether to send items |
+| `MailConfig.ExcludedItemIds` | int[] | `[]` | Item IDs to never mail |
+
+### Recipient Priority
+
+The recipient is determined in this order:
+1. **UI Setting** (localStorage) - Set via Frontend Mail page
+2. **Environment Variable** - `MAIL_RECIPIENT=CharacterName`
+3. **JSON Config** - `MailConfig.RecipientName`
+
+### Special Recipient Keywords
+
+Instead of a character name, you can use special keywords:
+
+| Keyword | Behavior |
+|---------|----------|
+| `UseRandomFriendList` | Randomly selects a character from your friend list (online or offline) |
+
+**Example:**
+```json
+{
+  "Mail": true,
+  "MailConfig": {
+    "RecipientName": "UseRandomFriendList",
+    "MinimumItemQuality": 2
+  }
+}
+```
+
+**Note:** If using `UseRandomFriendList` and your friend list is empty, mail sending will be skipped.
+
+### Example: Full Mail Configuration
+
+```json
+{
+  "ClassName": "Warrior",
+  "Mail": true,
+  "MailConfig": {
+    "RecipientName": "MyBankAlt",
+    "MinimumGoldToKeep": 50000,
+    "MinimumItemQuality": 2,
+    "SendGold": true,
+    "SendItems": true,
+    "ExcludedItemIds": [6948, 5956, 4306]
+  }
+}
+```
+
+### Example: Using External Config File
+
+```json
+{
+  "Mail": true,
+  "MailFilename": "bank_alt_mail.json"
+}
+```
+
+Create `Json/mail/bank_alt_mail.json`:
+```json
+{
+  "RecipientName": "MyBankAlt",
+  "MinimumGoldToKeep": 20000,
+  "MinimumItemQuality": 1,
+  "SendGold": true,
+  "SendItems": true,
+  "ExcludedItemIds": [6948]
+}
+```
+
+### Item Quality Reference
+
+| Value | Quality | Color |
+|-------|---------|-------|
+| 0 | Poor | Grey |
+| 1 | Common | White |
+| 2 | Uncommon | Green |
+| 3 | Rare | Blue |
+| 4 | Epic | Purple |
+| 5 | Legendary | Orange |
+
+### What Gets Mailed
+
+**Mailed:**
+- Items meeting quality threshold
+- Not in excluded items list
+- Tradable (not soulbound, not quest items)
+
+**Never Mailed:**
+- Soulbound items
+- Quest items
+- Bind-on-Pickup (BoP) items
+- Items in exclusion list
+- Hearthstone (recommended to exclude: 6948)
+
+### Frontend Mail Page
+
+The Mail page in the browser UI allows you to:
+- Set recipient name (persists across sessions)
+- Configure quality threshold and gold minimum
+- Visually browse your inventory
+- Click items to add/remove from exclusion list
+- Save settings to profile or use runtime overrides
+
 ## Additional Features
 
 - Corpse run
@@ -110,6 +244,7 @@ V1 Local and V1 Remote does not have the capability as of this moment to read th
 - Frontend `ActionbarPopulator` One click to populate Actionbar based on [Class Configuration](#12-class-configuration). Uses naming convention: lowercase = macro, capitalized = spell.
 - Frontend `Key Bindings` page to view detected in-game keybindings and test key presses
 - Frontend `Spell Book` page to view known spells and their spell IDs
+- Frontend `Mail` page to configure mail recipient, exclusions, and view mailable inventory
 - `DataConfig`: change where the external data(DBC, MPQ, profiles) can be found
 - `NPCNameFinder`: extended to friendly/neutral units
 - Support more resolutions
@@ -681,6 +816,7 @@ The class configuration controls all aspects of bot behavior. Here's why each se
 | **Blacklist** | Avoids specific mobs that cause problems (e.g., quest mobs, mobs with annoying abilities). |
 | **Pull/Combat/Flee** | The core combat rotation. Pull defines how to start fights, Combat is the main rotation, Flee is emergency escape. |
 | **NPC** | Defines vendor/repair routes. Essential for extended grinding sessions. |
+| **Mail/MailConfig** | Automatically sends excess items and gold to another character. Useful for keeping inventory clear during long sessions. |
 
 | Property Name | Description | Optional | Default value |
 | --- | --- | --- | --- |
@@ -720,6 +856,10 @@ The class configuration controls all aspects of bot behavior. Here's why each se
 | `"Parallel"` | [KeyActions](#keyactions) to execute upon [Parallel Goal](#parallel-goals) | true | `{}` |
 | `"NPC"` | [KeyActions](#keyactions) to execute upon [NPC Goal](#npc-goals) | true | `{}` |
 | `"Wait"` | [KeyActions](#keyactions) to execute upon [Wait Goal](#wait-goals) | true | `{}` |
+| --- | --- | --- | --- |
+| `"Mail"` | Enable mail functionality | true | `false` |
+| `"MailFilename"` | External mail config file path (relative to `Json/mail/`) | true | `""` |
+| `"MailConfig"` | Inline mail configuration object. See [Mail Feature](#mail-feature) | true | `{}` |
 | --- | --- | --- | --- |
 | `"GatherFindKeys"` | List of strings for switching between gathering profiles | true | `string[]` |
 | --- | --- | --- | --- |

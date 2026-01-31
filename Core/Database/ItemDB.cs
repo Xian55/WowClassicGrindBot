@@ -16,12 +16,33 @@ public sealed class ItemDB
 
     public static readonly Item Backpack = new() { Entry = -1, Name = "Backpack", Quality = 1, SellPrice = 0 };
 
+    private readonly IconDB iconDB;
+
     public FrozenDictionary<int, Item> Items { get; }
     public int[] FoodIds { get; }
     public int[] DrinkIds { get; }
 
-    public ItemDB(DataConfig dataConfig)
+    // Known conjured item IDs (cannot be mailed)
+    public static readonly FrozenSet<int> ConjuredItemIds = FrozenSet.ToFrozenSet([
+        // Mage Conjured Water
+        5350, 2288, 2136, 3772, 8077, 8078, 8079,
+        // Mage Conjured Food
+        5349, 1113, 1114, 1487, 8075, 8076, 22895,
+        // Warlock Healthstones (all ranks + improved)
+        5512, 19004, 19005, 5511, 19006, 19007,
+        5509, 19008, 19009, 5510, 19010, 19011,
+        9421, 19012, 19013,
+        // TBC conjured items
+        22044, 30703, 34062,
+        // Warlock Soulstones
+        16892, 16893, 16895, 16896,
+    ]);
+
+
+    public ItemDB(DataConfig dataConfig, IconDB iconDB)
     {
+        this.iconDB = iconDB;
+
         List<Item> items = DeserializeObject<List<Item>>(
             ReadAllText(Join(dataConfig.ExpDbc, "items.json")))!;
 
@@ -75,5 +96,33 @@ public sealed class ItemDB
         }
         textureId = 0;
         return false;
+    }
+
+    /// <summary>
+    /// Gets the icon name for an item (e.g., "inv_misc_bag_08").
+    /// Returns null if the item or icon is not found.
+    /// </summary>
+    public string? GetItemIconName(int itemId)
+    {
+        if (Items.TryGetValue(itemId, out Item item) && item.TextureId > 0)
+        {
+            if (iconDB.TryGetIconName(item.TextureId, out string? iconName))
+                return iconName;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the icon URL for an item.
+    /// Size: 18, 36, or 56 pixels.
+    /// Returns null if the item or icon is not found.
+    /// </summary>
+    public string? GetItemIconUrl(int itemId, int size = 56)
+    {
+        if (Items.TryGetValue(itemId, out Item item) && item.TextureId > 0)
+        {
+            return iconDB.GetIconUrl(item.TextureId, size);
+        }
+        return null;
     }
 }
