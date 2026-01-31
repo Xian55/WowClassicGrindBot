@@ -95,7 +95,25 @@ public sealed partial class Blacklist<T> : IBlacklist where T : IBlacklistSource
             return true;
         }
 
-        // it is trying to kill me
+        // Check for players/pets BEFORE checking if they're targeting us
+        // This ensures we blacklist enemy players even if they're targeting us
+        // (unless they've already damaged us - handled by DamageTaken check above)
+        if (source.UnitGuid != playerReader.PetGuid &&
+            !allowPvP && (source.Unit_Player() || source.Unit_PlayerControlled()))
+        {
+            if (lastGuid != source.UnitGuid)
+            {
+                LogPlayerOrPet(logger, typeof(T),
+                    source.UnitId,
+                    source.UnitGuid, source.UnitName);
+
+                lastGuid = source.UnitGuid;
+            }
+
+            return true; // ignore players and pets
+        }
+
+        // it is trying to kill me (only applies to NPCs now since players are handled above)
         if (source.UnitTarget_PlayerOrPet())
         {
             return false;
@@ -113,21 +131,6 @@ public sealed partial class Blacklist<T> : IBlacklist where T : IBlacklistSource
             }
 
             return true; // ignore non white listed unit classification
-        }
-
-        if (source.UnitGuid != playerReader.PetGuid &&
-            !allowPvP && (source.Unit_Player() || source.Unit_PlayerControlled()))
-        {
-            if (lastGuid != source.UnitGuid)
-            {
-                LogPlayerOrPet(logger, typeof(T),
-                    source.UnitId,
-                    source.UnitGuid, source.UnitName);
-
-                lastGuid = source.UnitGuid;
-            }
-
-            return true; // ignore players and pets
         }
 
         if (!source.Unit_Dead() && source.Unit_Tagged())
