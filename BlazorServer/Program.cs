@@ -164,6 +164,31 @@ public static class Program
     {
         WebApplication app = builder.Build();
 
+        // Initialize Discord services if configured
+        try
+        {
+            var discordNotifications = app.Services.GetService<Core.Discord.DiscordNotificationService>();
+            if (discordNotifications != null)
+            {
+                _ = discordNotifications.SendTestMessageAsync();
+            }
+            else
+            {
+                Log.Information("DiscordNotificationService not available in root scope");
+            }
+
+            // Initialize Discord bot for commands
+            var discordBot = app.Services.GetService<Core.Discord.DiscordBotService>();
+            if (discordBot == null)
+            {
+                Log.Information("DiscordBotService not available in root scope");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Error initializing Discord services at startup");
+        }
+
         if (env.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();

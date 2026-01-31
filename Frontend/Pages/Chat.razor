@@ -1,2 +1,264 @@
-﻿@page "/Chat"
-<ChatComponent MaxHeight="0" />
+@page "/Chat"
+
+@using Game
+@using Core
+
+@implements IDisposable
+
+@inject IBotController botController
+@inject WowProcessInput wowInput
+@inject ChatReader chatReader
+@inject ILogger<Chat> logger
+
+<div class="container-fluid mt-3">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    Chat Messages
+                </div>
+                <div class="card-body">
+                    <ChatComponent MaxHeight="600" />
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header">
+                    Send Chat Messages
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Say (General Chat)</label>
+                        <div class="input-group">
+                            <input type="text" @bind="sayMessage" class="form-control" placeholder="Message to send in /say" @onkeypress="@(e => HandleKeyPress(e, SendSay))" />
+                            <button class="btn btn-primary" @onclick="SendSay" disabled="@isSending">
+                                @if (isSending) { <span>Sending...</span> } else { <span>Send</span> }
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Whisper</label>
+                        <input type="text" @bind="whisperTarget" class="form-control mb-2" placeholder="Player name" />
+                        <div class="input-group">
+                            <input type="text" @bind="whisperMessage" class="form-control" placeholder="Message to whisper" @onkeypress="@(e => HandleKeyPress(e, SendWhisper))" />
+                            <button class="btn btn-primary" @onclick="SendWhisper" disabled="@isSending">
+                                @if (isSending) { <span>Sending...</span> } else { <span>Whisper</span> }
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reply to Last Whisper @(lastWhisper != null ? $"({lastWhisper})" : "")</label>
+                        <div class="input-group">
+                            <input type="text" @bind="replyMessage" class="form-control" placeholder="Reply message" @onkeypress="@(e => HandleKeyPress(e, SendReply))" disabled="@(lastWhisper == null)" />
+                            <button class="btn btn-primary" @onclick="SendReply" disabled="@(isSending || lastWhisper == null)">
+                                @if (isSending) { <span>Sending...</span> } else { <span>Reply</span> }
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Guild Chat</label>
+                        <div class="input-group">
+                            <input type="text" @bind="guildMessage" class="form-control" placeholder="Guild message" @onkeypress="@(e => HandleKeyPress(e, SendGuild))" />
+                            <button class="btn btn-success" @onclick="SendGuild" disabled="@isSending">
+                                @if (isSending) { <span>Sending...</span> } else { <span>Send to Guild</span> }
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Quick Actions</label>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-warning" @onclick="StopBot" disabled="@(!botController.IsBotActive)">
+                                Stop Bot
+                            </button>
+                            <button class="btn btn-info" @onclick="UseHearth" disabled="@isSending">
+                                @if (isSending) { <span>Using...</span> } else { <span>Use Hearthstone</span> }
+                            </button>
+                            <button class="btn btn-danger" @onclick="Logout" disabled="@isSending">
+                                @if (isSending) { <span>Logging out...</span> } else { <span>Logout (/camp)</span> }
+                            </button>
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(statusMessage))
+                    {
+                        <div class="alert @alertClass" role="alert">
+                            @statusMessage
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string sayMessage = string.Empty;
+    private string whisperTarget = string.Empty;
+    private string whisperMessage = string.Empty;
+    private string replyMessage = string.Empty;
+    private string guildMessage = string.Empty;
+    private string? lastWhisper = null;
+    private bool isSending = false;
+    private string statusMessage = string.Empty;
+    private string alertClass = "alert-info";
+
+    protected override void OnInitialized()
+    {
+        chatReader.Messages.CollectionChanged += OnChatMessageReceived;
+    }
+
+    private void OnChatMessageReceived(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add && e.NewItems != null)
+        {
+            foreach (ChatMessageEntry entry in e.NewItems)
+            {
+                if (entry.Type == ChatMessageType.Whisper && !string.IsNullOrEmpty(entry.Author))
+                {
+                    lastWhisper = entry.Author;
+                    InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+    }
+
+    private void HandleKeyPress(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e, Func<Task> action)
+    {
+        if (e.Key == "Enter" && !isSending)
+        {
+            _ = action();
+        }
+    }
+
+    private async Task SendSay()
+    {
+        if (string.IsNullOrWhiteSpace(sayMessage))
+        {
+            statusMessage = "Please enter a message";
+            alertClass = "alert-warning";
+            return;
+        }
+
+        await SendChatMessage($"/say {sayMessage}");
+        sayMessage = string.Empty;
+    }
+
+    private async Task SendWhisper()
+    {
+        if (string.IsNullOrWhiteSpace(whisperTarget) || string.IsNullOrWhiteSpace(whisperMessage))
+        {
+            statusMessage = "Please enter player name and message";
+            alertClass = "alert-warning";
+            return;
+        }
+
+        await SendChatMessage($"/w {whisperTarget} {whisperMessage}");
+        whisperMessage = string.Empty;
+    }
+
+    private async Task SendReply()
+    {
+        if (lastWhisper == null || string.IsNullOrWhiteSpace(replyMessage))
+        {
+            statusMessage = "No one to reply to or empty message";
+            alertClass = "alert-warning";
+            return;
+        }
+
+        await SendChatMessage($"/w {lastWhisper} {replyMessage}");
+        replyMessage = string.Empty;
+    }
+
+    private async Task SendGuild()
+    {
+        if (string.IsNullOrWhiteSpace(guildMessage))
+        {
+            statusMessage = "Please enter a message";
+            alertClass = "alert-warning";
+            return;
+        }
+
+        await SendChatMessage($"/g {guildMessage}");
+        guildMessage = string.Empty;
+    }
+
+    private void StopBot()
+    {
+        if (botController.IsBotActive)
+        {
+            botController.ToggleBotStatus();
+            statusMessage = "Bot stopped";
+            alertClass = "alert-warning";
+            StateHasChanged();
+        }
+    }
+
+    private async Task UseHearth()
+    {
+        await SendChatMessage("/use Hearthstone");
+    }
+
+    private async Task Logout()
+    {
+        await SendChatMessage("/camp");
+    }
+
+    private async Task SendChatMessage(string command)
+    {
+        isSending = true;
+        statusMessage = string.Empty;
+        StateHasChanged();
+
+        try
+        {
+            bool botWasActive = botController.IsBotActive;
+
+            if (botWasActive)
+            {
+                botController.ToggleBotStatus();
+                await Task.Delay(2000);
+            }
+
+            wowInput.PressRandom(ConsoleKey.Enter, 50);
+            await Task.Delay(100);
+
+            wowInput.SetClipboard(command);
+            wowInput.PasteFromClipboard();
+            await Task.Delay(100);
+
+            wowInput.PressRandom(ConsoleKey.Enter, 50);
+
+            if (botWasActive)
+            {
+                await Task.Delay(500);
+                botController.ToggleBotStatus();
+            }
+
+            statusMessage = $"Sent: {command}";
+            alertClass = "alert-success";
+            logger.LogInformation("Chat message sent: {Command}", command);
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error: {ex.Message}";
+            alertClass = "alert-danger";
+            logger.LogError(ex, "Failed to send chat message");
+        }
+        finally
+        {
+            isSending = false;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        chatReader.Messages.CollectionChanged -= OnChatMessageReceived;
+    }
+}

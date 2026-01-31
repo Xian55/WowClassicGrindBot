@@ -23,6 +23,7 @@ public sealed partial class WowProcessInput : IMouseInput
 
     private readonly WowProcess process;
     private readonly InputWindowsNative nativeInput;
+    private readonly InputSimulator simulatorInput;
 
     private readonly BitArray keysDown;
 
@@ -42,6 +43,7 @@ public sealed partial class WowProcessInput : IMouseInput
         keysDown = new((int)ConsoleKey.OemClear);
 
         nativeInput = new(process, cts, InputDuration.FastPress);
+        simulatorInput = new(process, cts, InputDuration.FastPress);
     }
 
     public void Reset()
@@ -94,6 +96,16 @@ public sealed partial class WowProcessInput : IMouseInput
     public void SendText(string text)
     {
         nativeInput.SendText(text);
+    }
+
+    public void SetClipboard(string text)
+    {
+        simulatorInput.SetClipboard(text);
+    }
+
+    public void PasteFromClipboard()
+    {
+        simulatorInput.PasteFromClipboard();
     }
 
     public void SetForegroundWindow()

@@ -1,0 +1,219 @@
+@page "/DiscordConfiguration"
+
+@using Core.Discord
+@using Core
+
+@inject ILogger<DiscordConfiguration> logger
+@inject DiscordNotificationService discordService
+@inject DataConfig dataConfig
+
+<div class="container mt-3">
+    <div class="card">
+        <div class="card-header">
+            Discord Configuration
+        </div>
+        <div class="card-body">
+            <h5>Webhook Notifications</h5>
+            <table class="table table-bordered">
+                <tbody>
+                    <tr>
+                        <td style="width:30%">Webhook URL</td>
+                        <td>
+                            <input type="text"
+                                   @bind="config.WebhookUrl"
+                                   class="form-control"
+                                   placeholder="https://discord.com/api/webhooks/..." />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Enabled</td>
+                        <td>
+                            <input type="checkbox" @bind="config.Enabled" class="form-check-input" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Include Screenshot</td>
+                        <td>
+                            <input type="checkbox" @bind="config.IncludeScreenshot" class="form-check-input" />
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h5 class="mt-4">Notification Triggers</h5>
+            <table class="table table-bordered">
+                <tbody>
+                    <tr>
+                        <td style="width:30%">Notify on Whisper</td>
+                        <td><input type="checkbox" @bind="config.NotifyOnWhisper" class="form-check-input" /></td>
+                    </tr>
+                    <tr>
+                        <td>Notify on Say</td>
+                        <td><input type="checkbox" @bind="config.NotifyOnSay" class="form-check-input" /></td>
+                    </tr>
+                    <tr>
+                        <td>Notify on Yell</td>
+                        <td><input type="checkbox" @bind="config.NotifyOnYell" class="form-check-input" /></td>
+                    </tr>
+                    <tr>
+                        <td>Notify on Emote</td>
+                        <td><input type="checkbox" @bind="config.NotifyOnEmote" class="form-check-input" /></td>
+                    </tr>
+                    <tr>
+                        <td>Notify on Party</td>
+                        <td><input type="checkbox" @bind="config.NotifyOnParty" class="form-check-input" /></td>
+                    </tr>
+                    <tr>
+                        <td>Notify on Guild</td>
+                        <td><input type="checkbox" @bind="config.NotifyOnGuild" class="form-check-input" /></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h5 class="mt-4">Auto-Logout Protection</h5>
+            <table class="table table-bordered">
+                <tbody>
+                    <tr>
+                        <td style="width:30%">Enable Auto-Logout on Deaths</td>
+                        <td>
+                            <input type="checkbox" @bind="config.AutoLogoutOnMaxDeaths" class="form-check-input" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Max Deaths Before Logout</td>
+                        <td>
+                            <input type="number"
+                                   @bind="config.MaxDeaths"
+                                   class="form-control"
+                                   min="0"
+                                   placeholder="0 = disabled" />
+                            <small class="form-text text-muted">Bot will stop and logout after this many deaths (0 to disable)</small>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Enable Auto-Logout on Stuck</td>
+                        <td>
+                            <input type="checkbox" @bind="config.AutoLogoutOnStuck" class="form-check-input" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Max Stuck Seconds Before Logout</td>
+                        <td>
+                            <input type="number"
+                                   @bind="config.MaxStuckSeconds"
+                                   class="form-control"
+                                   min="0"
+                                   placeholder="30 seconds recommended" />
+                            <small class="form-text text-muted">Bot will stop and logout after being stuck this long (0 to disable)</small>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h5 class="mt-4">Discord Bot (Optional)</h5>
+            <table class="table table-bordered">
+                <tbody>
+                    <tr>
+                        <td style="width:30%">Bot Token</td>
+                        <td>
+                            <input type="password"
+                                   @bind="config.BotToken"
+                                   class="form-control"
+                                   placeholder="Bot token from Discord Developer Portal" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Bot Enabled</td>
+                        <td>
+                            <input type="checkbox" @bind="config.BotEnabled" class="form-check-input" />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Command Channel ID</td>
+                        <td>
+                            <input type="number"
+                                   @bind="config.CommandChannelId"
+                                   class="form-control"
+                                   placeholder="Channel ID for bot commands" />
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="mt-3">
+                <button class="btn btn-primary" @onclick="SaveConfig">Save Configuration</button>
+                <button class="btn btn-secondary ms-2" @onclick="LoadConfig">Reload</button>
+                @if (!string.IsNullOrEmpty(config.WebhookUrl) && config.Enabled)
+                {
+                    <button class="btn btn-info ms-2" @onclick="TestWebhook">Test Webhook</button>
+                }
+            </div>
+
+            @if (!string.IsNullOrEmpty(statusMessage))
+            {
+                <div class="alert @alertClass mt-3" role="alert">
+                    @statusMessage
+                </div>
+            }
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private DiscordConfig config = new();
+    private string statusMessage = string.Empty;
+    private string alertClass = "alert-info";
+
+    protected override void OnInitialized()
+    {
+        LoadConfig();
+    }
+
+    private void LoadConfig()
+    {
+        config = DiscordConfig.Load(dataConfig.Root);
+        statusMessage = "Configuration loaded";
+        alertClass = "alert-info";
+    }
+
+    private async Task SaveConfig()
+    {
+        try
+        {
+            config.Save();
+            statusMessage = "Configuration saved successfully!";
+            alertClass = "alert-success";
+            logger.LogInformation("Discord configuration saved");
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error saving configuration: {ex.Message}";
+            alertClass = "alert-danger";
+            logger.LogError(ex, "Failed to save Discord configuration");
+        }
+    }
+
+    private async Task TestWebhook()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(config.WebhookUrl))
+            {
+                statusMessage = "Webhook URL is empty";
+                alertClass = "alert-warning";
+                return;
+            }
+
+            await discordService.SendTestNotification();
+            statusMessage = "Test notification sent! Check your Discord channel.";
+            alertClass = "alert-success";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error sending test: {ex.Message}";
+            alertClass = "alert-danger";
+            logger.LogError(ex, "Failed to send test webhook");
+        }
+    }
+}

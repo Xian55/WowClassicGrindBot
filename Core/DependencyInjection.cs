@@ -1,5 +1,6 @@
 ﻿using Core.Addon;
 using Core.Database;
+using Core.Discord;
 using Core.Extensions;
 using Core.Goals;
 using Core.Session;
@@ -224,6 +225,16 @@ public static class DependencyInjection
 
         s.AddSingleton<IBotController, BotController>();
         s.AddSingleton<IMailSettingsService, MailSettingsService>();
+
+        s.AddSingleton<DiscordNotificationService>(sp => new DiscordNotificationService(
+            sp.GetRequiredService<ILogger<DiscordNotificationService>>(),
+            sp.GetRequiredService<ChatReader>(),
+            sp.GetRequiredService<SessionStat>(),
+            sp.GetRequiredService<DataConfig>(),
+            sp.GetRequiredService<CancellationTokenSource>(),
+            sp.GetRequiredService<IBotController>(),
+            sp.GetRequiredService<WowProcessInput>()));
+        s.AddSingleton<DiscordBotService>();
 
         return s;
     }

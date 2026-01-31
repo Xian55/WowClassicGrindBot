@@ -15,14 +15,7 @@
         ],
         "Cooldown": 5000
       },
-      {
-        "Name": "Judgement",
-        "Key": "1",
-        "WhenUsable": true,
-        "Requirements": [
-          "SpellInRange:0"
-        ]
-      },
+
       {
         "Name": "Seal of Righteousness",
         "Key": "2",
@@ -44,11 +37,6 @@
         "Key": "5",
         "Requirement": "!Form:Paladin_Devotion_Aura",
         "AfterCastAuraExpected": true
-      },
-      {
-        "Name": "Blessing of Might",
-        "Key": "4",
-        "Requirement": "!Blessing of Might"
       }
     ]
   },
