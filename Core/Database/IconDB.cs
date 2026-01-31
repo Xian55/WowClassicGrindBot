@@ -17,7 +17,27 @@ public sealed class IconDB
 {
     private const string SpellIconMapFile = "spelliconmap.json";
     private const string IconNamesFile = "iconnames.json";
-    private const string IconUrlBase = "https://render.worldofwarcraft.com/icons";
+
+    private static readonly FrozenDictionary<CdnRegion, string> RegionUrls = new Dictionary<CdnRegion, string>
+    {
+        [CdnRegion.US] = "https://render-us.worldofwarcraft.com/icons",
+        [CdnRegion.EU] = "https://render-eu.worldofwarcraft.com/icons",
+        [CdnRegion.KR] = "https://render-kr.worldofwarcraft.com/icons",
+        [CdnRegion.TW] = "https://render-tw.worldofwarcraft.com/icons",
+    }.ToFrozenDictionary();
+
+    private CdnRegion region = CdnRegion.US;
+    public CdnRegion Region
+    {
+        get => region;
+        set
+        {
+            region = value;
+            iconUrlBase = RegionUrls.GetValueOrDefault(value, RegionUrls[CdnRegion.US]);
+        }
+    }
+
+    private string iconUrlBase = RegionUrls[CdnRegion.US];
 
     private readonly SpellDB spellDB;
 
@@ -252,7 +272,7 @@ public sealed class IconDB
         if (!IconNames.TryGetValue(textureId, out string? iconName))
             return null;
 
-        return $"{IconUrlBase}/{size}/{iconName}.jpg";
+        return $"{iconUrlBase}/{size}/{iconName}.jpg";
     }
 
     /// <summary>

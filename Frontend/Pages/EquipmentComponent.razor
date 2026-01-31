@@ -1,4 +1,7 @@
-﻿@inject WApi api
+﻿@using Core.Database
+
+@inject WApi api
+@inject ItemDB itemDB
 
 <a href="@($"{api.ItemId}{Item.Entry}")" target="_blank" data-wowhead="item=@Item.Entry" class="small" style="text-decoration:none">
     <img src="@imgLink" />
@@ -14,28 +17,14 @@
     [Parameter]
     public bool ShowIcon { get; set; }
 
-    private string iconName { get; set; } = string.Empty;
-    private string imgLink => ShowIcon && !string.IsNullOrEmpty(iconName) ? string.Format(WApi.MedIconUrl, iconName) : localImg;
+    private string imgLink { get; set; } = string.Empty;
     private string localImg => $"_content/Frontend/img/inventoryslot/{EmptyEquipmentResourceName((InventorySlotId)Slot)}.jpg";
 
-    private static Dictionary<int, string> icons = new();
-
-    protected override async Task OnParametersSetAsync()
+    protected override void OnParametersSet()
     {
-        if (!ShowIcon || Item.Entry == 0)
-        {
-            iconName = string.Empty;
-            return;
-        }
-
-        if (icons.TryGetValue(Item.Entry, out var icon))
-        {
-            iconName = icon;
-            return;
-        }
-
-        iconName = await api.RequestItemIconName(Item.Entry);
-        icons.TryAdd(Item.Entry, iconName);
+        imgLink = (ShowIcon && Item.Entry != 0)
+            ? (itemDB.GetItemIconUrl(Item.Entry, 36) ?? localImg)
+            : localImg;
     }
 
     private string EmptyEquipmentResourceName(InventorySlotId i)

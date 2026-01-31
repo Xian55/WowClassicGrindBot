@@ -1,8 +1,31 @@
 {
   "Log": false,
   "ClassName": "Rogue",
-  "PathFilename": "1-5_Gnome.json",
-  "Wait": {
+  "KeyboardOnly": true,
+  "Paths": [
+    {
+      "PathFilename": "1_Human.json",
+      "PathThereAndBack": false,
+      "PathReduceSteps": false,
+      "Requirements": [
+        "Level < 5"
+      ]
+    },
+    {
+      "PathFilename": "5_Human.json",
+      "PathThereAndBack": false,
+      "PathReduceSteps": false,
+      "Requirements": [
+        "Level < 10"
+      ]
+    },
+    {
+      "PathFilename": "10_Human.json",
+      "PathThereAndBack": false,
+      "PathReduceSteps": false
+    }
+  ],
+    "Wait": {
     "Sequence": [
       {
         "Cost": 0.9,
@@ -44,19 +67,19 @@
     "Sequence": [
       {
         "Name": "Repair",
-        "Key": "C",
+        //"Key": "C",
         "Requirement": "Durability% < 35",
-        "PathFilename": "1_Gnome_Vendor.json",
+        //"PathFilename": "1_Gnome_Vendor.json",
         "Cost": 6
       },
       {
         "Name": "Sell",
-        "Key": "C",
+        //"Key": "C",
         "Requirements": [
           "BagFull",
           "BagGreyItem"
         ],
-        "PathFilename": "1_Gnome_Vendor.json",
+        //"PathFilename": "1_Gnome_Vendor.json",
         "Cost": 6
       }
     ]

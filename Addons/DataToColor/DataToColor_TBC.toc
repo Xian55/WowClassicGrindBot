@@ -2,7 +2,7 @@
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Classic TBC)
-## Version: 1.9.1
+## Version: 1.9.2
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:
@@ -34,3 +34,4 @@ ActionBarMacros.lua
 DataToColor.lua
 
 SellJunk.lua
+Mail.lua

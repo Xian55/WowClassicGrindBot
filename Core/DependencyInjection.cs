@@ -109,6 +109,7 @@ public static class DependencyInjection
         s.ForwardSingleton<SpellDB>(sp);
         s.ForwardSingleton<IconDB>(sp);
         s.ForwardSingleton<TalentDB>(sp);
+        s.ForwardSingleton<MailboxDB>(sp);
 
         s.ForwardSingleton<AddonReader>(sp);
         s.ForwardSingleton<PlayerReader>(sp);
@@ -151,6 +152,8 @@ public static class DependencyInjection
         s.ForwardSingleton<ActionBarMacroReader>(sp);
         s.ForwardSingleton<ActionBarSlotValidator>(sp);
 
+        s.ForwardSingleton<AddonConfigurator>(sp);
+
         return s;
     }
 
@@ -169,6 +172,7 @@ public static class DependencyInjection
         s.AddSingleton<IAddonDataProvider>(x => GetAddonDataProvider(x.GetRequiredService<IServiceProvider>(), log));
         s.AddSingleton<IBotController, ConfigBotController>();
         s.AddSingleton<IAddonReader, ConfigAddonReader>();
+        s.AddSingleton<IMailSettingsService, NullMailSettingsService>();
 
         return s;
     }
@@ -212,12 +216,14 @@ public static class DependencyInjection
         s.AddSingleton<SpellDB>();
         s.AddSingleton<IconDB>();
         s.AddSingleton<TalentDB>();
+        s.AddSingleton<MailboxDB>();
 
         s.AddAddonComponents();
 
         s.AddSingleton<ActionBarSlotValidator>();
 
         s.AddSingleton<IBotController, BotController>();
+        s.AddSingleton<IMailSettingsService, MailSettingsService>();
 
         return s;
     }

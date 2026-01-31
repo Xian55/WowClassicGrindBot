@@ -258,6 +258,23 @@ DataToColor.ContainerIDToInventoryID = ContainerIDToInventoryID or C_Container.C
 DataToColor.GetGossipOptions = GetGossipOptions or C_GossipInfo.GetOptions
 
 --------------------------------------------------------------------------------
+-- FRIEND LIST API COMPATIBILITY
+-- Legacy/older clients use GetNumFriends/GetFriendInfo
+-- Newer clients use C_FriendList namespace
+--------------------------------------------------------------------------------
+
+DataToColor.GetNumFriends = GetNumFriends or C_FriendList.GetNumFriends
+
+-- GetFriendInfo returns: name, level, class, area, connected, status, notes (old API)
+-- C_FriendList.GetFriendInfoByIndex returns a table with: name, level, className, area, connected, etc.
+DataToColor.GetFriendInfo = GetFriendInfo or
+    function(index)
+        local info = C_FriendList.GetFriendInfoByIndex(index)
+        if not info then return nil end
+        return info.name, info.level, info.className, info.area, info.connected, info.status, info.notes
+    end
+
+--------------------------------------------------------------------------------
 -- MAP API COMPATIBILITY
 -- Legacy clients and older Classic-era versions don't have C_Map
 --------------------------------------------------------------------------------

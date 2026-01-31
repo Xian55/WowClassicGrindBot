@@ -156,3 +156,13 @@ DataToColor.C.ActionType.Macro = "macro"
 DataToColor.C.PET_MODE_DEFENSIVE = "PET_MODE_DEFENSIVE"
 
 DataToColor.C.CVarSoftTargetInteract = "SoftTargetInteract"
+
+-- Mail state constants (used by Mail.lua and C# MailReader)
+-- Note: Opened/Closed states are handled by the MailFrameShown bit, not gossip
+DataToColor.C.Mail = {
+    Sending = 9999988,
+    SendSuccess = 9999987,
+    SendFailed = 9999986,
+    Finished = 9999985,
+    ItemAttached = 9999984,
+}

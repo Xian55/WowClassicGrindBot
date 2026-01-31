@@ -2,5 +2,5 @@
 
 public enum General
 {
-
+    Mailbox = 19,
 }

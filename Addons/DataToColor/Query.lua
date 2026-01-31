@@ -56,6 +56,7 @@ local UnitBuff = UnitBuff
 local GameMenuFrame = GameMenuFrame
 local LootFrame = LootFrame
 local ChatEdit_GetActiveWindow = ChatEdit_GetActiveWindow
+local MailFrame = MailFrame
 
 local HasPetUI = HasPetUI
 
@@ -193,7 +194,8 @@ function DataToColor:Bits3()
         (DataToColor.channeling and 2 or 0) ^ 7 +
         (LootFrame:IsShown() and 2 or 0) ^ 8 +
         (DataToColor:IsChatInputActive() and 2 or 0) ^ 9 +
-        (DataToColor:SoftTargetInteractEnabled() and 2 or 0) ^ 10
+        (DataToColor:SoftTargetInteractEnabled() and 2 or 0) ^ 10 +
+        (MailFrame:IsShown() and 2 or 0) ^ 11
 end
 
 function DataToColor:CustomTrigger(t)

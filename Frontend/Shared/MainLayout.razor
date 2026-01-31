@@ -2,9 +2,12 @@
 
 @inject ILogger logger
 @inject IBotController botController
+@inject IMailSettingsService mailSettings
 @inject AddonConfigurator addonConfigurator
 @inject WowProcess process
 @inject StartupClientVersion client
+@inject IJSRuntime JSRuntime
+@inject IconDB iconDB
 
 @implements IDisposable
 
@@ -30,6 +33,7 @@
 @code {
     private Sidebar2 sidebar = null!;
     private List<NavItem> navItems = [];
+    private bool firstRenderComplete;
 
     private bool AddonConfigExists => AddonConfig.Exists() && addonConfigurator.Installed();
     private bool HideClassConfig => botController.IsBotActive || botController.ClassConfig == null;
@@ -39,14 +43,41 @@
     protected override void OnInitialized()
     {
         addonConfigurator.OnChange += OnChanged;
-        botController.ProfileLoaded += OnChanged;
+        botController.ProfileLoaded += OnProfileLoaded;
         botController.StatusChanged += OnChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            firstRenderComplete = true;
+            await LoadMailRecipientFromStorage();
+            await LoadCdnRegion();
+        }
+    }
+
+    private async Task LoadCdnRegion()
+    {
+        try
+        {
+            int storedRegion = await JSRuntime.InvokeAsync<int>("LocalStorageHelper.getCdnRegion");
+            if (storedRegion == 0) // Auto
+            {
+                storedRegion = await JSRuntime.InvokeAsync<int>("LocalStorageHelper.detectCdnRegion");
+            }
+            iconDB.Region = (CdnRegion)storedRegion;
+        }
+        catch
+        {
+            // JS interop might fail during prerender
+        }
     }
 
     public void Dispose()
     {
         addonConfigurator.OnChange -= OnChanged;
-        botController.ProfileLoaded -= OnChanged;
+        botController.ProfileLoaded -= OnProfileLoaded;
         botController.StatusChanged -= OnChanged;
     }
 
@@ -56,6 +87,42 @@
         {
             await sidebar.RefreshDataAsync();
         });
+    }
+
+    private async void OnProfileLoaded()
+    {
+        if (firstRenderComplete)
+        {
+            await LoadMailRecipientFromStorage();
+        }
+        OnChanged();
+    }
+
+    private async Task LoadMailRecipientFromStorage()
+    {
+        try
+        {
+            string? stored = await JSRuntime.InvokeAsync<string?>(
+                "LocalStorageHelper.getItem", LocalStorageKeys.MailRecipient);
+
+            if (!string.IsNullOrWhiteSpace(stored))
+            {
+                mailSettings.SetRecipient(stored);
+            }
+
+            // Also load mail exclusions
+            int[]? excludedItems = await JSRuntime.InvokeAsync<int[]?>(
+                "LocalStorageHelper.getExcludedItems");
+
+            if (excludedItems != null && excludedItems.Length > 0)
+            {
+                mailSettings.SetExclusions(excludedItems);
+            }
+        }
+        catch
+        {
+            // JS interop might fail during prerender
+        }
     }
 
     private async Task<Sidebar2DataProviderResult> Sidebar2DataProvider(Sidebar2DataProviderRequest request)
@@ -84,7 +151,9 @@
             new() { Id = "15", Href = "/SpellBook", Text = "Spell Book"},
             new() { Id = "12", Href = "/Chat", Text = "Chat"},
             new() { Id = "13", Href = "/Log", Text = "Log"},
-            new() { Id = "14", Href = "/RestartServer", Text = "Restart"},
+            new() { Id = "14", Href = "/Settings", Text = "Settings"},
+            new() { Id = "20", Href = "/RestartServer", Text = "Restart"},
+            
         };
 
         if (client.Version is ClientVersion.SoM or ClientVersion.TBC)
@@ -102,6 +171,11 @@
         if (this.botController.ClassConfig?.Mode == Core.Mode.AttendedGather)
         {
             navItems.Insert(8, new() { Id = "8", Href = "/Gather", Text = "Gather" });
+        }
+
+        if (this.botController.ClassConfig?.Mail == true)
+        {
+            navItems.Insert(4, new() { Id = "5", Href = "/Mail", Text = "Mail" });
         }
 
         return navItems;

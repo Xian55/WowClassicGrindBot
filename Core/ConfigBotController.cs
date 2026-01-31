@@ -112,4 +112,9 @@ public sealed class ConfigBotController : IBotController, IDisposable
     {
         throw new NotImplementedException();
     }
+
+    public void SaveClassConfig()
+    {
+        // No-op for config-only controller
+    }
 }

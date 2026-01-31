@@ -36,4 +36,6 @@ public interface IBotController
     void LoadPathProfile(Dictionary<int, string> pathFilenames);
 
     void OverrideClassConfig(ClassConfiguration classConfig);
+
+    void SaveClassConfig();
 }

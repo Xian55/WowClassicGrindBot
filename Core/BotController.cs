@@ -557,6 +557,50 @@ public sealed partial class BotController : IBotController, IDisposable
         CreateSession(this.ClassConfig);
     }
 
+    public void SaveClassConfig()
+    {
+        if (ClassConfig?.MailConfig == null || string.IsNullOrEmpty(ClassConfig.FileName))
+            return;
+
+        var serializer = new Newtonsoft.Json.JsonSerializer
+        {
+            DefaultValueHandling = Newtonsoft.Json.DefaultValueHandling.Ignore
+        };
+
+        // External file mode: save to Json/mail/{MailFilename}
+        if (!string.IsNullOrEmpty(ClassConfig.MailFilename))
+        {
+            string mailPath = Path.Join(dataConfig.Mail, ClassConfig.MailFilename);
+            var mailJson = Newtonsoft.Json.Linq.JToken.FromObject(ClassConfig.MailConfig, serializer);
+            File.WriteAllText(mailPath, mailJson.ToString(Newtonsoft.Json.Formatting.Indented));
+            logger.LogInformation("Saved Mail settings to {FilePath}", mailPath);
+
+            // Update class config to reference external file and preserve Mail bool
+            // Keep inline MailConfig as backup/reference - only update the external file reference
+            string classFilePath = Path.Join(dataConfig.Class, ClassConfig.FileName);
+            string existingJson = File.ReadAllText(classFilePath);
+            var jsonObj = Newtonsoft.Json.Linq.JObject.Parse(existingJson);
+            jsonObj[nameof(ClassConfiguration.Mail)] = ClassConfig.Mail;
+            jsonObj[nameof(ClassConfiguration.MailFilename)] = ClassConfig.MailFilename;
+            File.WriteAllText(classFilePath, jsonObj.ToString(Newtonsoft.Json.Formatting.Indented));
+        }
+        else
+        {
+            // Inline mode: save to class config
+            string filePath = Path.Join(dataConfig.Class, ClassConfig.FileName);
+            string existingJson = File.ReadAllText(filePath);
+            var jsonObj = Newtonsoft.Json.Linq.JObject.Parse(existingJson);
+
+            // Remove MailFilename if present, add inline MailConfig and Mail bool
+            jsonObj.Remove(nameof(ClassConfiguration.MailFilename));
+            jsonObj[nameof(ClassConfiguration.Mail)] = ClassConfig.Mail;
+            jsonObj["MailConfig"] = Newtonsoft.Json.Linq.JToken.FromObject(ClassConfig.MailConfig, serializer);
+
+            File.WriteAllText(filePath, jsonObj.ToString(Newtonsoft.Json.Formatting.Indented));
+            logger.LogInformation("Saved Mail settings to {FilePath}", filePath);
+        }
+    }
+
     #region logging
 
     [LoggerMessage(
