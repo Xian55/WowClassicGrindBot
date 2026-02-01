@@ -2,7 +2,9 @@
   "ClassName": "Warlock",
   "Loot": true,
   "UseMount": false,
-  "Mount": { "Key": "N1"},
+  "Mount": {
+    "Key": "N1"
+  },
   "NPCMaxLevels_Below": 7,
   "NPCMaxLevels_Above": 3,
   "Blacklist": [
@@ -32,7 +34,7 @@
     "Shadowsworn Cultist",
     "Servant of Allistarj"
   ],
-  "PathFilename": "\\_pack\\40-50\\Blasted Lands\\49-52.json",
+  "PathFilename": "\\_pack\\40-50\\Tanaris\\47-52 Tanaris.json",
   "PathThereAndBack": false,
   "PathReduceSteps": false,
   "AutoPetAttack": true,
@@ -43,7 +45,7 @@
     "MIN_SOUL_SHARDS": 3,
     "DOT_MIN_HEALTH%": 40,
     "LIFE_TAP_HP%": 75,
-    "LIFE_TAP_MANA%":75,
+    "LIFE_TAP_MANA%": 75,
     "WAND_MANA%": 30,
     "DRAIN_SOUL_HP%": 15,
     "DRAIN_LIFE_HP%": 65,
@@ -265,8 +267,8 @@
         "Name": "Repair",
         "Key": "C",
         "Requirement": "Durability% < 35",
-        "UseMount": true, 
-        "PathFilename": "Blasted Lands_Vendor_Repair.json"
+        "UseMount": true,
+        "PathFilename": "\\Vendor-Repair\\Tanaris_Repair.json"
       },
       {
         "Name": "Sell",
@@ -276,9 +278,19 @@
           "BagGreyItem"
         ],
         "UseMount": true,
-        "PathFilename": "Blasted Lands_Vendor_Repair.json",
-        "Cost": 6
+        "PathFilename": "\\Vendor-Repair\\Tanaris_Repair.json"
       }
+    ]
+  },
+  "Mail": false,
+  "MailConfig": {
+    "RecipientName": "Nidaelarius",
+    "MinimumGoldToKeep": 10000,
+    "MinimumItemQuality": 2,
+    "SendItems": true,
+    "ExcludedItemIds": [
+      4599,
+      1645
     ]
   }
 }

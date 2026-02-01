@@ -73,7 +73,7 @@ public sealed class DiscordNotificationService : IDisposable
         config = DiscordConfig.Load(dataConfig.Root);
         httpClient = new HttpClient();
 
-        if (config.Enabled && !string.IsNullOrEmpty(config.WebhookUrl))
+        if (config.Enabled && config.HasWebhook)
         {
             // Subscribe to chat messages for forwarding to Discord
             chatReader.Messages.CollectionChanged += OnChatMessageReceived;
@@ -86,11 +86,41 @@ public sealed class DiscordNotificationService : IDisposable
                 CheckStuckStatus, null,
                 STUCK_CHECK_INTERVAL_MS, STUCK_CHECK_INTERVAL_MS);
 
+            // Send a startup notification with screenshot
+            if (config.NotifyOnStartup)
+            {
+                _ = SendStartupNotificationAsync();
+            }
+
             logger.LogInformation("Discord notifications enabled");
         }
         else
         {
             logger.LogInformation("Discord notifications disabled (check discord_config.json)");
+        }
+    }
+
+    /// <summary>
+    /// Sends a startup notification with screenshot to confirm the bot is online.
+    /// </summary>
+    private async Task SendStartupNotificationAsync()
+    {
+        try
+        {
+            // Brief delay to let the application fully initialize before capturing
+            await Task.Delay(3000, cts.Token);
+
+            using MultipartFormDataContent content = new();
+            AddPayload(content,
+                "\ud83d\ude80 **Bot Started!**\nDiscord notifications are active.");
+            AttachScreenshot(content, "startup");
+
+            await PostWebhookAsync(content, "startup notification");
+        }
+        catch (OperationCanceledException) { /* Shutdown requested */ }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send Discord startup notification");
         }
     }
 

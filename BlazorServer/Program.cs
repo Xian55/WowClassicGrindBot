@@ -1,4 +1,5 @@
 using Core;
+using Core.Discord;
 
 using Frontend;
 
@@ -189,6 +190,11 @@ public static class Program
         {
             endpoints.MapControllers();
         });
+
+        // Eagerly resolve Discord services so they start on boot
+        // (subscribe to events, connect bot, begin auto-reload thread)
+        app.Services.GetService<DiscordNotificationService>();
+        app.Services.GetService<DiscordBotService>();
 
         return app;
     }

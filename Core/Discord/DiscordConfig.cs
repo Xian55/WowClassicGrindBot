@@ -39,6 +39,11 @@ public sealed class DiscordConfig
 
     // ── Notification Triggers ────────────────────────────────────────
 
+    /// <summary>
+    /// Send a notification with screenshot when the bot starts up.
+    /// </summary>
+    public bool NotifyOnStartup { get; set; } = true;
+
     public bool NotifyOnWhisper { get; set; } = true;
     public bool NotifyOnSay { get; set; } = true;
     public bool NotifyOnYell { get; set; } = true;

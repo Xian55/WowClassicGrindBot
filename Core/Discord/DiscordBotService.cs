@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +44,8 @@ public sealed class DiscordBotService : IDisposable
     private readonly ILogger<DiscordBotService> logger;
     private readonly IBotController botController;
     private readonly PlayerReader playerReader;
+    private readonly BagReader bagReader;
+    private readonly LevelTracker levelTracker;
     private readonly SessionStat sessionStat;
     private readonly WowProcessInput wowInput;
     private readonly DiscordNotificationService notificationService;
@@ -52,21 +55,12 @@ public sealed class DiscordBotService : IDisposable
     private DiscordSocketClient? client;
     private bool disposed;
 
-    // ── Auto-Reload ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// Interval between automatic /reload commands (prevents addon memory buildup).
-    /// </summary>
-    private const int AUTO_RELOAD_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-
-    private readonly Thread autoReloadThread;
-    private DateTime lastReloadTime = DateTime.MinValue;
-    private bool reloadInProgress;
-
     public DiscordBotService(
         ILogger<DiscordBotService> logger,
         IBotController botController,
         PlayerReader playerReader,
+        BagReader bagReader,
+        LevelTracker levelTracker,
         SessionStat sessionStat,
         WowProcessInput wowInput,
         DiscordNotificationService notificationService,
@@ -76,6 +70,8 @@ public sealed class DiscordBotService : IDisposable
         this.logger = logger;
         this.botController = botController;
         this.playerReader = playerReader;
+        this.bagReader = bagReader;
+        this.levelTracker = levelTracker;
         this.sessionStat = sessionStat;
         this.wowInput = wowInput;
         this.notificationService = notificationService;
@@ -93,10 +89,6 @@ public sealed class DiscordBotService : IDisposable
             logger.LogInformation("Discord bot commands disabled (check discord_config.json)");
         }
 
-        // Start timed auto-reload regardless of bot settings
-        autoReloadThread = new Thread(AutoReloadThread);
-        autoReloadThread.Priority = ThreadPriority.BelowNormal;
-        autoReloadThread.Start();
     }
 
     /// <summary>
@@ -183,28 +175,32 @@ public sealed class DiscordBotService : IDisposable
                     await HandleSayCommand(message.Channel, args);
                     break;
                 case "!whisper":
+                case "!w":
                     await HandleWhisperCommand(message.Channel, args);
                     break;
                 case "!reply":
+                case "!r":
                     await HandleReplyCommand(message.Channel, args);
                     break;
                 case "!guild":
+                case "!g":
                     await HandleGuildCommand(message.Channel, args);
                     break;
                 case "!reload":
                     await HandleReloadCommand(message.Channel);
                     break;
                 case "!logout":
+                case "!camp":
                     await HandleLogoutCommand(message.Channel);
                     break;
                 case "!hearth":
                     await HandleHearthCommand(message.Channel);
                     break;
+                case "!help":
+                    await HandleHelpCommand(message.Channel);
+                    break;
                 default:
-                    await message.Channel.SendMessageAsync(
-                        "Unknown command. Available: !status, !stop, !start, " +
-                        "!screenshot, !say, !whisper, !reply, !guild, !reload, " +
-                        "!logout, !hearth");
+                    await HandleHelpCommand(message.Channel);
                     break;
             }
         }
@@ -222,17 +218,37 @@ public sealed class DiscordBotService : IDisposable
         string status = botController.IsBotActive ? "Running" : "Stopped";
         string className = botController.ClassConfig?.FileName ?? "None";
 
-        string msg =
-            $"**Bot Status:** {status}\n" +
-            $"**Profile:** {className}\n" +
-            $"**Level:** {playerReader.Level.Value}\n" +
-            $"**HP:** {playerReader.HealthPercent()}%\n" +
-            $"**Mana:** {playerReader.ManaPercent()}%\n" +
-            $"**Session:** {sessionStat.Minutes} min\n" +
-            $"**Kills:** {sessionStat.Kills}\n" +
-            $"**Deaths:** {sessionStat.Deaths}";
+        // Sum free slots across all general-purpose bags
+        int freeSlots = bagReader.Bags
+            .Where(b => b.BagType == BagType.Unspecified)
+            .Sum(b => b.FreeSlot);
+        int totalSlots = bagReader.Bags
+            .Where(b => b.BagType == BagType.Unspecified)
+            .Sum(b => b.SlotCount);
 
-        await channel.SendMessageAsync(msg);
+        // Format time to level
+        TimeSpan ttl = levelTracker.TimeToLevel;
+        string timeToLevel = ttl > TimeSpan.Zero
+            ? $"{(int)ttl.TotalHours}h {ttl.Minutes}m"
+            : "N/A";
+
+        EmbedBuilder embed = new EmbedBuilder()
+            .WithTitle("Bot Status")
+            .WithColor(botController.IsBotActive
+                ? new global::Discord.Color(0x2E, 0xCC, 0x71)   // green when running
+                : new global::Discord.Color(0xE7, 0x4C, 0x3C))  // red when stopped
+            .AddField("Status", status, true)
+            .AddField("Profile", className, true)
+            .AddField("Level", playerReader.Level.Value.ToString(), true)
+            .AddField("XP Progress", $"{playerReader.PlayerXpPercent}%", true)
+            .AddField("Time to Level", timeToLevel, true)
+            .AddField("Bag Space", $"{freeSlots}/{totalSlots} free", true)
+            .AddField("HP / Mana", $"{playerReader.HealthPercent()}% / {playerReader.ManaPercent()}%", true)
+            .AddField("Kills / Deaths", $"{sessionStat.Kills} / {sessionStat.Deaths}", true)
+            .AddField("Session", $"{sessionStat.Minutes} min", true)
+            .WithTimestamp(DateTimeOffset.Now);
+
+        await channel.SendMessageAsync(embed: embed.Build());
     }
 
     private async Task HandleStopCommand(ISocketMessageChannel channel)
@@ -243,7 +259,7 @@ public sealed class DiscordBotService : IDisposable
             return;
         }
 
-        botController.Shutdown();
+        botController.ToggleBotStatus();
         await channel.SendMessageAsync("Bot stopped.");
     }
 
@@ -335,7 +351,7 @@ public sealed class DiscordBotService : IDisposable
 
     private async Task HandleReloadCommand(ISocketMessageChannel channel)
     {
-        ExecuteAutoReload();
+        SendGameChat("/reload");
         await channel.SendMessageAsync("Reload triggered.");
     }
 
@@ -343,7 +359,8 @@ public sealed class DiscordBotService : IDisposable
     {
         if (botController.IsBotActive)
         {
-            botController.Shutdown();
+            botController.ToggleBotStatus();
+            Thread.Sleep(500);
         }
 
         SendGameChat("/camp");
@@ -354,11 +371,34 @@ public sealed class DiscordBotService : IDisposable
     {
         if (botController.IsBotActive)
         {
-            botController.Shutdown();
+            botController.ToggleBotStatus();
+            Thread.Sleep(500);
         }
 
         SendGameChat("/use Hearthstone");
         await channel.SendMessageAsync("Using Hearthstone...");
+    }
+
+    private static async Task HandleHelpCommand(ISocketMessageChannel channel)
+    {
+        EmbedBuilder embed = new EmbedBuilder()
+            .WithTitle("WoW Bot Commands")
+            .WithColor(new global::Discord.Color(0x58, 0x65, 0xF2)) // Discord blurple
+            .WithDescription(
+                "**!start**\nStart the bot\n\n" +
+                "**!stop**\nStop the bot\n\n" +
+                "**!status**\nGet current bot status (incl. bag space)\n\n" +
+                "**!screenshot / !ss**\nTake and send a screenshot\n\n" +
+                "**!say <message>**\nSend a /say message in-game\n\n" +
+                "**!w <name> <message>**\nWhisper a player\n\n" +
+                "**!r <message>**\nReply to last whisper\n\n" +
+                "**!g <message>**\nSend guild chat message\n\n" +
+                "**!reload**\nReload WoW UI\n\n" +
+                "**!hearth**\nUse Hearthstone\n\n" +
+                "**!logout / !camp**\nStop bot and logout (/camp)\n\n" +
+                "**!help**\nShow this help message");
+
+        await channel.SendMessageAsync(embed: embed.Build());
     }
 
     // ── Chat Helpers ─────────────────────────────────────────────────
@@ -366,9 +406,18 @@ public sealed class DiscordBotService : IDisposable
     /// <summary>
     /// Sends a chat command to WoW by typing it into the chat box
     /// using clipboard paste for reliability with special characters.
+    /// Temporarily stops the bot while typing to prevent input interference.
     /// </summary>
     private void SendGameChat(string command)
     {
+        // Stop the bot to prevent it from sending inputs while we type
+        bool wasRunning = botController.IsBotActive;
+        if (wasRunning)
+        {
+            botController.ToggleBotStatus();
+            Thread.Sleep(1000);
+        }
+
         wowInput.SetForegroundWindow();
         Thread.Sleep(50);
 
@@ -386,90 +435,12 @@ public sealed class DiscordBotService : IDisposable
 
         // Send the message
         wowInput.PressRandom(ConsoleKey.Enter, 50);
-    }
+        Thread.Sleep(200);
 
-    // ── Auto-Reload Thread ───────────────────────────────────────────
-
-    /// <summary>
-    /// Background thread that periodically triggers /reload to prevent
-    /// WoW addon memory buildup from Lua string interning.
-    /// </summary>
-    private void AutoReloadThread()
-    {
-        logger.LogInformation(
-            "Auto-reload started (interval: {Interval} minutes)",
-            AUTO_RELOAD_INTERVAL_MS / 60000);
-
-        while (!cts.IsCancellationRequested)
+        // Resume the bot if it was running before
+        if (wasRunning)
         {
-            try
-            {
-                cts.Token.WaitHandle.WaitOne(AUTO_RELOAD_INTERVAL_MS);
-                if (cts.IsCancellationRequested) break;
-                if (reloadInProgress) continue;
-
-                logger.LogInformation("Triggering scheduled auto-reload...");
-                ExecuteAutoReload();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Error in auto-reload thread");
-            }
-        }
-
-        logger.LogInformation("Auto-reload stopped");
-    }
-
-    /// <summary>
-    /// Executes a /reload by stopping the bot, sending the command,
-    /// waiting for the reload to complete, then restarting the bot.
-    /// </summary>
-    private void ExecuteAutoReload()
-    {
-        if (reloadInProgress) return;
-        reloadInProgress = true;
-
-        try
-        {
-            bool wasRunning = botController.IsBotActive;
-
-            if (wasRunning)
-            {
-                botController.Shutdown();
-                Thread.Sleep(2000);
-            }
-
-            // Send /reload to WoW
-            wowInput.SetForegroundWindow();
-            Thread.Sleep(50);
-            wowInput.PressRandom(ConsoleKey.Enter, 50);
-            Thread.Sleep(100);
-            wowInput.SendText("/reload");
-            Thread.Sleep(100);
-            wowInput.PressRandom(ConsoleKey.Enter, 50);
-
-            // Wait for reload to complete
-            Thread.Sleep(10000);
-
-            lastReloadTime = DateTime.UtcNow;
-
-            if (wasRunning)
-            {
-                botController.ToggleBotStatus();
-                logger.LogInformation("Auto-reload complete, bot restarted");
-            }
-            else
-            {
-                logger.LogInformation("Auto-reload complete");
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error during auto-reload");
-        }
-        finally
-        {
-            reloadInProgress = false;
+            botController.ToggleBotStatus();
         }
     }
 

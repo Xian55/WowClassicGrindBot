@@ -1,6 +1,6 @@
 {
-  "ClassName": "DeatkKnight",
-  //"Mode": "AttendedGrind", //Grind
+  "ClassName": "DeathKnight",
+  "Mode": "AttendedGrind",
   "Loot": true,
   "KeyboardOnly": true,
   "PathFilename": "_pack\\70-80\\Borean Tundra\\67-72_Borean Tundra_South Warsong Hold_Rhinos.json",
@@ -156,7 +156,7 @@
         "WhenUsable": true
       },
       {
-        "Name": "dnd", // macro /cast [@player] Death and Decay
+        "Name": "dnd",
         "Key": "F9",
         "WhenUsable": true,
         "Requirements": [
@@ -277,8 +277,7 @@
         "WhenUsable": true,
         "Requirements": [
           "!Has Pet",
-          "!Mounted"//,
-          //"BagItem:ITEM_CORPSE_DUST"
+          "!Mounted"
         ]
       },
       {

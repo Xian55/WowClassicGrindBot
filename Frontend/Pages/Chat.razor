@@ -1,6 +1,7 @@
 @page "/Chat"
 
 @using System.Collections.Specialized
+@using System.Threading
 @using Core.Discord
 
 @implements IDisposable
@@ -122,10 +123,32 @@
 
     // ── Send Handlers ────────────────────────────────────────────────
 
+    /// <summary>
+    /// Stops the bot, executes the chat command, then resumes.
+    /// Prevents the bot's own inputs from jumbling the typed message.
+    /// </summary>
+    private void SendChatCommand(string command)
+    {
+        bool wasRunning = botController.IsBotActive;
+        if (wasRunning)
+        {
+            botController.ToggleBotStatus();
+            Thread.Sleep(1000);
+        }
+
+        exec.Run(command);
+
+        if (wasRunning)
+        {
+            Thread.Sleep(200);
+            botController.ToggleBotStatus();
+        }
+    }
+
     private void SendSay()
     {
         if (string.IsNullOrWhiteSpace(sayMessage)) return;
-        exec.Run($"/say {sayMessage}");
+        SendChatCommand($"/say {sayMessage}");
         sayMessage = string.Empty;
     }
 
@@ -133,7 +156,7 @@
     {
         if (string.IsNullOrWhiteSpace(whisperTarget) ||
             string.IsNullOrWhiteSpace(whisperMessage)) return;
-        exec.Run($"/whisper {whisperTarget} {whisperMessage}");
+        SendChatCommand($"/whisper {whisperTarget} {whisperMessage}");
         whisperMessage = string.Empty;
     }
 
@@ -144,14 +167,14 @@
         string? lastWhisperer = discordNotification.LastWhisperFrom;
         if (string.IsNullOrEmpty(lastWhisperer)) return;
 
-        exec.Run($"/whisper {lastWhisperer} {replyMessage}");
+        SendChatCommand($"/whisper {lastWhisperer} {replyMessage}");
         replyMessage = string.Empty;
     }
 
     private void SendGuild()
     {
         if (string.IsNullOrWhiteSpace(guildMessage)) return;
-        exec.Run($"/guild {guildMessage}");
+        SendChatCommand($"/guild {guildMessage}");
         guildMessage = string.Empty;
     }
 
@@ -160,22 +183,24 @@
     private void StopBot()
     {
         if (botController.IsBotActive)
-            botController.Shutdown();
+            botController.ToggleBotStatus();
     }
 
     private void UseHearthstone()
     {
         if (botController.IsBotActive)
-            botController.Shutdown();
+            botController.ToggleBotStatus();
 
+        Thread.Sleep(500);
         exec.Run("/use Hearthstone");
     }
 
     private void Logout()
     {
         if (botController.IsBotActive)
-            botController.Shutdown();
+            botController.ToggleBotStatus();
 
+        Thread.Sleep(500);
         exec.Run("/camp");
     }
 }
