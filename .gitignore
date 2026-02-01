@@ -294,6 +294,8 @@ Json/leaflet/**/*.png
 **/addon_config.json
 **/data_config.json
 **/discord_config.json
+Json/mail/Nidaelarius_mail.json
+Json/class/**/iJump*
 
 BlazorServer/frame_config.json
 BlazorServer/addon_config.json
