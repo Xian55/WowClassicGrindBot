@@ -1720,6 +1720,55 @@ examples of full automatic npc detection or multiple whitelisted names:
 }
 ```
 
+#### Safe Path Transitions
+
+**Problem:** When bags are full or repairs are needed, the bot immediately abandons the grind path and uses pathfinding to navigate directly to the vendor path start. This direct route may pass through dangerous mob-dense areas, which is especially risky for Hardcore players.
+
+**Solution:** Use the `PathEnd_0` requirement to ensure vendor visits only trigger when you've completed your grind path loop. This way, the bot follows your safe, pre-recorded grind path to its end before transitioning to the vendor path.
+
+**How it works:**
+1. Design your grind path so it **ends** near a safe location (close to your vendor path start)
+2. Design your vendor path to **start** from that same safe location
+3. Add `PathEnd_0` to your vendor requirements
+4. The bot will complete the full grind loop before vendoring, avoiding dangerous shortcuts
+
+**Example configuration:**
+```json
+"NPC": {
+    "Sequence": [
+        {
+            "Name": "Sell Adlin Pridedrift | Rybrad Coldbank",
+            "Key": "C",
+            "PathFilename": "1_Gnome_Vendor.json",
+            "Requirements": [
+                "BagFull",
+                "BagGreyItem",
+                "PathEnd_0"
+            ],
+            "Cost": 6
+        },
+        {
+            "Name": "Repair",
+            "Key": "C",
+            "PathFilename": "1_Gnome_Vendor.json",
+            "Requirements": [
+                "Items Broken",
+                "PathEnd_0"
+            ],
+            "Cost": 6
+        }
+    ]
+}
+```
+
+**Notes:**
+- `PathEnd_0` refers to the first path (index 0) in your `PathFilename` configuration
+- If you have [Multiple Paths with Requirements](#multiple-paths-with-requirements), use `PathEnd_1`, `PathEnd_2`, etc. for other paths
+- Use `PathEnd_Any` if you want to trigger when any of your paths reaches its end
+- See [PathEnd requirement](#requirement) for more details
+
+---
+
 #### NPC KeyAction.MacroText
 
 When going to visit and NPC, not it is possible to specify a templated macro text, where the template variables are shows up as `$` prefixed variables.
