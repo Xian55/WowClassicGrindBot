@@ -31,6 +31,13 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         Finished,
     }
 
+    private enum MerchantResult
+    {
+        Success,
+        Failed,
+        TryNextNPC,
+    }
+
     private const bool debug = false;
 
     private const int MAX_TIME_TO_REACH_MELEE = 10000;
@@ -359,7 +366,15 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         input.PressInteract();
         wait.Update();
 
-        if (!OpenMerchantWindow())
+        MerchantResult merchantResult = OpenMerchantWindow();
+        if (merchantResult == MerchantResult.TryNextNPC && tryFindClosestNPC)
+        {
+            input.PressClearTarget();
+            Resume();
+            return;
+        }
+
+        if (merchantResult != MerchantResult.Success)
             return;
 
         // Signal that vendor/repair completed successfully
@@ -433,7 +448,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         }
     }
 
-    private bool OpenMerchantWindow()
+    private MerchantResult OpenMerchantWindow()
     {
         float e = wait.Until(TIMEOUT, gossipReader.GossipStartOrMerchantWindowOpened);
         if (gossipReader.MerchantWindowOpened())
@@ -446,7 +461,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             if (e < 0)
             {
                 LogWarn($"Gossip - {nameof(gossipReader.GossipEnd)} not fired after {e}ms");
-                return false;
+                return MerchantResult.Failed;
             }
             else
             {
@@ -458,7 +473,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
                 else
                 {
                     LogWarn($"Target({playerReader.TargetId}) has no {Gossip.Vendor.ToStringF()} option!");
-                    return false;
+                    return MerchantResult.TryNextNPC;
                 }
             }
         }
@@ -498,7 +513,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             wait.Update();
         }
 
-        return true;
+        return MerchantResult.Success;
     }
 
     private bool TryAutoSelectNPCAndSetPath()
