@@ -109,6 +109,28 @@ public sealed partial class ClassConfiguration
     [JsonIgnore]
     public MailConfiguration? RuntimeMailConfig { get; set; }
 
+    // ── Auto-Logout Protection ───────────────────────────────────────
+
+    /// <summary>
+    /// Whether to automatically stop the bot and logout after too many deaths.
+    /// </summary>
+    public bool AutoLogoutOnDeaths { get; set; }
+
+    /// <summary>
+    /// Number of deaths that triggers an auto-logout (0 = disabled).
+    /// </summary>
+    public int MaxDeathsBeforeLogout { get; set; } = 2;
+
+    /// <summary>
+    /// Whether to automatically stop the bot and logout when stuck too long.
+    /// </summary>
+    public bool AutoLogoutOnStuck { get; set; }
+
+    /// <summary>
+    /// Seconds the bot must be stuck before triggering an auto-logout (0 = disabled).
+    /// </summary>
+    public int MaxStuckSecondsBeforeLogout { get; set; } = 30;
+
     public KeyAction[] GatherFindKeyConfig { get; set; } = Array.Empty<KeyAction>();
     public string[] GatherFindKeys { get; init; } = Array.Empty<string>();
 

@@ -8,6 +8,8 @@ using System;
 using System.Collections;
 using System.Threading;
 
+using TextCopy;
+
 using WinAPI;
 
 namespace Game;
@@ -208,6 +210,30 @@ public sealed partial class WowProcessInput : IMouseInput
     public void PressFlushKey()
     {
         PressRandomWithModifier(ConsoleKey.PageDown, ModifierKey.Shift, 50);
+    }
+
+    /// <summary>
+    /// Sets the system clipboard text. Used by DiscordBotService to paste
+    /// chat commands that may contain special characters.
+    /// </summary>
+    #pragma warning disable CA1822 // ClipboardService.SetText is static
+    public void SetClipboard(string text)
+    {
+        ClipboardService.SetText(text);
+    }
+    #pragma warning restore CA1822
+
+    /// <summary>
+    /// Pastes from clipboard into the active window using Ctrl+V.
+    /// Requires the WoW window to be in the foreground.
+    /// </summary>
+    public void PasteFromClipboard()
+    {
+        NativeMethods.SetForegroundWindow(process.MainWindowHandle);
+        Thread.Sleep(50);
+        nativeInput.KeyDown(VK_CONTROL);
+        nativeInput.PressRandom((int)ConsoleKey.V, 50);
+        nativeInput.KeyUp(VK_CONTROL);
     }
 
     private bool IsMovementKey(ConsoleKey key) =>

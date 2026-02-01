@@ -1,2 +1,181 @@
-﻿@page "/Chat"
-<ChatComponent MaxHeight="0" />
+@page "/Chat"
+
+@using System.Collections.Specialized
+@using Core.Discord
+
+@implements IDisposable
+
+@inject ChatReader reader
+@inject ExecGameCommand exec
+@inject IBotController botController
+@inject DiscordNotificationService discordNotification
+
+<div class="container-fluid mt-3">
+    <div class="row">
+        @* ── Left Column: Chat Message Log ──────────────────────────── *@
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header">Chat Messages</div>
+                <div class="card-body" style="max-height: 600px; overflow-y: auto;">
+                    @foreach (ChatMessageEntry cme in reader.Messages.Reverse())
+                    {
+                        <p style="color:@(GetTypeColor(cme.Type))" class="mb-0">
+                            <span>@cme.Time.ToString("HH:mm:ss")</span>
+                            <span>@cme.Author:</span>
+                            <span>@cme.Message</span>
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        @* ── Right Column: Send Messages & Quick Actions ────────────── *@
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header">Send Chat Messages</div>
+                <div class="card-body">
+
+                    @* Say (General Chat) *@
+                    <h6>Say (General Chat)</h6>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" @bind="sayMessage"
+                               placeholder="Message to send in /say" />
+                        <button class="btn btn-primary" @onclick="SendSay">Send</button>
+                    </div>
+
+                    @* Whisper *@
+                    <h6>Whisper</h6>
+                    <div class="input-group mb-1">
+                        <input type="text" class="form-control" @bind="whisperTarget"
+                               placeholder="Player name" />
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" @bind="whisperMessage"
+                               placeholder="Message to whisper" />
+                        <button class="btn btn-info" @onclick="SendWhisper">Whisper</button>
+                    </div>
+
+                    @* Reply to Last Whisper *@
+                    <h6>Reply to Last Whisper</h6>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" @bind="replyMessage"
+                               placeholder="Reply message" />
+                        <button class="btn btn-secondary" @onclick="SendReply">Reply</button>
+                    </div>
+
+                    @* Guild Chat *@
+                    <h6>Guild Chat</h6>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" @bind="guildMessage"
+                               placeholder="Guild message" />
+                        <button class="btn btn-success" @onclick="SendGuild">Send to Guild</button>
+                    </div>
+
+                    @* Quick Actions *@
+                    <h6>Quick Actions</h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-warning" @onclick="StopBot">Stop Bot</button>
+                        <button class="btn btn-info" @onclick="UseHearthstone">Use Hearthstone</button>
+                        <button class="btn btn-danger" @onclick="Logout">Logout (/camp)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string sayMessage = string.Empty;
+    private string whisperTarget = string.Empty;
+    private string whisperMessage = string.Empty;
+    private string replyMessage = string.Empty;
+    private string guildMessage = string.Empty;
+
+    /// <summary>
+    /// Color map for each chat message type (matches WoW defaults).
+    /// </summary>
+    private static string GetTypeColor(ChatMessageType type) => type switch
+    {
+        ChatMessageType.Whisper => "#FF80FF",
+        ChatMessageType.Say => "",
+        ChatMessageType.Yell => "red",
+        ChatMessageType.Emote => "orange",
+        ChatMessageType.Party => "cyan",
+        ChatMessageType.Guild => "#3CE63C",
+        _ => ""
+    };
+
+    protected override void OnInitialized()
+    {
+        reader.Messages.CollectionChanged += OnMessagesChanged;
+    }
+
+    public void Dispose()
+    {
+        reader.Messages.CollectionChanged -= OnMessagesChanged;
+    }
+
+    private void OnMessagesChanged(object? s, NotifyCollectionChangedEventArgs e)
+    {
+        base.InvokeAsync(StateHasChanged);
+    }
+
+    // ── Send Handlers ────────────────────────────────────────────────
+
+    private void SendSay()
+    {
+        if (string.IsNullOrWhiteSpace(sayMessage)) return;
+        exec.Run($"/say {sayMessage}");
+        sayMessage = string.Empty;
+    }
+
+    private void SendWhisper()
+    {
+        if (string.IsNullOrWhiteSpace(whisperTarget) ||
+            string.IsNullOrWhiteSpace(whisperMessage)) return;
+        exec.Run($"/whisper {whisperTarget} {whisperMessage}");
+        whisperMessage = string.Empty;
+    }
+
+    private void SendReply()
+    {
+        if (string.IsNullOrWhiteSpace(replyMessage)) return;
+
+        string? lastWhisperer = discordNotification.LastWhisperFrom;
+        if (string.IsNullOrEmpty(lastWhisperer)) return;
+
+        exec.Run($"/whisper {lastWhisperer} {replyMessage}");
+        replyMessage = string.Empty;
+    }
+
+    private void SendGuild()
+    {
+        if (string.IsNullOrWhiteSpace(guildMessage)) return;
+        exec.Run($"/guild {guildMessage}");
+        guildMessage = string.Empty;
+    }
+
+    // ── Quick Actions ────────────────────────────────────────────────
+
+    private void StopBot()
+    {
+        if (botController.IsBotActive)
+            botController.Shutdown();
+    }
+
+    private void UseHearthstone()
+    {
+        if (botController.IsBotActive)
+            botController.Shutdown();
+
+        exec.Run("/use Hearthstone");
+    }
+
+    private void Logout()
+    {
+        if (botController.IsBotActive)
+            botController.Shutdown();
+
+        exec.Run("/camp");
+    }
+}

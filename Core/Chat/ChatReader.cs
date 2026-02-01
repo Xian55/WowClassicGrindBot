@@ -12,7 +12,8 @@ public enum ChatMessageType
     Say,
     Yell,
     Emote,
-    Party
+    Party,
+    Guild
 }
 
 public readonly record struct ChatMessageEntry(DateTime Time, ChatMessageType Type, string Author, string Message);

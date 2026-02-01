@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="TextCopy" />
     <PackageReference Include="Vortice.Direct3D11" />
   </ItemGroup>
 

@@ -361,7 +361,7 @@ public sealed partial class GoapAgent : IDisposable
 
     public void PlayerDied()
     {
-        SessionStat.Deaths++;
+        SessionStat.RecordDeath();
     }
 
     private void BroadcastGoapEvent(GoapKey goapKey, bool value)

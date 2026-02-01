@@ -1,5 +1,6 @@
 ﻿using Core.Addon;
 using Core.Database;
+using Core.Discord;
 using Core.Extensions;
 using Core.Goals;
 using Core.Session;
@@ -224,6 +225,10 @@ public static class DependencyInjection
 
         s.AddSingleton<IBotController, BotController>();
         s.AddSingleton<IMailSettingsService, MailSettingsService>();
+
+        // Discord integration - webhook notifications and interactive bot
+        s.AddSingleton<DiscordNotificationService>();
+        s.AddSingleton<DiscordBotService>();
 
         return s;
     }
