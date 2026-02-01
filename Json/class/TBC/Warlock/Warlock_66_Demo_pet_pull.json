@@ -1,7 +1,7 @@
 {
   "ClassName": "Warlock",
   "Loot": true,
-  //"Mode": "AttendedGrind", //Grind
+  "Mode": "AttendedGrind",
   "UseMount": true,
   "Mount": { "Key": "N0"},
   "PathReduceSteps": true,
@@ -11,7 +11,7 @@
   "PathFilename": "_pack\\60-70\\Terokkar Forest\\62-64.json",
   "IntVariables": {
     "Item_Soul_Shard": 6265,
-    "Item_Healthstone": 22103, //22105
+    "Item_Healthstone": 22103,
     "DOT_MIN_HEALTH%": 35,
     "DRAIN_MIN_HP%": 70,
     "TAP_MIN_MANA%": 65,
@@ -139,7 +139,6 @@
         "Name": "Incinerate",
         "Key": "F4",
         "HasCastBar": true,
-        //"Cooldown": 6000,
         "Requirements": [
           "!TargetsMe || Sacrifice",
           "Immolate",
@@ -164,7 +163,6 @@
         "Name": "Health Funnel",
         "Key": "F1",
         "HasCastBar": true,
-        //"WhenUsable": true,
         "Requirements": [
           "Has Pet",
           "Health% > MIN_FOOD_DRINK%",

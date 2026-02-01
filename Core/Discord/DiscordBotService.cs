@@ -1,8 +1,6 @@
 using Discord;
 using Discord.WebSocket;
 
-using Game;
-
 using Microsoft.Extensions.Logging;
 
 using System;
@@ -17,7 +15,6 @@ namespace Core.Discord;
 
 /// <summary>
 /// Interactive Discord bot that responds to text commands in a designated channel.
-/// Also runs a timed auto-reload thread to prevent WoW addon memory buildup.
 ///
 /// Supported commands:
 ///   !status    - Bot status, session stats, player info
@@ -47,7 +44,7 @@ public sealed class DiscordBotService : IDisposable
     private readonly BagReader bagReader;
     private readonly LevelTracker levelTracker;
     private readonly SessionStat sessionStat;
-    private readonly WowProcessInput wowInput;
+    private readonly ExecGameCommand exec;
     private readonly DiscordNotificationService notificationService;
     private readonly DiscordConfig config;
     private readonly CancellationTokenSource cts;
@@ -62,7 +59,7 @@ public sealed class DiscordBotService : IDisposable
         BagReader bagReader,
         LevelTracker levelTracker,
         SessionStat sessionStat,
-        WowProcessInput wowInput,
+        ExecGameCommand exec,
         DiscordNotificationService notificationService,
         DataConfig dataConfig,
         CancellationTokenSource cts)
@@ -73,7 +70,7 @@ public sealed class DiscordBotService : IDisposable
         this.bagReader = bagReader;
         this.levelTracker = levelTracker;
         this.sessionStat = sessionStat;
-        this.wowInput = wowInput;
+        this.exec = exec;
         this.notificationService = notificationService;
         this.cts = cts;
 
@@ -135,6 +132,7 @@ public sealed class DiscordBotService : IDisposable
     /// <summary>
     /// Routes incoming Discord messages to the appropriate command handler.
     /// Only processes messages in the configured command channel.
+    /// Uses Task.Delay instead of Thread.Sleep to avoid blocking the gateway.
     /// </summary>
     private async Task OnMessageReceived(SocketMessage message)
     {
@@ -146,17 +144,37 @@ public sealed class DiscordBotService : IDisposable
             return;
 
         string content = message.Content.Trim();
-        if (!content.StartsWith('!'))
-            return;
+        string contentLower = content.ToLowerInvariant();
 
-        // Split command and arguments: "!whisper PlayerName hello" -> ["!whisper", "PlayerName hello"]
-        string[] parts = content.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        string command = parts[0].ToLowerInvariant();
-        string args = parts.Length > 1 ? parts[1] : string.Empty;
+        if (!contentLower.StartsWith('!'))
+            return;
 
         try
         {
-            switch (command)
+            // Handle commands with arguments first (prefix matching)
+            if (contentLower.StartsWith("!say "))
+            {
+                await HandleSayCommand(message.Channel, content[5..]);
+                return;
+            }
+            if (contentLower.StartsWith("!w "))
+            {
+                await HandleWhisperCommand(message.Channel, content[3..]);
+                return;
+            }
+            if (contentLower.StartsWith("!r "))
+            {
+                await HandleReplyCommand(message.Channel, content[3..]);
+                return;
+            }
+            if (contentLower.StartsWith("!g "))
+            {
+                await HandleGuildCommand(message.Channel, content[3..]);
+                return;
+            }
+
+            // Exact-match commands
+            switch (contentLower)
             {
                 case "!status":
                     await HandleStatusCommand(message.Channel);
@@ -171,30 +189,15 @@ public sealed class DiscordBotService : IDisposable
                 case "!ss":
                     await HandleScreenshotCommand(message.Channel);
                     break;
-                case "!say":
-                    await HandleSayCommand(message.Channel, args);
-                    break;
-                case "!whisper":
-                case "!w":
-                    await HandleWhisperCommand(message.Channel, args);
-                    break;
-                case "!reply":
-                case "!r":
-                    await HandleReplyCommand(message.Channel, args);
-                    break;
-                case "!guild":
-                case "!g":
-                    await HandleGuildCommand(message.Channel, args);
-                    break;
                 case "!reload":
                     await HandleReloadCommand(message.Channel);
+                    break;
+                case "!hearth":
+                    await HandleHearthCommand(message.Channel);
                     break;
                 case "!logout":
                 case "!camp":
                     await HandleLogoutCommand(message.Channel);
-                    break;
-                case "!hearth":
-                    await HandleHearthCommand(message.Channel);
                     break;
                 case "!help":
                     await HandleHelpCommand(message.Channel);
@@ -206,7 +209,7 @@ public sealed class DiscordBotService : IDisposable
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error handling Discord command: {Command}", command);
+            logger.LogError(ex, "Error handling Discord command: {Command}", content);
             await message.Channel.SendMessageAsync($"Error: {ex.Message}");
         }
     }
@@ -297,24 +300,30 @@ public sealed class DiscordBotService : IDisposable
             return;
         }
 
-        SendGameChat($"/say {text}");
+        await SendGameChatAsync($"/say {text}");
         await channel.SendMessageAsync($"Sent /say: {text}");
     }
 
     private async Task HandleWhisperCommand(ISocketMessageChannel channel, string args)
     {
         // Expected format: "PlayerName message text"
-        string[] parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2)
+        int spaceIndex = args.IndexOf(' ');
+        if (spaceIndex == -1)
         {
-            await channel.SendMessageAsync("Usage: !whisper <player> <message>");
+            await channel.SendMessageAsync("Usage: !w <player> <message>");
             return;
         }
 
-        string playerName = parts[0];
-        string message = parts[1];
+        string playerName = args[..spaceIndex].Trim();
+        string message = args[(spaceIndex + 1)..].Trim();
 
-        SendGameChat($"/whisper {playerName} {message}");
+        if (string.IsNullOrWhiteSpace(playerName) || string.IsNullOrWhiteSpace(message))
+        {
+            await channel.SendMessageAsync("Usage: !w <player> <message>");
+            return;
+        }
+
+        await SendGameChatAsync($"/w {playerName} {message}");
         await channel.SendMessageAsync($"Whispered to {playerName}: {message}");
     }
 
@@ -329,11 +338,11 @@ public sealed class DiscordBotService : IDisposable
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            await channel.SendMessageAsync("Usage: !reply <message>");
+            await channel.SendMessageAsync("Usage: !r <message>");
             return;
         }
 
-        SendGameChat($"/whisper {lastWhisperer} {text}");
+        await SendGameChatAsync($"/w {lastWhisperer} {text}");
         await channel.SendMessageAsync($"Replied to {lastWhisperer}: {text}");
     }
 
@@ -341,41 +350,33 @@ public sealed class DiscordBotService : IDisposable
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            await channel.SendMessageAsync("Usage: !guild <message>");
+            await channel.SendMessageAsync("Usage: !g <message>");
             return;
         }
 
-        SendGameChat($"/guild {text}");
+        await SendGameChatAsync($"/g {text}");
         await channel.SendMessageAsync($"Sent to guild: {text}");
     }
 
     private async Task HandleReloadCommand(ISocketMessageChannel channel)
     {
-        SendGameChat("/reload");
+        await SendGameChatAsync("/reload");
         await channel.SendMessageAsync("Reload triggered.");
     }
 
     private async Task HandleLogoutCommand(ISocketMessageChannel channel)
     {
+        // Stop the bot first if running
         if (botController.IsBotActive)
-        {
             botController.ToggleBotStatus();
-            Thread.Sleep(500);
-        }
 
-        SendGameChat("/camp");
-        await channel.SendMessageAsync("Logout command sent (/camp).");
+        await SendGameChatAsync("/camp");
+        await channel.SendMessageAsync("Logging out... (bot stopped, /camp sent)");
     }
 
     private async Task HandleHearthCommand(ISocketMessageChannel channel)
     {
-        if (botController.IsBotActive)
-        {
-            botController.ToggleBotStatus();
-            Thread.Sleep(500);
-        }
-
-        SendGameChat("/use Hearthstone");
+        await SendGameChatAsync("/use Hearthstone");
         await channel.SendMessageAsync("Using Hearthstone...");
     }
 
@@ -404,44 +405,13 @@ public sealed class DiscordBotService : IDisposable
     // ── Chat Helpers ─────────────────────────────────────────────────
 
     /// <summary>
-    /// Sends a chat command to WoW by typing it into the chat box
-    /// using clipboard paste for reliability with special characters.
-    /// Temporarily stops the bot while typing to prevent input interference.
+    /// Sends a chat command to WoW via ExecGameCommand.
+    /// Runs on a background thread so the Discord gateway is not blocked.
+    /// ExecGameCommand.Run handles SetForegroundWindow + SendText internally.
     /// </summary>
-    private void SendGameChat(string command)
+    private Task SendGameChatAsync(string command)
     {
-        // Stop the bot to prevent it from sending inputs while we type
-        bool wasRunning = botController.IsBotActive;
-        if (wasRunning)
-        {
-            botController.ToggleBotStatus();
-            Thread.Sleep(1000);
-        }
-
-        wowInput.SetForegroundWindow();
-        Thread.Sleep(50);
-
-        // Set clipboard and paste to avoid issues with special characters
-        wowInput.SetClipboard(command);
-        Thread.Sleep(30);
-
-        // Open chat box
-        wowInput.PressRandom(ConsoleKey.Enter, 50);
-        Thread.Sleep(100);
-
-        // Paste from clipboard (Ctrl+V)
-        wowInput.PasteFromClipboard();
-        Thread.Sleep(100);
-
-        // Send the message
-        wowInput.PressRandom(ConsoleKey.Enter, 50);
-        Thread.Sleep(200);
-
-        // Resume the bot if it was running before
-        if (wasRunning)
-        {
-            botController.ToggleBotStatus();
-        }
+        return Task.Run(() => exec.Run(command));
     }
 
     // ── Screenshot ───────────────────────────────────────────────────
