@@ -5,6 +5,8 @@ namespace Core;
 public sealed partial class ConfigurableInput
 {
     public bool KeyboardOnly => classConfig.KeyboardOnly;
+    public bool UseMouseLookTurn => classConfig.UseMouseLookTurn;
+    public float MouseTurnPixelsPerRadian => classConfig.MouseTurnPixelsPerRadian;
 
     public ConsoleKey ForwardKey => classConfig.ForwardKey;
     public ConsoleKey BackwardKey => classConfig.BackwardKey;

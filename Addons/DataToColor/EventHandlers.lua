@@ -863,7 +863,8 @@ function DataToColor:ResurrectPlayer()
                 if cX ~= 0 and cY ~= 0 and
                     math.abs(cX - x) < CORPSE_RETRIEVAL_DISTANCE / 1000 and
                     math.abs(cY - y) < CORPSE_RETRIEVAL_DISTANCE / 1000 and
-                    GetCorpseRecoveryDelay() == 0 then
+                    GetCorpseRecoveryDelay() == 0 and
+                    not IsFalling() then
                     DEFAULT_CHAT_FRAME:AddMessage('Attempting to retrieve corpse')
                     -- Accept Retrieve Corpsse when near enough
                     RetrieveCorpse()

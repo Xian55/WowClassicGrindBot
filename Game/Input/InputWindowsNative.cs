@@ -14,12 +14,16 @@ public sealed class InputWindowsNative : IInput
     private readonly WowProcess process;
     private readonly CancellationToken token;
 
+    private Point cachedCursor;
+
     public InputWindowsNative(WowProcess process, CancellationTokenSource cts, int maxDelay)
     {
         this.process = process;
         token = cts.Token;
 
         this.maxDelay = maxDelay;
+
+        cachedCursor = new Point(0, 0);
     }
 
     private int DelayTime(int milliseconds)
@@ -168,6 +172,38 @@ public sealed class InputWindowsNative : IInput
         PostMessage(process.MainWindowHandle, WM_RBUTTONDOWN, 0, lparam);
         token.WaitHandle.WaitOne(DelayTime(maxDelay));
         PostMessage(process.MainWindowHandle, WM_RBUTTONUP, 0, lparam);
+    }
+
+    public void RightButtonDown()
+    {
+        if (!GetCursorPos(out Point screen))
+            screen = cachedCursor;
+        else
+            cachedCursor = screen;
+
+        Point client = screen;
+        ScreenToClient(process.MainWindowHandle, ref client);
+        int lparam = MakeLParam(client.X, client.Y);
+
+        PostMessage(process.MainWindowHandle, WM_RBUTTONDOWN, 0, lparam);
+    }
+
+    public void RightButtonUp()
+    {
+        if (!GetCursorPos(out Point screen))
+            screen = cachedCursor;
+
+        Point client = screen;
+        ScreenToClient(process.MainWindowHandle, ref client);
+        int lparam = MakeLParam(client.X, client.Y);
+
+        PostMessage(process.MainWindowHandle, WM_RBUTTONUP, 0, lparam);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Part of input interface")]
+    public void MouseMoveRelative(int dx, int dy)
+    {
+        mouse_event(MOUSEEVENTF_MOVE, dx, dy, 0, 0);
     }
 
     public void SetCursorPos(Point p)

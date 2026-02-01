@@ -60,6 +60,12 @@ public sealed partial class PlayerDirection
 
     public void SetDirection(float targetDir, CancellationToken token = default)
     {
+        if (input.UseMouseLookTurn && !input.KeyboardOnly)
+        {
+            SetDirectionWithMouseLook(targetDir, token);
+            return;
+        }
+
         input.PressFixed(GetDirectionKeyToPress(targetDir),
             TurnDuration(targetDir), token);
     }
@@ -72,6 +78,11 @@ public sealed partial class PlayerDirection
             : result;
     }
 
+    private bool ShouldTurnLeft(float desiredDirection)
+    {
+        return (Tau + desiredDirection - playerReader.Direction) % Tau < PI;
+    }
+
     private int TurnDuration(float targetDir)
     {
         return (int)(TurnAmount(targetDir) * 1000f / PI);
@@ -79,9 +90,42 @@ public sealed partial class PlayerDirection
 
     private ConsoleKey GetDirectionKeyToPress(float desiredDirection)
     {
-        return (Tau + desiredDirection - playerReader.Direction) % Tau < PI
+        return ShouldTurnLeft(desiredDirection)
             ? input.TurnLeftKey
             : input.TurnRightKey;
+    }
+
+    private void SetDirectionWithMouseLook(float targetDir, CancellationToken token)
+    {
+        float turnAmount = TurnAmount(targetDir);
+        if (turnAmount < 0.005f)
+            return;
+
+        bool turnLeft = ShouldTurnLeft(targetDir);
+        int pixelsToMove = Math.Max(1, (int)MathF.Round(turnAmount * input.MouseTurnPixelsPerRadian));
+        int sign = turnLeft ? -1 : 1;
+
+        input.BeginMouseLook();
+
+        try
+        {
+            int remaining = pixelsToMove;
+            while (remaining > 0 && !token.IsCancellationRequested)
+            {
+                int step = Math.Min(remaining, 120);
+                input.MoveMouseLook(sign * step, 0);
+                remaining -= step;
+
+                if (remaining > 0)
+                {
+                    Thread.Sleep(5);
+                }
+            }
+        }
+        finally
+        {
+            input.EndMouseLook();
+        }
     }
 
     #region Logging

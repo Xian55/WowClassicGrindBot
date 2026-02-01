@@ -26,6 +26,8 @@ public sealed partial class WowProcessInput : IMouseInput
 
     private readonly BitArray keysDown;
 
+    private bool rightButtonHeld;
+
     public ConsoleKey ForwardKey { get; set; }
     public ConsoleKey BackwardKey { get; set; }
     public ConsoleKey TurnLeftKey { get; set; }
@@ -49,6 +51,12 @@ public sealed partial class WowProcessInput : IMouseInput
         lock (keysDown)
         {
             keysDown.SetAll(false);
+        }
+
+        if (rightButtonHeld)
+        {
+            nativeInput.RightButtonUp();
+            rightButtonHeld = false;
         }
     }
 
@@ -178,6 +186,29 @@ public sealed partial class WowProcessInput : IMouseInput
     public void SetCursorPos(Point p)
     {
         nativeInput.SetCursorPos(p);
+    }
+
+    public void RightButtonDown()
+    {
+        if (rightButtonHeld)
+            return;
+
+        nativeInput.RightButtonDown();
+        rightButtonHeld = true;
+    }
+
+    public void RightButtonUp()
+    {
+        if (!rightButtonHeld)
+            return;
+
+        nativeInput.RightButtonUp();
+        rightButtonHeld = false;
+    }
+
+    public void MouseMoveRelative(int dx, int dy)
+    {
+        nativeInput.MouseMoveRelative(dx, dy);
     }
 
     public void RightClick(Point p)

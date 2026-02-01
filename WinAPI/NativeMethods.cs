@@ -58,6 +58,9 @@ public static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool GetCursorPos(out Point p);
 
+    [LibraryImport("user32.dll", SetLastError = true)]
+    public static partial void mouse_event(uint dwFlags, int dx, int dy, uint dwData, nuint dwExtraInfo);
+
     public const uint WM_CHAR = 0x0102;
     public const uint WM_KEYDOWN = 0x0100;
     public const uint WM_KEYUP = 0x0101;
@@ -65,6 +68,9 @@ public static partial class NativeMethods
     public const uint WM_LBUTTONUP = 0x202;
     public const uint WM_RBUTTONDOWN = 0x204;
     public const uint WM_RBUTTONUP = 0x205;
+
+    // Mouse event flags
+    public const uint MOUSEEVENTF_MOVE = 0x0001;
 
     public const int VK_LBUTTON = 0x01;
     public const int VK_RBUTTON = 0x02;

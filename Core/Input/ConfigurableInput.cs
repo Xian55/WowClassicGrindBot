@@ -223,6 +223,21 @@ public sealed partial class ConfigurableInput
 
     public void PressFollowTarget(CancellationToken token = default) => PressRandom(FollowTarget, token);
 
+    public void BeginMouseLook()
+    {
+        input.RightButtonDown();
+    }
+
+    public void EndMouseLook()
+    {
+        input.RightButtonUp();
+    }
+
+    public void MoveMouseLook(int deltaX, int deltaY = 0)
+    {
+        input.MouseMoveRelative(deltaX, deltaY);
+    }
+
     public void PressESC(CancellationToken token = default)
     {
         input.PressRandom(ConsoleKey.Escape, InputDuration.VeryFastPress, token);
