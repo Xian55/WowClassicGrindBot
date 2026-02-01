@@ -12,6 +12,13 @@ public sealed class SessionStat
 
     public long StartTime { get; set; }
 
+    /// <summary>
+    /// Set to true when vendor/repair (AdhocNPCGoal) completes successfully.
+    /// Cleared when MailGoal completes successfully.
+    /// Used to ensure Mail only runs after Vendor/Repair.
+    /// </summary>
+    public bool VendoredOrRepairedRecently { get; set; }
+
     public int _Deaths() => Deaths;
 
     public int _Kills() => Kills;
@@ -28,10 +35,13 @@ public sealed class SessionStat
 
     public int _Hours() => Hours;
 
+    public bool _VendoredOrRepairedRecently() => VendoredOrRepairedRecently;
+
     public void Reset()
     {
         Deaths = 0;
         Kills = 0;
+        VendoredOrRepairedRecently = false;
     }
 
     public void Start()

@@ -1,0 +1,47 @@
+@page "/Settings"
+
+@inject IconDB iconDB
+@inject IJSRuntime JSRuntime
+
+<Card class="mt-2">
+    <CardHeader>Icon CDN Region</CardHeader>
+    <CardBody>
+        <p class="text-muted small">Select the closest CDN for faster icon loading.</p>
+        <select class="form-select" style="width: auto;" @bind="selectedRegion" @bind:after="OnRegionChanged">
+            <option value="0">Auto-detect</option>
+            <option value="1">US (Americas)</option>
+            <option value="2">EU (Europe/Africa)</option>
+            <option value="3">KR (Korea)</option>
+            <option value="4">TW (Taiwan)</option>
+        </select>
+        @if (detectedRegion != null)
+        {
+            <small class="text-muted ms-2">Detected: @detectedRegion</small>
+        }
+    </CardBody>
+</Card>
+
+@code {
+    private int selectedRegion;
+    private string? detectedRegion;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            selectedRegion = await JSRuntime.InvokeAsync<int>("LocalStorageHelper.getCdnRegion");
+            int detected = await JSRuntime.InvokeAsync<int>("LocalStorageHelper.detectCdnRegion");
+            detectedRegion = detected switch { 1 => "US", 2 => "EU", 3 => "KR", 4 => "TW", _ => "US" };
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnRegionChanged()
+    {
+        await JSRuntime.InvokeVoidAsync("LocalStorageHelper.setCdnRegion", selectedRegion);
+        int effectiveRegion = selectedRegion == 0
+            ? await JSRuntime.InvokeAsync<int>("LocalStorageHelper.detectCdnRegion")
+            : selectedRegion;
+        iconDB.Region = (CdnRegion)effectiveRegion;
+    }
+}

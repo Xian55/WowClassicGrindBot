@@ -124,6 +124,46 @@ local UseContainerItem = DataToColor.UseContainerItem
 
 local GetNumLootItems = GetNumLootItems
 
+-- Calculate item flags bitmask for bag item
+-- Bit 0 (1): IsTradable - can be mailed/traded
+-- Bit 1 (2): IsSoulbound - already bound to player
+-- Bit 2 (4): IsLocked - item is locked
+-- Bit 3 (8): HasNoValue - cannot be vendored
+local function GetItemFlags(bagId, slot, itemLink)
+    if not itemLink then return 0 end
+
+    local flags = 0
+
+    -- Get container item info (isBound is 11th, isLocked is 3rd, hasNoValue is 9th)
+    local _, _, isLocked, _, _, _, _, _, hasNoValue, _, isBound = GetContainerItemInfo(bagId, slot)
+
+    -- Check bind type from GetItemInfo (14th return)
+    -- bindType: 1=BoP, 2=BoE, 3=BoU, 4=Quest
+    local _, _, _, _, _, _, _, _, _, _, _, _, _, bindType = GetItemInfo(itemLink)
+
+    -- Bit 0: IsTradable (not bound AND not BoP AND not Quest)
+    if not isBound and (not bindType or (bindType ~= 1 and bindType ~= 4)) then
+        flags = flags + 1
+    end
+
+    -- Bit 1: IsSoulbound
+    if isBound then
+        flags = flags + 2
+    end
+
+    -- Bit 2: IsLocked
+    if isLocked then
+        flags = flags + 4
+    end
+
+    -- Bit 3: HasNoValue
+    if hasNoValue then
+        flags = flags + 8
+    end
+
+    return flags
+end
+
 -- initialization
 local globalTick = 0
 local initPhase = 10
@@ -769,8 +809,9 @@ function DataToColor:CreateFrames()
                     --DataToColor:Print("inventoryQueue: ", bagNum, " ", bagSlotNum, " -> id: ", itemID or 0, " c:", itemCount or 0)
                 end
 
-                -- itemId 1-999999
-                Pixel(int, itemID or 0, 22)
+                -- flags * 1000000 + itemId (max itemId ~270000, flags 0-15)
+                local flags = GetItemFlags(bagNum, bagSlotNum, link)
+                Pixel(int, flags * 1000000 + (itemID or 0), 22)
             else
                 Pixel(int, 0, 21)
                 Pixel(int, 0, 22)

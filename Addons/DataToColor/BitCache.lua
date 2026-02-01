@@ -109,6 +109,7 @@ local bits3Cache = {
     lootFrameShown = false,         -- bit 8
     chatInputActive = false,        -- bit 9 (polled)
     softTargetEnabled = false,      -- bit 10
+    mailFrameShown = false,         -- bit 11
 }
 
 -- Track if cache has been initialized
@@ -355,6 +356,11 @@ local function UpdateLootFrameCache()
     bits3Cache.lootFrameShown = LootFrame:IsShown() or false
 end
 
+-- Update mail frame state
+local function UpdateMailFrameCache()
+    bits3Cache.mailFrameShown = MailFrame:IsShown() or false
+end
+
 --------------------------------------------------------------------------------
 -- Polled Values (called every frame)
 -- These values cannot be reliably event-driven but are few enough
@@ -372,6 +378,7 @@ local function UpdatePolledValues()
     -- UI states
     bits2Cache.gameMenuShown = GameMenuFrame:IsShown() or false
     bits3Cache.chatInputActive = DataToColor:IsChatInputActive() or false
+    UpdateMailFrameCache()
 
     -- Spell states - must be polled because bot checks these immediately after
     -- sending key presses, faster than START/STOP_AUTOREPEAT_SPELL events fire
@@ -400,6 +407,7 @@ local function InitializeCache()
     UpdateMirrorTimerCache()
     UpdateSoftInteractCache()
     UpdateLootFrameCache()
+    UpdateMailFrameCache()
 
     -- Initialize polled values (includes UpdateSpellStateCache)
     UpdatePolledValues()
@@ -494,7 +502,8 @@ function DataToColor:Bits3Cached()
         (self.channeling and 2 or 0) ^ 7 +  -- Keep original
         (bits3Cache.lootFrameShown and 2 or 0) ^ 8 +
         (bits3Cache.chatInputActive and 2 or 0) ^ 9 +
-        (bits3Cache.softTargetEnabled and 2 or 0) ^ 10
+        (bits3Cache.softTargetEnabled and 2 or 0) ^ 10 +
+        (bits3Cache.mailFrameShown and 2 or 0) ^ 11
 end
 
 --------------------------------------------------------------------------------

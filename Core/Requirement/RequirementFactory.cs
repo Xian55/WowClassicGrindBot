@@ -198,6 +198,9 @@ public sealed partial class RequirementFactory
 
         BindPathSettingsBoolVariables(classConfig.Paths, boolVariables);
 
+        // Mail requirements
+        BindMailRequirements(boolVariables, classConfig, bagReader, playerReader, sessionStat);
+
         this.boolVariables = boolVariables.ToFrozenDictionary();
 
         intVariables = new Dictionary<string, Func<int>>
@@ -564,6 +567,62 @@ public sealed partial class RequirementFactory
         }
 
         boolVariables.TryAdd("PathEnd_Any", AnyPathFinished);
+    }
+
+    private static void BindMailRequirements(
+        Dictionary<string, Func<bool>> boolVariables,
+        ClassConfiguration classConfig,
+        BagReader bagReader,
+        PlayerReader playerReader,
+        SessionStat sessionStat)
+    {
+        // VendoredOrRepairedRecently: ensures mail only runs after vendor/repair
+        boolVariables.TryAdd("VendoredOrRepairedRecently", sessionStat._VendoredOrRepairedRecently);
+
+        // HasMailableItems: checks if bags have items meeting quality threshold
+        // Also verifies player can afford at least one mail fee
+        // Access classConfig at evaluation time to ensure runtime overrides are seen
+        bool HasMailableItems()
+        {
+            if (!classConfig.Mail || !classConfig.HasMailRecipient())
+                return false;
+
+            MailConfiguration mail = classConfig.GetEffectiveMailConfig();
+            if (!mail.SendItems)
+                return false;
+
+            // Must have at least 30 copper to pay mail fee
+            if (playerReader.Money < MailGoal.MIN_MAIL_FEE)
+                return false;
+
+            return bagReader.HasMailableItems(mail.MinimumItemQuality, classConfig.GetEffectiveExcludedItemIdSet());
+        }
+        boolVariables.TryAdd("HasMailableItems", HasMailableItems);
+
+        // HasExcessGold: checks if player has gold above the keep threshold
+        // Must have more than threshold + fee to have any excess after paying fees
+        // Access classConfig at evaluation time to ensure runtime overrides are seen
+        bool HasExcessGold()
+        {
+            if (!classConfig.Mail || !classConfig.HasMailRecipient())
+                return false;
+
+            MailConfiguration mail = classConfig.GetEffectiveMailConfig();
+            if (!mail.SendGold)
+                return false;
+
+            // Must have more than threshold + fee to have any excess after fees
+            // (30 copper minimum fee, even for gold-only mail)
+            return playerReader.Money > mail.MinimumGoldToKeep + MailGoal.MIN_MAIL_FEE;
+        }
+        boolVariables.TryAdd("HasExcessGold", HasExcessGold);
+
+        // Combined requirement: has something to mail (and recipient configured)
+        bool HasMailWork()
+        {
+            return HasMailableItems() || HasExcessGold();
+        }
+        boolVariables.TryAdd("HasMailWork", HasMailWork);
     }
 
     private void BindPathSettingsIntVariables(PathSettings[] paths)

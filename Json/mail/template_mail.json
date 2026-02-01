@@ -1,0 +1,16 @@
+{
+  "RecipientName": "",
+  "MinimumGoldToKeep": 20000,
+  "MinimumItemQuality": 2,
+  "SendGold": true,
+  "SendItems": true,
+  "ExcludedItemIds": [
+    6948,
+    5956,
+    7005,
+    2901,
+    4238,
+    3275,
+    1760
+  ]
+}

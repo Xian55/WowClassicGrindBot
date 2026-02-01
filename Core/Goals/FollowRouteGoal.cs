@@ -279,8 +279,10 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
                     Log("Blacklisted target found, clearing target");
                     input.PressClearTarget();
                     wait.Update();
+                    continue; // Don't fall through - loop again to find a valid target
                 }
-                else
+
+                if (bits.Target())
                 {
                     Log("Found target!");
                     sideActivityCts.Cancel();

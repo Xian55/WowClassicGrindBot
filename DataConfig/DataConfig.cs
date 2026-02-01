@@ -45,6 +45,12 @@ public sealed class DataConfig
     [JsonIgnore]
     public string NpcSpawnLocations => Join(Root, "npcspawnlocations", Exp);
 
+    [JsonIgnore]
+    public string MailboxLocations => Join(Root, "mailboxlocations", Exp);
+
+    [JsonIgnore]
+    public string Mail => Join(Root, "mail");
+
     // at runtime - determined from the running exe file version
     [JsonIgnore]
     public string Exp { get; set; } = "wrath"; // hardcoded default

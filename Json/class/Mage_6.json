@@ -11,6 +11,26 @@
     "MIN_WATER%": 50,
     "MIN_MANA_SPELL%": 50
   },
+  "Mail": {
+    "Enabled": true,
+    "MinimumGoldToKeep": 10000,
+    "MinimumItemQuality": 0,
+    "SendGold": true,
+    "SendItems": true,
+    "ExcludedItemIds": [
+      6948,
+      5956
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
@@ -46,7 +66,7 @@
     "Sequence": [
       {
         "Name": "Flee",
-        "Requirement": "(MobCount > 1 && Health% < 60) || TargetElite" 
+        "Requirement": "(MobCount > 1 && Health% < 60) || TargetElite"
       }
     ]
   },
@@ -160,6 +180,14 @@
           "BagGreyItem"
         ],
         "PathFilename": "5_Gnome_Vendor.json"
+      },
+      {
+        "Cost": 6.5,
+        "Name": "Mail",
+        "Requirements": [
+          "HasMailableItems || HasExcessGold"
+        ],
+        "PathFilename": "5_Gnome_Mail.json"
       }
     ]
   }

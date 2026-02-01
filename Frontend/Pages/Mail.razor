@@ -1,0 +1,787 @@
+@page "/Mail"
+
+@inject IBotController botController
+@inject IMailSettingsService mailSettings
+@inject IJSRuntime JSRuntime
+@inject WApi api
+@inject BagReader bagReader
+@inject ItemDB itemDB
+@inject DataConfig dataConfig
+
+@using Core.Database
+@using System.IO
+
+@implements IDisposable
+
+<BotHeader ShowActiveGoal="false" />
+
+@if (classConfig == null || !classConfig.Mail)
+{
+    <Alert Color="AlertColor.Warning" class="mt-2">
+        <span>Mail functionality is not enabled in the current profile.</span>
+    </Alert>
+}
+else
+{
+    <Card class="mt-1">
+        <CardHeader>Mail Recipient</CardHeader>
+        <CardBody>
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <label class="col-form-label">Recipient Name:</label>
+                </div>
+                <div class="col-4">
+                    <input type="text" class="form-control" @bind="mailRecipient" @bind:event="oninput"
+                           @onblur="OnRecipientChanged" placeholder="Character name" />
+                </div>
+                <div class="col-auto">
+                    <Button Color="ButtonColor.Primary" Size="ButtonSize.Small" @onclick="SaveRecipient">Save</Button>
+                </div>
+                @if (!string.IsNullOrEmpty(classConfig.GetEffectiveRecipientName()))
+                {
+                    <div class="col-auto">
+                        <Badge Color="BadgeColor.Success">Active: @classConfig.GetEffectiveRecipientName()</Badge>
+                    </div>
+                }
+            </div>
+        </CardBody>
+    </Card>
+
+    <Card class="mt-1">
+        <CardHeader>Storage Mode</CardHeader>
+        <CardBody>
+            <div class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" @bind="useExternalFile" @bind:after="OnStorageModeChanged" id="storageMode" />
+                        <label class="form-check-label" for="storageMode">Use external file</label>
+                    </div>
+                </div>
+                @if (useExternalFile)
+                {
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <select class="form-select" @bind="selectedMailFile" @bind:after="OnSelectedMailFileChanged">
+                                <option value="">-- Select or create --</option>
+                                @foreach (var file in availableMailFiles)
+                                {
+                                    <option value="@file">@file</option>
+                                }
+                                <option value="__new__">+ Create new file...</option>
+                            </select>
+                            @if (!string.IsNullOrEmpty(selectedMailFile) && selectedMailFile != "__new__")
+                            {
+                                <Button Color="ButtonColor.Danger" Size="ButtonSize.Small" @onclick="DeleteSelectedMailFile" title="Delete this mail config file">
+                                    <Icon Name="IconName.Trash" />
+                                </Button>
+                            }
+                        </div>
+                    </div>
+                    @if (selectedMailFile == "__new__")
+                    {
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <input type="text" class="form-control" @bind="newMailFilename" placeholder="mail_warrior.json" />
+                            </div>
+                        </div>
+                    }
+                }
+                <div class="col-auto text-muted small">
+                    @if (useExternalFile)
+                    {
+                        <span>Settings will be saved to a separate file (shareable across profiles)</span>
+                    }
+                    else
+                    {
+                        <span>Settings will be saved inline in the class profile</span>
+                    }
+                </div>
+            </div>
+        </CardBody>
+    </Card>
+
+    <Card class="mt-1">
+        <CardHeader>Mail Settings</CardHeader>
+        <CardBody>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Minimum Item Quality</label>
+                    <select class="form-select @qualityClasses[selectedQuality]" @bind="selectedQuality">
+                        @for (int i = 0; i < qualityNames.Length; i++)
+                        {
+                            <option value="@i" class="@qualityClasses[i]">@qualityNames[i]</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Minimum Gold to Keep</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" @bind="minimumGoldToKeep" min="0" />
+                        <span class="input-group-text">gold</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Send Gold</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" @bind="sendGold" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Send Items</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" @bind="sendItems" />
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-12 text-muted small">
+                    Note: Click "Save to Profile" to persist changes to your JSON profile.
+                </div>
+            </div>
+        </CardBody>
+    </Card>
+
+    <Card class="mt-1">
+        <CardHeader>
+            <div class="d-flex align-items-center">
+                <span class="flex-grow-1">Excluded Items (@excludedItems.Count)</span>
+                <div class="ms-2" style="width: 300px;">
+                    <AutoComplete @bind-Value="searchText"
+                                  TItem="ItemSearchResult"
+                                  DataProvider="SearchItemsProvider"
+                                  PropertyName="@nameof(ItemSearchResult.DisplayName)"
+                                  Placeholder="Search items to exclude..."
+                                  OnChanged="OnItemSearchSelected" />
+                </div>
+                <Button Color="ButtonColor.Success" Size="ButtonSize.Small" class="ms-2" @onclick="SaveSettingsToProfile">
+                    <Icon Name="IconName.Save" class="me-1" /> Save to Profile
+                </Button>
+            </div>
+        </CardHeader>
+        <CardBody>
+            @if (excludedItems.Count == 0)
+            {
+                <p class="text-muted">No items excluded. Click items in your inventory or search above to exclude them from mailing.</p>
+            }
+            else
+            {
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var item in excludedItems.OrderBy(i => i.Name))
+                    {
+                        <div class="excluded-item d-flex align-items-center border rounded px-2 py-1" style="background-color: rgba(255, 255, 255, 0.05);">
+                            @{
+                                string? iconUrl = itemDB.GetItemIconUrl(item.Entry, 18);
+                            }
+                            @if (!string.IsNullOrEmpty(iconUrl))
+                            {
+                                <img src="@iconUrl" class="me-1" />
+                            }
+                            <a href="@($"{api.ItemId}{item.Entry}")" target="_blank" data-wowhead="item=@item.Entry"
+                               class="@GetQualityClass(item.Quality)" style="text-decoration: none;">
+                                @item.Name
+                            </a>
+                            <Button Color="ButtonColor.Danger" Size="ButtonSize.ExtraSmall" class="ms-2"
+                                    @onclick="() => RemoveExclusion(item.Entry)">
+                                <Icon Name="IconName.X" />
+                            </Button>
+                        </div>
+                    }
+                </div>
+            }
+        </CardBody>
+    </Card>
+
+    <Card class="mt-1">
+        <CardHeader>
+            <div class="d-flex">
+                <div class="flex-grow-1">Player Inventory <Badge Color="BadgeColor.Warning">@GetMailableItemCount() items to mail</Badge></div>
+                <div class="text-muted small">Click items to toggle exclusion</div>
+            </div>
+        </CardHeader>
+        <CardBody style="padding-bottom: 0">
+            @* Desktop: Grid layout (visible on md and up) *@
+            <div class="d-none d-md-block">
+                <table class="table table-sm table-striped table-no-border">
+                    <thead>
+                        <tr>
+                            @for (int i = bagReader.Bags.Length - 1; i >= 0; i--)
+                            {
+                                var bag = bagReader.Bags[i];
+                                <th>
+                                    <ItemComponent Item="bag.Item" />
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int slot = 0; slot <= bagReader.BagMaxSlot(); slot++)
+                        {
+                            <tr>
+                                @for (int bag = bagReader.Bags.Length - 1; bag >= 0; bag--)
+                                {
+                                    <td width="20%">
+                                        @{
+                                            var bagItem = bagReader.BagItems.FirstOrDefault(Exists);
+                                            bool Exists(BagItem b) => b.Bag == bag && b.Slot == slot;
+                                        }
+                                        @if (bagItem != null)
+                                        {
+                                            bool isExcluded = IsExcluded(bagItem.Item.Entry);
+                                            bool canToggle = bagItem.IsMailable;
+                                            bool willBeMailed = sendItems && bagItem.IsMailable && bagItem.Item.Quality >= selectedQuality && !isExcluded;
+                                            <div class="mail-item @(willBeMailed ? "will-mail" : "") @(isExcluded ? "excluded" : "") @(!canToggle ? "disabled" : "")"
+                                                 @onclick="() => { if (canToggle) ToggleExclusion(bagItem.Item); }"
+                                                 style="cursor: @(canToggle ? "pointer" : "default"); @(isExcluded ? "opacity: 0.5;" : "")">
+                                                <ItemComponent Item="bagItem.Item"
+                                                               Count="bagItem.Count"
+                                                               LastCount="bagItem.LastCount"
+                                                               LastChange="bagItem.LastChange"
+                                                               LastUpdated="bagItem.LastUpdated"
+                                                               IsMailable="bagItem.IsMailable" />
+                                                @if (isExcluded)
+                                                {
+                                                    <Badge Color="BadgeColor.Secondary" class="ms-1">Excluded</Badge>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Mobile: List layout (visible below md) *@
+            <div class="d-md-none">
+                @foreach (var bagItem in bagReader.BagItems.OrderBy(b => b.Bag).ThenBy(b => b.Slot))
+                {
+                    bool isExcluded = IsExcluded(bagItem.Item.Entry);
+                    bool canToggle = bagItem.IsMailable;
+                    bool willBeMailed = sendItems && bagItem.IsMailable && bagItem.Item.Quality >= selectedQuality && !isExcluded;
+                    <div class="mail-item-mobile d-flex align-items-center mb-1 @(willBeMailed ? "will-mail" : "") @(isExcluded ? "excluded" : "") @(!canToggle ? "disabled" : "")"
+                         @onclick="() => { if (canToggle) ToggleExclusion(bagItem.Item); }"
+                         style="cursor: @(canToggle ? "pointer" : "default"); @(isExcluded ? "opacity: 0.5;" : "")">
+                        <Badge Color="BadgeColor.Light" class="me-2 bag-badge">B@(bagItem.Bag)</Badge>
+                        <div class="flex-grow-1">
+                            <ItemComponent Item="bagItem.Item"
+                                           Count="bagItem.Count"
+                                           LastCount="bagItem.LastCount"
+                                           LastChange="bagItem.LastChange"
+                                           LastUpdated="bagItem.LastUpdated"
+                                           IsMailable="bagItem.IsMailable" />
+                        </div>
+                        @if (isExcluded)
+                        {
+                            <Badge Color="BadgeColor.Secondary" class="ms-1">Excluded</Badge>
+                        }
+                    </div>
+                }
+            </div>
+        </CardBody>
+    </Card>
+}
+
+<style>
+    .mail-item {
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background-color 0.2s, opacity 0.2s;
+    }
+
+    .mail-item:hover:not(.disabled) {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .mail-item.excluded {
+        text-decoration: line-through;
+    }
+
+    .mail-item.will-mail {
+        border: 1px solid rgba(180, 140, 20, 0.8);
+        box-shadow: 0 0 6px rgba(180, 140, 20, 0.5);
+        background-color: rgba(180, 140, 20, 0.15);
+    }
+
+    /* Dark theme - brighter yellow for visibility */
+    [data-bs-theme="dark"] .mail-item.will-mail {
+        border: 1px solid rgba(255, 200, 50, 0.8);
+        box-shadow: 0 0 8px rgba(255, 200, 50, 0.5);
+        background-color: rgba(255, 200, 50, 0.15);
+    }
+
+    .excluded-item:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Mobile list layout */
+    .mail-item-mobile {
+        padding: 8px 12px;
+        border-radius: 4px;
+        transition: background-color 0.2s, opacity 0.2s;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .mail-item-mobile:hover:not(.disabled) {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .mail-item-mobile.excluded {
+        text-decoration: line-through;
+    }
+
+    .mail-item-mobile.will-mail {
+        border: 1px solid rgba(180, 140, 20, 0.8);
+        box-shadow: 0 0 6px rgba(180, 140, 20, 0.5);
+        background-color: rgba(180, 140, 20, 0.15);
+    }
+
+    [data-bs-theme="dark"] .mail-item-mobile.will-mail {
+        border: 1px solid rgba(255, 200, 50, 0.8);
+        box-shadow: 0 0 8px rgba(255, 200, 50, 0.5);
+        background-color: rgba(255, 200, 50, 0.15);
+    }
+
+    .bag-badge {
+        min-width: 32px;
+        text-align: center;
+        font-size: 0.75rem;
+    }
+</style>
+
+@code {
+    private ClassConfiguration? classConfig;
+    private string mailRecipient = string.Empty;
+    private string searchText = string.Empty;
+
+    // Settings
+    private int selectedQuality;
+    private int minimumGoldToKeep;
+    private bool sendGold;
+    private bool sendItems;
+
+    // Storage mode
+    private bool useExternalFile;
+    private string mailFilename = string.Empty;
+    private string selectedMailFile = string.Empty;
+    private string newMailFilename = string.Empty;
+    private List<string> availableMailFiles = [];
+    private FileSystemWatcher? mailFileWatcher;
+
+    // Excluded items
+    private HashSet<int> excludedItemIds = [];
+    private List<Item> excludedItems = [];
+
+    private static readonly string[] qualityClasses = ["poor", "common", "uncommon", "rare", "epic", "legendary", "artifact", "heirloom"];
+    private static readonly string[] qualityNames = ["Grey (Poor)", "White (Common)", "Green (Uncommon)", "Blue (Rare)", "Epic", "Legendary", "Artifact", "Heirloom"];
+
+    protected override void OnInitialized()
+    {
+        classConfig = botController.ClassConfig;
+        bagReader.DataChanged += OnBagReaderDataChanged;
+        botController.ProfileLoaded += OnProfileLoaded;
+
+        LoadConfigValues();
+        InitializeMailFileWatcher();
+    }
+
+    private void InitializeMailFileWatcher()
+    {
+        mailFileWatcher = new FileSystemWatcher(dataConfig.Mail)
+        {
+            Filter = "*.json",
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+            EnableRaisingEvents = true
+        };
+
+        mailFileWatcher.Created += OnMailFileChanged;
+        mailFileWatcher.Deleted += OnMailFileChanged;
+        mailFileWatcher.Renamed += OnMailFileChanged;
+    }
+
+    private void OnMailFileChanged(object sender, FileSystemEventArgs e)
+    {
+        RefreshMailFiles();
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadExclusionsFromStorage();
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        bagReader.DataChanged -= OnBagReaderDataChanged;
+        botController.ProfileLoaded -= OnProfileLoaded;
+        mailFileWatcher?.Dispose();
+    }
+
+    private void LoadConfigValues()
+    {
+        RefreshMailFiles();
+
+        if (classConfig != null)
+        {
+            // Storage mode
+            useExternalFile = !string.IsNullOrEmpty(classConfig.MailFilename);
+            mailFilename = classConfig.MailFilename;
+            selectedMailFile = mailFilename;
+            newMailFilename = string.Empty;
+
+            if (classConfig.MailConfig != null)
+            {
+                MailConfiguration effectiveConfig = classConfig.GetEffectiveMailConfig();
+                selectedQuality = effectiveConfig.MinimumItemQuality;
+                minimumGoldToKeep = effectiveConfig.MinimumGoldToKeep / 10000; // Convert copper to gold
+                sendGold = effectiveConfig.SendGold;
+                sendItems = effectiveConfig.SendItems;
+                mailRecipient = classConfig.GetEffectiveRecipientName();
+            }
+        }
+    }
+
+    private void RefreshMailFiles()
+    {
+        availableMailFiles.Clear();
+
+        var files = Directory.GetFiles(dataConfig.Mail, "*.json")
+            .Select(Path.GetFileName)
+            .Where(f => f != null)
+            .Cast<string>()
+            .OrderBy(f => f)
+            .ToList();
+
+        availableMailFiles.AddRange(files);
+    }
+
+    private async Task OnStorageModeChanged()
+    {
+        if (useExternalFile)
+        {
+            RefreshMailFiles();
+        }
+        else
+        {
+            // Switching back to inline mode - reset external file state and reload inline config
+            selectedMailFile = string.Empty;
+            newMailFilename = string.Empty;
+
+            // Reload values from inline MailConfig
+            if (classConfig?.MailConfig != null)
+            {
+                selectedQuality = classConfig.MailConfig.MinimumItemQuality;
+                minimumGoldToKeep = classConfig.MailConfig.MinimumGoldToKeep / 10000;
+                sendGold = classConfig.MailConfig.SendGold;
+                sendItems = classConfig.MailConfig.SendItems;
+                mailRecipient = classConfig.MailConfig.RecipientName ?? string.Empty;
+
+                // Reload exclusions from inline config
+                excludedItemIds = classConfig.MailConfig.ExcludedItemIds.Length > 0
+                    ? [.. classConfig.MailConfig.ExcludedItemIds]
+                    : [];
+                await UpdateExcludedItemsList();
+            }
+        }
+    }
+
+    private async Task OnSelectedMailFileChanged()
+    {
+        if (string.IsNullOrEmpty(selectedMailFile) || selectedMailFile == "__new__")
+            return;
+
+        string filePath = Path.Join(dataConfig.Mail, selectedMailFile);
+        if (!File.Exists(filePath))
+            return;
+
+        try
+        {
+            string json = await File.ReadAllTextAsync(filePath);
+            MailConfiguration? mailConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<MailConfiguration>(json);
+
+            if (mailConfig != null)
+            {
+                // Update UI fields
+                selectedQuality = mailConfig.MinimumItemQuality;
+                minimumGoldToKeep = mailConfig.MinimumGoldToKeep / 10000; // Convert copper to gold
+                sendGold = mailConfig.SendGold;
+                sendItems = mailConfig.SendItems;
+                mailRecipient = mailConfig.RecipientName ?? string.Empty;
+
+                    // Update exclusions
+                excludedItemIds = mailConfig.ExcludedItemIds.Length > 0
+                    ? [.. mailConfig.ExcludedItemIds]
+                    : [];
+                await UpdateExcludedItemsList();
+            }
+        }
+        catch
+        {
+            // File read/parse error - keep current values
+        }
+    }
+
+    private async Task DeleteSelectedMailFile()
+    {
+        if (string.IsNullOrEmpty(selectedMailFile) || selectedMailFile == "__new__")
+            return;
+
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Delete '{selectedMailFile}'? This cannot be undone.");
+        if (!confirmed)
+            return;
+
+        string filePath = Path.Join(dataConfig.Mail, selectedMailFile);
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+
+        // Reset selection
+        selectedMailFile = string.Empty;
+        RefreshMailFiles();
+    }
+
+    private void OnProfileLoaded()
+    {
+        classConfig = botController.ClassConfig;
+        LoadConfigValues();
+        base.InvokeAsync(async () =>
+        {
+            await LoadExclusionsFromStorage();
+            StateHasChanged();
+        });
+    }
+
+    private void OnBagReaderDataChanged()
+    {
+        base.InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadExclusionsFromStorage()
+    {
+        try
+        {
+            // Priority 1: Load from profile config (persisted to JSON)
+            if (classConfig?.MailConfig?.ExcludedItemIds is { Length: > 0 } configExclusions)
+            {
+                excludedItemIds = [.. configExclusions];
+                // Sync runtime state
+                mailSettings.SetExclusions(configExclusions);
+                // Sync localStorage as cache
+                await JSRuntime.InvokeVoidAsync("LocalStorageHelper.setExcludedItems", configExclusions);
+                await UpdateExcludedItemsList();
+                return;
+            }
+
+            // Priority 2: Fall back to localStorage (for backwards compatibility)
+            int[]? stored = await JSRuntime.InvokeAsync<int[]?>("LocalStorageHelper.getExcludedItems");
+            if (stored != null && stored.Length > 0)
+            {
+                excludedItemIds = [.. stored];
+                // Persist to config so it's saved with profile
+                mailSettings.SetExclusions(stored);
+                await UpdateExcludedItemsList();
+            }
+        }
+        catch
+        {
+            // JS interop might fail during prerender
+        }
+    }
+
+    private async Task SaveExclusionsToStorage()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("LocalStorageHelper.setExcludedItems", excludedItemIds.ToArray());
+            mailSettings.SetExclusions(excludedItemIds);
+        }
+        catch
+        {
+            // Ignore JS interop errors
+        }
+    }
+
+    private async Task UpdateExcludedItemsList()
+    {
+        excludedItems.Clear();
+
+        if (classConfig?.MailConfig == null) return;
+
+        foreach (int itemId in excludedItemIds)
+        {
+            if (itemDB.Items.TryGetValue(itemId, out Item item))
+            {
+                excludedItems.Add(item);
+            }
+            else
+            {
+                // Create a placeholder for items not in database
+                excludedItems.Add(new Item { Entry = itemId, Name = $"Item #{itemId}", Quality = 0 });
+            }
+        }
+    }
+
+    private bool IsExcluded(int itemId) => excludedItemIds.Contains(itemId);
+
+    private async Task ToggleExclusion(Item item)
+    {
+        if (excludedItemIds.Contains(item.Entry))
+        {
+            excludedItemIds.Remove(item.Entry);
+            excludedItems.RemoveAll(i => i.Entry == item.Entry);
+        }
+        else
+        {
+            excludedItemIds.Add(item.Entry);
+            excludedItems.Add(item);
+        }
+
+        await SaveExclusionsToStorage();
+    }
+
+    private async Task RemoveExclusion(int itemId)
+    {
+        excludedItemIds.Remove(itemId);
+        excludedItems.RemoveAll(i => i.Entry == itemId);
+        await SaveExclusionsToStorage();
+    }
+
+    private async Task OnRecipientChanged()
+    {
+        await SaveRecipient();
+    }
+
+    private async Task SaveRecipient()
+    {
+        if (!string.IsNullOrWhiteSpace(mailRecipient))
+        {
+            mailSettings.SetRecipient(mailRecipient);
+            await JSRuntime.InvokeVoidAsync("LocalStorageHelper.setItem", LocalStorageKeys.MailRecipient, mailRecipient);
+        }
+    }
+
+    private void SaveSettingsToProfile()
+    {
+        if (classConfig?.MailConfig == null) return;
+
+        // Sync storage mode
+        if (useExternalFile)
+        {
+            // Determine filename from selection or new input
+            string filename = selectedMailFile == "__new__" ? newMailFilename : selectedMailFile;
+
+            // Ensure filename has .json extension
+            if (!string.IsNullOrEmpty(filename) && !filename.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                filename += ".json";
+            }
+            classConfig.MailFilename = filename;
+
+            // Refresh file list after save (in case a new file was created)
+            RefreshMailFiles();
+            if (!string.IsNullOrEmpty(filename))
+            {
+                selectedMailFile = filename;
+                newMailFilename = string.Empty;
+            }
+        }
+        else
+        {
+            classConfig.MailFilename = string.Empty;
+        }
+
+        // Sync UI values to ClassConfig
+        classConfig.MailConfig.MinimumItemQuality = selectedQuality;
+        classConfig.MailConfig.MinimumGoldToKeep = minimumGoldToKeep * 10000; // Convert gold to copper
+        classConfig.MailConfig.SendGold = sendGold;
+        classConfig.MailConfig.SendItems = sendItems;
+
+        botController.SaveClassConfig();
+    }
+
+    private async Task<AutoCompleteDataProviderResult<ItemSearchResult>> SearchItemsProvider(
+        AutoCompleteDataProviderRequest<ItemSearchResult> request)
+    {
+        var searchLower = request.Filter?.Value?.ToLowerInvariant() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(searchLower) || searchLower.Length < 2)
+        {
+            return await Task.FromResult(new AutoCompleteDataProviderResult<ItemSearchResult>
+            {
+                Data = [],
+                TotalCount = 0
+            });
+        }
+
+        // Search by item ID if numeric
+        if (int.TryParse(searchLower, out int itemId) && itemDB.Items.TryGetValue(itemId, out Item item))
+        {
+            return await Task.FromResult(new AutoCompleteDataProviderResult<ItemSearchResult>
+            {
+                Data = [new ItemSearchResult(item)],
+                TotalCount = 1
+            });
+        }
+
+        // Search by name in ItemDB
+        var results = itemDB.Items.Values
+            .Where(i => i.Name.Contains(searchLower, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(i => i.Name.Length)
+            .ThenBy(i => i.Name)
+            .Take(10)
+            .Select(i => new ItemSearchResult(i))
+            .ToList();
+
+        return await Task.FromResult(request.ApplyTo(results));
+    }
+
+    private async Task OnItemSearchSelected(ItemSearchResult? selected)
+    {
+        if (selected != null && !excludedItemIds.Contains(selected.Entry))
+        {
+            excludedItemIds.Add(selected.Entry);
+            excludedItems.Add(new Item { Entry = selected.Entry, Name = selected.Name, Quality = selected.Quality });
+            await SaveExclusionsToStorage();
+        }
+        searchText = string.Empty;
+    }
+
+    private string GetQualityClass(int quality)
+    {
+        if (quality >= 0 && quality < qualityClasses.Length)
+            return qualityClasses[quality];
+        return "common";
+    }
+
+    private int GetMailableItemCount()
+    {
+        if (!sendItems) return 0;
+
+        return bagReader.BagItems.Count(b =>
+            b.IsMailable &&
+            b.Item.Quality >= selectedQuality &&
+            !excludedItemIds.Contains(b.Item.Entry));
+    }
+
+    public sealed class ItemSearchResult
+    {
+        public int Entry { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int Quality { get; set; }
+        public string DisplayName => $"{Name} ({Entry})";
+
+        public ItemSearchResult() { }
+
+        public ItemSearchResult(Item item)
+        {
+            Entry = item.Entry;
+            Name = item.Name;
+            Quality = item.Quality;
+        }
+    }
+}

@@ -1,3 +1,4 @@
+using Core.Database;
 using Core.Goals;
 using Core.GOAP;
 using Core.Session;
@@ -62,6 +63,7 @@ public static class GoalFactory
         }
 
         services.AddScoped<NpcNameTargeting>();
+        services.AddScoped<CursorScan>();
 
         // Goals components
         services.AddScoped<PlayerDirection>();
@@ -114,6 +116,9 @@ public static class GoalFactory
             ResolveAdhocGoals(services, classConfig);
 
             ResolveAdhocNPCGoal(services, classConfig,
+                sp.GetRequiredService<DataConfig>());
+
+            ResolveMailGoal(services, classConfig,
                 sp.GetRequiredService<DataConfig>());
 
             ResolveWaitGoal(services, classConfig);
@@ -173,6 +178,9 @@ public static class GoalFactory
             ResolveAdhocNPCGoal(services, classConfig,
                 sp.GetRequiredService<DataConfig>());
 
+            ResolveMailGoal(services, classConfig,
+                sp.GetRequiredService<DataConfig>());
+
             ResolveWaitGoal(services, classConfig);
         }
 
@@ -218,6 +226,14 @@ public static class GoalFactory
         for (int i = 0; i < classConfig.NPC.Sequence.Length; i++)
         {
             KeyAction keyAction = classConfig.NPC.Sequence[i];
+
+            // Skip "Mail" actions - they are handled by ResolveMailGoal
+            if (classConfig.Mail &&
+                keyAction.Name.Contains("Mail", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             keyAction.Path = GetPath(keyAction, dataConfig);
 
             services.AddScoped<GoapGoal>(sp =>
@@ -235,6 +251,42 @@ public static class GoalFactory
             services.AddScoped<GoapGoal>(sp =>
                 ActivatorUtilities.CreateInstance<ConditionalWaitGoal>(sp, keyAction));
         }
+    }
+
+    private static void ResolveMailGoal(IServiceCollection services,
+        ClassConfiguration classConfig, DataConfig dataConfig)
+    {
+        // Mail goal is registered when mail is enabled
+        if (!classConfig.Mail)
+            return;
+
+        // Look for Mail action in NPC sequence (allows user to configure path and requirements)
+        for (int i = 0; i < classConfig.NPC.Sequence.Length; i++)
+        {
+            KeyAction keyAction = classConfig.NPC.Sequence[i];
+
+            // Check if this is a Mail action by name
+            if (!keyAction.Name.Contains("Mail", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            keyAction.Path = GetPath(keyAction, dataConfig);
+
+            services.AddScoped<GoapGoal>(sp =>
+                ActivatorUtilities.CreateInstance<MailGoal>(sp, keyAction));
+
+            // Only register one MailGoal
+            return;
+        }
+
+        // If no Mail action in NPC sequence, create a default one with auto-navigation
+        KeyAction defaultMailAction = new()
+        {
+            Name = "Mail",
+            Cost = 6.5f // Between vendor (6) and repair
+        };
+
+        services.AddScoped<GoapGoal>(sp =>
+            ActivatorUtilities.CreateInstance<MailGoal>(sp, defaultMailAction));
     }
 
     private static void ResolvePetClass(IServiceCollection services,

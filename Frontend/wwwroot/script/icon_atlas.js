@@ -335,6 +335,10 @@ window.IconAtlas = {
         3,
         5
     ],
+    "Icon_5_99": [
+        3,
+        5
+    ],
     "Icon_5_4": [
         4,
         5
@@ -1043,7 +1047,7 @@ window.IconAtlas = {
         4,
         16
     ],
-    "Icon_16_5": [
+    "mailbox": [
         5,
         16
     ],

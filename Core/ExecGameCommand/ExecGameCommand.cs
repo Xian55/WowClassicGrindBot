@@ -21,7 +21,15 @@ public sealed class ExecGameCommand
         this.input = input;
     }
 
-    public void Run(string content)
+    public void Run(string content) => Run(content, content);
+
+    /// <summary>
+    /// Executes a game command with a custom log message.
+    /// Use this overload when the command contains sensitive data (e.g., recipient names).
+    /// </summary>
+    /// <param name="content">The command to execute.</param>
+    /// <param name="logMessage">The message to log. Pass null to suppress logging entirely.</param>
+    public void Run(string content, string? logMessage)
     {
         if (string.IsNullOrEmpty(content))
         {
@@ -29,7 +37,11 @@ public sealed class ExecGameCommand
         }
 
         input.SetForegroundWindow();
-        logger.LogInformation(content);
+
+        if (logMessage != null)
+        {
+            logger.LogInformation(logMessage);
+        }
 
         int duration = Random.Shared.Next(100, 250);
 

@@ -124,7 +124,10 @@ public sealed class BagReader : IDisposable, IReader
         int slot = data / 10000 % 100;
         int itemCount = data % 10000;
 
-        int itemId = reader.GetInt(cItemId);
+        // 22 -- flags * 1000000 + itemId (flags: bits 0-3)
+        int itemIdData = reader.GetInt(cItemId);
+        int flags = itemIdData / 1000000;
+        int itemId = itemIdData % 1000000;
 
         BagItem? existingItem = BagItems.FirstOrDefault(Exists);
         bool Exists(BagItem b) =>
@@ -146,12 +149,25 @@ public sealed class BagReader : IDisposable, IReader
                 {
                     addItem = false;
 
-                    if (existingItem.Count != itemCount)
-                    {
-                        if (existingItem.Count < itemCount)
-                            HashNewOrStackGain++;
+                    bool countChanged = existingItem.Count != itemCount;
+                    bool flagsChanged =
+                        existingItem.IsTradable != ((flags & 1) != 0) ||
+                        existingItem.IsSoulbound != ((flags & 2) != 0) ||
+                        existingItem.IsLocked != ((flags & 4) != 0) ||
+                        existingItem.HasNoValue != ((flags & 8) != 0);
 
-                        existingItem.UpdateCount(itemCount);
+                    if (countChanged || flagsChanged)
+                    {
+                        if (countChanged)
+                        {
+                            if (existingItem.Count < itemCount)
+                                HashNewOrStackGain++;
+                            existingItem.UpdateCount(itemCount);
+                        }
+                        if (flagsChanged)
+                        {
+                            existingItem.UpdateFlags(flags);
+                        }
                         BagItemChange?.Invoke(existingItem, Core.BagItemChange.Update);
                         hasChanged = true;
                     }
@@ -164,14 +180,14 @@ public sealed class BagReader : IDisposable, IReader
 
                 if (ItemDB.Items.TryGetValue(itemId, out Item item))
                 {
-                    BagItem newItem = new(bag, slot, itemCount, item);
+                    BagItem newItem = new(bag, slot, itemCount, item, flags);
                     BagItems.Add(newItem);
                     BagItemChange?.Invoke(newItem, Core.BagItemChange.New);
                 }
                 else
                 {
                     BagItem unknownItem =
-                        new(bag, slot, itemCount, new Item() { Entry = itemId, Name = "Unknown" });
+                        new(bag, slot, itemCount, new Item() { Entry = itemId, Name = "Unknown" }, flags);
                     BagItems.Add(unknownItem);
                     BagItemChange?.Invoke(unknownItem, Core.BagItemChange.New);
                 }
@@ -273,6 +289,53 @@ public sealed class BagReader : IDisposable, IReader
     private static bool BagItemCommonQuality(BagItem bi) => bi.Item.Quality == 0;
 
     public int BagMaxSlot() => Bags.Max(BagSlotCount);
+
+    /// <summary>
+    /// Checks if there are any items meeting the quality threshold for mailing.
+    /// </summary>
+    /// <param name="minQuality">Minimum item quality (0=grey, 1=white, 2=green, etc.)</param>
+    /// <param name="excludedItemIds">Set of item IDs to exclude</param>
+    /// <returns>True if mailable items exist</returns>
+    public bool HasMailableItems(int minQuality, IReadOnlySet<int> excludedItemIds)
+    {
+        var span = CollectionsMarshal.AsSpan(BagItems);
+        for (int i = 0; i < span.Length; i++)
+        {
+            BagItem item = span[i];
+            if (item.IsTradable && item.Item.Quality >= minQuality)
+            {
+                if (!excludedItemIds.Contains(item.Item.Entry))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Counts items meeting the quality threshold for mailing.
+    /// </summary>
+    /// <param name="minQuality">Minimum item quality (0=grey, 1=white, 2=green, etc.)</param>
+    /// <param name="excludedItemIds">Set of item IDs to exclude</param>
+    /// <returns>Count of mailable items</returns>
+    public int CountMailableItems(int minQuality, IReadOnlySet<int> excludedItemIds)
+    {
+        int count = 0;
+        var span = CollectionsMarshal.AsSpan(BagItems);
+        for (int i = 0; i < span.Length; i++)
+        {
+            BagItem item = span[i];
+            if (item.IsTradable && item.Item.Quality >= minQuality)
+            {
+                if (!excludedItemIds.Contains(item.Item.Entry))
+                {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
 
     #endregion
 }
