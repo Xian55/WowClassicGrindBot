@@ -342,6 +342,9 @@ function DataToColor:SetEssentialBindings()
   wasChanged = TryBind("ALT-HOME", "INTERACTTARGET") or wasChanged
   wasChanged = TryBind("ALT-END", "INTERACTMOUSEOVER") or wasChanged
 
+  -- Combat: Start attack (bypasses soft target interaction)
+  wasChanged = TryBind("ALT-NUMPADPLUS", "STARTATTACK") or wasChanged
+
   -- Pet keys (only meaningful for pet classes)
   wasChanged = TryBind("NUMPADMULTIPLY",  "TARGETPET") or wasChanged
   wasChanged = TryBind("NUMPADMINUS",  "PETATTACK") or wasChanged

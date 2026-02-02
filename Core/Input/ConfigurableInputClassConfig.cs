@@ -27,4 +27,6 @@ public sealed partial class ConfigurableInput
     public KeyAction TargetFocus => classConfig.TargetFocus;
     public KeyAction FollowTarget => classConfig.FollowTarget;
     public KeyAction Mount => classConfig.Mount;
+    public KeyAction StrafeLeft => classConfig.StrafeLeft;
+    public KeyAction StrafeRight => classConfig.StrafeRight;
 }
