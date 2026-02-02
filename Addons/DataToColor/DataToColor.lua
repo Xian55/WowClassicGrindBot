@@ -5,7 +5,7 @@
 -- Trigger between emitting game data and frame location data
 local SETUP_SEQUENCE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 111
+local NUMBER_OF_FRAMES = 112
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
@@ -212,6 +212,7 @@ DataToColor.gcdExpirationTime = 0
 
 DataToColor.lastAutoShot = 0
 DataToColor.lastMainHandMeleeSwing = 0
+DataToColor.lastDamageDoneTime = 0
 DataToColor.lastCastEvent = 0
 DataToColor.lastCastSpellId = 0
 DataToColor.lastCastGCD = 0
@@ -938,15 +939,6 @@ function DataToColor:CreateFrames()
 
             Pixel(int, DataToColor.talentQueue:shift(globalTick) or 0, 72)
 
-            -- Key bindings queue (slot 106)
-            Pixel(int, DataToColor.bindingQueue:shift(globalTick) or 0, 106)
-
-            -- Action bar texture queue (slot 107)
-            Pixel(int, DataToColor.actionBarTextureQueue:shift(globalTick) or 0, 107)
-
-            -- Action bar macro queue (slot 108)
-            Pixel(int, DataToColor.actionBarMacroQueue:shift(globalTick) or 0, 108)
-
             local gossipNum = DataToColor.gossipQueue:shift(globalTick)
             if gossipNum then
                 --DataToColor:Print("gossipQueue: ", gossipNum)
@@ -1145,6 +1137,18 @@ function DataToColor:CreateFrames()
                 Pixel(int, 0, 104)
                 Pixel(int, 0, 105)
             end
+
+
+            -- Key bindings queue (slot 106)
+            Pixel(int, DataToColor.bindingQueue:shift(globalTick) or 0, 106)
+
+            -- Action bar texture queue (slot 107)
+            Pixel(int, DataToColor.actionBarTextureQueue:shift(globalTick) or 0, 107)
+
+            -- Action bar macro queue (slot 108)
+            Pixel(int, DataToColor.actionBarMacroQueue:shift(globalTick) or 0, 108)
+
+            Pixel(int, DataToColor.lastDamageDoneTime, 109)
 
             UpdateGlobalTime()
             -- NUMBER_OF_FRAMES - 1 reserved for validation

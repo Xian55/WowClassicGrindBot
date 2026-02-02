@@ -20,6 +20,8 @@ namespace Core.Goals;
 
 public sealed partial class MailGoal : GoapGoal, IGoapEventListener, IRouteProvider, IDisposable
 {
+    public const string KeyActionName = "Mail";
+
     private enum MailState
     {
         ApproachMailbox,

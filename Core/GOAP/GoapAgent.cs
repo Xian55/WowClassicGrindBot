@@ -226,6 +226,8 @@ public sealed partial class GoapAgent : IDisposable
             else if (!wasEmpty)
             {
                 LogNewEmptyGoal(logger);
+                CurrentGoal?.OnExit();
+                CurrentGoal = null;
                 wasEmpty = true;
             }
 

@@ -308,4 +308,22 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
         GCD.Reset();
     }
+
+    public bool IsMeleeSwingingDefault() => IsMeleeSwinging(500);
+
+    public bool IsMeleeSwinging(int extraMarginMs)
+    {
+        // Only relevant when in melee range
+        if (!IsInMeleeRange())
+            return false;
+
+        // Check if swing timer shows recent activity
+        int swingSpeed = MainHandSpeedMs();
+        int elapsed = MainHandSwing.ElapsedMs();
+
+        // Buffer: swing speed + network latency + 250ms margin
+        int maxExpectedElapsed = swingSpeed + NetworkLatency + extraMarginMs;
+
+        return elapsed < maxExpectedElapsed;
+    }
 }

@@ -64,6 +64,10 @@ public sealed partial class RequirementFactory
     public const string Drink = "Drink";
     public const string Food = "Food";
 
+    public const string HasMailableItems = "HasMailableItems";
+    public const string HasExcessGold = "HasExcessGold";
+    public const string HasMailWork = "HasMailWork";
+
     public const string HealthP = "Health%";
     public const string ManaP = "Mana%";
 
@@ -165,6 +169,7 @@ public sealed partial class RequirementFactory
             { "AutoAttacking", bits.Auto_Attack },
             { "Shooting", bits.Shoot },
             { "AutoShot", bits.AutoShot },
+            { "MeleeSwinging", playerReader.IsMeleeSwingingDefault },
             
             // Temporary Enchants
             { "HasMainHandEnchant", bits.MainHandTempEnchant },
@@ -582,7 +587,7 @@ public sealed partial class RequirementFactory
         // HasMailableItems: checks if bags have items meeting quality threshold
         // Also verifies player can afford at least one mail fee
         // Access classConfig at evaluation time to ensure runtime overrides are seen
-        bool HasMailableItems()
+        bool _HasMailableItems()
         {
             if (!classConfig.Mail || !classConfig.HasMailRecipient())
                 return false;
@@ -597,12 +602,12 @@ public sealed partial class RequirementFactory
 
             return bagReader.HasMailableItems(mail.MinimumItemQuality, classConfig.GetEffectiveExcludedItemIdSet());
         }
-        boolVariables.TryAdd("HasMailableItems", HasMailableItems);
+        boolVariables.TryAdd(HasMailableItems, _HasMailableItems);
 
         // HasExcessGold: checks if player has gold above the keep threshold
         // Must have more than threshold + fee to have any excess after paying fees
         // Access classConfig at evaluation time to ensure runtime overrides are seen
-        bool HasExcessGold()
+        bool _HasExcessGold()
         {
             if (!classConfig.Mail || !classConfig.HasMailRecipient())
                 return false;
@@ -615,14 +620,14 @@ public sealed partial class RequirementFactory
             // (30 copper minimum fee, even for gold-only mail)
             return playerReader.Money > mail.MinimumGoldToKeep + MailGoal.MIN_MAIL_FEE;
         }
-        boolVariables.TryAdd("HasExcessGold", HasExcessGold);
+        boolVariables.TryAdd(HasExcessGold, _HasExcessGold);
 
         // Combined requirement: has something to mail (and recipient configured)
-        bool HasMailWork()
+        bool _HasMailWork()
         {
-            return HasMailableItems() || HasExcessGold();
+            return _HasMailableItems() || _HasExcessGold();
         }
-        boolVariables.TryAdd("HasMailWork", HasMailWork);
+        boolVariables.TryAdd(HasMailWork, _HasMailWork);
     }
 
     private void BindPathSettingsIntVariables(PathSettings[] paths)
