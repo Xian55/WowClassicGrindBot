@@ -169,6 +169,7 @@ public sealed partial class RequirementFactory
             { "AutoAttacking", bits.Auto_Attack },
             { "Shooting", bits.Shoot },
             { "AutoShot", bits.AutoShot },
+            { "MeleeSwinging", playerReader.IsMeleeSwingingDefault },
             
             // Temporary Enchants
             { "HasMainHandEnchant", bits.MainHandTempEnchant },
