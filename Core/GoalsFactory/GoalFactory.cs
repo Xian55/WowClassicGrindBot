@@ -11,8 +11,12 @@ using SharedLib;
 using System;
 using System.Numerics;
 
+using static Core.Requirement;
+using static Core.RequirementFactory;
+
 using static Core.BlacklistSourceType;
 using static Newtonsoft.Json.JsonConvert;
+
 using static System.IO.File;
 using static System.IO.Path;
 
@@ -230,7 +234,7 @@ public static class GoalFactory
 
             // Skip "Mail" actions - they are handled by ResolveMailGoal
             if (classConfig.Mail &&
-                keyAction.Name.Contains("Mail", StringComparison.OrdinalIgnoreCase))
+                keyAction.Name.Contains(MailGoal.KeyActionName, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -267,7 +271,7 @@ public static class GoalFactory
             KeyAction keyAction = classConfig.NPC.Sequence[i];
 
             // Check if this is a Mail action by name
-            if (!keyAction.Name.Contains("Mail", StringComparison.OrdinalIgnoreCase))
+            if (!keyAction.Name.Contains(MailGoal.KeyActionName, StringComparison.OrdinalIgnoreCase))
                 continue;
 
             keyAction.Path = GetPath(keyAction, dataConfig);
@@ -284,8 +288,9 @@ public static class GoalFactory
         {
             KeyAction defaultMailAction = new()
             {
-                Name = "Mail",
-                Cost = 6.5f // Between vendor (6) and repair
+                Cost = 6.5f,
+                Name = MailGoal.KeyActionName,
+                Requirement = $"{HasMailableItems} {SymbolOr} {HasExcessGold}"
             };
 
             // Initialize the KeyAction so CanRun() works properly
