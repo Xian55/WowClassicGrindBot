@@ -174,6 +174,10 @@ public static class DependencyInjection
         s.AddSingleton<IAddonReader, ConfigAddonReader>();
         s.AddSingleton<IMailSettingsService, NullMailSettingsService>();
 
+        // Required by MainLayout even in configuration mode
+        s.AddSingleton<SpellDB>();
+        s.AddSingleton<IconDB>();
+
         return s;
     }
 
