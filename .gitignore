@@ -307,3 +307,5 @@ PathingAPI/data_config.json
 
 # BenchmarkDotNet artifacts
 **/BenchmarkDotNet.Artifacts/
+Json/mail/Nidaelarius_mail.json
+Json/class/TBC/Warlock/iJump_Warlock_Custom.json
