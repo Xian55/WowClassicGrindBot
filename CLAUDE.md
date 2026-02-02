@@ -17,6 +17,10 @@ dotnet run --project BlazorServer
 dotnet run --project Benchmarks -c Release
 ```
 
+## Constants
+  - Replace magic strings/numbers with `public const` fields for cross-file discoverability
+  - Place constants in the owning class to enable Find All References and compile-time safety
+
 ## Performance Guidelines
 Follow .NET performance best practices from:
 - https://devblogs.microsoft.com/dotnet/performance-improvements-in-net-10/
