@@ -4,6 +4,7 @@ using Core.GOAP;
 using Core.Session;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using SharedLib;
 
@@ -279,14 +280,23 @@ public static class GoalFactory
         }
 
         // If no Mail action in NPC sequence, create a default one with auto-navigation
-        KeyAction defaultMailAction = new()
-        {
-            Name = "Mail",
-            Cost = 6.5f // Between vendor (6) and repair
-        };
-
         services.AddScoped<GoapGoal>(sp =>
-            ActivatorUtilities.CreateInstance<MailGoal>(sp, defaultMailAction));
+        {
+            KeyAction defaultMailAction = new()
+            {
+                Name = "Mail",
+                Cost = 6.5f // Between vendor (6) and repair
+            };
+
+            // Initialize the KeyAction so CanRun() works properly
+            ILogger logger = sp.GetRequiredService<ILogger>();
+            PlayerReader playerReader = sp.GetRequiredService<PlayerReader>();
+            RecordInt globalTime = sp.GetRequiredService<AddonReader>().GlobalTime;
+
+            defaultMailAction.Init(logger, classConfig.Log, playerReader, globalTime);
+
+            return ActivatorUtilities.CreateInstance<MailGoal>(sp, defaultMailAction);
+        });
     }
 
     private static void ResolvePetClass(IServiceCollection services,
