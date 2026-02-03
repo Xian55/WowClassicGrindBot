@@ -17,6 +17,8 @@ public sealed class MinimapNodeFinder
     private readonly ILogger logger;
     private readonly IMinimapImageProvider provider;
     public event EventHandler<MinimapNodeEventArgs>? NodeEvent;
+    
+    private Rectangle rect;
 
     private Rectangle rect;
 
