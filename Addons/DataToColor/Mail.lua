@@ -476,16 +476,16 @@ end
 -- Can be removed once all C# code uses the new API
 function DataToColor:StartMailSending(recipient, minGoldToKeep, minQuality, excludedIds, sendItems, sendGold)
     -- Use the new API internally
-    self:SMC(recipient, minGoldToKeep, minQuality, sendGold and 1 or 0)
+    DataToColor:SMC(recipient, minGoldToKeep, minQuality, sendGold and 1 or 0)
 
     -- Parse excluded IDs
     if excludedIds and excludedIds ~= "" then
-        self:AEI(excludedIds)
+        DataToColor:AEI(excludedIds)
     end
 
     -- Start sending
     if sendItems ~= false then
-        self:SMS()
+        DataToColor:SMS()
     elseif sendGold then
         -- Gold only mode
         mGoldToSend = true
