@@ -110,6 +110,9 @@ public sealed class AddonBits : IReader, IGameMenuWindowShown
 
     public bool SoftInteract_Enabled() => v3[Mask._10];
 
+    public bool SoftInteract_CombatBlocker() =>
+        SoftInteract() && (SoftInteract_Dead() || SoftInteract_Tagged());
+
     public bool MailFrameShown() => v3[Mask._11];
 
     public bool NotMailFrameShown() => !MailFrameShown();

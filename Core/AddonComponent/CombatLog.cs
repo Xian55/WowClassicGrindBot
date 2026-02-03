@@ -33,6 +33,8 @@ public sealed class CombatLog : IReader
     public RecordInt TargetMissType { get; }
     public RecordInt TargetDodge { get; }
 
+    public RecordInt LastDamageDoneTime { get; }
+
     public CombatLog(AddonBits bits)
     {
         this.bits = bits;
@@ -40,6 +42,8 @@ public sealed class CombatLog : IReader
         DamageDoneGuid = new RecordInt(64);
         DamageTakenGuid = new RecordInt(65);
         DeadGuid = new RecordInt(66);
+
+        LastDamageDoneTime = new(109);
 
         TargetMissType = new(67);
         TargetDodge = new(67);
@@ -56,6 +60,8 @@ public sealed class CombatLog : IReader
         DamageTakenGuid.Reset();
         DeadGuid.Reset();
 
+        LastDamageDoneTime.Reset();
+
         TargetMissType.Reset();
         TargetDodge.Reset();
     }
@@ -63,6 +69,8 @@ public sealed class CombatLog : IReader
     public void Update(IAddonDataProvider reader)
     {
         bool combat = bits.Combat();
+
+        LastDamageDoneTime.Update(reader);
 
         if (combat && DamageTakenGuid.Updated(reader) && DamageTakenGuid.Value > 0)
         {

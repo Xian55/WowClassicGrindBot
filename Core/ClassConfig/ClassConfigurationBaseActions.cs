@@ -41,9 +41,9 @@ public sealed partial class ClassConfiguration
     public KeyAction AutoAttack { get; } = new()
     {
         Name = nameof(AutoAttack),
-        BindingID = BindingID.INTERACTTARGET,
+        BindingID = BindingID.STARTATTACK,
         BaseAction = true,
-        Requirement = "!AutoAttacking && !SoftTargetDead"
+        Requirement = "!AutoAttacking && !MeleeSwinging"
     };
 
     public KeyAction TargetLastTarget { get; } = new()
@@ -132,5 +132,19 @@ public sealed partial class ClassConfiguration
         Name = nameof(Mount),
         BaseAction = true,
         Cooldown = 6000,
+    };
+
+    public KeyAction StrafeLeft { get; } = new()
+    {
+        Name = nameof(StrafeLeft),
+        BindingID = BindingID.STRAFELEFT,
+        BaseAction = true,
+    };
+
+    public KeyAction StrafeRight { get; } = new()
+    {
+        Name = nameof(StrafeRight),
+        BindingID = BindingID.STRAFERIGHT,
+        BaseAction = true,
     };
 }

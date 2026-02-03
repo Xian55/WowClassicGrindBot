@@ -471,6 +471,7 @@ function DataToColor:OnCombatEvent(...)
             end
 
             DataToColor.CombatDamageDoneQueue:push(DataToColor:getGuidFromUUID(destGUID))
+            DataToColor.lastDamageDoneTime = DataToColor.globalTime
 
             if playerDamageMiss[subEvent] then
                 local missType = select(-2, ...)

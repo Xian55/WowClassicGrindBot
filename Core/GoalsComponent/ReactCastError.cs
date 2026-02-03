@@ -165,45 +165,61 @@ public sealed class ReactCastError
             case UI_ERROR.ERR_BADATTACKFACING:
 
                 bool wasAnyAuto = bits.Any_AutoAttack();
+                bool turnedWithInteract = false;
 
-                float beforeDir = playerReader.Direction;
+                // Try fast interact if no invalid soft target exists
+                if (!bits.SoftInteract_CombatBlocker())
+                {
+                    float beforeDir = playerReader.Direction;
+                    input.PressFastInteract();
 
-                input.PressFastInteract();
+                    const int updateCount = 4;
+                    float e = wait.AfterEquals(playerReader.SpellQueueTimeMs,
+                        updateCount, playerReader._Direction);
 
-                const int updateCount = 2;
-                float e = wait.AfterEquals(playerReader.SpellQueueTimeMs,
-                    updateCount, playerReader._Direction);
+                    float sampleTimeMs =
+                        updateCount * (float)addonReader.AvgUpdateLatency;
 
-                float sampleTimeMs =
-                    updateCount * (float)addonReader.AvgUpdateLatency;
+                    if (e > sampleTimeMs)
+                    {
+                        stopMoving.Stop();
+                        logger.LogInformation(
+                            $"React to {value.ToStringF()} - " +
+                            $"Fast turn with Interact {e}ms");
+                        turnedWithInteract = true;
+                    }
+                    else
+                    {
+                        logger.LogWarning(
+                            $"Unable to react to {value.ToStringF()} - " +
+                            $"Fast turn with Interact {e}ms");
 
-                if (e > sampleTimeMs)
+                        // Check if we turned at all (even if slowly)
+                        turnedWithInteract = beforeDir != playerReader.Direction;
+                    }
+                }
+
+                // Fallback: slow turn 180 degrees if interact didn't work or was skipped
+                if (!turnedWithInteract)
                 {
                     stopMoving.Stop();
+
+                    float targetDir = playerReader.Direction + PI;
+                    if (targetDir > Tau)
+                        targetDir -= Tau;
+
+                    direction.SetDirection(targetDir, Vector3.Zero);
+
+                    string reason = bits.SoftInteract_CombatBlocker()
+                        ? "invalid soft target"
+                        : "interact failed";
                     logger.LogInformation(
-                        $"React to {value.ToStringF()} - " +
-                        $"Fast turn with Interact {e}ms");
-                }
-                else
-                {
-                    logger.LogWarning(
-                        $"Unable to react to {value.ToStringF()} - " +
-                        $"Fast turn with Interact {e}ms");
+                        $"React to {value.ToStringF()} - Slow turn 180deg ({reason})");
                 }
 
                 if (!wasAnyAuto)
                     input.PressStopAttack();
 
-                if (e <= sampleTimeMs && beforeDir == playerReader.Direction)
-                {
-                    stopMoving.Stop();
-                    logger.LogInformation($"React to {value.ToStringF()} - " +
-                        $"Slow turn 180deg");
-                    float targetDir = playerReader.Direction + PI;
-                    if (targetDir > Tau)
-                        targetDir = -Tau;
-                    direction.SetDirection(targetDir, Vector3.Zero);
-                }
                 break;
             case UI_ERROR.SPELL_FAILED_MOVING:
                 logger.LogInformation($"React to {value.ToStringF()} -- Stop moving!");

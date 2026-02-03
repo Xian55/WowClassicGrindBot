@@ -48,6 +48,7 @@ public static class KeyBindingDefaults
         // ALT-PAGEUP: TARGETFOCUS (TBC+) or TARGETPARTYMEMBER1 (Vanilla) - version dependent, modifiers come from runtime
 
         // ===== Combat =====
+        { BindingID.STARTATTACK, new(BindingID.STARTATTACK, "Add",      ConsoleKey.Add,      "NUMPADPLUS",  107) },
         { BindingID.PETATTACK,   new(BindingID.PETATTACK,   "Subtract", ConsoleKey.Subtract, "NUMPADMINUS", 109) },
 
         // ===== Interaction (ALT-HOME/ALT-END - modifiers come from runtime) =====
@@ -182,6 +183,7 @@ public static class KeyBindingDefaults
         // ALT-PAGEUP: TARGETFOCUS (TBC+) or TARGETPARTYMEMBER1 (Vanilla) - version dependent
 
         // Combat
+        { "Add", BindingID.STARTATTACK },
         { "Subtract", BindingID.PETATTACK },
 
         // Interaction (ALT-HOME/ALT-END)

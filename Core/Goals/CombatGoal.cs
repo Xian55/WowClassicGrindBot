@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Numerics;
 
+using static System.MathF;
+
 namespace Core.Goals;
 
 public sealed class CombatGoal : GoapGoal, IGoapEventListener
@@ -109,7 +111,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
     {
         wait.Update();
 
-        if (MathF.Abs(lastDirection - playerReader.Direction) > MathF.PI / 2)
+        if (Abs(lastDirection - playerReader.Direction) > PI / 2)
         {
             logger.LogInformation("Turning too fast!");
             stopMoving.Stop();
@@ -123,6 +125,11 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
         {
             input.PressJump();
             return;
+        }
+
+        if (bits.SoftInteract_Enabled())
+        {
+            UnstuckDeadSoftTargetLock();
         }
 
         if (classConfig.AutoPetAttack &&
@@ -149,11 +156,6 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             {
                 break;
             }
-        }
-
-        if (bits.SoftInteract_Enabled())
-        {
-            DealWithSoftInteract();
         }
 
         if (!bits.Target() || (bits.Target() && bits.Target_Dead()))
@@ -213,7 +215,15 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
 
         if (bits.Target() && !bits.Target_Dead() && bits.Target_Hostile())
         {
-            if (bits.Target_Combat() && bits.TargetTarget_PlayerOrPet())
+            if (!bits.Target_Combat())
+            {
+                logger.LogWarning("Dont pull non-hostile target!");
+                input.PressClearTarget();
+                wait.Update();
+                return;
+            }
+
+            if (bits.TargetTarget_PlayerOrPet() || combatLog.DamageTaken.Contains(playerReader.TargetGuid))
             {
                 ResetCooldowns();
 
@@ -221,15 +231,14 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
                 wait.Update();
                 return;
             }
-
-            logger.LogWarning("Dont pull non-hostile target!");
-            input.PressClearTarget();
-            wait.Update();
         }
 
-        logger.LogWarning($"Waiting for target to exists or lose combat. Possible threats {combatLog.DamageTakenCount()}!");
-        wait.Till(CastingHandler.GCD * 2,
-            () => bits.Target_Alive() || !bits.Combat());
+        logger.LogWarning($"Possible threats {combatLog.DamageTakenCount()}!");
+
+        if (bits.SoftInteract_Enabled())
+        {
+            UnstuckDeadSoftTargetLock();
+        }
     }
 
     private Vector3 GetCorpseLocation(float distance)
@@ -237,54 +246,57 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
         return PointEstimator.GetMapPos(playerReader.WorldMapArea, playerReader.WorldPos, playerReader.Direction, distance);
     }
 
-    private void DealWithSoftInteract()
+    private void UnstuckDeadSoftTargetLock()
     {
-        if (!playerReader.IsInMeleeRange() ||
-            playerReader.IsCasting() ||
-            !InvalidSoftInteractExists() ||
-            playerReader.TargetGuid == playerReader.SoftInteract_Guid)
+        if (!bits.SoftInteract() ||
+            !bits.SoftInteract_Dead() ||
+            !bits.Auto_Attack() ||
+            combatLog.LastDamageDoneTime.ElapsedMs() < playerReader.MainHandSpeedMs() * 2 ||
+            combatLog.DamageTakenCount() == 0)
         {
             return;
         }
 
-        // TODO: have to find a better way to deal with this
-        return;
+        logger.LogWarning("Turn away from dead softTarget due locking current target interaction!");
 
-        ConsoleKey key = Random.Shared.Next(2) == 0
+        float startDirection = playerReader.Direction;
+        float totalRotation = 0f;
+
+        ConsoleKey turnKey = Random.Shared.Next(2) == 0
             ? input.TurnLeftKey
             : input.TurnRightKey;
 
-        logger.LogWarning($"Invalid SoftInteract Detected Turn away({key}) then face target!");
+        input.SetKeyState(turnKey, true, false);
 
-        input.SetKeyState(key, true, false);
-        while (InvalidSoftInteractExists())
+        while (bits.SoftInteract() && bits.SoftInteract_Dead())
         {
             wait.Update();
+
+            float currentDirection = playerReader.Direction;
+            float delta = Abs(currentDirection - startDirection);
+            if (delta > PI)
+                delta = Tau - delta;
+
+            totalRotation = delta;
+
+            // Safety: if we've turned nearly 360°, soft target is everywhere - strafe instead
+            if (totalRotation >= Tau - 0.2f)
+            {
+                input.SetKeyState(turnKey, false, false);
+                logger.LogWarning("Full rotation without clearing soft target - strafe!");
+
+                KeyAction strafeAction = Random.Shared.Next(2) == 0
+                    ? input.StrafeLeft
+                    : input.StrafeRight;
+
+                input.PressFixed(strafeAction.ConsoleKey, 500, default);
+                wait.Update();
+
+                return;
+            }
         }
-        input.SetKeyState(key, false, false);
-        wait.Fixed(playerReader.DoubleNetworkLatency);
-        wait.Update();
 
-        if (bits.Target() && !InvalidSoftInteractExists())
-        {
-            input.PressFastInteract();
-
-            const int updateCount = 2;
-            float e = wait.AfterEquals(playerReader.SpellQueueTimeMs,
-                updateCount, playerReader._Direction);
-
-            stopMoving.StopForward();
-        }
-    }
-
-    private bool InvalidSoftInteractExists()
-    {
-        return
-            bits.SoftInteract() &&
-            (
-            playerReader.SoftInteract_Type != GuidType.Creature ||
-            bits.SoftInteract_Dead() ||
-            bits.SoftInteract_Tagged()
-            );
+        input.SetKeyState(turnKey, false, false);
+        logger.LogInformation($"Cleared dead soft target after {totalRotation * 180f / PI:F0}° turn");
     }
 }
