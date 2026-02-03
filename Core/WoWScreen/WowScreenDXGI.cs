@@ -89,7 +89,7 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
 
     public MinimapSettings MinimapSettings =>
         Data.Length > 2
-        ? new(Data[106], Data[107])
+        ? new(Data[110], Data[111])
         : new(9013, 220016); //debug only
 
     public WowScreenDXGI(ILogger<WowScreenDXGI> logger,

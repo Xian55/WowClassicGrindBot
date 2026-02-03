@@ -1,20 +1,26 @@
-﻿using Core.Addon;
+using Core.Addon;
 using Core.GoalsComponent;
 using Core.GOAP;
+
+using Game;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using SharedLib;
 using SharedLib.Extensions;
 
 using System;
 using System.Numerics;
+using System.Threading;
 
 namespace Core.Goals;
 
 public sealed class AutoGatherGoal : GoapGoal, IGoapEventListener, IRouteProvider, IDisposable
 {
     public const string KeyActionName = "AutoGathering";
+
+    private const float INTERACTION_RANGE_YARDS = 2f;
 
     public override float Cost => key.Cost;
     public DateTime LastActive => navigation.LastActive;
@@ -27,6 +33,11 @@ public sealed class AutoGatherGoal : GoapGoal, IGoapEventListener, IRouteProvide
     private readonly Wait wait;
     private readonly AddonBits bits;
     private readonly FoundNodeListener foundNodeListener;
+    private readonly StopMoving stopMoving;
+    private readonly CursorScan cursorScan;
+    private readonly IMouseInput mouseInput;
+    private readonly PlayerDirection playerDirection;
+    private readonly CancellationToken token;
 
     public AutoGatherGoal(
         ILogger<AutoGatherGoal> logger,
@@ -36,6 +47,11 @@ public sealed class AutoGatherGoal : GoapGoal, IGoapEventListener, IRouteProvide
         Wait wait,
         AddonBits bits,
         FoundNodeListener foundNodeListener,
+        StopMoving stopMoving,
+        CursorScan cursorScan,
+        IMouseInput mouseInput,
+        PlayerDirection playerDirection,
+        CancellationTokenSource cts,
         [FromKeyedServices(KeyActionName)] KeyAction keyAction
         ) : base(nameof(AutoGatherGoal))
     {
@@ -46,6 +62,11 @@ public sealed class AutoGatherGoal : GoapGoal, IGoapEventListener, IRouteProvide
         this.navigation = navigation;
         this.foundNodeListener = foundNodeListener;
         this.bits = bits;
+        this.stopMoving = stopMoving;
+        this.cursorScan = cursorScan;
+        this.mouseInput = mouseInput;
+        this.playerDirection = playerDirection;
+        this.token = cts.Token;
 
         key = keyAction;
 
@@ -116,20 +137,61 @@ public sealed class AutoGatherGoal : GoapGoal, IGoapEventListener, IRouteProvide
         if (bits.Drowning())
             input.PressJump();
 
-        if (bits.SoftInteract_Enabled())
+        // Check if we're close to the target node
+        if (key.Path.Length == 1 && key.Path[0] != default)
         {
-            int id = playerReader.SoftInteract_Id;
+            Vector3 nodeMapPos = key.Path[0];
+            Vector3 nodeWorldPos = WorldMapAreaDB.ToWorld_FlipXY(nodeMapPos, playerReader.WorldMapArea);
+            float distanceYards = playerReader.WorldPos.WorldDistanceXYTo(nodeWorldPos);
 
-            if (id != 0 && (GameObject.IsMineral(id) || GameObject.IsHerb(id)))
+            if (distanceYards < INTERACTION_RANGE_YARDS)
             {
-                input.PressInteract();
+                // Stop moving
+                navigation.StopMovement();
+
+                // If already casting (gathering), wait for it
+                if (playerReader.IsCasting())
+                {
+                    wait.Update();
+                    return;
+                }
+
+                // Turn to face the node - positions it at screen center
+                float targetDirection = DirectionCalculator.CalculateMapHeading(playerReader.MapPosNoZ, nodeMapPos);
+                playerDirection.SetDirection(targetDirection, token);
                 wait.Update();
+
+                // Try soft interact first (most reliable)
+                if (bits.SoftInteract_Enabled())
+                {
+                    int id = playerReader.SoftInteract_Id;
+                    if (id != 0 && (GameObject.IsMineral(id) || GameObject.IsHerb(id)))
+                    {
+                        input.PressInteract();
+                        wait.Update();
+                        return;
+                    }
+                }
+
+                // Fallback: spiral cursor scan for herb/mining icons
+                if (!input.KeyboardOnly)
+                {
+                    ReadOnlySpan<CursorType> gatherCursors = [CursorType.Mine, CursorType.Herb];
+
+                    // Check if cursor is already over a node
+                    if (cursorScan.TryMatchCurrent(gatherCursors, out _) ||
+                        cursorScan.FindAny(gatherCursors, out _, out _))
+                    {
+                        mouseInput.InteractMouseOver(token);
+                        wait.Update();
+                        return;
+                    }
+                }
             }
         }
 
-        //if (pathState != PathState.Finished)
+        // Continue navigation if not close enough or gathering failed
         navigation.Update();
-
         wait.Update();
     }
 
@@ -151,7 +213,7 @@ public sealed class AutoGatherGoal : GoapGoal, IGoapEventListener, IRouteProvide
             return;
         }
 
-        logger.LogWarning($"Found node at {node}");
+        //logger.LogWarning($"Found node at {node}");
 
         key.Path = [node];
         navigation.SetWayPoints(key.Path);

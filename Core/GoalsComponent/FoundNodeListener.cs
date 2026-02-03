@@ -17,7 +17,7 @@ public sealed class FoundNodeListener : IDisposable
     private readonly MinimapNodeFinder minimapNodeFinder;
 
     private static readonly float[] OutdoorZoomDiametersYards =
-        [233.33f, 116.67f, 58.33f, 29.17f, 14.58f, 7.29f];
+        [472f, 366f, 284f, 220f, 171f, 132f];
 
     private static readonly float[] IndoorZoomDiametersYards =
         [133.33f, 66.67f, 33.33f, 16.67f, 8.33f, 4.17f];
@@ -111,9 +111,12 @@ public sealed class FoundNodeListener : IDisposable
         float mapUnitsPerYardX = 100f / zoneWidthYards;
         float mapUnitsPerYardY = 100f / zoneHeightYards;
 
+        // worldOffsetYards.X = -world.Y direction (east on screen)
+        // worldOffsetYards.Y = +world.X direction (north on screen)
+        // Map.X corresponds to world.Y, Map.Y corresponds to world.X
         Vector2 offsetMapUnits = new(
-            worldOffsetYards.X * mapUnitsPerYardX,
-            worldOffsetYards.Y * mapUnitsPerYardY);
+            worldOffsetYards.X * mapUnitsPerYardY,     // Map X from -world Y offset
+            -worldOffsetYards.Y * mapUnitsPerYardX);  // Map Y from +world X offset (negated for map direction)
 
         Vector3 pos = playerMapPos + new Vector3(offsetMapUnits, 0);
 
@@ -128,6 +131,23 @@ public sealed class FoundNodeListener : IDisposable
                 Math.Clamp(pos.Y, 0f, 100f),
                 pos.Z);
         }
+
+        // Diagnostic logging for calibrating minimap conversion (calibration complete)
+        //float worldX = wma.ToWorldX(pos.Y);
+        //float worldY = wma.ToWorldY(pos.X);
+        //float playerWorldX = wma.ToWorldX(playerMapPos.Y);
+        //float playerWorldY = wma.ToWorldY(playerMapPos.X);
+        //logger.LogInformation(
+        //    "Minimap: zoom={Zoom} diameter={Diameter:F1}y pxOff=({PxX:F1},{PxY:F1}) " +
+        //    "yardOff=({YdX:F2},{YdY:F2}) zone=({ZW:F0}x{ZH:F0}) " +
+        //    "player=({PWX:F1},{PWY:F1}) predicted=({NWX:F1},{NWY:F1})",
+        //    settings.Zoom,
+        //    diametersYards[settings.Zoom],
+        //    dx, dy,
+        //    worldOffsetYards.X, worldOffsetYards.Y,
+        //    zoneWidthYards, zoneHeightYards,
+        //    playerWorldX, playerWorldY,
+        //    worldX, worldY);
 
         NodeFound?.Invoke(pos);
     }

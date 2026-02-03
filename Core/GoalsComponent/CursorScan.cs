@@ -41,6 +41,29 @@ public sealed partial class CursorScan : IDisposable
     }
 
     /// <summary>
+    /// Checks if the current cursor matches any of the specified types without moving the mouse.
+    /// </summary>
+    /// <param name="targetCursors">The cursor types to match against.</param>
+    /// <param name="foundCursor">The cursor type that was found, if any.</param>
+    /// <returns>True if current cursor matches any target type, false otherwise.</returns>
+    public bool TryMatchCurrent(ReadOnlySpan<CursorType> targetCursors, out CursorType foundCursor)
+    {
+        classifier.Classify(out CursorType current, out _);
+
+        for (int i = 0; i < targetCursors.Length; i++)
+        {
+            if (current == targetCursors[i])
+            {
+                foundCursor = current;
+                return true;
+            }
+        }
+
+        foundCursor = CursorType.None;
+        return false;
+    }
+
+    /// <summary>
     /// Scans in a spiral pattern from the screen center looking for the specified cursor type.
     /// </summary>
     /// <param name="targetCursor">The cursor type to find.</param>

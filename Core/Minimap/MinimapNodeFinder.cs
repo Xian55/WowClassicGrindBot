@@ -17,9 +17,6 @@ public sealed class MinimapNodeFinder
     private readonly ILogger logger;
     private readonly IMinimapImageProvider provider;
     public event EventHandler<MinimapNodeEventArgs>? NodeEvent;
-    
-    private Rectangle rect;
-
     private Rectangle rect;
 
     private readonly ArrayCounter counter;
@@ -37,8 +34,12 @@ public sealed class MinimapNodeFinder
 
     public void Update()
     {
+        var settings = provider.MinimapSettings;
+        if (settings.Width <= 0)
+            return;
+
         ReadOnlySpan<Point> span = FindYellowPoints();
-        ScorePoints(span, provider.MinimapSettings, out Point best, out int amountAboveMin);
+        ScorePoints(span, settings, out Point best, out int amountAboveMin);
         NodeEvent?.Invoke(this, new MinimapNodeEventArgs(best.X, best.Y, amountAboveMin, rect));
     }
 
