@@ -60,6 +60,7 @@ end
 local LibClassicCasterino
 if DataToColor.IsClassic() then
   LibClassicCasterino = _G.LibStub("LibClassicCasterino")
+  LibClassicCasterino.callbacks:OnUsed()
 end
 
 local Som140 = DataToColor.IsClassic() and buildVersion == 11400 or buildVersion == 11401 or buildVersion == 11402
@@ -221,15 +222,15 @@ end
 function DataToColor:GetCachedAuraInfo(isBuff, unit, index)
     local name, texture, count, _, duration, expirationTime
     if isBuff then
-        name, texture, count, _, duration, expirationTime = self:GetCachedBuff(unit, index)
+        name, texture, count, _, duration, expirationTime = DataToColor:GetCachedBuff(unit, index)
     else
-        name, texture, count, _, duration, expirationTime = self:GetCachedDebuff(unit, index)
+        name, texture, count, _, duration, expirationTime = DataToColor:GetCachedDebuff(unit, index)
     end
 
     if not name then return nil end
 
     -- Normalize texture (same as GetAuraInfo)
-    texture = self:NormalizeTexture(texture)
+    texture = DataToColor:NormalizeTexture(texture)
 
     return name, texture, duration or 0, expirationTime or 0
 end
@@ -489,7 +490,7 @@ if DataToColor.IsLegacy() then
     local hex = uuid:match("^0x(%x+)$")
     local npcId = tonumber(npc_hex, 16)
     local spawn = hex:sub(-8)  -- "0000355D"
-    return self:uniqueGuid(npcId, spawn)
+    return DataToColor:uniqueGuid(npcId, spawn)
   end
 
   -- Extract NPC ID from UUID
@@ -621,4 +622,46 @@ else
   function DataToColor:PlayerIsMoving()
     return DataToColor.moving
   end
+end
+
+--------------------------------------------------------------------------------
+-- SAFE EVENT REGISTRATION
+-- Pre-validates event existence before AceEvent registration to avoid errors
+--------------------------------------------------------------------------------
+
+local eventTestFrame = CreateFrame("Frame")
+local validatedEvents = {}
+
+-- Check if an event exists in this WoW version
+-- Uses raw frame registration which returns silently for unknown events
+function DataToColor.IsEventSupported(eventName)
+    if validatedEvents[eventName] ~= nil then
+        return validatedEvents[eventName]
+    end
+
+    -- Try to register on raw frame - this doesn't error for unknown events
+    local success = pcall(function()
+        eventTestFrame:RegisterEvent(eventName)
+    end)
+
+    if success then
+        -- Check if it was actually registered (some versions silently fail)
+        local isRegistered = eventTestFrame:IsEventRegistered(eventName)
+        eventTestFrame:UnregisterEvent(eventName)
+        validatedEvents[eventName] = isRegistered
+        return isRegistered
+    end
+
+    validatedEvents[eventName] = false
+    return false
+end
+
+-- Safe wrapper for AceEvent registration
+-- Only registers if the event exists in this WoW version
+function DataToColor:SafeRegisterEvent(eventName, handler)
+    if DataToColor.IsEventSupported(eventName) then
+        DataToColor:RegisterEvent(eventName, handler)
+        return true
+    end
+    return false
 end
