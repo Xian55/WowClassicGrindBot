@@ -421,7 +421,7 @@ end
 
 function DataToColor:Bits1Cached()
     if not BITCACHE_ENABLED or not cacheInitialized then
-        return self:Bits1()  -- Fallback to original
+        return DataToColor:Bits1()  -- Fallback to original
     end
 
     -- Update polled values
@@ -437,7 +437,7 @@ function DataToColor:Bits1Cached()
         (bits1Cache.petIsAlive and 2 or 0) ^ 6 +
         (bits1Cache.mainHandEnchant and 2 or 0) ^ 7 +
         (bits1Cache.offHandEnchant and 2 or 0) ^ 8 +
-        (self:GetInventoryBroken() ^ 9) +  -- Keep original for bit 9 (returns 0 or 2)
+        (DataToColor:GetInventoryBroken() ^ 9) +  -- Keep original for bit 9 (returns 0 or 2)
         (bits1Cache.onTaxi and 2 or 0) ^ 10 +
         (bits1Cache.isSwimming and 2 or 0) ^ 11 +
         (bits1Cache.petIsHappy and 2 or 0) ^ 12 +
@@ -456,12 +456,12 @@ end
 
 function DataToColor:Bits2Cached()
     if not BITCACHE_ENABLED or not cacheInitialized then
-        return self:Bits2()  -- Fallback to original
+        return DataToColor:Bits2()  -- Fallback to original
     end
 
     return
         (bits2Cache.isBreathHeld and 1 or 0) +
-        (self.corpseInRange ^ 1) +  -- Keep original
+        (DataToColor.corpseInRange ^ 1) +  -- Keep original
         (bits2Cache.isIndoors and 2 or 0) ^ 2 +
         (bits2Cache.focusExists and 2 or 0) ^ 3 +
         (bits2Cache.focusInCombat and 2 or 0) ^ 4 +
@@ -488,7 +488,7 @@ end
 
 function DataToColor:Bits3Cached()
     if not BITCACHE_ENABLED or not cacheInitialized then
-        return self:Bits3()  -- Fallback to original
+        return DataToColor:Bits3()  -- Fallback to original
     end
 
     return
