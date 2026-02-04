@@ -44,6 +44,7 @@ public static class DependencyInjection
         s.ForwardSingleton<Stance, IReader>();
 
         s.ForwardSingleton<CombatLog, IReader>();
+        s.AddSingleton<CorpseTracker>();
         s.ForwardSingleton<EquipmentReader, IReader>();
         s.ForwardSingleton<BagReader, IReader>();
         s.ForwardSingleton<GossipReader, IReader>();
@@ -129,6 +130,7 @@ public static class DependencyInjection
 
         // Addon Components
         s.ForwardSingleton<CombatLog>(sp);
+        s.ForwardSingleton<CorpseTracker>(sp);
         s.ForwardSingleton<EquipmentReader>(sp);
         s.ForwardSingleton<BagReader>(sp);
         s.ForwardSingleton<GossipReader>(sp);

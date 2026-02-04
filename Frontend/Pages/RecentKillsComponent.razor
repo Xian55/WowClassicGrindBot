@@ -1,0 +1,67 @@
+@using Core
+@using Core.Database
+@using SharedLib
+
+@inject CorpseTracker CorpseTracker
+@inject WApi Api
+
+@implements IDisposable
+
+<Card>
+    <CardHeader>
+        <div class="d-flex">
+            <div class="p-2 flex-grow-1">Recent Kills</div>
+            <div class="p-2 small text-muted">@kills.Count</div>
+        </div>
+    </CardHeader>
+    <CardBody Style="max-height: 200px; overflow-y: auto;">
+        @if (kills.Count == 0)
+        {
+            <div class="text-muted small">No recent kills</div>
+        }
+        else
+        {
+            @for (int i = kills.Count - 1; i >= 0; i--)
+            {
+                var kill = kills[i];
+                <div class="animate__animated animate__slideInDown d-flex small mb-1">
+                    <span class="text-muted" style="width: 70px;">
+                        @kill.KillTimeUtc.ToLocalTime().ToString("HH:mm:ss")
+                    </span>
+                    <a href="@($"{Api.NpcId}{kill.NpcId}")"
+                       target="_blank"
+                       data-wowhead="npc=@kill.NpcId"
+                       style="text-decoration:none">
+                        @kill.NpcName
+                    </a>
+                </div>
+            }
+        }
+    </CardBody>
+</Card>
+
+@code {
+    private IReadOnlyList<CorpseTracker.RecentKill> kills = [];
+
+    protected override void OnInitialized()
+    {
+        CorpseTracker.OnCorpseAdded += OnCorpseAdded;
+        RefreshKills();
+    }
+
+    public void Dispose()
+    {
+        CorpseTracker.OnCorpseAdded -= OnCorpseAdded;
+    }
+
+    private void OnCorpseAdded()
+    {
+        RefreshKills();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RefreshKills()
+    {
+        kills = CorpseTracker.GetRecentKills();
+    }
+}
