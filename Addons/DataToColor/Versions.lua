@@ -457,7 +457,7 @@ if DataToColor.IsLegacy() then
   end
 
   -- Get unique GUID from unit
-  -- Legacy: Uses direct extraction of the last hex segment
+  -- Legacy: Uses uniqueGuid with NPC ID for bit-packed encoding
   function DataToColor:getGuidFromUnit(unit)
     if not UnitExists(unit) then
       return 0
@@ -466,13 +466,16 @@ if DataToColor.IsLegacy() then
     local guid = UnitGUID(unit)
     if not guid then return 0 end
 
-    -- Legacy format: Extract last segment (unique spawn ID) directly
-    local spawn_hex = guid:match("0xF[0-9A-F]+%x%x%x%x(%x%x%x%x%x%x)")
-    if spawn_hex then
-        return tonumber(spawn_hex, 16)
-    end
+    -- Legacy creature guid example: 0xF130C2CF0000355D
+    -- NPC ID is at position 5-8 (after 0xF130): C2CF = 49871
+    local npc_hex = guid:match("^0xF130(%x%x%x%x)")
+    local npcId = npc_hex and tonumber(npc_hex, 16) or 0
 
-    return 0
+    -- Spawn data is last 8 characters
+    local hex = guid:match("^0x(%x+)$")
+    local spawn = hex and hex:sub(-8) or nil
+
+    return DataToColor:uniqueGuid(npcId, spawn)
   end
 
   -- /dump DataToColor:getGuidFromUUID("0xF130C2CF0000355D")
@@ -597,18 +600,24 @@ else
 
 end
 
--- Unique GUID calculation (Modern Classic only)
--- This is called from modern client implementations only
+-- Unique GUID calculation - bit-packed encoding
+-- High 18 bits: NPC ID (max 262,143), Low 6 bits: spawn uniqueness hash (64 values)
+-- This allows C# to extract the NPC ID via: npcId = guid >> 6
 function DataToColor:uniqueGuid(npcId, spawn)
   npcId = tonumber(npcId, 10) or tonumber(npcId, 16) or 0
   if not spawn then
     return 0
   end
 
+  -- Extract spawn uniqueness from spawn string
   local spawnEpochOffset = band(tonumber(sub(spawn, 5), 16) or 0, 0x7fffff)
   local spawnIndex = band(tonumber(sub(spawn, 1, 5), 16) or 0, 0xffff8)
+  local spawnHash = band(spawnEpochOffset + spawnIndex, 0x3F)  -- 6 bits (0-63)
 
-  return (spawnEpochOffset + spawnIndex + npcId) % 0x1000000
+  -- Pack: NPC ID (18 bits) | spawn hash (6 bits)
+  -- bit.lshift(npcId, 6) puts NPC ID in high bits
+  -- bit.bor combines with spawn hash in low bits
+  return bit.bor(bit.lshift(band(npcId, 0x3FFFF), 6), spawnHash)
 end
 
 

@@ -2416,6 +2416,7 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"MenuOpen"` | Returns true if the Game Menu window is open (ESC) |
 | `"ChatInputVisible"` | Returns true if the Chat inputbox is open (ENTER) |
 | `"Dead"` | The player is currently dead. |
+| `"CannibalizeCorpse"` | A Humanoid or Undead corpse is within 5 yards of the player. |
 | `"Has Pet"` | The player's pet is alive |
 | `"Pet HasTarget"` | Players pet has target |
 | `"Pet Happy"` | Pet happienss is green |
