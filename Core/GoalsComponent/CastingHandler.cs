@@ -311,6 +311,14 @@ public sealed partial class CastingHandler
             playerReader.DoubleNetworkLatency + playerReader.SpellQueueTimeMs,
             wait, playerReader, item, currentAction, token);
 
+        // Channeling spells like Cannibalize
+        // does not trigger the IsUsableAction
+        if (elapsedMs < 0.01f)
+        {
+            wait.Update(token);
+            wait.Update(token);
+        }
+
         if (DEBUG && Log && item.Log)
             LogCastbarInput(logger, item.Name, pressMs, elapsedMs);
 
