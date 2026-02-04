@@ -71,7 +71,8 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             // have to check range
             // ex. target died far away have to consider the range and approximate
             float distance = (lastMaxDistance + lastMinDistance) / 2f;
-            SendGoapEvent(new CorpseEvent(GetCorpseLocation(distance), distance, playerReader.Direction, playerReader.MapPos));
+            int packedGuid = combatLog.DeadGuid.Value;
+            SendGoapEvent(new CorpseEvent(GetCorpseLocation(distance), distance, playerReader.Direction, playerReader.MapPos, packedGuid));
         }
     }
 
