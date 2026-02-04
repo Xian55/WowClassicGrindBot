@@ -31,6 +31,7 @@ public sealed partial class GoapAgent : IDisposable
     private readonly ConfigurableInput input;
     private readonly IMountHandler mountHandler;
     private readonly CombatLog combatLog;
+    private readonly CorpseTracker corpseTracker;
 
     private readonly IGrindSessionHandler sessionHandler;
     private readonly StopMoving stopMoving;
@@ -114,6 +115,7 @@ public sealed partial class GoapAgent : IDisposable
         ConfigurableInput input,
         IMountHandler mountHandler,
         CombatLog combatLog,
+        CorpseTracker corpseTracker,
         IBagChangeTracker bagChangeTracker,
         SessionStat sessionStat,
         StopMoving stopMoving,
@@ -141,6 +143,7 @@ public sealed partial class GoapAgent : IDisposable
         this.mountHandler = mountHandler;
 
         this.combatLog = combatLog;
+        this.corpseTracker = corpseTracker;
         this.bagChangeTracker = bagChangeTracker;
 
         SessionStat = sessionStat;
@@ -328,6 +331,7 @@ public sealed partial class GoapAgent : IDisposable
         else if (e is CorpseEvent c)
         {
             routeInfo.PoiList.Add(new RouteInfoPoi(c.MapLoc, CorpseEvent.NAME, CorpseEvent.COLOR, c.Radius));
+            corpseTracker.AddCorpse(c.PackedGuid, c.MapLoc);
         }
         else if (e is SkinCorpseEvent s)
         {

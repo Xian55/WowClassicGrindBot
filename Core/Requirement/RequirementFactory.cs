@@ -33,6 +33,7 @@ public sealed partial class RequirementFactory
     private readonly CreatureDB creatureDb;
     private readonly ItemDB itemDb;
     private readonly CombatLog combatLog;
+    private readonly CorpseTracker corpseTracker;
 
     private readonly ClassConfiguration classConfig;
 
@@ -107,6 +108,7 @@ public sealed partial class RequirementFactory
         TargetDebuffStatus targetDebuffs = sp.GetRequiredService<TargetDebuffStatus>();
         SessionStat sessionStat = sp.GetRequiredService<SessionStat>();
         combatLog = sp.GetRequiredService<CombatLog>();
+        corpseTracker = sp.GetRequiredService<CorpseTracker>();
 
         var playerBuff = sp.GetRequiredService<AuraTimeReader<IPlayerBuffTimeReader>>();
         var playerDebuff = sp.GetRequiredService<AuraTimeReader<IPlayerDebuffTimeReader>>();
@@ -194,8 +196,14 @@ public sealed partial class RequirementFactory
             { "Dead", bits.Dead },
 
             { "MenuOpen", bits.GameMenuWindowShown },
-            { "ChatInputVisible", bits.ChatInputIsVisible }
+            { "ChatInputVisible", bits.ChatInputIsVisible },
+
+            // Corpse-based abilities
+            { "CannibalizeCorpse", CannibalizeCorpseNearby }
         };
+
+        bool CannibalizeCorpseNearby() =>
+            corpseTracker.HasCannibalizeCorpseNearby(playerReader.WorldPos, playerReader.WorldMapArea);
 
         AddAura("", boolVariables, playerBuffs);
         AddAura("F_", boolVariables, focusBuffs);

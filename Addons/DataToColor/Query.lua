@@ -224,7 +224,7 @@ function DataToColor:getAuraMaskForClass(func, unitId, tbl)
     local k, v = next(tbl)
     while k do
         for i = 1, 24 do
-            local name, texture = self:GetCachedAuraInfo(isBuff, unitId, i)
+            local name, texture = DataToColor:GetCachedAuraInfo(isBuff, unitId, i)
             if not name then
                 break
             end
@@ -257,7 +257,7 @@ function DataToColor:populateAuraTimer(func, unitId, queue)
     local isBuff = (func == UnitBuff)
 
     for i = 1, 40 do
-        local name, texture, duration, expirationTime = self:GetCachedAuraInfo(isBuff, unitId, i)
+        local name, texture, duration, expirationTime = DataToColor:GetCachedAuraInfo(isBuff, unitId, i)
         if not name then
             break
         end

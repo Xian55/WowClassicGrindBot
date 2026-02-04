@@ -23,6 +23,8 @@ public sealed partial class CastingHandler
     public const int MIN_GCD = 1000;
     public const int SPELL_QUEUE = 400;
 
+    public const int SPELL_QUEUE_HALF = 200;
+
     private const int MAX_WAIT_MELEE_RANGE = 10_000;
 
     private readonly ILogger<CastingHandler> logger;
@@ -310,6 +312,15 @@ public sealed partial class CastingHandler
         float elapsedMs = WaitCurrentAction(
             playerReader.DoubleNetworkLatency + playerReader.SpellQueueTimeMs,
             wait, playerReader, item, currentAction, token);
+
+        // Channeling spells like Cannibalize
+        // does not trigger the IsUsableAction
+        // less then 2 miliseconds
+        if (elapsedMs < 2)
+        {
+            wait.Fixed(Max(playerReader.DoubleNetworkLatency, SPELL_QUEUE_HALF));
+            wait.Update(token);
+        }
 
         if (DEBUG && Log && item.Log)
             LogCastbarInput(logger, item.Name, pressMs, elapsedMs);
