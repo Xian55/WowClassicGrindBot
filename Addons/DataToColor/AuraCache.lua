@@ -304,7 +304,7 @@ function DataToColor:RegisterAuraCacheEvents()
     cacheInitialized = true
 
     -- Register UNIT_AURA for all units
-    self:RegisterEvent("UNIT_AURA", OnUnitAura)
+    DataToColor:RegisterEvent("UNIT_AURA", OnUnitAura)
 
     -- Register unit change events
     -- NOTE: These events are registered in EventHandlers.lua to avoid AceEvent overwrites:
@@ -315,13 +315,10 @@ function DataToColor:RegisterAuraCacheEvents()
     -- - PLAYER_SOFT_INTERACT_CHANGED -> OnPlayerSoftInteractChanged -> AuraCache.refresh("softinteract")
 
     -- Soft target events (only the ones not handled elsewhere)
-    if self.RegisterEvent then
-        pcall(function()
-            self:RegisterEvent("PLAYER_SOFT_ENEMY_CHANGED", OnSoftTargetChanged)
-            self:RegisterEvent("PLAYER_SOFT_FRIEND_CHANGED", OnSoftTargetChanged)
-            -- NOTE: PLAYER_SOFT_INTERACT_CHANGED is handled by EventHandlers.lua
-        end)
-    end
+    -- Use safe registration since these events don't exist in all WoW versions
+    DataToColor:SafeRegisterEvent("PLAYER_SOFT_ENEMY_CHANGED", OnSoftTargetChanged)
+    DataToColor:SafeRegisterEvent("PLAYER_SOFT_FRIEND_CHANGED", OnSoftTargetChanged)
+    -- NOTE: PLAYER_SOFT_INTERACT_CHANGED is handled by EventHandlers.lua
 
     -- Initial cache population
     for _, unit in ipairs(trackedUnits) do

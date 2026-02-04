@@ -141,9 +141,7 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('CHAT_MSG_PARTY_LEADER', 'OnMessageParty')
 
     -- allows to use the addon with older client version
-    pcall(function()
-        DataToColor:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED", "OnPlayerSoftInteractChanged")
-    end)
+    DataToColor:SafeRegisterEvent("PLAYER_SOFT_INTERACT_CHANGED", "OnPlayerSoftInteractChanged")
 
     -- Season of mastery / vanilla
     if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
@@ -172,7 +170,7 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('UNIT_INVENTORY_CHANGED', 'OnInventoryChanged_BitCache')
     DataToColor:RegisterEvent('UPDATE_INVENTORY_DURABILITY', 'OnDurabilityChanged_BitCache')
     DataToColor:RegisterEvent('CHARACTER_POINTS_CHANGED', 'OnTalentChanged_BitCache')
-    DataToColor:RegisterEvent('PLAYER_TALENT_UPDATE', 'OnTalentChanged_BitCache')
+    DataToColor:SafeRegisterEvent('PLAYER_TALENT_UPDATE', 'OnTalentChanged_BitCache')
     DataToColor:RegisterEvent('START_AUTOREPEAT_SPELL', 'OnSpellStateChanged_BitCache')
     DataToColor:RegisterEvent('STOP_AUTOREPEAT_SPELL', 'OnSpellStateChanged_BitCache')
     DataToColor:RegisterEvent('CURRENT_SPELL_CAST_CHANGED', 'OnSpellStateChanged_BitCache')
