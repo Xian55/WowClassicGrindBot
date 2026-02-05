@@ -238,7 +238,7 @@ public static class DependencyInjection
         return s;
     }
 
-    public static IServiceCollection AddCoreBase(this IServiceCollection s)
+    public static IServiceCollection AddCoreBase(this IServiceCollection s, ILogger log)
     {
         s.AddSingleton<ManualResetEventSlim>(x => new(false));
         s.AddSingleton<Wait>();
@@ -247,7 +247,9 @@ public static class DependencyInjection
         s.AddSingleton<DataConfig>(x => DataConfig.Load(
             x.GetRequiredService<StartupClientVersion>().Path));
 
-        s.ForwardSingleton<IWowScreen, IScreenImageProvider, IMinimapImageProvider, WowScreenDXGI>();
+        s.AddSingleton<IWowScreen>(x => CreateWowScreen(x.GetRequiredService<IServiceProvider>(), log));
+        s.AddSingleton<IScreenImageProvider>(x => x.GetRequiredService<IWowScreen>());
+        s.AddSingleton<IMinimapImageProvider>(x => x.GetRequiredService<IWowScreen>());
 
         s.ForwardSingleton<WowProcessInput, IMouseInput>();
 
@@ -262,6 +264,34 @@ public static class DependencyInjection
         s.AddSingleton<NpcNameTargetingLocations>();
 
         return s;
+    }
+
+    private static IWowScreen CreateWowScreen(IServiceProvider sp, ILogger log)
+    {
+        var scr = sp.GetRequiredService<IOptions<StartupConfigReader>>().Value;
+        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        var process = sp.GetRequiredService<WowProcess>();
+        var frames = sp.GetRequiredService<DataFrame[]>();
+
+        // Use WGC if configured and supported (Windows 10 2004+)
+        if (scr.ReaderType == AddonDataProviderType.WGC)
+        {
+            if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041) &&
+                GraphicsCaptureInterop.IsSupported)
+            {
+                var wgcLogger = loggerFactory.CreateLogger<WowScreenWGC>();
+                log.LogInformation("Using WGC (Windows Graphics Capture) - supports background capture");
+                return new WowScreenWGC(wgcLogger, process, frames);
+            }
+
+            log.LogWarning(
+                "WGC requested but not supported (requires Windows 10 2004+). Falling back to DXGI.");
+        }
+
+        // Default: DXGI
+        var dxgiLogger = loggerFactory.CreateLogger<WowScreenDXGI>();
+        log.LogInformation("Using DXGI Desktop Duplication");
+        return new WowScreenDXGI(dxgiLogger, process, frames);
     }
 
 
@@ -343,15 +373,10 @@ public static class DependencyInjection
     private static IAddonDataProvider GetAddonDataProvider(
         IServiceProvider sp, ILogger log)
     {
-        var scr = sp.GetRequiredService<IOptions<StartupConfigReader>>().Value;
         var screen = sp.GetRequiredService<IWowScreen>();
 
-        IAddonDataProvider value = scr.ReaderType switch
-        {
-            AddonDataProviderType.DXGI =>
-                (IAddonDataProvider)screen,
-            _ => throw new NotImplementedException(),
-        };
+        // Both WowScreenDXGI and WowScreenWGC implement IAddonDataProvider
+        IAddonDataProvider value = (IAddonDataProvider)screen;
 
         log.LogInformation(value.GetType().Name);
         return value;

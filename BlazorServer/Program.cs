@@ -113,7 +113,7 @@ public static class Program
 
         services.AddWoWProcess(log);
 
-        services.AddCoreBase();
+        services.AddCoreBase(log);
 
         if (AddonConfig.Exists() && FrameConfig.Exists())
         {
