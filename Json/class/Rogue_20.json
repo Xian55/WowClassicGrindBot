@@ -1,7 +1,6 @@
 {
   "ClassName": "Rogue",
   "PathFilename": "10_Gnome.json",
-  "Mode": "AttendedGrind",
   "Pull": {
     "Sequence": [
       {
