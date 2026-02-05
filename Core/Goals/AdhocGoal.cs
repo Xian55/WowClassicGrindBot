@@ -73,6 +73,9 @@ public sealed class AdhocGoal : GoapGoal
 
     private bool Interrupt()
     {
+        if (key.Interrupts.Count > 0 && key.CanBeInterrupted())
+            return true;
+
         return combatMatters.HasValue
             ? combatMatters.Value == bits.Combat() && combatLog.DamageTakenCount() > 0
             : combatLog.DamageTakenCount() > 0;
