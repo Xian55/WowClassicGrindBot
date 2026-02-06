@@ -21,6 +21,8 @@ using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 
+using SharedLib;
+
 using WinAPI;
 
 using Windows.Graphics;
@@ -60,6 +62,11 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider
     public const int MiniMapSize = 200;
     public Rectangle MiniMapRect { get; private set; }
     public Image<Bgra32> MiniMapImage { get; init; }
+
+    public MinimapSettings MinimapSettings =>
+        Data.Length > 2
+        ? new(Data[16], Data[17])
+        : new(9013, 220016); //debug only
 
     // D3D11 resources
     private static readonly FeatureLevel[] s_featureLevels =
