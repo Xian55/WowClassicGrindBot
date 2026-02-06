@@ -31,7 +31,7 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
 {
     private readonly ILogger<WowScreenDXGI> logger;
     private readonly WowProcess process;
-    private readonly int Bgra32Size;
+    private const int Bgra32Size = ScreenCaptureHelper.Bgra32Size;
 
     public event Action? OnChanged;
 
@@ -89,8 +89,6 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
     {
         this.logger = logger;
         this.process = process;
-
-        Bgra32Size = Unsafe.SizeOf<Bgra32>();
 
         GetRectangle(out screenRect);
         ScreenImage = new(ContiguousJpegConfiguration, screenRect.Width, screenRect.Height);
@@ -289,29 +287,22 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         MappedSubresource resource = device.ImmediateContext
             .Map(addonTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
 
-        int rowPitch = (int)resource.RowPitch;
-        ReadOnlySpan<byte> src = resource.AsSpan(addonSize.Height * rowPitch);
-        Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
-
-        if (addonSize.Height == 1 && src.TryCopyTo(dest))
+        try
         {
-            goto Cleanup;
-        }
+            int rowPitch = (int)resource.RowPitch;
+            ReadOnlySpan<byte> src = resource.AsSpan(addonSize.Height * rowPitch);
+            Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
 
-        int bytesToCopy = addonSize.Width * Bgra32Size;
-        for (int y = 0; y < addonSize.Height; y++)
-        {
-            ReadOnlySpan<byte> srcRow = src.Slice(y * rowPitch, bytesToCopy);
-            Span<byte> destRow = dest.Slice(y * bytesToCopy, bytesToCopy);
-            srcRow.TryCopyTo(destRow);
-        }
+            ScreenCaptureHelper.CopyRegion(src, rowPitch, 0, 0, dest, addonSize.Width, addonSize.Height);
 
 #if SAVE_ADDON_IMAGE
-        addonImage.SaveAsJpeg("addon.jpg");
+            addonImage.SaveAsJpeg("addon.jpg");
 #endif
-
-    Cleanup:
-        device.ImmediateContext.Unmap(addonTexture, 0);
+        }
+        finally
+        {
+            device.ImmediateContext.Unmap(addonTexture, 0);
+        }
     }
 
     [SkipLocalsInit]
@@ -330,34 +321,22 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         MappedSubresource resource = device.ImmediateContext
             .Map(screenTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
 
-        int rowPitch = (int)resource.RowPitch;
-        ReadOnlySpan<byte> src = resource.AsSpan(screenRect.Height * rowPitch);
-        Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
+        try
+        {
+            int rowPitch = (int)resource.RowPitch;
+            ReadOnlySpan<byte> src = resource.AsSpan(screenRect.Height * rowPitch);
+            Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
 
-        // Issue: at 3440x1440 resolution game fullscreen
-        // the dest Span.Length much smaller then the src Span.Length
-        // this fails to copy the buffer
-        // so when TryCopyTo fails just fallback
-        // to copy by row
-        if (!windowedMode && src.TryCopyTo(dest))
-        {
-        }
-        else
-        {
-            int bytesToCopy = screenRect.Width * Bgra32Size;
-            for (int y = 0; y < screenRect.Height; y++)
-            {
-                ReadOnlySpan<byte> srcRow = src.Slice(y * rowPitch, bytesToCopy);
-                Span<byte> destRow = dest.Slice(y * bytesToCopy, bytesToCopy);
-                srcRow.TryCopyTo(destRow);
-            }
-        }
+            ScreenCaptureHelper.CopyRegion(src, rowPitch, 0, 0, dest, screenRect.Width, screenRect.Height);
 
 #if SAVE_SCREEN_IMAGE
-        ScreenImage.SaveAsJpeg("screen.jpg");
+            ScreenImage.SaveAsJpeg("screen.jpg");
 #endif
-
-        device.ImmediateContext.Unmap(screenTexture, 0);
+        }
+        finally
+        {
+            device.ImmediateContext.Unmap(screenTexture, 0);
+        }
     }
 
     [SkipLocalsInit]
@@ -376,19 +355,18 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         MappedSubresource resource = device.ImmediateContext
             .Map(minimapTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
 
-        int rowPitch = (int)resource.RowPitch;
-        ReadOnlySpan<byte> src = resource.AsSpan(MiniMapRect.Height * rowPitch);
-        Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
-
-        int bytesToCopy = MiniMapRect.Width * Bgra32Size;
-        for (int y = 0; y < MiniMapRect.Height; y++)
+        try
         {
-            ReadOnlySpan<byte> srcRow = src.Slice(y * rowPitch, bytesToCopy);
-            Span<byte> destRow = dest.Slice(y * bytesToCopy, bytesToCopy);
-            srcRow.TryCopyTo(destRow);
-        }
+            int rowPitch = (int)resource.RowPitch;
+            ReadOnlySpan<byte> src = resource.AsSpan(MiniMapRect.Height * rowPitch);
+            Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
 
-        device.ImmediateContext.Unmap(minimapTexture, 0);
+            ScreenCaptureHelper.CopyRegion(src, rowPitch, 0, 0, dest, MiniMapRect.Width, MiniMapRect.Height);
+        }
+        finally
+        {
+            device.ImmediateContext.Unmap(minimapTexture, 0);
+        }
     }
 
     public void UpdateData()

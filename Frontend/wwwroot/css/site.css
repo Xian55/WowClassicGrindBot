@@ -208,12 +208,14 @@ app {
 
 .img-filled {
     width: 100%;
-    aspect-ratio: 2.5/1;
+    max-height: 80vh;
+    object-fit: contain;
 }
 
 .img-filled-half {
-    width: 100%;
-    aspect-ratio: 1.5/1;
+    width: 50%;
+    max-height: 80vh;
+    object-fit: contain;
 }
 
 .poor {
