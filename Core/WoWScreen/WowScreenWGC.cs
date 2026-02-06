@@ -1,6 +1,7 @@
 //#define SAVE_ADDON_IMAGE
 //#define SAVE_SCREEN_IMAGE
 //#define SAVE_RAW_FRAME
+//#define SAVE_MINIMAP_IMAGE
 
 using Game;
 
@@ -494,6 +495,10 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider
 
         Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
         ScreenCaptureHelper.CopyRegion(fullFrame, rowPitch, minimapX, minimapY, dest, MiniMapRect.Width, MiniMapRect.Height);
+
+#if SAVE_MINIMAP_IMAGE
+        MiniMapImage.SaveAsJpeg("minimap_wgc.jpg");
+#endif
     }
 
     private static bool RegionFitsInFrame(

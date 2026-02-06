@@ -379,8 +379,6 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
 #if SAVE_MINIMAP_IMAGE
         MiniMapImage.SaveAsJpeg("minimap.jpg");
 #endif
-
-        device.ImmediateContext.Unmap(minimapTexture, 0);
     }
 
     public void UpdateData()
