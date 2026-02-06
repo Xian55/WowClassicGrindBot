@@ -1,6 +1,15 @@
 {
   "ClassName": "Rogue",
   "PathFilename": "10_Gnome.json",
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
