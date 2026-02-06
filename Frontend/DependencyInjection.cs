@@ -22,43 +22,27 @@ public static class DependencyInjection
     public static IApplicationBuilder UseCustomStaticFiles(this IApplicationBuilder app, IWebHostEnvironment env)
     {
         DataConfig dataConfig = app.ApplicationServices.GetRequiredService<DataConfig>();
+        string root = env.ContentRootPath;
 
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.Path)),
-            RequestPath = "/path"
-        });
-
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.Leaflet)),
-            RequestPath = "/tiles"
-        });
-
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.ExpDbc)),
-            RequestPath = "/dbc"
-        });
-
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.ExpArea)),
-            RequestPath = "/area"
-        });
-
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.NpcSpawnLocations)),
-            RequestPath = "/npcspawnlocations"
-        });
-
-        app.UseStaticFiles(new StaticFileOptions
-        {
-            FileProvider = new PhysicalFileProvider(Path.Combine(env.ContentRootPath, dataConfig.MailboxLocations)),
-            RequestPath = "/mailboxlocations"
-        });
+        AddStaticFiles(app, root, dataConfig.Path, "/path");
+        AddStaticFiles(app, root, dataConfig.Leaflet, "/tiles");
+        AddStaticFiles(app, root, dataConfig.ExpDbc, "/dbc");
+        AddStaticFiles(app, root, dataConfig.ExpArea, "/area");
+        AddStaticFiles(app, root, dataConfig.NpcSpawnLocations, "/npcspawnlocations");
+        AddStaticFiles(app, root, dataConfig.MailboxLocations, "/mailboxlocations");
 
         return app;
+    }
+
+    private static void AddStaticFiles(IApplicationBuilder app, string root, string subPath, string requestPath)
+    {
+        string fullPath = Path.Combine(root, subPath);
+        Directory.CreateDirectory(fullPath);
+
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(fullPath),
+            RequestPath = requestPath
+        });
     }
 }
