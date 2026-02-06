@@ -683,3 +683,80 @@ function DataToColor:PetIsDefensive()
 
     return false
 end
+
+--------------------------------------------------------------------------------
+-- UTF-8 Text Encoding for TextQueue
+-- Packs UTF-8 bytes into 24-bit pixel values for transfer to C#
+--------------------------------------------------------------------------------
+
+local lshift = bit.lshift
+local bor = bit.bor
+
+-- Pack 3 UTF-8 bytes into 24-bit value (no allocation)
+-- Returns integer: byte1 << 16 | byte2 << 8 | byte3
+function DataToColor:PackUTF8Bytes(str, offset)
+    local b1 = byte(str, offset) or 0
+    local b2 = byte(str, offset + 1) or 0
+    local b3 = byte(str, offset + 2) or 0
+    return bor(lshift(b1, 16), lshift(b2, 8), b3)
+end
+
+-- Check if string contains 4-byte UTF-8 sequences (emoji)
+-- Returns true if string is safe (no 4-byte chars), false otherwise
+-- This avoids allocation - just scans the string
+function DataToColor:IsUTF8Safe(str)
+    local i = 1
+    local len = #str
+    while i <= len do
+        local b = byte(str, i)
+        if b < 0x80 then
+            i = i + 1
+        elseif b < 0xE0 then
+            i = i + 2
+        elseif b < 0xF0 then
+            i = i + 3
+        else
+            -- 4-byte sequence found (emoji, etc.)
+            return false
+        end
+    end
+    return true
+end
+
+-- Pre-allocated filter buffer (reused across calls)
+local filterBuffer = {}
+local filterBufferSize = 0
+
+-- Filter out 4-byte UTF-8 sequences (emoji) - ONLY call if IsUTF8Safe() returns false
+-- Reuses pre-allocated buffer to minimize allocations
+function DataToColor:FilterUTF8(str)
+    -- Wipe only used portion of buffer
+    for j = 1, filterBufferSize do
+        filterBuffer[j] = nil
+    end
+    filterBufferSize = 0
+
+    local i = 1
+    local len = #str
+    local sub = string.sub
+    while i <= len do
+        local b = byte(str, i)
+        if b < 0x80 then
+            filterBufferSize = filterBufferSize + 1
+            filterBuffer[filterBufferSize] = sub(str, i, i)
+            i = i + 1
+        elseif b < 0xE0 then
+            filterBufferSize = filterBufferSize + 1
+            filterBuffer[filterBufferSize] = sub(str, i, i + 1)
+            i = i + 2
+        elseif b < 0xF0 then
+            filterBufferSize = filterBufferSize + 1
+            filterBuffer[filterBufferSize] = sub(str, i, i + 2)
+            i = i + 3
+        else
+            -- 4-byte sequence (emoji) - skip
+            i = i + 4
+        end
+    end
+    return table.concat(filterBuffer)
+end

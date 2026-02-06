@@ -2457,6 +2457,7 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"ChatInputVisible"` | Returns true if the Chat inputbox is open (ENTER) |
 | `"Dead"` | The player is currently dead. |
 | `"CannibalizeCorpse"` | A Humanoid or Undead corpse is within 5 yards of the player. |
+| `"DamageTakenFromTotem"` | The player has taken damage from a Totem creature type. Useful to detect nearby totems. |
 | `"Has Pet"` | The player's pet is alive |
 | `"Pet HasTarget"` | Players pet has target |
 | `"Pet Happy"` | Pet happienss is green |

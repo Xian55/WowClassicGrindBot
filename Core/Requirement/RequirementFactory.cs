@@ -109,6 +109,7 @@ public sealed partial class RequirementFactory
         SessionStat sessionStat = sp.GetRequiredService<SessionStat>();
         combatLog = sp.GetRequiredService<CombatLog>();
         corpseTracker = sp.GetRequiredService<CorpseTracker>();
+        TotemDetector totemDetector = sp.GetRequiredService<TotemDetector>();
 
         var playerBuff = sp.GetRequiredService<AuraTimeReader<IPlayerBuffTimeReader>>();
         var playerDebuff = sp.GetRequiredService<AuraTimeReader<IPlayerDebuffTimeReader>>();
@@ -200,7 +201,10 @@ public sealed partial class RequirementFactory
             { "ChatInputVisible", bits.ChatInputIsVisible },
 
             // Corpse-based abilities
-            { "CannibalizeCorpse", CannibalizeCorpseNearby }
+            { "CannibalizeCorpse", CannibalizeCorpseNearby },
+
+            // Totem detection
+            { "DamageTakenFromTotem", totemDetector.HasDamagingTotem }
         };
 
         bool CannibalizeCorpseNearby() =>
