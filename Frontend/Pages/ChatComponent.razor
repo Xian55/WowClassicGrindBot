@@ -2,7 +2,7 @@
 
 @implements IDisposable
 
-@inject ChatReader reader
+@inject TextReader reader
 
 <div class="col-sm" style="@(MaxHeight > 0 ? $"overflow: auto; max-height: {MaxHeight}px;" : string.Empty)">
     @foreach (var cme in reader.Messages.Reverse())

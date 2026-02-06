@@ -216,9 +216,19 @@ public sealed partial class BotController : IBotController, IDisposable
                 }
                 else if (newSlot == 0 && oldSlot > 0)
                 {
-                    action.ConsoleKey = ConsoleKey.NoName;
-                    logger.LogWarning(
-                        $"[{action.Name,-17}] Macro removed from action bar (was Slot:{oldSlot})");
+                    // Try to resolve from Key string before giving up
+                    if (!string.IsNullOrEmpty(action.Key) &&
+                        KeyReader.ResolveFromKeyString(logger, action))
+                    {
+                        logger.LogInformation(
+                            $"[{action.Name,-17}] Macro not on action bar, using Key:{action.Key} -> {action.ConsoleKey}");
+                    }
+                    else
+                    {
+                        action.ConsoleKey = ConsoleKey.NoName;
+                        logger.LogWarning(
+                            $"[{action.Name,-17}] Macro removed from action bar (was Slot:{oldSlot})");
+                    }
                 }
             }
         }

@@ -1,6 +1,15 @@
 {
   "ClassName": "Rogue",
   "PathFilename": "10_Gnome.json",
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
@@ -73,16 +82,27 @@
       },
       {
         "Name": "poisonmh",
-        "HasCastbar": true,
         "Key": "N2",
-        "Requirement": "!HasMainHandEnchant",
+        "HasCastbar": true,
+        "WhenUsable": true,
+        "AfterCastWaitCastbar": true,
+        "Requirements": [
+          "Equipment:Mainhand",
+          "!HasMainHandEnchant"
+        ],
         "AfterCastAuraExpected": true
       },
       {
         "Name": "poisonoh",
-        "HasCastbar": true,
         "Key": "N3",
-        "Requirement": "!HasOffHandEnchant",
+        "HasCastbar": true,
+        "WhenUsable": true,
+        "AfterCastWaitCastbar": true,
+        
+        "Requirements": [
+          "Equipment:Offhand",
+          "!HasOffHandEnchant"
+        ],
         "AfterCastAuraExpected": true
       },
       {

@@ -44,13 +44,16 @@ public static class DependencyInjection
         s.ForwardSingleton<Stance, IReader>();
 
         s.ForwardSingleton<CombatLog, IReader>();
+
         s.AddSingleton<CorpseTracker>();
+        s.ForwardSingleton<TextReader, IReader>();
+        s.AddSingleton<TotemDetector>();
+        
         s.ForwardSingleton<EquipmentReader, IReader>();
         s.ForwardSingleton<BagReader, IReader>();
         s.ForwardSingleton<GossipReader, IReader>();
         s.ForwardSingleton<SpellBookReader, IReader>();
         s.ForwardSingleton<TalentReader, IReader>();
-        s.ForwardSingleton<ChatReader, IReader>();
         s.ForwardSingleton<KeyBindingsReader, IReader>();
         s.ForwardSingleton<ActionBarTextureReader, IReader>();
         s.ForwardSingleton<ActionBarMacroReader, IReader>();
@@ -133,12 +136,13 @@ public static class DependencyInjection
         // Addon Components
         s.ForwardSingleton<CombatLog>(sp);
         s.ForwardSingleton<CorpseTracker>(sp);
+        s.ForwardSingleton<TextReader>(sp);
+        s.ForwardSingleton<TotemDetector>(sp);
         s.ForwardSingleton<EquipmentReader>(sp);
         s.ForwardSingleton<BagReader>(sp);
         s.ForwardSingleton<GossipReader>(sp);
         s.ForwardSingleton<SpellBookReader>(sp);
         s.ForwardSingleton<TalentReader>(sp);
-        s.ForwardSingleton<ChatReader>(sp);
 
         s.ForwardSingleton<ActionBarCostReader>(sp);
         s.ForwardSingleton<ActionBarCooldownReader>(sp);
