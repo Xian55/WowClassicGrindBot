@@ -311,5 +311,3 @@ PathingAPI/data_config.json
 
 # BenchmarkDotNet artifacts
 **/BenchmarkDotNet.Artifacts/
-Json/Discord/discord_config.json
-/Json/Discord
