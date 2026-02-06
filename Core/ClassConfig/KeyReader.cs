@@ -504,7 +504,7 @@ public static class KeyReader
     /// Supports modifier prefixes like "Shift-F", "Ctrl-1", "Alt-Q".
     /// Used as fallback when BindingID is not set or not resolved.
     /// </summary>
-    private static bool ResolveFromKeyString(ILogger logger, KeyAction key)
+    internal static bool ResolveFromKeyString(ILogger logger, KeyAction key)
     {
         // Parse modifier prefix first (e.g., "Shift-F" -> "F", Shift)
         var (baseKey, modifier) = ModifierKeyExtensions.ParseKeyString(key.Key);
