@@ -3,6 +3,8 @@ using Microsoft.Extensions.Options;
 using SharedLib;
 
 using System;
+using System.Collections.Frozen;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
@@ -12,6 +14,15 @@ namespace Game;
 
 public sealed class WowProcess
 {
+    // Blizzard occasionally ships executables with broken file versions.
+    // Map the broken version to the correct one.
+    private static readonly FrozenDictionary<Version, Version> versionCorrections =
+        new Dictionary<Version, Version>
+        {
+            // TBC Classic Anniversary: 205.5.6567.6 -> 2.5.5.65676
+            [new Version(205, 5, 6567, 6)] = new Version(2, 5, 5, 65676),
+        }.ToFrozenDictionary();
+
     private static readonly string[] defaultProcessNames = [
         "Wow",
         "WowClassic",
@@ -123,6 +134,12 @@ public sealed class WowProcess
         if (info.FileMajorPart > 0)
         {
             Version v = new(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart, info.FilePrivatePart);
+
+            if (versionCorrections.TryGetValue(v, out Version? corrected))
+            {
+                v = corrected;
+            }
+
             return (path, v);
         }
 
