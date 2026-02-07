@@ -661,7 +661,7 @@ public sealed class MPQTriangleSupplier
 
         if (logger.IsEnabled(LogLevel.Trace))
         {
-            logger.LogTrace($"GetAreaId: {p.X} {p.Y} {chunkIndex} {areaId} {z} {GetElapsedTime(start).TotalMilliseconds}ms");
+            logger.LogTrace("GetAreaId: {PX} {PY} {ChunkIndex} {AreaId} {Z} {ElapsedMs}ms", p.X, p.Y, chunkIndex, areaId, z, GetElapsedTime(start).TotalMilliseconds);
         }
 
         return (areaId, z);

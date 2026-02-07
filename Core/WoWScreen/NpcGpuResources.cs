@@ -323,7 +323,7 @@ internal sealed class NpcGpuResources : IDisposable
         // Unbind
         context.CSSetShader(null);
         context.CSSetShaderResource(0, null);
-        context.CSSetUnorderedAccessViews(0, [null, null]);
+        context.CSSetUnorderedAccessViews(0, [null!, null!]);
     }
 
     [SkipLocalsInit]

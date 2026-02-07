@@ -36,14 +36,14 @@ public sealed class TalentDB
         {
             if (!System.IO.File.Exists(path))
             {
-                logger.LogWarning($"Missing file: {path}");
+                logger.LogWarning("Missing file: {Path}", path);
                 return [];
             }
 
             var json = ReadAllText(path);
             if (string.IsNullOrWhiteSpace(json))
             {
-                logger.LogWarning($"Empty file: {path}");
+                logger.LogWarning("Empty file: {Path}", path);
                 return [];
             }
 
@@ -52,7 +52,7 @@ public sealed class TalentDB
         }
         catch (Exception ex)
         {
-            logger.LogError($"Failed to read {path}: {ex.Message}");
+            logger.LogError("Failed to read {Path}: {Message}", path, ex.Message);
             return [];
         }
     }

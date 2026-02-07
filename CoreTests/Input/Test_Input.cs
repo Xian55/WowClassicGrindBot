@@ -41,7 +41,7 @@ public sealed class Test_Input
         input.SetCursorPos(new(50, 50));
         token.WaitHandle.WaitOne(delay);
 
-        logger.LogInformation($"{nameof(Mouse_Movement)} Finished");
+        logger.LogInformation("Mouse_Movement Finished");
     }
 
     public void Mouse_Clicks()
@@ -70,7 +70,7 @@ public sealed class Test_Input
 
         input.RightClick(p);
 
-        logger.LogInformation($"{nameof(Mouse_Clicks)} Finished");
+        logger.LogInformation("Mouse_Clicks Finished");
     }
 
     public void SendText()
@@ -84,6 +84,6 @@ public sealed class Test_Input
         // Close chat inputbox
         input.PressRandom(ConsoleKey.Enter, delay);
 
-        logger.LogInformation($"{nameof(SendText)} Finished");
+        logger.LogInformation("SendText Finished");
     }
 }

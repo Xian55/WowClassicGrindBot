@@ -230,7 +230,7 @@ else
                                             bool canToggle = bagItem.IsMailable;
                                             bool willBeMailed = sendItems && bagItem.IsMailable && bagItem.Item.Quality >= selectedQuality && !isExcluded;
                                             <div class="mail-item @(willBeMailed ? "will-mail" : "") @(isExcluded ? "excluded" : "") @(!canToggle ? "disabled" : "")"
-                                                 @onclick="() => { if (canToggle) ToggleExclusion(bagItem.Item); }"
+                                                 @onclick="async () => { if (canToggle) await ToggleExclusion(bagItem.Item); }"
                                                  style="cursor: @(canToggle ? "pointer" : "default"); @(isExcluded ? "opacity: 0.5;" : "")">
                                                 <ItemComponent Item="bagItem.Item"
                                                                Count="bagItem.Count"
@@ -260,7 +260,7 @@ else
                     bool canToggle = bagItem.IsMailable;
                     bool willBeMailed = sendItems && bagItem.IsMailable && bagItem.Item.Quality >= selectedQuality && !isExcluded;
                     <div class="mail-item-mobile d-flex align-items-center mb-1 @(willBeMailed ? "will-mail" : "") @(isExcluded ? "excluded" : "") @(!canToggle ? "disabled" : "")"
-                         @onclick="() => { if (canToggle) ToggleExclusion(bagItem.Item); }"
+                         @onclick="async () => { if (canToggle) await ToggleExclusion(bagItem.Item); }"
                          style="cursor: @(canToggle ? "pointer" : "default"); @(isExcluded ? "opacity: 0.5;" : "")">
                         <Badge Color="BadgeColor.Light" class="me-2 bag-badge">B@(bagItem.Bag)</Badge>
                         <div class="flex-grow-1">

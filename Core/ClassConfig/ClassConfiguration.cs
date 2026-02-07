@@ -277,17 +277,14 @@ public sealed partial class ClassConfiguration
 
         if (CheckTargetGivesExp)
         {
-            logger.LogWarning($"{nameof(CheckTargetGivesExp)} is enabled. " +
-                $"{nameof(NPCMaxLevels_Above)} and {nameof(NPCMaxLevels_Below)} ignored!");
+            logger.LogWarning("CheckTargetGivesExp is enabled. NPCMaxLevels_Above and NPCMaxLevels_Below ignored!");
         }
         if (KeyboardOnly)
         {
-            logger.LogWarning($"{nameof(KeyboardOnly)} " +
-                $"mode is enabled. Mouse based actions ignored.");
+            logger.LogWarning("KeyboardOnly mode is enabled. Mouse based actions ignored.");
 
             if (GatherCorpse)
-                logger.LogWarning($"{nameof(GatherCorpse)} " +
-                    $"limited to the last target. Rest going to be skipped!");
+                logger.LogWarning("GatherCorpse limited to the last target. Rest going to be skipped!");
         }
 
         // Mail configuration validation
@@ -295,9 +292,9 @@ public sealed partial class ClassConfiguration
         if (Mail && !HasMailRecipient())
         {
             logger.LogWarning(
-                $"[Mail] Enabled but no recipient configured yet. " +
-                $"Set via UI (BlazorServer), {MailConfiguration.RecipientEnvVar} env var, " +
-                $"or RecipientName in config.");
+                "[Mail] Enabled but no recipient configured yet. " +
+                "Set via UI (BlazorServer), {EnvVar} env var, " +
+                "or RecipientName in config.", MailConfiguration.RecipientEnvVar);
         }
     }
 

@@ -437,7 +437,8 @@ public sealed partial class RequirementFactory
                         continue;
                     }
 
-                    LogProcessing(logger, name, trim.ToString());
+                    if (logger.IsEnabled(LogLevel.Information))
+                        LogProcessing(logger, name, trim.ToString());
                     stack.Push(CreateRequirement(trim));
                 }
             }

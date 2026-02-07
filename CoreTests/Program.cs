@@ -198,7 +198,8 @@ internal sealed class Program
     {
         void nodeEvent(object sender, MinimapNodeEventArgs e)
         {
-            logger.LogInformation($"[{e.X},{e.Y}] {e.Amount}");
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("[{X},{Y}] {Amount}", e.X, e.Y, e.Amount);
         }
 
         Test_MinimapNodeFinder test = new(logger, screen, nodeEvent);

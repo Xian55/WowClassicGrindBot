@@ -383,7 +383,8 @@ public sealed partial class Navigation : IDisposable
         float distance = (result.EndW - result.StartW).Length(); // assuming it's a Vector3 or similar
         bool isTriviallyClose = result.Path.Length == 0 && distance < TrivialDistanceThreshold;
 
-        logger.LogWarning($"Pathfinder - Trivial: {isTriviallyClose} | {result.ElapsedMs}ms - {result.StartW.ToStringF()} -> {result.EndW.ToStringF()}");
+        if (logger.IsEnabled(LogLevel.Warning))
+            logger.LogWarning($"Pathfinder - Trivial: {isTriviallyClose} | {result.ElapsedMs}ms - {result.StartW.ToStringF()} -> {result.EndW.ToStringF()}");
 
         if (result.Path.Length == 0 && !isTriviallyClose)
         {
@@ -401,7 +402,7 @@ public sealed partial class Navigation : IDisposable
                 (Creature creature, Vector3 worldPos) = areaDB.FindClosestCreatureByNpcFlag(NpcFlags.None, playerReader.WorldPos);
                 playerReader.WorldPosZ = worldPos.Z;
 
-                logger.LogWarning($"Found closest spawn {creature.Name}");
+                logger.LogWarning("Found closest spawn {Name}", creature.Name);
             }
  
             if (failedAttempt > 2)
@@ -580,7 +581,7 @@ public sealed partial class Navigation : IDisposable
 
     private void LogDebug(string text)
     {
-        logger.LogDebug($"D: {text}");
+        logger.LogDebug("D: {Text}", text);
     }
 
     #region Logging

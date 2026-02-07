@@ -84,7 +84,8 @@ public partial class WaitForGatheringGoal : GoapGoal
         state = CastState.None;
         lastKnownCast = 0;
 
-        LogState(logger, state.ToStringF());
+        if (logger.IsEnabled(LogLevel.Information))
+            LogState(logger, state.ToStringF());
 
         stopWatch.Reset();
         stopWatch.Stop();
@@ -104,21 +105,24 @@ public partial class WaitForGatheringGoal : GoapGoal
                     if (playerReader.LastUIError == UI_ERROR.ERR_SPELL_FAILED_S)
                     {
                         state = CastState.Failed;
-                        LogFailed(logger, state.ToStringF(), Timeout);
+                        if (logger.IsEnabled(LogLevel.Error))
+                            LogFailed(logger, state.ToStringF(), Timeout);
                     }
                     else
                     {
                         if (Array.BinarySearch(GatherSpells.Mining, lastKnownCast) < 0)
                         {
                             state = CastState.WaitUserInput;
-                            LogSuccessMining(logger, CastState.Success.ToStringF(), state.ToStringF(), Timeout);
+                            if (logger.IsEnabled(LogLevel.Information))
+                                LogSuccessMining(logger, CastState.Success.ToStringF(), state.ToStringF(), Timeout);
                             stopWatch.Restart();
                             wait.Update();
                         }
                         else
                         {
                             state = CastState.Success;
-                            LogState(logger, state.ToStringF());
+                            if (logger.IsEnabled(LogLevel.Information))
+                                LogState(logger, state.ToStringF());
                         }
                     }
                 }
@@ -126,7 +130,8 @@ public partial class WaitForGatheringGoal : GoapGoal
             case CastState.Failed:
                 stopWatch.Restart();
                 state = CastState.WaitUserInput;
-                LogFailed(logger, state.ToStringF(), Timeout);
+                if (logger.IsEnabled(LogLevel.Error))
+                    LogFailed(logger, state.ToStringF(), Timeout);
                 wait.Update();
                 break;
             case CastState.Success:
@@ -155,7 +160,8 @@ public partial class WaitForGatheringGoal : GoapGoal
             lastKnownCast = playerReader.CastSpellId.Value;
             state = CastState.Casting;
 
-            LogState(logger, state.ToStringF());
+            if (logger.IsEnabled(LogLevel.Information))
+                LogState(logger, state.ToStringF());
 
             if (restartTimer)
             {
@@ -167,7 +173,8 @@ public partial class WaitForGatheringGoal : GoapGoal
         if (bits.Falling())
         {
             state = CastState.Abort;
-            LogState(logger, state.ToStringF());
+            if (logger.IsEnabled(LogLevel.Information))
+                LogState(logger, state.ToStringF());
         }
     }
 

@@ -111,7 +111,8 @@ public sealed class ChunkedTriangleCollection
 
         if (logger.IsEnabled(LogLevel.Trace))
         {
-            logger.LogTrace($"Grid [{grid_x},{grid_y}] Bounds: [{min_x:F4}, {min_y:F4}] [{max_x:F4}, {max_y:F4}] [{x}, {y}] - Count: {chunks.Count} - Loaded {endTime.TotalMilliseconds}ms");
+            logger.LogTrace("Grid [{GridX},{GridY}] Bounds: [{MinX:F4}, {MinY:F4}] [{MaxX:F4}, {MaxY:F4}] [{X}, {Y}] - Count: {ChunkCount} - Loaded {ElapsedMs}ms",
+                grid_x, grid_y, min_x, min_y, max_x, max_y, x, y, chunks.Count, endTime.TotalMilliseconds);
         }
         NotifyChunkAdded?.Invoke(new ChunkEventArgs(grid_x, grid_y));
 

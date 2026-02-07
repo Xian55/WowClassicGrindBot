@@ -173,11 +173,9 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
         };
         minimapTexture = device.CreateTexture2D(miniMapTextureDesc);
 
-        logger.LogInformation($"{screenRect} - " +
-            $"Windowed Mode: {windowedMode} - " +
-            $"Scale: {DPI2PPI(GetDpi()):F2} - " +
-            $"Monitor Rect: {monitorRect} - " +
-            $"Monitor Index: {srcIdx}");
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("{ScreenRect} - Windowed Mode: {WindowedMode} - Scale: {Scale:F2} - Monitor Rect: {MonitorRect} - Monitor Index: {MonitorIndex}",
+                screenRect, windowedMode, DPI2PPI(GetDpi()), monitorRect, srcIdx);
     }
 
     public void Dispose()
@@ -229,7 +227,8 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
         addonTexture?.Dispose();
         addonTexture = device.CreateTexture2D(addonTextureDesc);
 
-        logger.LogDebug($"DataFrames {frames.Length} - Texture: {addonSize}");
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogDebug("DataFrames {FrameCount} - Texture: {AddonSize}", frames.Length, addonSize);
     }
 
     [SkipLocalsInit]

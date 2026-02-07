@@ -173,7 +173,7 @@ public sealed class GraphChunk
                 stream.Close();
 
                 File.Delete(filePath);
-                logger.LogWarning($"[{nameof(GraphChunk)}] {nameof(FILE_MAGIC)} mismatch! Delete '{filePath}'!");
+                logger.LogWarning("[GraphChunk] FILE_MAGIC mismatch! Delete '{FilePath}'!", filePath);
 
                 return false;
             }
@@ -207,7 +207,7 @@ public sealed class GraphChunk
             }
 
             if (logger.IsEnabled(LogLevel.Trace))
-                logger.LogTrace($"[{nameof(GraphChunk)}] Loaded {filePath} {count} spots {GetElapsedTime(startTime).TotalMilliseconds} ms");
+                logger.LogTrace("[GraphChunk] Loaded {FilePath} {Count} spots {ElapsedMs} ms", filePath, count, GetElapsedTime(startTime).TotalMilliseconds);
 
             return true;
         }
@@ -259,11 +259,11 @@ public sealed class GraphChunk
             modified = false;
 
             if (logger.IsEnabled(LogLevel.Trace))
-                logger.LogTrace($"[{nameof(GraphChunk)}] Saved {filePath} {n_spots} spots");
+                logger.LogTrace("[GraphChunk] Saved {FilePath} {SpotCount} spots", filePath, n_spots);
         }
         catch (Exception e)
         {
-            logger.LogError($"[{nameof(GraphChunk)}] Save failed " + e);
+            logger.LogError(e, "[GraphChunk] Save failed");
         }
     }
 }

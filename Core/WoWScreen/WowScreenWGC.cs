@@ -141,8 +141,8 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
         InitializeCapture();
 
         logger.LogInformation(
-            $"WGC initialized - {screenRect} - ClientOffset: ({clientOffset.X}, {clientOffset.Y}) - " +
-            $"Borderless: {GraphicsCaptureInterop.IsBorderlessSupported}");
+            "WGC initialized - {ScreenRect} - ClientOffset: ({OffsetX}, {OffsetY}) - Borderless: {Borderless}",
+            screenRect, clientOffset.X, clientOffset.Y, GraphicsCaptureInterop.IsBorderlessSupported);
     }
 
     private void InitializeCapture()
@@ -357,7 +357,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
 
         addonImage = new(ContiguousJpegConfiguration, addonSize.Width, addonSize.Height);
 
-        logger.LogDebug($"DataFrames {frames.Length} - Addon: {addonSize}");
+        logger.LogDebug("DataFrames {FrameCount} - Addon: {AddonSize}", frames.Length, addonSize);
     }
 
     [SkipLocalsInit]
