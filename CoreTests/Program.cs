@@ -28,9 +28,10 @@ internal sealed class Program
 
     private static CancellationTokenSource cts;
     private static WowProcess process;
-    private static WowScreenDXGI screen;
+    private static WowScreenWGC screen;
 
     private const bool LogOverallTimes = false;
+    private const bool UseGpu = true;
     private const int delay = 150;
 
     public static void Main()
@@ -66,7 +67,8 @@ internal sealed class Program
 
         cts = new CancellationTokenSource();
         process = new(cts, Options.Create<StartupConfigPid>(new() { Id = -1 }));
-        screen = new WowScreenDXGI(loggerFactory.CreateLogger<WowScreenDXGI>(), process, mockFrames);
+        //screen = new WowScreenDXGI(loggerFactory.CreateLogger<WowScreenDXGI>(), process, mockFrames);
+        screen = new WowScreenWGC(loggerFactory.CreateLogger<WowScreenWGC>(), process, mockFrames);
 
         //Test_NPCNameFinder();
         //Test_Input();
@@ -75,6 +77,7 @@ internal sealed class Program
         Test_MinimapNodeFinder();
         //Test_FindTargetByCursor();
 
+        Log.CloseAndFlush();
         Environment.Exit(0);
     }
 
@@ -87,7 +90,7 @@ internal sealed class Program
         //NpcNames types = NpcNames.Enemy | NpcNames.Neutral | NpcNames.NamePlate;
         //NpcNames types = NpcNames.Friendly | NpcNames.Neutral;
 
-        using Test_NpcNameFinder test = new(logger, process, screen, loggerFactory, types);
+        using Test_NpcNameFinder test = new(logger, process, screen, loggerFactory, types, UseGpu);
         int count = 100;
         int i = 0;
 
@@ -200,7 +203,8 @@ internal sealed class Program
     {
         void nodeEvent(object sender, MinimapNodeEventArgs e)
         {
-            logger.LogInformation($"[{e.X},{e.Y}] {e.Amount}");
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("[{X},{Y}] {Amount}", e.X, e.Y, e.Amount);
         }
 
         Test_MinimapNodeFinder test = new(logger, screen, nodeEvent);
@@ -245,7 +249,7 @@ internal sealed class Program
         //NpcNames types = NpcNames.Enemy | NpcNames.Neutral;
         NpcNames types = NpcNames.Friendly | NpcNames.Neutral;
 
-        using Test_NpcNameFinder test = new(logger, process, screen, loggerFactory, types);
+        using Test_NpcNameFinder test = new(logger, process, screen, loggerFactory, types, UseGpu);
 
         int count = 2;
         int i = 0;

@@ -55,13 +55,13 @@ public sealed class LocalPathingApi : IPPather
         if (path == null)
         {
             if (debug)
-                logger.LogWarning($"Failed to find a path from {mapFrom} to {mapTo} took {Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds} ms.");
+                logger.LogWarning("Failed to find a path from {MapFrom} to {MapTo} took {ElapsedMs} ms.", mapFrom, mapTo, Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds);
 
             return Array.Empty<Vector3>();
         }
 
         if (debug)
-            logger.LogDebug($"Finding route from {mapFrom} map {uiMap} to {mapTo} took {Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds} ms.");
+            logger.LogDebug("Finding route from {MapFrom} map {UiMap} to {MapTo} took {ElapsedMs} ms.", mapFrom, uiMap, mapTo, Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds);
 
         if ((DateTime.UtcNow - lastSave).TotalMinutes >= 1)
         {
@@ -88,13 +88,13 @@ public sealed class LocalPathingApi : IPPather
         if (path == null)
         {
             if (debug)
-                logger.LogWarning($"Failed to find a path from {worldFrom} to {worldTo} took {Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds} ms.");
+                logger.LogWarning("Failed to find a path from {WorldFrom} to {WorldTo} took {ElapsedMs} ms.", worldFrom, worldTo, Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds);
 
             return Array.Empty<Vector3>();
         }
 
         if (debug)
-            logger.LogDebug($"Finding route from {worldFrom} map {uiMap} to {worldTo} took {Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds} ms.");
+            logger.LogDebug("Finding route from {WorldFrom} map {UiMap} to {WorldTo} took {ElapsedMs} ms.", worldFrom, uiMap, worldTo, Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds);
 
         if ((DateTime.UtcNow - lastSave).TotalMinutes >= 1)
         {

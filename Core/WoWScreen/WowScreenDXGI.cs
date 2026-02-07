@@ -30,7 +30,7 @@ using static WinAPI.NativeMethods;
 
 namespace Core;
 
-public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
+public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureProvider
 {
     private readonly ILogger<WowScreenDXGI> logger;
     private readonly WowProcess process;
@@ -75,6 +75,13 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
     private readonly IDXGIOutputDuplication duplication;
 
     private readonly bool windowedMode;
+
+    // IGpuTextureProvider
+    private ID3D11Texture2D? lastCapturedTexture;
+
+    ID3D11Device IGpuTextureProvider.Device => device;
+    ID3D11DeviceContext IGpuTextureProvider.DeviceContext => device.ImmediateContext;
+    ID3D11Texture2D? IGpuTextureProvider.GetCapturedTexture() => lastCapturedTexture;
 
     // IAddonDataProvider
 
@@ -174,11 +181,9 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         };
         minimapTexture = device.CreateTexture2D(miniMapTextureDesc);
 
-        logger.LogInformation($"{screenRect} - " +
-            $"Windowed Mode: {windowedMode} - " +
-            $"Scale: {DPI2PPI(GetDpi()):F2} - " +
-            $"Monitor Rect: {monitorRect} - " +
-            $"Monitor Index: {srcIdx}");
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("{ScreenRect} - Windowed Mode: {WindowedMode} - Scale: {Scale:F2} - Monitor Rect: {MonitorRect} - Monitor Index: {MonitorIndex}",
+                screenRect, windowedMode, DPI2PPI(GetDpi()), monitorRect, srcIdx);
     }
 
     public void Dispose()
@@ -186,6 +191,7 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         try { duplication?.ReleaseFrame(); } catch { }
         try { duplication?.Dispose(); } catch { }
 
+        try { lastCapturedTexture?.Dispose(); } catch { }
         try { minimapTexture.Dispose(); } catch { }
         try { addonTexture.Dispose(); } catch { }
         try { screenTexture.Dispose(); } catch { }
@@ -229,7 +235,8 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         addonTexture?.Dispose();
         addonTexture = device.CreateTexture2D(addonTextureDesc);
 
-        logger.LogDebug($"DataFrames {frames.Length} - Texture: {addonSize}");
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogDebug("DataFrames {FrameCount} - Texture: {AddonSize}", frames.Length, addonSize);
     }
 
     [SkipLocalsInit]
@@ -266,6 +273,9 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         ID3D11Texture2D texture
             = idxgiResource.QueryInterface<ID3D11Texture2D>();
 
+        lastCapturedTexture?.Dispose();
+        lastCapturedTexture = texture;
+
         if (frames.Length > 2)
             UpdateAddonImage(texture);
 
@@ -274,8 +284,6 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
 
         if (MinimapEnabled)
             UpdateMinimapImage(texture);
-
-        texture.Dispose();
     }
 
     [SkipLocalsInit]

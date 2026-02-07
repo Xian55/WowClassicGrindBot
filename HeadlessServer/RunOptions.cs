@@ -94,6 +94,12 @@ public sealed class RunOptions
         HelpText = $"Disable PathVisualization in RemoteV1")]
     public bool PathVisualizer { get; set; }
 
+    [Option('g', "gpu",
+        Required = false,
+        Default = true,
+        HelpText = "Use GPU compute shader for NPC name finding")]
+    public bool UseGpu { get; set; }
+
     [Option("loadonly",
         Required = false,
         Default = false,

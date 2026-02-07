@@ -261,6 +261,23 @@ public static class DependencyInjection
         s.AddSingleton<FrameConfigurator>();
 
         s.AddSingleton<INpcResetEvent, NpcResetEvent>();
+        s.AddSingleton<CpuLineSegmentProvider>();
+        s.AddSingleton<INpcLineSegmentProvider>(x =>
+        {
+            CpuLineSegmentProvider cpuProvider = x.GetRequiredService<CpuLineSegmentProvider>();
+
+            StartupConfigReader config = x.GetRequiredService<IOptions<StartupConfigReader>>().Value;
+            IWowScreen screen = x.GetRequiredService<IWowScreen>();
+
+            if (config.UseGpu && screen is IGpuTextureProvider gpuTextureProvider)
+            {
+                ILogger gpuLogger = x.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger<GpuLineSegmentProvider>();
+                return new GpuLineSegmentProvider(gpuLogger, gpuTextureProvider, cpuProvider);
+            }
+
+            return cpuProvider;
+        });
         s.AddSingleton<NpcNameFinder>();
 
         s.AddSingleton<NpcNameTargetingLocations>();
@@ -308,14 +325,14 @@ public static class DependencyInjection
             new ServiceProviderOptions { ValidateOnBuild = true });
 
         WowProcess process = sp.GetRequiredService<WowProcess>();
-        log.LogInformation($"Pid: {process.Id}");
-        log.LogInformation($"Version: {process.FileVersion}");
+        log.LogInformation("Pid: {Id}", process.Id);
+        log.LogInformation("Version: {FileVersion}", process.FileVersion);
 
         services.AddSingleton<Version>(x => process.FileVersion);
 
         AddonConfigurator configurator = sp.GetRequiredService<AddonConfigurator>();
         Version? installVersion = configurator.GetInstallVersion();
-        log.LogInformation($"Addon version: {installVersion}");
+        log.LogInformation("Addon version: {InstallVersion}", installVersion);
 
         if (configurator.IsDefault() || installVersion == null)
         {
@@ -323,14 +340,14 @@ public static class DependencyInjection
             configurator.Delete();
             FrameConfig.Delete();
 
-            log.LogError($"{nameof(AddonConfig)} doesn't exists or addon not installed yet!");
+            log.LogError("AddonConfig doesn't exists or addon not installed yet!");
             return false;
         }
 
         NativeMethods.GetWindowRect(process.MainWindowHandle, out Rectangle rect);
         if (!FrameConfig.Exists())
         {
-            log.LogError($"{nameof(FrameConfig)} doesn't exists!");
+            log.LogError("FrameConfig doesn't exists!");
 
             return false;
         }
@@ -340,10 +357,10 @@ public static class DependencyInjection
             // At this point the webpage never loads so fallback to configuration page
             FrameConfig.Delete();
 
-            log.LogError($"{nameof(FrameConfig)} window rect is different then config!");
-            log.LogError($"{nameof(FrameConfig)} {rect}");
-            log.LogError($"{nameof(FrameConfig)} {installVersion}");
-            log.LogError($"{nameof(FrameConfig)} {FrameConfig.Load()}");
+            log.LogError("FrameConfig window rect is different then config!");
+            log.LogError("FrameConfig {Rect}", rect);
+            log.LogError("FrameConfig {InstallVersion}", installVersion);
+            log.LogError("FrameConfig {Config}", FrameConfig.Load());
 
             return false;
         }
@@ -403,8 +420,8 @@ public static class DependencyInjection
             if (api.PingServer())
             {
                 logger.LogInformation(
-                    $"Using {StartupConfigPathing.Types.RemoteV3}({api.GetType().Name}) " +
-                    $"{scp.hostv3}:{scp.portv3}");
+                    "Using {Type}({Name}) {Host}:{Port}",
+                    StartupConfigPathing.Types.RemoteV3, api.GetType().Name, scp.hostv3, scp.portv3);
                 return api;
             }
             api.Dispose();
@@ -420,21 +437,21 @@ public static class DependencyInjection
                 if (scp.Type == StartupConfigPathing.Types.RemoteV3)
                 {
                     logger.LogWarning(
-                        $"Unavailable {StartupConfigPathing.Types.RemoteV3} " +
-                        $"{scp.hostv3}:{scp.portv3} - Fallback to " +
-                        $"{StartupConfigPathing.Types.RemoteV1}");
+                        "Unavailable {Type} {Host}:{Port} - Fallback to {FallbackType}",
+                        StartupConfigPathing.Types.RemoteV3, scp.hostv3, scp.portv3,
+                        StartupConfigPathing.Types.RemoteV1);
                 }
 
                 logger.LogInformation(
-                    $"Using {StartupConfigPathing.Types.RemoteV1}({api.GetType().Name}) " +
-                    $"{scp.hostv1}:{scp.portv1}");
+                    "Using {Type}({Name}) {Host}:{Port}",
+                    StartupConfigPathing.Types.RemoteV1, api.GetType().Name, scp.hostv1, scp.portv1);
                 return api;
             }
         }
 
         if (scp.Type != StartupConfigPathing.Types.Local)
         {
-            logger.LogWarning($"{scp.Type} not available!");
+            logger.LogWarning("{Type} not available!", scp.Type);
         }
 
         var service = sp.GetRequiredService<PPatherService>();
@@ -442,7 +459,8 @@ public static class DependencyInjection
 
         LocalPathingApi localApi = new(pathingLogger, service);
         logger.LogInformation(
-            $"Using {StartupConfigPathing.Types.Local}({localApi.GetType().Name})");
+            "Using {Type}({Name})",
+            StartupConfigPathing.Types.Local, localApi.GetType().Name);
 
         return localApi;
     }
@@ -468,8 +486,8 @@ public static class DependencyInjection
         else
         {
             logger.LogInformation(
-                $"Found PathViz {StartupConfigPathing.Types.RemoteV1}({api.GetType().Name}) " +
-                $"{scp.hostv1}:{scp.portv1}");
+                "Found PathViz {Type}({Name}) {Host}:{Port}",
+                StartupConfigPathing.Types.RemoteV1, api.GetType().Name, scp.hostv1, scp.portv1);
         }
 
         return api ?? (IPathVizualizer)new NoPathVisualizer();

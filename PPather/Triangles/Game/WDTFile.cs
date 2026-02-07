@@ -112,7 +112,7 @@ internal sealed class WDTFile
         ReadOnlySpan<char> filename = $"World\\Maps\\{path}\\{path}_{x}_{y}.adt";
 
         if (logger.IsEnabled(LogLevel.Trace))
-            logger.LogTrace($"Reading adt: {filename}");
+            logger.LogTrace("Reading adt: {Filename}", filename.ToString());
 
         wdt.maptiles[index] = MapTileFile.Read(archive, filename, wmomanager, modelmanager);
         wdt.loaded[index] = true;

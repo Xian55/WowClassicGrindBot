@@ -65,16 +65,17 @@ public sealed partial class KeyBindingsReader : IReader
                     // Sync to KeyReader.GameBindings for key resolution
                     KeyReader.GameBindings[bindingId] = newBinding;
                     changed = true;
-                    LogBindingReceived(logger, bindingId.ToStringF(), decoded.Value.mod1.ToPrefix(), decoded.Value.key1);
+                    if (logger.IsEnabled(LogLevel.Trace))
+                        LogBindingReceived(logger, bindingId.ToStringF(), decoded.Value.mod1.ToPrefix(), decoded.Value.key1);
                 }
             }
-            else if (bindings.ContainsKey(bindingId))
+            else if (bindings.Remove(bindingId))
             {
                 // Key was unbound
-                bindings.Remove(bindingId);
                 KeyReader.GameBindings.Remove(bindingId);
                 changed = true;
-                LogBindingRemoved(logger, bindingId.ToStringF());
+                if (logger.IsEnabled(LogLevel.Trace))
+                    LogBindingRemoved(logger, bindingId.ToStringF());
             }
 
             if (decoded.Value.key2 != ConsoleKey.NoName)
@@ -88,12 +89,12 @@ public sealed partial class KeyBindingsReader : IReader
                     // Sync to KeyReader.GameBindingsSecondary
                     KeyReader.GameBindingsSecondary[bindingId] = newBinding;
                     changed = true;
-                    LogSecondaryBindingReceived(logger, bindingId.ToStringF(), decoded.Value.mod2.ToPrefix(), decoded.Value.key2);
+                    if (logger.IsEnabled(LogLevel.Trace))
+                        LogSecondaryBindingReceived(logger, bindingId.ToStringF(), decoded.Value.mod2.ToPrefix(), decoded.Value.key2);
                 }
             }
-            else if (secondaryBindings.ContainsKey(bindingId))
+            else if (secondaryBindings.Remove(bindingId))
             {
-                secondaryBindings.Remove(bindingId);
                 KeyReader.GameBindingsSecondary.Remove(bindingId);
                 changed = true;
             }

@@ -235,7 +235,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
             if (bits.Target())
             {
                 SendGoapEvent(ScreenCaptureEvent.Default);
-                LogWarning($"Unable to clear target! Check Bindpad settings!");
+                LogWarning("Unable to clear target! Check Bindpad settings!");
             }
         }
 
@@ -254,7 +254,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
         {
             if (!bits.Target())
             {
-                LogWarning($"{nameof(sideActivityCts)} is cancelled but needs to be restarted!");
+                LogWarning("sideActivityCts is cancelled but needs to be restarted!");
                 sideActivityCts = new();
                 sideActivityManualReset.Set();
             }
@@ -322,7 +322,8 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
         if (!playerReader.IsCasting() &&
             oldestKey?.SinceLastClickMs > CYCLE_PROFESSION_PERIOD)
         {
-            logger.LogInformation($"[{oldestKey.Key}] {oldestKey.Name} pressed for {InputDuration.DefaultPress}ms");
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("[{Key}] {Name} pressed for {Duration}ms", oldestKey.Key, oldestKey.Name, InputDuration.DefaultPress);
             input.PressRandom(oldestKey);
             oldestKey.SetClicked();
         }

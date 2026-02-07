@@ -48,15 +48,11 @@ public sealed class MinimapNodeFinder
         var pooler = ArrayPool<Point>.Shared;
         Point[] points = pooler.Rent(MinimapRowOperation.SIZE);
 
-        points.AsSpan().Fill(Point.Empty);
-
         counter.count = 0;
-
-        var settings = provider.MinimapSettings;
 
         MinimapRowOperation operation = new(
             provider.MiniMapImage.Frames[0].PixelBuffer,
-            settings, counter, points);
+            provider.MiniMapRect, counter, points);
 
         rect = operation.rect;
 

@@ -442,7 +442,7 @@ public sealed class PathGraph
                 }
             }
             if (logger.IsEnabled(LogLevel.Debug))
-                logger.LogDebug("Learned a new spot at " + isAtSpot.Loc + " connected to " + connected + " other spots");
+                logger.LogDebug("Learned a new spot at {Location} connected to {ConnectedCount} other spots", isAtSpot.Loc, connected);
             wasAt = isAtSpot;
         }
         else
@@ -589,7 +589,7 @@ public sealed class PathGraph
             if (GetElapsedTime(timeSinceProgress).TotalSeconds > ProgressTimeoutSeconds ||
                 GetElapsedTime(searchDuration).TotalSeconds > TimeoutSeconds)
             {
-                logger.LogWarning($"search failed, {ProgressTimeoutSeconds} seconds since last progress, returning the closest spot {ClosestSpot.Loc}");
+                logger.LogWarning("search failed, {TimeoutSeconds} seconds since last progress, returning the closest spot {ClosestLocation}", ProgressTimeoutSeconds, ClosestSpot.Loc);
                 return ClosestSpot;
             }
 
@@ -863,7 +863,7 @@ public sealed class PathGraph
             return new Path(path);
         }
 
-        logger.LogWarning($"Closest spot is too far from target. {distance}>{MaximumAllowedRangeFromTarget}");
+        logger.LogWarning("Closest spot is too far from target. {Distance}>{MaxAllowedRange}", distance, MaximumAllowedRangeFromTarget);
         return null;
     }
 
@@ -908,7 +908,7 @@ public sealed class PathGraph
     public Path CreatePath(Vector3 fromLoc, Vector3 toLoc, SearchStrategy searchScoreSpot, float howClose)
     {
         if (logger.IsEnabled(LogLevel.Trace))
-            logger.LogTrace($"CreatePath from {fromLoc} to {toLoc}");
+            logger.LogTrace("CreatePath from {FromLocation} to {ToLocation}", fromLoc, toLoc);
 
         long timestamp = GetTimestamp();
 
@@ -924,7 +924,7 @@ public sealed class PathGraph
         Path rawPath = CreatePath(from, to, searchScoreSpot, howClose);
 
         if (logger.IsEnabled(LogLevel.Trace))
-            logger.LogTrace($"CreatePath took {GetElapsedTime(timestamp).TotalMilliseconds}ms");
+            logger.LogTrace("CreatePath took {ElapsedMs}ms", GetElapsedTime(timestamp).TotalMilliseconds);
 
         if (rawPath == null)
         {

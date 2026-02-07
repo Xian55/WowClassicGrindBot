@@ -28,10 +28,10 @@ public sealed class ArchiveSet
                 archives[i] = a;
 
                 if (logger.IsEnabled(LogLevel.Trace))
-                    logger.LogTrace($"Archive[{i}] open {files[i]}");
+                    logger.LogTrace("Archive[{Index}] open {File}", i, files[i]);
             }
             else if (logger.IsEnabled(LogLevel.Trace))
-                logger.LogTrace($"Archive[{i}] openfail {files[i]}");
+                logger.LogTrace("Archive[{Index}] openfail {File}", i, files[i]);
         }
     }
 
@@ -44,7 +44,7 @@ public sealed class ArchiveSet
                 return a.GetStream(fileName);
         }
 
-        logger.LogWarning($"{nameof(fileName)} not found '{fileName}'");
+        logger.LogWarning("fileName not found '{FileName}'", fileName.ToString());
         throw new FileNotFoundException($"{nameof(fileName)} - {fileName}");
     }
 

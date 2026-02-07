@@ -125,7 +125,7 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
             }
 
             if (debug)
-                logger.LogDebug($"Finding map route from {mapFrom}({worldFrom}) map {uiMap} to {mapTo}({worldTo}) map {uiMap}...");
+                logger.LogDebug("Finding map route from {MapFrom}({WorldFrom}) map {UiMap} to {MapTo}({WorldTo}) map {UiMap2}...", mapFrom, worldFrom, uiMap, mapTo, worldTo, uiMap);
 
             Vector3[] path = client.Send(
                 (byte)TYPE,
@@ -138,7 +138,7 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
             for (int i = 0; i < path.Length; i++)
             {
                 if (debug)
-                    logger.LogDebug($"new float[] {{ {path[i].X}f, {path[i].Y}f, {path[i].Z}f }},");
+                    logger.LogDebug("new float[] {{ {X}f, {Y}f, {Z}f }},", path[i].X, path[i].Y, path[i].Z);
 
                 path[i] = areaDB.ToMap_FlipXY(path[i], area.MapID, uiMap);
             }
@@ -147,7 +147,7 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Finding map route from {mapFrom} to {mapTo}");
+            logger.LogError(ex, "Finding map route from {MapFrom} to {MapTo}", mapFrom, mapTo);
             return result = Array.Empty<Vector3>();
         }
     }
@@ -173,7 +173,7 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
             }
 
             if (debug)
-                logger.LogDebug($"Finding world route from {worldFrom}({worldFrom}) map {uiMap} to {worldTo}({worldTo}) map {uiMap}...");
+                logger.LogDebug("Finding world route from {WorldFrom}({WorldFrom2}) map {UiMap} to {WorldTo}({WorldTo2}) map {UiMap2}...", worldFrom, worldFrom, uiMap, worldTo, worldTo, uiMap);
 
             Vector3[] path = client.Send(
                 (byte)TYPE,
@@ -187,7 +187,7 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"Finding world route from {worldFrom} to {worldTo}");
+            logger.LogError(ex, "Finding world route from {WorldFrom} to {WorldTo}", worldFrom, worldTo);
             return result = Array.Empty<Vector3>();
         }
     }

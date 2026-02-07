@@ -44,15 +44,16 @@ public sealed partial class Blacklist<T> : IBlacklist where T : IBlacklistSource
         this.checkGivesExp = classConfig.CheckTargetGivesExp;
         this.targetMask = classConfig.TargetMask;
 
-        if (classConfig.Blacklist.Length > 0)
+        if (classConfig.Blacklist.Length > 0 && logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation($"Name: {string.Join(", ", classConfig.Blacklist)}");
+            logger.LogInformation("Name: {Blacklist}", string.Join(", ", classConfig.Blacklist));
         }
         blacklist = SearchValues.Create(classConfig.Blacklist, StringComparison.OrdinalIgnoreCase);
 
         this.allowPvP = classConfig.AllowPvP;
 
-        logger.LogInformation($"{nameof(classConfig.TargetMask)}: {string.Join(", ", targetMask.GetIndividualFlags())}");
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("{TargetMask}: {Flags}", nameof(classConfig.TargetMask), string.Join(", ", targetMask.GetIndividualFlags()));
     }
 
 
@@ -85,10 +86,11 @@ public sealed partial class Blacklist<T> : IBlacklist where T : IBlacklistSource
         {
             if (lastGuid != source.UnitGuid)
             {
-                LogEvade(logger, typeof(T),
-                    source.UnitId,
-                    source.UnitGuid, source.UnitName,
-                    playerReader.TargetClassification.ToStringF());
+                if (logger.IsEnabled(LogLevel.Warning))
+                    LogEvade(logger, typeof(T),
+                        source.UnitId,
+                        source.UnitGuid, source.UnitName,
+                        playerReader.TargetClassification.ToStringF());
 
                 lastGuid = source.UnitGuid;
             }
@@ -123,9 +125,10 @@ public sealed partial class Blacklist<T> : IBlacklist where T : IBlacklistSource
         {
             if (lastGuid != source.UnitGuid)
             {
-                LogClassification(logger, typeof(T), source.UnitId,
-                    source.UnitGuid, source.UnitName,
-                    source.UnitClassification.ToStringF());
+                if (logger.IsEnabled(LogLevel.Warning))
+                    LogClassification(logger, typeof(T), source.UnitId,
+                        source.UnitGuid, source.UnitName,
+                        source.UnitClassification.ToStringF());
 
                 lastGuid = source.UnitGuid;
             }

@@ -572,6 +572,7 @@ For normal quick startup of `HeadlessServer` please look at the `HeadlessServer\
 | `-t`<br>`-otargeting` | While overlay enabled, show Targeting points | `false` | - |
 | `-s`<br>`-oskinning` | While overlay enabled, show Skinning points | `false` | - |
 | `-v`<br>`-otargetvsadd` | While overlay enabled, show Target vs Add points | `false` | - |
+| `-g`<br>`--gpu` | Use GPU compute shader for NPC name finding | `true` | `true` or `false` |
 | `--loadonly` | Loads the given class profile then exits | `false` | - |
 
 e.g. run from Powershell without any optional parameter
