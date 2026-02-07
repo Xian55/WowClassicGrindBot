@@ -31,6 +31,7 @@ namespace WowTriangles;
 
 public static class Utils
 {
+    private const float ParallelEpsilon = 1e-6f;
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool SegmentTriangleIntersect(
@@ -50,7 +51,7 @@ public static class Utils
         float det = Dot(e1, pvec);
 
         // If determinant is near zero → ray is parallel to triangle plane
-        if (Abs(det) < float.Epsilon)
+        if (Abs(det) < ParallelEpsilon)
         {
             I = default;
             return false;
@@ -127,12 +128,19 @@ public static class Utils
     {
         Vector3 u = Subtract(t1, t0); // triangle vector 1
         Vector3 v = Subtract(t2, t0); // triangle vector 2
-        Vector3 n = Cross(u, v); // triangle normal
-        n *= -1E6f;
+        Vector3 n = Cross(u, v);      // unnormalized triangle normal
 
-        if (SegmentTriangleIntersect(p0, n, t0, t1, t2, out Vector3 intersect))
+        float normalLenSq = Dot(n, n);
+        if (normalLenSq >= 1e-12f)
         {
-            return Subtract(intersect, p0).Length();
+            Vector3 normalDir = n * (1.0f / Sqrt(normalLenSq));
+            Vector3 above = p0 + normalDir * 1E6f;
+            Vector3 below = p0 - normalDir * 1E6f;
+
+            if (SegmentTriangleIntersect(above, below, t0, t1, t2, out Vector3 intersect))
+            {
+                return Subtract(intersect, p0).Length();
+            }
         }
 
         float d0 = PointDistanceToSegment(p0, t0, t1);

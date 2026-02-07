@@ -151,8 +151,7 @@ public sealed class TriangleMatrix
 
         (int collectionCount, int totalSize) = matrix.GetAllInSquare(collectionMem, x - range, y - range, x + range, y + range);
 
-        var intPooler = ArrayPool<int>.Shared;
-        int[] elements = intPooler.Rent(totalSize);
+        int[] elements = ArrayPool<int>.Shared.Rent(totalSize);
         Span<int> outputSpan = elements.AsSpan();
 
         int c = 0;
@@ -164,7 +163,6 @@ public sealed class TriangleMatrix
         }
 
         collectionPooler.Return(collection);
-        intPooler.Return(elements);
 
         return outputSpan[..totalSize];
     }
@@ -181,8 +179,7 @@ public sealed class TriangleMatrix
 
         (int collectionCount, int totalSize) = matrix.GetAllInSquare(collectionMem, x0, y0, x1, y1);
 
-        var intPooler = ArrayPool<int>.Shared;
-        int[] elements = intPooler.Rent(totalSize);
+        int[] elements = ArrayPool<int>.Shared.Rent(totalSize);
         Span<int> outputSpan = elements.AsSpan();
 
         int c = 0;
@@ -194,7 +191,6 @@ public sealed class TriangleMatrix
         }
 
         collectionPooler.Return(collection);
-        intPooler.Return(elements);
 
         return outputSpan[..totalSize];
     }

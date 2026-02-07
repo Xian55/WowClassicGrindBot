@@ -478,7 +478,7 @@ public sealed class ChunkedTriangleCollection
         var tSpan = tc.TrianglesSpan;
         var vSpan = tc.VerteciesSpan;
 
-        float hint_z = (max_z + min_z) * 0.75f; // try to estimate above the mid point
+        float hint_z = min_z + (max_z - min_z) * 0.75f; // 75% of the way from min to max
 
         Vector3 s0 = new(x, y, min_z);
         Vector3 s1 = new(x, y, max_z);
@@ -511,8 +511,25 @@ public sealed class ChunkedTriangleCollection
                 continue;
             }
 
+            // Inline IsSpotBlocked check — reuse existing ts/tSpan/vSpan
+            Vector3 toon = new(intersect.X, intersect.Y, intersect.Z + toonHeight);
+            float halfSize = toonSize * 0.5f;
+            bool blocked = false;
+
+            foreach (int blockIndex in ts)
+            {
+                TriangleCollection.GetTriangleVertices(tSpan, vSpan, blockIndex,
+                    out Vector3 bv0, out Vector3 bv1, out Vector3 bv2, out _);
+
+                if (PointDistanceToTriangle(toon, bv0, bv1, bv2) < halfSize)
+                {
+                    blocked = true;
+                    break;
+                }
+            }
+
             float delta = Math.Abs(intersect.Z - hint_z);
-            if (!IsSpotBlocked(intersect.X, intersect.Y, intersect.Z, toonHeight, toonSize) && delta <= bestDelta)
+            if (!blocked && delta <= bestDelta)
             {
                 bestDelta = delta;
                 best_z = intersect.Z;
