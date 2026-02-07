@@ -56,6 +56,7 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
         ReadOnlySpan<Bgra32> row = source.DangerousGetRowSpan(y);
 
         int i = 0;
+        int bufferLen = span.Length;
 
         for (int x = minX; x < maxX; x++)
         {
@@ -68,19 +69,22 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
 
             if (IsMatch(pixel.R, pixel.G, pixel.B))
             {
-                if (i >= SIZE)
+                if (i + 1 >= bufferLen)
                     break;
 
-                points[i++] = new(x, y);
+                span[i++] = new(x, y);
             }
         }
 
         if (i == 0)
             return;
 
-        Interlocked.Add(ref counter.count, i);
+        int newCount = Interlocked.Add(ref counter.count, i);
+        int startIndex = newCount - i;
+        if (newCount > points.Length)
+            return;
 
-        span[..i].CopyTo(points.AsSpan(counter.count, i));
+        span[..i].CopyTo(points.AsSpan(startIndex, i));
 
         static bool IsValidSquareLocation(int x, int y, Point center, float width)
         {
