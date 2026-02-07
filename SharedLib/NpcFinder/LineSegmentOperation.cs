@@ -1,4 +1,4 @@
-﻿using SixLabors.ImageSharp;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Advanced;
 using SixLabors.ImageSharp.Memory;
 using SixLabors.ImageSharp.PixelFormats;
@@ -9,7 +9,8 @@ using System.Threading;
 
 namespace SharedLib.NpcFinder;
 
-internal readonly struct LineSegmentOperation : IRowOperation<LineSegment>
+internal readonly struct LineSegmentOperation<TMatcher> : IRowOperation<LineSegment>
+    where TMatcher : struct, IColorMatcher
 {
     private readonly Buffer2D<Bgra32> source;
 
@@ -19,7 +20,7 @@ internal readonly struct LineSegmentOperation : IRowOperation<LineSegment>
     private readonly float minLength;
     private readonly float minEndLength;
 
-    private readonly Func<byte, byte, byte, bool> colorMatcher;
+    private readonly TMatcher colorMatcher;
 
     private readonly LineSegment[] segments;
 
@@ -32,7 +33,7 @@ internal readonly struct LineSegmentOperation : IRowOperation<LineSegment>
         float minLength,
         float minEndLength,
         ArrayCounter counter,
-        Func<byte, byte, byte, bool> colorMatcher,
+        TMatcher colorMatcher,
         Buffer2D<Bgra32> source)
     {
         this.segments = segments;
@@ -65,7 +66,7 @@ internal readonly struct LineSegmentOperation : IRowOperation<LineSegment>
         {
             ref readonly Bgra32 pixel = ref row[x];
 
-            if (!colorMatcher(pixel.R, pixel.G, pixel.B))
+            if (!colorMatcher.IsMatch(pixel.R, pixel.G, pixel.B))
                 continue;
 
             if (xStart > -1 && (x - xEnd) < minLength)
@@ -96,9 +97,10 @@ internal readonly struct LineSegmentOperation : IRowOperation<LineSegment>
             return;
 
         int newCount = Interlocked.Add(ref counter.count, i);
-        if (counter.count + newCount > segments.Length)
+        int startIndex = newCount - i;
+        if (newCount > segments.Length)
             return;
 
-        span[..i].CopyTo(segments.AsSpan(counter.count, newCount));
+        span[..i].CopyTo(segments.AsSpan(startIndex, i));
     }
 }

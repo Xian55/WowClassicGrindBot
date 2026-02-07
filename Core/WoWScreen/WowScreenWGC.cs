@@ -20,6 +20,7 @@ using System.Threading;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
+using Vortice.Mathematics;
 
 using WinAPI;
 
@@ -37,7 +38,7 @@ namespace Core;
 /// Supports capturing WoW window even when it's behind other windows.
 /// Requires Windows 10 version 2004 (build 19041) or later for borderless capture.
 /// </summary>
-public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider
+public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTextureProvider
 {
     private readonly ILogger<WowScreenWGC> logger;
     private readonly WowProcess process;
@@ -90,6 +91,14 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider
     private SizeInt32 latestFrameSize;
     private bool hasNewFrame;
     private bool processingFrame;
+
+    // IGpuTextureProvider -- Default-usage copy for GPU compute shader
+    private ID3D11Texture2D? gpuTextureCopy;
+    private SizeInt32 gpuTextureSize;
+
+    ID3D11Device IGpuTextureProvider.Device => device;
+    ID3D11DeviceContext IGpuTextureProvider.DeviceContext => deviceContext;
+    ID3D11Texture2D? IGpuTextureProvider.GetCapturedTexture() => gpuTextureCopy;
 
     // Client area offset (WGC captures full window including title bar)
     private Point clientOffset;
@@ -224,6 +233,38 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider
 
                 deviceContext.CopyResource(writeStagingTexture, frameTexture);
 
+                // Copy client area only to GPU texture for compute shader
+                // (WGC captures full window including title bar; match CPU path)
+                if (gpuTextureCopy == null ||
+                    gpuTextureSize.Width != screenRect.Width ||
+                    gpuTextureSize.Height != screenRect.Height)
+                {
+                    gpuTextureCopy?.Dispose();
+
+                    Texture2DDescription gpuDesc = frameTexture.Description;
+                    gpuDesc.Width = (uint)screenRect.Width;
+                    gpuDesc.Height = (uint)screenRect.Height;
+                    gpuDesc.Usage = ResourceUsage.Default;
+                    gpuDesc.BindFlags = BindFlags.ShaderResource;
+                    gpuDesc.CPUAccessFlags = CpuAccessFlags.None;
+                    gpuDesc.MiscFlags = ResourceOptionFlags.None;
+
+                    gpuTextureCopy = device.CreateTexture2D(gpuDesc);
+                    gpuTextureSize = new SizeInt32
+                    {
+                        Width = screenRect.Width,
+                        Height = screenRect.Height
+                    };
+                }
+
+                Box clientBox = new(
+                    clientOffset.X, clientOffset.Y, 0,
+                    clientOffset.X + screenRect.Width,
+                    clientOffset.Y + screenRect.Height, 1);
+                deviceContext.CopySubresourceRegion(
+                    gpuTextureCopy, 0, 0, 0, 0,
+                    frameTexture, 0, clientBox);
+
                 // Only swap if Update() isn't actively reading from readStagingTexture.
                 // If processingFrame is true, we just overwrote writeStagingTexture in place
                 // and the next Update() call will pick up the latest frame after swap.
@@ -276,6 +317,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider
         StopCapture();
 
         winrtDevice?.Dispose();
+        gpuTextureCopy?.Dispose();
         writeStagingTexture?.Dispose();
         readStagingTexture?.Dispose();
         deviceContext?.Dispose();

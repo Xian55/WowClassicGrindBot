@@ -259,6 +259,23 @@ public static class DependencyInjection
         s.AddSingleton<FrameConfigurator>();
 
         s.AddSingleton<INpcResetEvent, NpcResetEvent>();
+        s.AddSingleton<CpuLineSegmentProvider>();
+        s.AddSingleton<INpcLineSegmentProvider>(x =>
+        {
+            CpuLineSegmentProvider cpuProvider = x.GetRequiredService<CpuLineSegmentProvider>();
+
+            StartupConfigReader config = x.GetRequiredService<IOptions<StartupConfigReader>>().Value;
+            IWowScreen screen = x.GetRequiredService<IWowScreen>();
+
+            if (config.UseGpu && screen is IGpuTextureProvider gpuTextureProvider)
+            {
+                ILogger gpuLogger = x.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger<GpuLineSegmentProvider>();
+                return new GpuLineSegmentProvider(gpuLogger, gpuTextureProvider, cpuProvider);
+            }
+
+            return cpuProvider;
+        });
         s.AddSingleton<NpcNameFinder>();
 
         s.AddSingleton<NpcNameTargetingLocations>();

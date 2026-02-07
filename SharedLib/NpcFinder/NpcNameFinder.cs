@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using SharedLib.Extensions;
 
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Advanced;
 
 using System;
 using System.Buffers;
@@ -12,8 +11,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-using static SharedLib.NpcFinder.NpcNameColors;
-
 namespace SharedLib.NpcFinder;
 
 public sealed partial class NpcNameFinder
@@ -21,6 +18,7 @@ public sealed partial class NpcNameFinder
     private readonly ILogger logger;
     private readonly IScreenImageProvider bitmapProvider;
     private readonly INpcResetEvent resetEvent;
+    private readonly INpcLineSegmentProvider lineSegmentProvider;
 
     private const int bytesPerPixel = 4;
 
@@ -53,11 +51,8 @@ public sealed partial class NpcNameFinder
 
     public DateTime LastPotentialAddsSeen { get; private set; }
 
-    private Func<byte, byte, byte, bool> colorMatcher;
-
     private readonly NpcPositionComparer npcPosComparer;
 
-    private const int colorFuzz = 40;
     private const int topOffset = 117;
     public int WidthDiff { get; set; } = 4;
 
@@ -67,16 +62,15 @@ public sealed partial class NpcNameFinder
     public int HeightOffset1 { get; set; } = 10;
     public int HeightOffset2 { get; set; } = 2;
 
-    private readonly ArrayCounter counter;
-
     public NpcNameFinder(ILogger logger, IScreenImageProvider bitmapProvider,
-        INpcResetEvent resetEvent)
+        INpcResetEvent resetEvent, INpcLineSegmentProvider lineSegmentProvider)
     {
         this.logger = logger;
         this.bitmapProvider = bitmapProvider;
         this.resetEvent = resetEvent;
+        this.lineSegmentProvider = lineSegmentProvider;
 
-        UpdateSearchMode();
+        ConfigureProvider();
 
         npcPosComparer = new(bitmapProvider);
 
@@ -95,8 +89,6 @@ public sealed partial class NpcNameFinder
         screenMidBuffer = screenWidth / 15;
         screenTargetBuffer = screenMidBuffer / 2;
         screenAddBuffer = screenMidBuffer * 3;
-
-        counter = new();
     }
 
     private float ScaleWidth(int value)
@@ -113,6 +105,14 @@ public sealed partial class NpcNameFinder
     {
         HeightMulti = nameType == NpcNames.Corpse ? 10 : 4;
         heightMul = ScaleHeight(HeightMulti);
+    }
+
+    private void ConfigureProvider()
+    {
+        if (lineSegmentProvider is IConfigurableLineSegmentProvider configurable)
+        {
+            configurable.Configure(searchMode, nameType);
+        }
     }
 
     public bool ChangeNpcType(NpcNames type)
@@ -139,7 +139,7 @@ public sealed partial class NpcNameFinder
         }
 
         CalculateHeightMultipiler();
-        UpdateSearchMode();
+        ConfigureProvider();
 
         LogTypeChanged(logger, type.ToStringF(), searchMode.ToStringF());
 
@@ -148,187 +148,6 @@ public sealed partial class NpcNameFinder
 
         return true;
     }
-
-    private void UpdateSearchMode()
-    {
-        switch (searchMode)
-        {
-            case SearchMode.Simple:
-                BakeSimpleColorMatcher();
-                break;
-            case SearchMode.Fuzzy:
-                BakeFuzzyColorMatcher();
-                break;
-        }
-    }
-
-
-    #region Simple Color matcher
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void BakeSimpleColorMatcher()
-    {
-        switch (nameType)
-        {
-            case NpcNames.Enemy | NpcNames.Neutral:
-                colorMatcher = CombinedEnemyNeutrual;
-                return;
-            case NpcNames.Friendly | NpcNames.Neutral:
-                colorMatcher = CombinedFriendlyNeutrual;
-                return;
-            case NpcNames.Enemy:
-                colorMatcher = SimpleColorEnemy;
-                return;
-            case NpcNames.Friendly:
-                colorMatcher = SimpleColorFriendly;
-                return;
-            case NpcNames.Neutral:
-                colorMatcher = SimpleColorNeutral;
-                return;
-            case NpcNames.Corpse:
-                colorMatcher = SimpleColorCorpse;
-                return;
-            case NpcNames.NamePlate:
-                colorMatcher = SimpleColorNamePlate;
-                return;
-            case NpcNames.None:
-                colorMatcher = NoMatch;
-                return;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool SimpleColorEnemy(byte r, byte g, byte b)
-    {
-        return r > sE_R && g <= sE_G && b <= sE_B;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool SimpleColorFriendly(byte r, byte g, byte b)
-    {
-        return r == sF_R && g > sF_G && b == sF_B;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool SimpleColorNeutral(byte r, byte g, byte b)
-    {
-        return r > sN_R && g > sN_G && b == sN_B;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool SimpleColorCorpse(byte r, byte g, byte b)
-    {
-        return r == fC_RGB && g == fC_RGB && b == fC_RGB;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool SimpleColorNamePlate(byte r, byte g, byte b)
-    {
-        return
-            r is sNamePlate_N or sNamePlate_H_R &&
-            g is sNamePlate_N or sNamePlate_H_G &&
-            b is sNamePlate_N or sNamePlate_H_B;
-    }
-
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool CombinedFriendlyNeutrual(byte r, byte g, byte b)
-    {
-        return SimpleColorFriendly(r, g, b) || SimpleColorNeutral(r, g, b);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool CombinedEnemyNeutrual(byte r, byte g, byte b)
-    {
-        return SimpleColorEnemy(r, g, b) || SimpleColorNeutral(r, g, b);
-    }
-
-    private static bool NoMatch(byte r, byte g, byte b)
-    {
-        return false;
-    }
-
-    #endregion
-
-
-    #region Color Fuzziness matcher
-
-    private void BakeFuzzyColorMatcher()
-    {
-        switch (nameType)
-        {
-            case NpcNames.Enemy | NpcNames.Neutral | NpcNames.NamePlate:
-                colorMatcher = FuzzyEnemyOrNeutralOrNamePlate;
-                return;
-            case NpcNames.Enemy | NpcNames.Neutral:
-                colorMatcher = FuzzyEnemyOrNeutral;
-                return;
-            case NpcNames.Friendly | NpcNames.Neutral:
-                colorMatcher = FuzzyFriendlyOrNeutral;
-                return;
-            case NpcNames.Enemy:
-                colorMatcher = FuzzyEnemy;
-                return;
-            case NpcNames.Friendly:
-                colorMatcher = FuzzyFriendly;
-                return;
-            case NpcNames.Neutral:
-                colorMatcher = FuzzyNeutral;
-                return;
-            case NpcNames.Corpse:
-                colorMatcher = FuzzyCorpse;
-                return;
-            case NpcNames.NamePlate:
-                colorMatcher = FuzzyNamePlate;
-                return;
-        }
-    }
-
-    [SkipLocalsInit]
-    private static bool FuzzyColor(
-        byte rr, byte gg, byte bb,
-        byte r, byte g, byte b,
-        int fuzzy)
-    {
-        unchecked
-        {
-            int sqrDistance =
-                ((rr - r) * (rr - r)) +
-                ((gg - g) * (gg - g)) +
-                ((bb - b) * (bb - b));
-            return sqrDistance <= fuzzy * fuzzy;
-        }
-    }
-
-    private static bool FuzzyEnemyOrNeutral(byte r, byte g, byte b) =>
-        FuzzyColor(fE_R, fE_G, fE_B, r, g, b, colorFuzz) ||
-        FuzzyColor(fN_R, fN_G, fN_B, r, g, b, colorFuzz);
-
-    private static bool FuzzyEnemyOrNeutralOrNamePlate(byte r, byte g, byte b) =>
-        FuzzyEnemyOrNeutral(r, g, b) ||
-        FuzzyNamePlate(r, g, b);
-
-    private static bool FuzzyFriendlyOrNeutral(byte r, byte g, byte b) =>
-        FuzzyColor(fF_R, fF_G, fF_B, r, g, b, colorFuzz) ||
-        FuzzyColor(fN_R, fN_G, fN_B, r, g, b, colorFuzz);
-
-    private static bool FuzzyEnemy(byte r, byte g, byte b) =>
-        FuzzyColor(fE_R, fE_G, fE_B, r, g, b, colorFuzz);
-
-    private static bool FuzzyFriendly(byte r, byte g, byte b) =>
-        FuzzyColor(fF_R, fF_G, fF_B, r, g, b, colorFuzz);
-
-    private static bool FuzzyNeutral(byte r, byte g, byte b) =>
-        FuzzyColor(fN_R, fN_G, fN_B, r, g, b, colorFuzz);
-
-    private static bool FuzzyCorpse(byte r, byte g, byte b) =>
-        FuzzyColor(fC_RGB, fC_RGB, fC_RGB, r, g, b, fuzzCorpse);
-
-    private static bool FuzzyNamePlate(byte r, byte g, byte b) =>
-        FuzzyColor(sNamePlate_N, sNamePlate_N, sNamePlate_N, r, g, b, fuzzCorpse) ||
-        FuzzyColor(sNamePlate_H_R, sNamePlate_H_G, sNamePlate_H_B, r, g, b, fuzzCorpse);
-
-    #endregion
 
     public void WaitForUpdate(CancellationToken token = default)
     {
@@ -340,9 +159,11 @@ public sealed partial class NpcNameFinder
         resetEvent.ChangeReset();
         resetEvent.Reset();
 
+        float minLength = ScaleWidth(MinHeight);
+        float minEndLength = minLength - ScaleWidth(WidthDiff);
+
         ReadOnlySpan<LineSegment> lineSegments =
-            PopulateLines(colorMatcher, Area,
-            ScaleWidth(MinHeight), ScaleWidth(WidthDiff));
+            lineSegmentProvider.GetLineSegments(Area, minLength, minEndLength);
 
         Npcs = DetermineNpcs(lineSegments);
 
@@ -519,43 +340,6 @@ public sealed partial class NpcNameFinder
     private int YOffset(Rectangle area, Rectangle npc)
     {
         return npc.Top / area.Top * MinHeight / 4;
-    }
-
-    [SkipLocalsInit]
-    private ReadOnlySpan<LineSegment> PopulateLines(
-        Func<byte, byte, byte, bool> colorMatcher,
-        Rectangle area, float minLength, float lengthDiff)
-    {
-        const int RESOLUTION = 16;
-        int rowSize = (area.Right - area.Left) / RESOLUTION;
-        int height = (area.Bottom - area.Top) / RESOLUTION;
-        int totalSize = rowSize * height;
-
-        var pooler = ArrayPool<LineSegment>.Shared;
-        LineSegment[] segments = pooler.Rent(totalSize);
-
-        float minEndLength = minLength - lengthDiff;
-
-        Rectangle rectangle = new(area.X, area.Y, area.Width, area.Height);
-
-        counter.count = 0;
-        LineSegmentOperation operation = new(
-            segments,
-            rowSize,
-            rectangle,
-            minLength,
-            minEndLength,
-            counter,
-            colorMatcher,
-            bitmapProvider.ScreenImage.Frames[0].PixelBuffer);
-
-        ParallelRowIterator.IterateRows<LineSegmentOperation, LineSegment>(
-            Configuration.Default,
-            rectangle,
-            in operation);
-
-        pooler.Return(segments);
-        return new(segments, 0, Math.Min(segments.Length, counter.count));
     }
 
     public Point ToScreenCoordinates()
