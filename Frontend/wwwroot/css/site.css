@@ -207,13 +207,13 @@ app {
 }
 
 .img-filled {
-    width: 100%;
-    aspect-ratio: 2.5/1;
+    width: 450px;
+    aspect-ratio: 1.78/1;
 }
 
 .img-filled-half {
-    width: 100%;
-    aspect-ratio: 1.5/1;
+    width: 250px;
+    aspect-ratio: 1.78/1;
 }
 
 .poor {

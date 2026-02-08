@@ -78,7 +78,7 @@ public sealed class PathGraph
 	*/
 
     public const float CHUNK_BASE = 100000.0f; // Always keep positive
-    public const float MaximumAllowedRangeFromTarget = 5; //60
+    public const float MaximumAllowedRangeFromTarget = 1500; //60
 
     private readonly ILogger logger;
     private readonly string chunkDir;
