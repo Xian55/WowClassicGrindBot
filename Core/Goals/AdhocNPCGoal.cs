@@ -203,6 +203,9 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         {
             key.Path = [];
             npc = default;
+            searchResult = [];
+            searchCount = 0;
+            searchIndex = 0;
         }
     }
 
