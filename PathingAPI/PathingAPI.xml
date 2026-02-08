@@ -168,5 +168,14 @@
             
             </summary>
         </member>
+        <member name="M:PathingAPI.Pages.Index.WR(System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Boolean)">
+            <summary>WorldRoute: coordinates + mapId</summary>
+        </member>
+        <member name="M:PathingAPI.Pages.Index.WR2(System.Double,System.Double,System.Double,System.Double,System.Double,System.Double,System.Int32,System.Nullable{System.Int32},System.Boolean)">
+            <summary>WorldRoute2: coordinates + uiMap</summary>
+        </member>
+        <member name="M:PathingAPI.Pages.Index.MR(System.Int32,System.Double,System.Double,System.Int32,System.Double,System.Double)">
+            <summary>MapRoute: uiMap coordinates</summary>
+        </member>
     </members>
 </doc>

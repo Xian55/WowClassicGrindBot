@@ -199,21 +199,34 @@ public sealed class AutoGatherGoal : GoapGoal, IGoapEventListener, IRouteProvide
     {
         if (node == default)
         {
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace("FoundNode: default node, clearing path");
+            }
             key.Path = [];
             return;
         }
 
         if (key.Path.Length == 1 && key.Path[0] == node)
         {
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace("FoundNode: same node, skipping");
+            }
             return;
         }
 
         if (key.Path.Length > 0 && Vector2.Distance(node.AsVector2(), key.Path[0].AsVector2()) < 0.05f)
         {
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace("FoundNode: node too close ({Dist:F4}), skipping",
+                    Vector2.Distance(node.AsVector2(), key.Path[0].AsVector2()));
+            }
             return;
         }
 
-        //logger.LogWarning($"Found node at {node}");
+        logger.LogWarning($"Found node at {node}");
 
         key.Path = [node];
         navigation.SetWayPoints(key.Path);

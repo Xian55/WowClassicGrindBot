@@ -281,6 +281,12 @@ public sealed class PathGraph
         return result;
     }
 
+    [InlineArray(8)]
+    private struct SpotBuffer8
+    {
+        private Spot _element;
+    }
+
     // Connect according to MPQ data
     public Spot AddAndConnectSpot(Spot s)
     {
@@ -291,6 +297,7 @@ public sealed class PathGraph
         }
 
         Vector3 avoidSmallBumps = new(0, 0, toonHeightHalf);
+        Vector3 origin = s.Loc + avoidSmallBumps;
 
         // Grid-based connectivity: only connect to the 8 immediate grid neighbors
         // This prevents long-distance shortcuts and maintains uniform pathfinding
@@ -299,6 +306,11 @@ public sealed class PathGraph
             (-1, 0), (1, 0), (0, -1), (0, 1),      // Cardinal: W, E, S, N
             (-1, -1), (-1, 1), (1, -1), (1, 1)     // Diagonal: SW, NW, SE, NE
         ];
+
+        // Phase 1: Collect valid neighbors needing LOS checks
+        Span<Vector3> targets = stackalloc Vector3[8];
+        SpotBuffer8 neighbors = default;
+        int count = 0;
 
         foreach (var (dx, dy) in neighborOffsets)
         {
@@ -319,13 +331,30 @@ public sealed class PathGraph
                 continue;
             }
 
-            // Verify line-of-sight before connecting
-            if (triangleWorld.LineOfSightExists(s.Loc + avoidSmallBumps, neighbor.Loc + avoidSmallBumps))
+            targets[count] = neighbor.Loc + avoidSmallBumps;
+            neighbors[count] = neighbor;
+            count++;
+        }
+
+        if (count == 0)
+            return s;
+
+        // Phase 2: Batch LOS check — single GetAllCloseTo query for all neighbors
+        Span<bool> results = stackalloc bool[count];
+        // maxRange covers diagonal distance + margin: SpotGridSize * sqrt(2) + 1
+        float maxRange = SpotGridSize * 1.415f + 1f;
+        triangleWorld.LineOfSightBatch(origin, targets[..count], results, maxRange);
+
+        // Phase 3: Connect spots where LOS exists
+        for (int i = 0; i < count; i++)
+        {
+            if (results[i])
             {
-                spotManager.AddPathTo(s, neighbor);
-                spotManager.AddPathTo(neighbor, s);
+                spotManager.AddPathTo(s, neighbors[i]);
+                spotManager.AddPathTo(neighbors[i], s);
             }
         }
+
         return s;
     }
 
@@ -668,6 +697,13 @@ public sealed class PathGraph
             long buildStart = GetTimestamp();
             CreateSpotsAroundSpot(currentSearchSpot, destinationSpot);
             spotManager.AddBuildTicks(GetTimestamp() - buildStart);
+
+            // Timeout check after expensive CreateSpotsAroundSpot
+            if (GetElapsedTime(searchDuration).TotalSeconds > TimeoutSeconds)
+            {
+                logger.LogWarning("search timeout after CreateSpotsAroundSpot, returning closest spot {ClosestLocation}", ClosestSpot?.Loc);
+                return ClosestSpot;
+            }
 
             //score each spot around the current search spot and add them to the queue
             ReadOnlySpan<Spot> spots = spotManager.GetPathsToSpots(currentSearchSpot, this);

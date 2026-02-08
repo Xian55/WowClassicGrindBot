@@ -6,6 +6,7 @@ using SharedLib;
 
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Advanced;
+using SixLabors.ImageSharp.PixelFormats;
 
 using System;
 using System.Buffers;
@@ -21,8 +22,8 @@ public sealed class MinimapNodeFinder
 
     private readonly ArrayCounter counter;
 
-    private const int minScore = 2;
-    private const int size = 3;
+    private const int minScore = 1;
+    private const int size = 5;
 
     public MinimapNodeFinder(ILogger logger, IMinimapImageProvider provider)
     {
@@ -38,21 +39,33 @@ public sealed class MinimapNodeFinder
         if (settings.Width <= 0)
             return;
 
-        ReadOnlySpan<Point> span = FindYellowPoints();
+        var pooler = ArrayPool<Point>.Shared;
+        Point[] points = pooler.Rent(MinimapRowOperation.SIZE);
+        points.AsSpan().Fill(Point.Empty);
+
+        ReadOnlySpan<Point> span = FindYellowPoints(points);
         ScorePoints(span, settings, out Point best, out int amountAboveMin);
+
+        pooler.Return(points, clearArray: true);
+
+        if (logger.IsEnabled(LogLevel.Trace))
+        {
+            logger.LogTrace("Minimap: {RawCount} yellow px, {Scored} scored, best=({X},{Y})",
+                span.Length, amountAboveMin, best.X, best.Y);
+        }
+
         NodeEvent?.Invoke(this, new MinimapNodeEventArgs(best.X, best.Y, amountAboveMin, rect));
     }
 
-    private ReadOnlySpan<Point> FindYellowPoints()
+    private ReadOnlySpan<Point> FindYellowPoints(Point[] points)
     {
-        var pooler = ArrayPool<Point>.Shared;
-        Point[] points = pooler.Rent(MinimapRowOperation.SIZE);
-
         counter.count = 0;
+
+        MinimapSettings settings = provider.MinimapSettings;
 
         MinimapRowOperation operation = new(
             provider.MiniMapImage.Frames[0].PixelBuffer,
-            provider.MiniMapRect, counter, points);
+            settings, counter, points);
 
         rect = operation.rect;
 
@@ -61,9 +74,14 @@ public sealed class MinimapNodeFinder
             operation.rect,
             in operation);
 
-        pooler.Return(points);
-
         return points.AsSpan(0, counter.count);
+    }
+
+    public Image<Bgra32> CreateDebugImage()
+    {
+        Image<Bgra32> clone = provider.MiniMapImage.Clone();
+        MinimapRowOperation.DrawDebugMask(clone, provider.MinimapSettings);
+        return clone;
     }
 
     private static void ScorePoints(ReadOnlySpan<Point> points,

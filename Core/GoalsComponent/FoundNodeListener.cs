@@ -123,9 +123,12 @@ public sealed class FoundNodeListener : IDisposable
         // Clamp to valid map range and warn if out of bounds
         if (pos.X < 0 || pos.X > 100 || pos.Y < 0 || pos.Y > 100)
         {
-            logger.LogDebug(
-                "Node position out of bounds: ({PosX:F2}, {PosY:F2}), clamping to [0,100]",
-                pos.X, pos.Y);
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace(
+                    "Node position out of bounds: ({PosX:F2}, {PosY:F2}), clamping to [0,100]",
+                    pos.X, pos.Y);
+            }
             pos = new Vector3(
                 Math.Clamp(pos.X, 0f, 100f),
                 Math.Clamp(pos.Y, 0f, 100f),
@@ -148,6 +151,12 @@ public sealed class FoundNodeListener : IDisposable
         //    zoneWidthYards, zoneHeightYards,
         //    playerWorldX, playerWorldY,
         //    worldX, worldY);
+
+        if (logger.IsEnabled(LogLevel.Trace))
+        {
+            logger.LogTrace("FoundNodeListener: node map pos=({X:F2},{Y:F2})",
+                pos.X, pos.Y);
+        }
 
         NodeFound?.Invoke(pos);
     }
