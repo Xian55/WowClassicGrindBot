@@ -8,4 +8,6 @@ public interface IMinimapImageProvider
     Image<Bgra32> MiniMapImage { get; }
 
     Rectangle MiniMapRect { get; }
+
+    MinimapSettings MinimapSettings { get; }
 }

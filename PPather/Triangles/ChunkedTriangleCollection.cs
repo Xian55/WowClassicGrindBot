@@ -747,6 +747,45 @@ public sealed class ChunkedTriangleCollection
         return true;
     }
 
+    /// <summary>
+    /// Batch line-of-sight check: performs a single GetAllCloseTo query for the origin,
+    /// then checks LOS to multiple targets against the same triangle set.
+    /// Avoids redundant dictionary lookups when checking LOS from one origin to many targets.
+    /// </summary>
+    [SkipLocalsInit]
+    public void LineOfSightBatch(
+        Vector3 origin,
+        ReadOnlySpan<Vector3> targets,
+        Span<bool> results,
+        float maxRange)
+    {
+        TriangleCollection tc = GetChunkAt(origin.X, origin.Y);
+        TriangleMatrix tm = tc.GetTriangleMatrix();
+        ReadOnlySpan<int> ts = tm.GetAllCloseTo(origin.X, origin.Y, maxRange);
+
+        var tSpan = tc.TrianglesSpan;
+        var vSpan = tc.VerteciesSpan;
+
+        for (int t = 0; t < targets.Length; t++)
+        {
+            bool hasLos = true;
+            Vector3 target = targets[t];
+
+            foreach (int index in ts)
+            {
+                TriangleCollection.GetTriangleVertices(tSpan, vSpan, index,
+                    out Vector3 v0, out Vector3 v1, out Vector3 v2, out _);
+
+                if (SegmentTriangleIntersect(origin, target, v0, v1, v2, out _))
+                {
+                    hasLos = false;
+                    break;
+                }
+            }
+            results[t] = hasLos;
+        }
+    }
+
     [SkipLocalsInit]
     public bool FindStandableAt1(float x, float y, float min_z, float max_z,
                                out float z0, out TriangleType flags,
@@ -798,10 +837,23 @@ public sealed class ChunkedTriangleCollection
             float halfSize = toonSize * 0.5f;
             bool blocked = false;
 
+            // Only check triangles that could geometrically block at head height
+            float blockMinZ = intersect.Z;
+            float blockMaxZ = toon.Z + halfSize;
+
             foreach (int blockIndex in ts)
             {
+                if (blockIndex == index)
+                    continue;
+
                 TriangleCollection.GetTriangleVertices(tSpan, vSpan, blockIndex,
                     out Vector3 bv0, out Vector3 bv1, out Vector3 bv2, out _);
+
+                // Skip triangles entirely below feet or above head + tolerance
+                float triMinZ = Min(bv0.Z, Min(bv1.Z, bv2.Z));
+                float triMaxZ = Max(bv0.Z, Max(bv1.Z, bv2.Z));
+                if (triMaxZ < blockMinZ || triMinZ > blockMaxZ)
+                    continue;
 
                 if (PointDistanceToTriangle(toon, bv0, bv1, bv2) < halfSize)
                 {

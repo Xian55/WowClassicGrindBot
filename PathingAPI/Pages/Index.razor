@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 
 <style>
     #bottomOverlay {
@@ -25,13 +25,44 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             /* Prevent text from overflowing */
             white-space: nowrap; /* Keep text on one line */
-            overflow: hidden; /* Hide text that doesn’t fit */
+            overflow: hidden; /* Hide text that doesn't fit */
             text-overflow: ellipsis; /* Add an ellipsis to truncated text */
         }
 
             #bottomOverlay a:hover {
                 background-color: rgba(255, 255, 255, 0.2);
             }
+
+        #bottomOverlay .reverse-btn {
+            display: block;
+            height: 18px;
+            line-height: 18px;
+            padding: 0 10px;
+            color: #aaddff;
+            text-decoration: none;
+            font-size: 9px;
+            background-color: rgba(0, 100, 200, 0.3);
+            border-bottom: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+            #bottomOverlay .reverse-btn:hover {
+                background-color: rgba(0, 100, 200, 0.6);
+            }
+
+        #bottomOverlay .zone-header {
+            display: block;
+            height: 24px;
+            line-height: 24px;
+            padding: 0 10px;
+            color: #ffcc00;
+            font-size: 10px;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255, 204, 0, 0.4);
+            margin-top: 4px;
+        }
 
         #bottomOverlay::-webkit-scrollbar {
             width: 5px; /* Optional: Customize scrollbar width */
@@ -47,111 +78,18 @@
 <Watch />
 
 <div id="bottomOverlay">
-
-    <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-8898.32&y1=-117.35608&z1=81.840546&x2=-8779.58&y2=-106.12012&z2=0&mapid=0">Elwynn vendor to path</a>
-
-    <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute2?x1=-8898.32&y1=-117.35608&z1=0&x2=-8779.58&y2=-106.12012&z2=0&uimap=1429&startindoors=false">Z Elwynn vendor to path</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-6120.8084&y1=542.90857&z1=0&x2=-5880.7373&y2=-116.15503&z2=0&mapid=0">Z Coldridge to 5_gnome</a>
-
-    <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1433&x1=30&y1=60&uimap2=1433&x2=54.3&y2=43.1">Redrdge Grave to North</a>
-
-    <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-17.51&y1=-986.82&z1=55.83&x2=305.33337&y2=-364.6667&z2=168.28902&mapid=0">Alterac Mountains Horde grave</a>
-
-    <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-779.3728&y1=-4926.2754&z1=0&x2=-575.14014&y2=-4298.2&z2=0&mapid=1&startindoors=true">Z Durotar Sen'jin village to grind</a>
-
-    <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-779.3728&y1=-4926.2754&z1=22.3297&x2=-575.14014&y2=-4298.2&z2=0&mapid=1&startindoors=true">Durotar Sen'jin village to grind</a>
-
-    <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute2?x1=1618.5112&y1=-4433.742&z1=0&x2=1633.98&y2=-4439.37&z2=15.51&uimap=1454&mapid=1&startindoors=false">Z Orgrimmar to vendor</a>
-
-    <a onclick="f(this.href); return false;"                                                                           
-       href="api/PPather/WorldRoute2?x1=10477.419&y1=659.36426&z1=1326.2318&x2=10442.9&y2=783.989&z2=1337.37&uimap=1438&mapid=1&startindoors=false">Teldrassil to vendor</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1446&x1=51.0&y1=29.3&uimap2=1446&x2=38.7&y2=20.1">Tanaris FP to ZF</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1451&x1=51.4&y1=37.8&uimap2=1451&x2=29&y2=92">Silithus Inn to AQ</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-896&y1=-3770&z1=11&x2=-441&y2=-2596&z2=96&mapid=1">Kalimdor Search Barrens</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-6238.128&y1=139.40344&z1=430.9192&x2=-5884.185&y2=-118.66675&z2=364.64783&mapid=0">Azeroth Dun morogh 1</a>
-
-    <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute2?x1=-6101.417&y1=390.9181&z1=395.626&x2=-6154.18&y2=609.84973&z2=395.626&uimap=1426&mapid=0&startindoors=true">Dun morogh Vendor to grind</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-5609.00&y1=-479.00&z1=397.49&x2=-5884.185&y2=-118.66675&z2=364.64783&mapid=0">Azeroth Dun morogh 2</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-6200.1924&y1=700.5774&z1=384.6462&x2=-6103.1836&y2=393.5332&z2=0&mapid=0">Z Dun morogh Vendor Rybrad Coldbank</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute?x1=-6200.1924&y1=700.5774&z1=384.6462&x2=-6103.1836&y2=393.5332&z2=396.0979&mapid=0">Azeroth Dun morogh Vendor Rybrad Coldbank</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute2?x1=2293.7908&y1=-6636.0283&z1=120.13607&x2=2309.54&y2=-6666.62&z2=0&uimap=1447">Z Azshara issue no result</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/WorldRoute2?x1=-732.031&y1=2448.2805&z1=58.940506&x2=-755.79004&y2=2491.16&z2=0&uimap=1944">Z Honor hold issue no result</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1431&x1=43.097&y1=18.38&uimap2=1431&x2=45.34&y2=16.438">Duskwood issue</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=48.6">Loch Modan building Yanni Stoutheart</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=35.5&y2=48.5">Loch Modan building innkeeper</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=49.1">Loch Modan building building Vidra Heartstove</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1426&x1=28.7&y1=70.1&uimap2=1426&x2=28.8&y2=67.9">Dun morogh building Grundel Harkin</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1426&x1=28.8&y1=67.9&uimap2=1426&x2=28.7&y2=70.1">Dun morogh building Grundel Harkin reverse</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1426&x1=33.90&y1=71.86&uimap2=1426&x2=38.94&y2=61.0">Dun morogh Coldrige pass - unable to find</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1426&x1=33.76&y1=71.91&uimap2=1426&x2=39.0&y2=61.13">Dun morogh Coldrige pass</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1943&x1=81.05&y1=45.33&uimap2=1943&x2=78.92&y2=44.14">Ammen Vale</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1425&x1=82.2771&y1=48.698803&uimap2=1425&x2=81.65922&y2=49.87935">Hinterlands 1 water issue</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1425&x1=80.7258&y1=64.2714&uimap2=1425&x2=78.321304&y2=64.0448">Hinterlands 2 water issue</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1447&x1=67.25&y1=82.88&uimap2=1447&x2=66.68&y2=90.23">Azshara 1</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1944&x1=60.0762&y1=43.4372&uimap2=1944&x2=61.1473&y2=39.955284">hellfire 1</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=1944&x1=60.0762&y1=43.4372&uimap2=1944&x2=61.14&y2=38.38">hellfire 2</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=121&x1=40.4058&y1=63.024403&uimap2=121&x2=40.3816&y2=64.259705">Zul'Drak stairs</a>
-
-   <a onclick="f(this.href); return false;"
-       href="api/PPather/MapRoute?uimap1=121&x1=40.3816&y1=64.259705&uimap2=121&x2=40.4058&y2=63.024403">Zul'Drak stairs reverse</a>
+    @foreach (var (zone, routes) in RouteGroups)
+    {
+        <div class="zone-header">@zone</div>
+        @foreach (var route in routes)
+        {
+            @if (route.ReverseHref.Length > 0)
+            {
+                <a class="reverse-btn" onclick="f(this.href); return false;" href="@route.ReverseHref">↩ reverse</a>
+            }
+            <a onclick="f(this.href); return false;" href="@route.Href">@route.Name</a>
+        }
+    }
 </div>
 
 <script>
@@ -162,3 +100,127 @@
       document.body.appendChild(iframe); // Add it to the page
     }
 </script>
+
+@code {
+    private readonly record struct Route(string Name, string Href, string ReverseHref = "");
+
+    private static Route WithReverse(string name, string href) => new(name, href, href + "&reverse=true");
+
+    /// <summary>WorldRoute: coordinates + mapId</summary>
+    private static string WR(
+        double x1, double y1, double z1,
+        double x2, double y2, double z2,
+        int mapId, bool reverse = false) =>
+        reverse
+            ? FormattableString.Invariant($"api/PPather/WorldRoute?x1={x1}&y1={y1}&z1={z1}&x2={x2}&y2={y2}&z2={z2}&mapid={mapId}&reverse=true")
+            : FormattableString.Invariant($"api/PPather/WorldRoute?x1={x1}&y1={y1}&z1={z1}&x2={x2}&y2={y2}&z2={z2}&mapid={mapId}");
+
+    /// <summary>WorldRoute2: coordinates + uiMap</summary>
+    private static string WR2(
+        double x1, double y1, double z1,
+        double x2, double y2, double z2,
+        int uiMap, int? mapId = null, bool startIndoors = false) =>
+        mapId.HasValue
+            ? FormattableString.Invariant($"api/PPather/WorldRoute2?x1={x1}&y1={y1}&z1={z1}&x2={x2}&y2={y2}&z2={z2}&uimap={uiMap}&mapid={mapId.Value}&startindoors={startIndoors.ToString().ToLowerInvariant()}")
+            : FormattableString.Invariant($"api/PPather/WorldRoute2?x1={x1}&y1={y1}&z1={z1}&x2={x2}&y2={y2}&z2={z2}&uimap={uiMap}&startindoors={startIndoors.ToString().ToLowerInvariant()}");
+
+    /// <summary>MapRoute: uiMap coordinates</summary>
+    private static string MR(
+        int uiMap1, double x1, double y1,
+        int uiMap2, double x2, double y2) =>
+        FormattableString.Invariant($"api/PPather/MapRoute?uimap1={uiMap1}&x1={x1}&y1={y1}&uimap2={uiMap2}&x2={x2}&y2={y2}");
+
+    private static readonly (string Zone, Route[] Routes)[] RouteGroups =
+    [
+        ("Alterac Mountains",
+        [
+            WithReverse("Horde grave", WR(-17.51, -986.82, 55.83, 305.33337, -364.6667, 168.28902, mapId: 0)),
+        ]),
+        ("Ammen Vale",
+        [
+            new("Ammen Vale", MR(1943, 81.05, 45.33, 1943, 78.92, 44.14)),
+        ]),
+        ("Azshara",
+        [
+            new("Z issue no result", WR2(2293.7908, -6636.0283, 120.13607, 2309.54, -6666.62, 0, uiMap: 1447)),
+            new("Azshara 1", MR(1447, 67.25, 82.88, 1447, 66.68, 90.23)),
+        ]),
+        ("Coldridge Valley",
+        [
+            WithReverse("Z Coldridge to 5_gnome", WR(-6120.8084, 542.90857, 0, -5880.7373, -116.15503, 0, mapId: 0)),
+        ]),
+        ("Dun Morogh",
+        [
+            WithReverse("Dun morogh 1", WR(-6238.128, 139.40344, 430.9192, -5884.185, -118.66675, 364.64783, mapId: 0)),
+            new("Vendor to grind", WR2(-6101.417, 390.9181, 395.626, -6154.18, 609.84973, 395.626, uiMap: 1426, mapId: 0, startIndoors: true)),
+            WithReverse("Dun morogh 2", WR(-5609.00, -479.00, 397.49, -5884.185, -118.66675, 364.64783, mapId: 0)),
+            WithReverse("Z Vendor Rybrad Coldbank", WR(-6200.1924, 700.5774, 384.6462, -6103.1836, 393.5332, 0, mapId: 0)),
+            WithReverse("Vendor Rybrad Coldbank", WR(-6200.1924, 700.5774, 384.6462, -6103.1836, 393.5332, 396.0979, mapId: 0)),
+            new("Building Grundel Harkin", MR(1426, 28.7, 70.1, 1426, 28.8, 67.9)),
+            new("Building Grundel Harkin reverse", MR(1426, 28.8, 67.9, 1426, 28.7, 70.1)),
+            new("Coldridge pass - unable to find", MR(1426, 33.90, 71.86, 1426, 38.94, 61.0)),
+            new("Coldridge pass", MR(1426, 33.76, 71.91, 1426, 39.0, 61.13)),
+        ]),
+        ("Durotar",
+        [
+            WithReverse("Z Sen'jin village to grind", WR(-779.3728, -4926.2754, 0, -575.14014, -4298.2, 0, mapId: 1)),
+            WithReverse("Sen'jin village to grind", WR(-779.3728, -4926.2754, 22.3297, -575.14014, -4298.2, 0, mapId: 1)),
+            WithReverse("RazorHill to mining", WR(200.97559, -4785.549, 13.644421, 190.8, -4795.2, 14.245161, mapId: 1)),
+        ]),
+        ("Duskwood",
+        [
+            new("Duskwood issue", MR(1431, 43.097, 18.38, 1431, 45.34, 16.438)),
+        ]),
+        ("Elwynn Forest",
+        [
+            WithReverse("Vendor to path", WR(-8898.32, -117.35608, 81.840546, -8779.58, -106.12012, 0, mapId: 0)),
+            new("Z Vendor to path", WR2(-8898.32, -117.35608, 0, -8779.58, -106.12012, 0, uiMap: 1429)),
+        ]),
+        ("Hellfire Peninsula",
+        [
+            new("Z Honor Hold issue no result", WR2(-732.031, 2448.2805, 58.940506, -755.79004, 2491.16, 0, uiMap: 1944)),
+            new("Hellfire 1", MR(1944, 60.0762, 43.4372, 1944, 61.1473, 39.955284)),
+            new("Hellfire 2", MR(1944, 60.0762, 43.4372, 1944, 61.14, 38.38)),
+        ]),
+        ("Hinterlands",
+        [
+            new("Water issue 1", MR(1425, 82.2771, 48.698803, 1425, 81.65922, 49.87935)),
+            new("Water issue 2", MR(1425, 80.7258, 64.2714, 1425, 78.321304, 64.0448)),
+        ]),
+        ("Loch Modan",
+        [
+            new("Building Yanni Stoutheart", MR(1432, 35.2, 46.9, 1432, 34.8, 48.6)),
+            new("Building innkeeper", MR(1432, 35.2, 46.9, 1432, 35.5, 48.5)),
+            new("Building Vidra Heartstove", MR(1432, 35.2, 46.9, 1432, 34.8, 49.1)),
+        ]),
+        ("Orgrimmar",
+        [
+            new("Z Orgrimmar to vendor", WR2(1618.5112, -4433.742, 0, 1633.98, -4439.37, 15.51, uiMap: 1454, mapId: 1)),
+        ]),
+        ("Redridge Mountains",
+        [
+            new("Grave to North", MR(1433, 30, 60, 1433, 54.3, 43.1)),
+        ]),
+        ("Silithus",
+        [
+            new("Inn to AQ", MR(1451, 51.4, 37.8, 1451, 29, 92)),
+        ]),
+        ("Tanaris",
+        [
+            new("FP to ZF", MR(1446, 51.0, 29.3, 1446, 38.7, 20.1)),
+        ]),
+        ("Teldrassil",
+        [
+            WithReverse("Teldrassil to vendor", WR(10477.419, 659.36426, 1326.2318, 10442.9, 783.989, 1337.37, mapId: 1)),
+        ]),
+        ("The Barrens",
+        [
+            WithReverse("Search Barrens", WR(-896, -3770, 11, -441, -2596, 96, mapId: 1)),
+        ]),
+        ("Zul'Drak",
+        [
+            new("Stairs", MR(121, 40.4058, 63.024403, 121, 40.3816, 64.259705)),
+            new("Stairs reverse", MR(121, 40.3816, 64.259705, 121, 40.4058, 63.024403)),
+        ]),
+    ];
+}

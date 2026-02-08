@@ -867,8 +867,8 @@ function DataToColor:CreateFrames()
                 Pixel(int, UnitPower(DataToColor.C.unitPlayer, PowerType.Mana), 15)
             end
 
-            -- 16 empty
-            -- 17 empty
+            Pixel(int, DataToColor:MiniMapSettings1(), 16)
+            Pixel(int, DataToColor:MiniMapSettings2(), 17)
 
             if DataToColor.targetChanged then
                 DataToColor.targetBuffTime:forcedReset()

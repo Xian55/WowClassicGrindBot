@@ -173,6 +173,8 @@
 
         await Reset();
 
+        searchCts?.Dispose();
+
         base.Dispose();
     }
 
@@ -187,7 +189,12 @@
         if (!BabylonJs) { return; }
 
         ToggleLayers[layer.ToIndex()] = !ToggleLayers[layer.ToIndex()];
-        await jsRuntime.InvokeVoidAsync("toggleLayer", Token, layer);
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("toggleLayer", Token, layer);
+        }
+        catch (Exception) when (Token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private bool IsLayerEnabled(TriangleType layer)
@@ -198,13 +205,23 @@
     private async void ToggleWireFrame()
     {
         WireFrameEnabled = !WireFrameEnabled;
-        await jsRuntime.InvokeVoidAsync("toggleWireFrame", Token);
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("toggleWireFrame", Token);
+        }
+        catch (Exception) when (Token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async void ToggleSceneExplorer()
     {
         SceneExplorerEnabled = !SceneExplorerEnabled;
-        await jsRuntime.InvokeVoidAsync("toggleSceneExplorer", Token, SceneExplorerEnabled);
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("toggleSceneExplorer", Token, SceneExplorerEnabled);
+        }
+        catch (Exception) when (Token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private void CycleGeometryMode()
@@ -358,51 +375,66 @@
 
     private async void OnDrawFinalPath(Path spotPath)
     {
-        if (spotPath != null)
+        try
         {
-            while (thread != null || Token.IsCancellationRequested)
+            if (spotPath != null)
             {
-                Token.WaitHandle.WaitOne(RefreshTimeMs);
+                while (thread != null || Token.IsCancellationRequested)
+                {
+                    Token.WaitHandle.WaitOne(RefreshTimeMs);
+                }
             }
+
+            await DrawGeometry(Token);
+
+            if (DrawTestPoints && BabylonJs)
+            {
+                await SendDrawLines(pPatherService.TestPoints, Color.Green, "debug", Token);
+                await SendDrawLines(pPatherService.BlockedPoints, Color.Red, "debug2", Token);
+            }
+
+            await SendDrawLine(lastFrom.AsVector3(), PathGraph.toonHeight, Color.Green, "start", Token);
+
+            await SendDrawLine(lastTo.AsVector3(), PathGraph.toonHeight, Color.Blue, "end", Token);
+
+            if (spotPath == null || spotPath.locations.Count == 0)
+            {
+                Log("No path found");
+                return;
+            }
+
+            await SendRemoveMesh("search", Token);
+
+            await SendDrawPath(spotPath.locations, (Color)PathColour, Name, Token);
         }
-
-        await DrawGeometry(Token);
-
-        if (DrawTestPoints && BabylonJs)
-        {
-            await SendDrawLines(pPatherService.TestPoints, Color.Green, "debug", Token);
-            await SendDrawLines(pPatherService.BlockedPoints, Color.Red, "debug2", Token);
-        }
-
-        await SendDrawLine(lastFrom.AsVector3(), PathGraph.toonHeight, Color.Green, "start", Token);
-
-        await SendDrawLine(lastTo.AsVector3(), PathGraph.toonHeight, Color.Blue, "end", Token);
-
-        if (spotPath == null || spotPath.locations.Count == 0)
-        {
-            Log("No path found");
-            return;
-        }
-
-        await SendRemoveMesh("search", Token);
-
-        await SendDrawPath(spotPath.locations, (Color)PathColour, Name, Token);
+        catch (Exception) when (Token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async void OnDrawSphere(SphereEventArgs e)
     {
-        await jsRuntime.InvokeVoidAsync("drawSphere", Token,
-            Serialize(e.Location, options), e.Colour, e.Name);
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("drawSphere", Token,
+                Serialize(e.Location, options), e.Colour, e.Name);
+        }
+        catch (Exception) when (Token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async void OnDrawLines(LinesEventArgs e)
     {
-        await DrawGeometry(Token);
+        try
+        {
+            await DrawGeometry(Token);
 
-        await SendRemoveMesh(Name, Token);
+            await SendRemoveMesh(Name, Token);
 
-        await jsRuntime.InvokeVoidAsync("drawPath", Token, Serialize(e.Locations, options), e.Colour, e.Name);
-        //await SendDrawPath(e.Locations, (Color)e.Colour, e.Name, Token);
+            await jsRuntime.InvokeVoidAsync("drawPath", Token, Serialize(e.Locations, options), e.Colour, e.Name);
+            //await SendDrawPath(e.Locations, (Color)e.Colour, e.Name, Token);
+        }
+        catch (Exception) when (Token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private /*async*/ void OnChunkAdded(ChunkEventArgs e)
@@ -565,57 +597,102 @@
 
     private async Task SendEmptyMesh(CancellationToken token)
     {
-        Memory<int>[] models = new Memory<int>[4];
-        models[0] = Array.Empty<int>().AsMemory();
-        models[1] = Array.Empty<int>().AsMemory();
-        models[2] = Array.Empty<int>().AsMemory();
-        models[3] = Array.Empty<int>().AsMemory();
+        try
+        {
+            Memory<int>[] models = new Memory<int>[4];
+            models[0] = Array.Empty<int>().AsMemory();
+            models[1] = Array.Empty<int>().AsMemory();
+            models[2] = Array.Empty<int>().AsMemory();
+            models[3] = Array.Empty<int>().AsMemory();
 
-        List<Vector3> emptyVertices = new();
-        await hubContext.Clients.All.SendAsync("addModels", models, emptyVertices, token);
+            List<Vector3> emptyVertices = new();
+            await hubContext.Clients.All.SendAsync("addModels", models, emptyVertices, token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     // SignalR methods to babylonjs.js
 
     private async Task SendLog(string message, CancellationToken token)
     {
-        await jsRuntime.InvokeVoidAsync("log", token, message);
-        //await hubContext.Clients.All.SendAsync("log", message, token);
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("log", token, message);
+            //await hubContext.Clients.All.SendAsync("log", message, token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async Task SendCreateScene(CancellationToken token)
     {
-        await jsRuntime.InvokeVoidAsync("createScene", token);
-        // await hubContext.Clients.All.SendAsync("createScene", token);
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("createScene", token);
+            // await hubContext.Clients.All.SendAsync("createScene", token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async Task SendClear(CancellationToken token)
     {
-        await hubContext.Clients.All.SendAsync("clear", token);
+        try
+        {
+            await hubContext.Clients.All.SendAsync("clear", token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async Task SendDrawPath(IEnumerable<Vector3> points, Color color, string name, CancellationToken token)
     {
-        await hubContext.Clients.All.SendAsync("drawPath", points, (int)color, name, token);
+        try
+        {
+            await hubContext.Clients.All.SendAsync("drawPath", points, (int)color, name, token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async Task SendDrawLine(Vector3 point, float height, Color color, string name, CancellationToken token)
     {
-        await hubContext.Clients.All.SendAsync("drawLine", point, height, (int)color, name, token);
+        try
+        {
+            await hubContext.Clients.All.SendAsync("drawLine", point, height, (int)color, name, token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async Task SendDrawBoundBox(Vector3 min, Vector3 max, Color color, string name, CancellationToken token)
     {
-        await hubContext.Clients.All.SendAsync("drawBoundBox", min, max, (int)color, name, token);
+        try
+        {
+            await hubContext.Clients.All.SendAsync("drawBoundBox", min, max, (int)color, name, token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async Task SendDrawLines(IEnumerable<Vector3> points, Color color, string name, CancellationToken token)
     {
-        await hubContext.Clients.All.SendAsync("drawLines", points, (int)color, name, token);
+        try
+        {
+            await hubContext.Clients.All.SendAsync("drawLines", points, (int)color, name, token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 
     private async Task SendRemoveMesh(string name, CancellationToken token)
     {
-        await hubContext.Clients.All.SendAsync("removeMesh", name, token);
+        try
+        {
+            await hubContext.Clients.All.SendAsync("removeMesh", name, token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
     }
 }

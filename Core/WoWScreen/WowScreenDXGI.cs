@@ -1,9 +1,12 @@
 ﻿//#define SAVE_ADDON_IMAGE
 //#define SAVE_SCREEN_IMAGE
+//#define SAVE_MINIMAP_IMAGE
 
 using Game;
 
 using Microsoft.Extensions.Logging;
+
+using SharedLib;
 
 using SharpGen.Runtime;
 
@@ -50,8 +53,6 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
     private readonly SixLabors.ImageSharp.Configuration ContiguousJpegConfiguration
         = new(new JpegConfigurationModule()) { PreferContiguousImageBuffers = true };
 
-    // TODO: make it work for higher resolution ex. 4k
-    public const int MiniMapSize = 200;
     public Rectangle MiniMapRect { get; private set; }
     public Image<Bgra32> MiniMapImage { get; init; }
 
@@ -90,6 +91,13 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
 
     public int[] Data { get; private set; } = [];
     public StringBuilder TextBuilder { get; } = new(3);
+
+    private const int MiniMapSize = 200;
+
+    public MinimapSettings MinimapSettings =>
+        Data.Length > 2
+        ? new(Data[16], Data[17])
+        : new(9013, 220016); //debug only
 
     public WowScreenDXGI(ILogger<WowScreenDXGI> logger,
         WowProcess process, DataFrame[] frames)
@@ -375,6 +383,10 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
         {
             device.ImmediateContext.Unmap(minimapTexture, 0);
         }
+
+#if SAVE_MINIMAP_IMAGE
+        MiniMapImage.SaveAsJpeg("minimap.jpg");
+#endif
     }
 
     public void UpdateData()
