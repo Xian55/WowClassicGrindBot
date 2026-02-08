@@ -5,7 +5,7 @@
 -- Trigger between emitting game data and frame location data
 local SETUP_SEQUENCE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 112
+local NUMBER_OF_FRAMES = 114
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
@@ -252,9 +252,100 @@ DataToColor.CombatDamageDoneQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERAT
 DataToColor.CombatDamageTakenQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE, 0)
 DataToColor.CombatCreatureDiedQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE, 0)
 DataToColor.CombatMissTypeQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE, 0)
+DataToColor.EnemySummonQueue = DataToColor.TimedQueue:new(COMBAT_LOG_ITERATION_FRAME_CHANGE_RATE, 0)
 
-DataToColor.ChatQueue = DataToColor.TimedQueue:new(CHAT_ITERATION_FRAME_CHANGE_RATE, 0)
-local chatMsgHead = -2
+-- Unified TextQueue for UTF-8 text transfer (totem names, target names, chat, etc.)
+DataToColor.TextQueue = DataToColor.TimedQueue:new(CHAT_ITERATION_FRAME_CHANGE_RATE, nil)
+local textQueueHead = 0
+local textQueueCurrentEntry = nil
+
+-- Text command types (must match C# TextCommand enum)
+local TEXT_CMD_CHAT_WHISPER = 0
+local TEXT_CMD_CHAT_SAY = 1
+local TEXT_CMD_CHAT_YELL = 2
+local TEXT_CMD_CHAT_EMOTE = 3
+local TEXT_CMD_CHAT_PARTY = 4
+local TEXT_CMD_TARGET_NAME = 5
+local TEXT_CMD_TOTEM_NAME = 6
+
+-- Export for other files
+DataToColor.TextCommand = {
+    ChatWhisper = TEXT_CMD_CHAT_WHISPER,
+    ChatSay = TEXT_CMD_CHAT_SAY,
+    ChatYell = TEXT_CMD_CHAT_YELL,
+    ChatEmote = TEXT_CMD_CHAT_EMOTE,
+    ChatParty = TEXT_CMD_CHAT_PARTY,
+    TargetName = TEXT_CMD_TARGET_NAME,
+    TotemName = TEXT_CMD_TOTEM_NAME,
+}
+
+-- Pre-allocated free-list pool to avoid table allocation on push
+local TEXT_ENTRY_POOL_SIZE = 16
+local textEntryFreeList = {}
+local textEntryFreeCount = TEXT_ENTRY_POOL_SIZE
+
+-- Initialize pool at load time - all entries start free
+for i = 1, TEXT_ENTRY_POOL_SIZE do
+    textEntryFreeList[i] = { cmd = 0, text = "", len = 0 }
+end
+
+-- Acquire entry from pool (returns new table if pool exhausted)
+local function acquireTextEntry()
+    if textEntryFreeCount > 0 then
+        local entry = textEntryFreeList[textEntryFreeCount]
+        textEntryFreeList[textEntryFreeCount] = nil
+        textEntryFreeCount = textEntryFreeCount - 1
+        return entry
+    end
+    -- Pool exhausted - allocate new (rare case)
+    return { cmd = 0, text = "", len = 0 }
+end
+
+-- Release entry back to pool
+local function releaseTextEntry(entry)
+    entry.text = ""
+    entry.len = 0
+    textEntryFreeCount = textEntryFreeCount + 1
+    textEntryFreeList[textEntryFreeCount] = entry
+end
+
+-- Generic push to TextQueue (memory-efficient)
+function DataToColor:PushText(command, text)
+    if not text or text == "" then return end
+
+    -- Fast path: most strings won't have emoji
+    local finalText = text
+    if not DataToColor:IsUTF8Safe(text) then
+        finalText = DataToColor:FilterUTF8(text)
+    end
+
+    local len = #finalText
+    if len > 0 then
+        local entry = acquireTextEntry()
+        entry.cmd = command
+        entry.text = finalText
+        entry.len = len
+        DataToColor.TextQueue:push(entry)
+    end
+end
+
+-- Convenience functions
+function DataToColor:PushTotemName(name)
+    DataToColor:PushText(TEXT_CMD_TOTEM_NAME, name)
+end
+
+function DataToColor:PushTargetName(name)
+    DataToColor:PushText(TEXT_CMD_TARGET_NAME, name)
+end
+
+function DataToColor:PushChatMessage(command, author, msg)
+    -- Strip realm from author (e.g., "PlayerName-Realm" -> "PlayerName")
+    local dashPos = author:find('-')
+    if dashPos then
+        author = author:sub(1, dashPos - 1)
+    end
+    DataToColor:PushText(command, author .. ' ' .. msg)
+end
 
 DataToColor.playerPetSummons = {}
 
@@ -453,7 +544,8 @@ function DataToColor:ClearAllQueues()
     DataToColor.CombatDamageTakenQueue:clear()
     DataToColor.CombatCreatureDiedQueue:clear()
     DataToColor.CombatMissTypeQueue:clear()
-    DataToColor.ChatQueue:clear()
+    DataToColor.EnemySummonQueue:clear()
+    DataToColor.TextQueue:clear()
     DataToColor.bindingQueue:clear()
     DataToColor.actionBarTextureQueue:clear()
     DataToColor.actionBarMacroQueue:clear()
@@ -775,9 +867,10 @@ function DataToColor:CreateFrames()
                 Pixel(int, UnitPower(DataToColor.C.unitPlayer, PowerType.Mana), 15)
             end
 
+            -- 16 empty
+            -- 17 empty
+
             if DataToColor.targetChanged then
-                Pixel(int, DataToColor:GetTargetName(0), 16) -- Characters 1-3 of targets name
-                Pixel(int, DataToColor:GetTargetName(3), 17) -- Characters 4-6 of targets name
                 DataToColor.targetBuffTime:forcedReset()
             end
 
@@ -1085,31 +1178,38 @@ function DataToColor:CreateFrames()
             local lootItemCount = GetNumLootItems()
             Pixel(int, lootItemCount * 10 + DataToColor.lastLoot, 97)
 
-            local e = DataToColor.ChatQueue:peek()
-            if not e then
+            -- TextQueue output (UTF-8 text transfer for totem names, chat, etc.)
+            local textEntry = DataToColor.TextQueue:peek()
+            if not textEntry then
                 Pixel(int, 0, 98)
                 Pixel(int, 0, 99)
+                textQueueHead = 0
+                textQueueCurrentEntry = nil
             else
-                chatMsgHead = chatMsgHead + 3
-                if chatMsgHead > e.length then
-                    DataToColor.ChatQueue:shift(globalTick)
-                    chatMsgHead = -2
-                else
-                    local part = sub(e.msg, chatMsgHead, chatMsgHead + 2)
-                    local number = 0
-                    local length = len(part)
-                    for i = 1, length do
-                        local c = upper(sub(part, i))
-                        local b = byte(c) or 32 -- SPACE character fallback
-                        if b > 100 then
-                            b = 32
-                        end
-                        number = number + (b * IdxToRadix(i + (3 - length)))
-                    end
+                if textQueueCurrentEntry ~= textEntry then
+                    textQueueCurrentEntry = textEntry
+                    textQueueHead = 1
+                end
 
-                    --print(e.length, chatMsgHead, "'" .. part .. "'", number)
-                    Pixel(int, number, 98)
-                    Pixel(int, e.type * 1000000 + 1000 * e.length + chatMsgHead, 99)
+                -- Pack 3 UTF-8 bytes into data cell (no allocation)
+                local data = DataToColor:PackUTF8Bytes(textEntry.text, textQueueHead)
+
+                -- Pack metadata: cmd(4 bits) | length(10 bits) | offset(10 bits)
+                -- meta = cmd * 2^20 + len * 2^10 + offset
+                local meta = textEntry.cmd * 1048576 + textEntry.len * 1024 + (textQueueHead - 1)
+
+                Pixel(int, data, 98)
+                Pixel(int, meta, 99)
+
+                textQueueHead = textQueueHead + 3
+                if textQueueHead > textEntry.len then
+                    -- Release entry back to pool before shifting
+                    local completed = DataToColor.TextQueue:shift(globalTick)
+                    if completed then
+                        releaseTextEntry(completed)
+                    end
+                    textQueueHead = 0
+                    textQueueCurrentEntry = nil
                 end
             end
 
@@ -1149,6 +1249,9 @@ function DataToColor:CreateFrames()
             Pixel(int, DataToColor.actionBarMacroQueue:shift(globalTick) or 0, 108)
 
             Pixel(int, DataToColor.lastDamageDoneTime, 109)
+
+            -- Enemy summons (totems, pets summoned by hostile NPCs)
+            Pixel(int, DataToColor.EnemySummonQueue:shift(globalTick) or 0, 110)
 
             UpdateGlobalTime()
             -- NUMBER_OF_FRAMES - 1 reserved for validation

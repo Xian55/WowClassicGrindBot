@@ -71,7 +71,8 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             // have to check range
             // ex. target died far away have to consider the range and approximate
             float distance = (lastMaxDistance + lastMinDistance) / 2f;
-            SendGoapEvent(new CorpseEvent(GetCorpseLocation(distance), distance, playerReader.Direction, playerReader.MapPos));
+            int packedGuid = combatLog.DeadGuid.Value;
+            SendGoapEvent(new CorpseEvent(GetCorpseLocation(distance), distance, playerReader.Direction, playerReader.MapPos, packedGuid));
         }
     }
 
@@ -204,7 +205,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             input.PressTargetOfTarget();
             wait.Update();
 
-            logger.LogWarning($"Found new target by pet. {elapsedPetFoundTarget}ms");
+            logger.LogWarning("Found new target by pet. {ElapsedMs}ms", elapsedPetFoundTarget);
 
             return;
         }
@@ -233,7 +234,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             }
         }
 
-        logger.LogWarning($"Possible threats {combatLog.DamageTakenCount()}!");
+        logger.LogWarning("Possible threats {DamageTakenCount}!", combatLog.DamageTakenCount());
 
         if (bits.SoftInteract_Enabled())
         {
@@ -297,6 +298,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
         }
 
         input.SetKeyState(turnKey, false, false);
-        logger.LogInformation($"Cleared dead soft target after {totalRotation * 180f / PI:F0}° turn");
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Cleared dead soft target after {TurnDegrees:F0} degree turn", totalRotation * 180f / PI);
     }
 }

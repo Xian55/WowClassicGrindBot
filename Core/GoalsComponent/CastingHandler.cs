@@ -23,6 +23,8 @@ public sealed partial class CastingHandler
     public const int MIN_GCD = 1000;
     public const int SPELL_QUEUE = 400;
 
+    public const int SPELL_QUEUE_HALF = 200;
+
     private const int MAX_WAIT_MELEE_RANGE = 10_000;
 
     private readonly ILogger<CastingHandler> logger;
@@ -177,14 +179,16 @@ public sealed partial class CastingHandler
             wait, playerReader, item, currentAction, token);
 
         if (DEBUG && Log && item.Log)
-            LogInstantInput(logger, item.Name, pressMs,
-                playerReader.CastState.ToStringF(), elapsedMs);
+            if (logger.IsEnabled(LogLevel.Information))
+                LogInstantInput(logger, item.Name, pressMs,
+                    playerReader.CastState.ToStringF(), elapsedMs);
 
         if (elapsedMs < 0)
         {
             if (!DEBUG || (Log && item.Log))
-                LogInstantInput(logger, item.Name, pressMs,
-                    playerReader.CastState.ToStringF(), elapsedMs);
+                if (logger.IsEnabled(LogLevel.Information))
+                    LogInstantInput(logger, item.Name, pressMs,
+                        playerReader.CastState.ToStringF(), elapsedMs);
 
             return CastResult.CurrentActionNotDetected;
         }
@@ -236,33 +240,37 @@ public sealed partial class CastingHandler
         }
 
         if (DEBUG && Log && item.Log)
-            LogInstantUsableChange(logger, item.Name,
-                beforeUsable, usableAction.Is(item),
-                beforeAction, currentAction.Is(item),
-                beforeCastEventValue.ToStringF(),
-                playerReader.CastState.ToStringF());
-
-        if (elapsedMs < 0)
-        {
-            if (!DEBUG || (Log && item.Log))
+            if (logger.IsEnabled(LogLevel.Information))
                 LogInstantUsableChange(logger, item.Name,
                     beforeUsable, usableAction.Is(item),
                     beforeAction, currentAction.Is(item),
                     beforeCastEventValue.ToStringF(),
                     playerReader.CastState.ToStringF());
 
+        if (elapsedMs < 0)
+        {
+            if (!DEBUG || (Log && item.Log))
+                if (logger.IsEnabled(LogLevel.Information))
+                    LogInstantUsableChange(logger, item.Name,
+                        beforeUsable, usableAction.Is(item),
+                        beforeAction, currentAction.Is(item),
+                        beforeCastEventValue.ToStringF(),
+                        playerReader.CastState.ToStringF());
+
             return CastResult.UIFeedbackNotDetected;
         }
 
         if (!CastInstantSuccessful(playerReader.CastEvent.Value))
         {
-            LogInstantInputFailed(logger, item.Name, pressMs, playerReader.CastState.ToStringF(), elapsedMs);
+            if (logger.IsEnabled(LogLevel.Warning))
+                LogInstantInputFailed(logger, item.Name, pressMs, playerReader.CastState.ToStringF(), elapsedMs);
             return CastResult.UIError;
         }
         else if (!DEBUG && Log && item.Log)
         {
-            LogInstantInput(logger, item.Name, pressMs,
-                playerReader.CastState.ToStringF(), elapsedMs);
+            if (logger.IsEnabled(LogLevel.Information))
+                LogInstantInput(logger, item.Name, pressMs,
+                    playerReader.CastState.ToStringF(), elapsedMs);
         }
 
         if (playerReader.CastState == UI_ERROR.CAST_SUCCESS)
@@ -311,6 +319,15 @@ public sealed partial class CastingHandler
             playerReader.DoubleNetworkLatency + playerReader.SpellQueueTimeMs,
             wait, playerReader, item, currentAction, token);
 
+        // Channeling spells like Cannibalize
+        // does not trigger the IsUsableAction
+        // less then 2 miliseconds
+        if (elapsedMs < 2)
+        {
+            wait.Fixed(Max(playerReader.DoubleNetworkLatency, SPELL_QUEUE_HALF));
+            wait.Update(token);
+        }
+
         if (DEBUG && Log && item.Log)
             LogCastbarInput(logger, item.Name, pressMs, elapsedMs);
 
@@ -328,11 +345,12 @@ public sealed partial class CastingHandler
             wait, playerReader, token);
 
         if (DEBUG && Log && item.Log)
-            LogCastbarUsableChange(logger, item.Name,
-                playerReader.IsCasting(), bits.Channeling(),
-                playerReader.CastCount, beforeUsable, usableAction.Is(item),
-                beforeCastEventValue.ToStringF(),
-                playerReader.CastState.ToStringF());
+            if (logger.IsEnabled(LogLevel.Information))
+                LogCastbarUsableChange(logger, item.Name,
+                    playerReader.IsCasting(), bits.Channeling(),
+                    playerReader.CastCount, beforeUsable, usableAction.Is(item),
+                    beforeCastEventValue.ToStringF(),
+                    playerReader.CastState.ToStringF());
 
         if (playerReader.CastState is < UI_ERROR.MAX_ERROR_RANGE and
             not UI_ERROR.NONE)
@@ -446,7 +464,8 @@ public sealed partial class CastingHandler
             if (!beforeUsable && !usableAction.Is(item))
             {
                 if (Log && item.Log)
-                    LogAfterFormSwitchNotUsable(logger, item.Name, beforeForm.ToStringF(), playerReader.Form.ToStringF());
+                    if (logger.IsEnabled(LogLevel.Warning))
+                        LogAfterFormSwitchNotUsable(logger, item.Name, beforeForm.ToStringF(), playerReader.Form.ToStringF());
 
                 return false;
             }
@@ -460,7 +479,7 @@ public sealed partial class CastingHandler
             int waitTimeMs = playerReader.GCD.Value;
 
             float elapsedMs = wait.Until(waitTimeMs, token);
-            logger.LogInformation($"Stop {nameof(bits.Shoot)} and wait {waitTimeMs}ms | {elapsedMs}ms");
+            logger.LogInformation("Stop Shoot and wait {WaitTimeMs}ms | {ElapsedMs}ms", waitTimeMs, elapsedMs);
 
             if (elapsedMs >= 0)
             {
@@ -521,9 +540,10 @@ public sealed partial class CastingHandler
                 auraHash, wait, playerReader, combatLog, token);
 
             if (Log && item.Log)
-                LogAfterCastWaitBuff(logger,
-                    item.Name, playerReader.AuraCount.ToString(),
-                    ((MissType)combatLog.TargetMissType.Value).ToStringF(), elapsedMs);
+                if (logger.IsEnabled(LogLevel.Information))
+                    LogAfterCastWaitBuff(logger,
+                        item.Name, playerReader.AuraCount.ToString(),
+                        ((MissType)combatLog.TargetMissType.Value).ToStringF(), elapsedMs);
 
             static float AfterCastWaitBuff(int totalTime, int auraHash, Wait wait,
                 PlayerReader playerReader, CombatLog combatLog, CancellationToken token)
@@ -540,8 +560,9 @@ public sealed partial class CastingHandler
                 item.Item ? 0 : playerReader.LastCastGCD);
 
             if (Log && item.Log)
-                LogAfterCastAuraExpected(logger, item.Name,
-                    ((MissType)combatLog.TargetMissType.Value).ToStringF(), delay);
+                if (logger.IsEnabled(LogLevel.Information))
+                    LogAfterCastAuraExpected(logger, item.Name,
+                        ((MissType)combatLog.TargetMissType.Value).ToStringF(), delay);
 
             item.SetClicked(delay);
         }
@@ -681,7 +702,8 @@ public sealed partial class CastingHandler
                     wait.Fixed(playerReader.NetworkLatency);
                 }
 
-                LogFailedDueReason(logger, item.Name, result.ToStringF());
+                if (logger.IsEnabled(LogLevel.Error))
+                    LogFailedDueReason(logger, item.Name, result.ToStringF());
                 return false;
             }
 

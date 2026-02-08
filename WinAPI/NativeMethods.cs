@@ -289,6 +289,15 @@ public static partial class NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool ScreenToClient(nint hWnd, ref Point lpPoint);
 
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowRect", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetWindowRectNative(nint hWnd, out RECT lpRect);
+
+    [LibraryImport("dwmapi.dll")]
+    private static partial int DwmGetWindowAttribute(nint hwnd, int dwAttribute, out RECT pvAttribute, int cbAttribute);
+
+    private const int DWMWA_EXTENDED_FRAME_BOUNDS = 9;
+
     [LibraryImport("user32.dll")]
     private static partial int GetSystemMetrics(int nIndexn);
 
@@ -322,6 +331,34 @@ public static partial class NativeMethods
             rect.X = topLeft.X;
             rect.Y = topLeft.Y;
         }
+    }
+
+    /// <summary>
+    /// Gets the offset from the WGC captured window top-left to the client area top-left.
+    /// WGC captures the visible window frame (DWM extended frame bounds), not the full
+    /// window rect which includes invisible drop shadows on Windows 10+.
+    /// </summary>
+    /// <param name="hWnd">The window handle.</param>
+    /// <returns>Point containing (borderWidth, titleBarHeight + borderWidth).</returns>
+    public static Point GetClientAreaOffset(nint hWnd)
+    {
+        // Get the visible window bounds (what WGC captures)
+        // DWM extended frame bounds excludes the invisible drop shadow
+        int hr = DwmGetWindowAttribute(hWnd, DWMWA_EXTENDED_FRAME_BOUNDS,
+            out RECT frameRect, Marshal.SizeOf<RECT>());
+
+        // Fall back to GetWindowRect if DWM fails
+        if (hr != 0)
+            GetWindowRectNative(hWnd, out frameRect);
+
+        // Get client area top-left in screen coordinates
+        Point clientTopLeft = new();
+        ClientToScreen(hWnd, ref clientTopLeft);
+
+        // Calculate the offset from visible frame top-left to client top-left
+        return new Point(
+            clientTopLeft.X - frameRect.left,
+            clientTopLeft.Y - frameRect.top);
     }
 
     public static int GetDpi()

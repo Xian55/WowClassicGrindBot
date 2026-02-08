@@ -176,6 +176,72 @@ public sealed class MPQTriangleSupplier
         }
     }
 
+    /// <summary>
+    /// Load triangles for a specific MCNK chunk with spatial model culling.
+    /// Only loads:
+    /// - 145 MCVT vertices for this MCNK's terrain
+    /// - Models/WMOs whose bounding boxes intersect this MCNK
+    /// </summary>
+    [SkipLocalsInit]
+    public void GetMCNKTriangles(TriangleCollection tc, int adt_x, int adt_y, int mcnk_x, int mcnk_y)
+    {
+        if (tc == null || wdtf == null || wdt == null)
+            return;
+        if (adt_x < 0 || adt_y < 0 || adt_x > 63 || adt_y > 63)
+            return;
+        if (mcnk_x < 0 || mcnk_y < 0 || mcnk_x > 15 || mcnk_y > 15)
+            return;
+
+        int index = adt_y * WDT.SIZE + adt_x;
+
+        // Load ADT if not already loaded
+        if (!wdt.loaded[index])
+        {
+            wdtf.LoadMapTile(adt_x, adt_y, index);
+        }
+
+        MapTile mapTile = wdt.maptiles[index];
+        if (!wdt.loaded[index])
+            return;
+
+        // Get MCNK bounds for spatial filtering
+        MCNKHelper.GetMCNKBounds(adt_x, adt_y, mcnk_x, mcnk_y,
+            out float mcnk_minX, out float mcnk_minY, out float mcnk_maxX, out float mcnk_maxY);
+
+        // 1. Load ONLY this specific MCNK's terrain
+        int mcnk_index = MCNKHelper.GetMCNKIndex(mcnk_x, mcnk_y);
+        if (mapTile.hasChunk[mcnk_index])
+        {
+            AddTriangles(tc, mapTile.chunks[mcnk_index]);
+        }
+
+        // 2. Load ONLY WMOs that intersect this MCNK's bounds
+        for (int i = 0; i < mapTile.wmois.Length; i++)
+        {
+            WMOInstance wi = mapTile.wmois[i];
+            if (MCNKHelper.WMOIntersectsMCNK(wi, mcnk_minX, mcnk_minY, mcnk_maxX, mcnk_maxY))
+            {
+                AddTriangles(tc, wi);
+            }
+        }
+
+        // 3. Load ONLY M2 models that intersect this MCNK's bounds
+        for (int i = 0; i < mapTile.modelis.Length; i++)
+        {
+            ModelInstance mi = mapTile.modelis[i];
+            if (MCNKHelper.ModelIntersectsMCNK(mi, mcnk_minX, mcnk_minY, mcnk_maxX, mcnk_maxY))
+            {
+                AddDetailedTriangles(tc, mi);
+            }
+        }
+
+        // Note: Global WMOs are handled at a higher level if needed
+        // They span multiple MCNKs so we don't include them here
+
+        // Mark as not loaded to allow garbage collection
+        wdt.loaded[index] = false;
+    }
+
     [SkipLocalsInit]
     private static void AddTriangles(TriangleCollection tc, MapChunk c)
     {
@@ -620,6 +686,72 @@ public sealed class MPQTriangleSupplier
     }
 
     [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float InterpolateTerrainHeight(in MapChunk chunk, float worldX, float worldY)
+    {
+        // Map world coords to local position within the chunk
+        // Same coordinate system as GetChunkIndex: column = ZEROPOINT - worldY, row = ZEROPOINT - worldX
+        float localCol = (ChunkReader.ZEROPOINT - worldY) % ChunkReader.CHUNKSIZE;
+        float localRow = (ChunkReader.ZEROPOINT - worldX) % ChunkReader.CHUNKSIZE;
+
+        // Fractional cell indices within the 8x8 grid
+        float cellColF = localCol / ChunkReader.UNITSIZE;
+        float cellRowF = localRow / ChunkReader.UNITSIZE;
+
+        int col = Math.Clamp((int)cellColF, 0, 7);
+        int row = Math.Clamp((int)cellRowF, 0, 7);
+
+        // Fractional position within the cell [0..1]
+        float fx = cellColF - col;
+        float fy = cellRowF - row;
+        fx = Math.Clamp(fx, 0f, 1f);
+        fy = Math.Clamp(fy, 0f, 1f);
+
+        // Extract heights from vertices (stored as [x, y, z] triples, y is height)
+        // Outer corners: row/col addressing via (row * 17 + col) * 3
+        // v0 = top-left, v1 = bottom-left, v2 = bottom-right, v3 = top-right
+        float z0 = chunk.vertices[((row * 17) + col) * 3 + 1];
+        float z1 = chunk.vertices[(((row + 1) * 17) + col) * 3 + 1];
+        float z2 = chunk.vertices[(((row + 1) * 17) + col + 1) * 3 + 1];
+        float z3 = chunk.vertices[((row * 17) + col + 1) * 3 + 1];
+
+        // Center vertex: offset by 9 within the interleaved layout
+        float zMid = chunk.vertices[((9 + (row * 17)) + col) * 3 + 1];
+
+        // Determine which of the 4 triangles the point falls in
+        // The cell is split by two diagonals through the center point
+        bool belowMain = fy >= fx;       // below the main diagonal (top-left to bottom-right)
+        bool belowAnti = fy >= 1f - fx;  // below the anti-diagonal (top-right to bottom-left)
+
+        if (belowMain)
+        {
+            if (!belowAnti)
+            {
+                // Left triangle: v0, v1, mid
+                return ((1f - fx - fy) * z0) + ((fy - fx) * z1) + (2f * fx * zMid);
+            }
+            else
+            {
+                // Bottom triangle: v1, v2, mid
+                return ((fy - fx) * z1) + ((fx + fy - 1f) * z2) + ((2f - 2f * fy) * zMid);
+            }
+        }
+        else
+        {
+            if (belowAnti)
+            {
+                // Right triangle: v2, v3, mid
+                return ((fx + fy - 1f) * z2) + ((fx - fy) * z3) + ((2f - 2f * fx) * zMid);
+            }
+            else
+            {
+                // Top triangle: v3, v0, mid
+                return ((fx - fy) * z3) + ((1f - fx - fy) * z0) + (2f * fy * zMid);
+            }
+        }
+    }
+
+    [SkipLocalsInit]
     public static void Rotate(float x, float y, float angle, out float nx, out float ny)
     {
         float rot = angle / 360.0f * Tau;
@@ -657,11 +789,11 @@ public sealed class MPQTriangleSupplier
 
         ref readonly MapChunk chunk = ref mapTile.chunks[chunkIndex];
         int areaId = (int)chunk.areaID;
-        float z = chunk.ybase;
+        float z = InterpolateTerrainHeight(in chunk, p.X, p.Y);
 
         if (logger.IsEnabled(LogLevel.Trace))
         {
-            logger.LogTrace($"GetAreaId: {p.X} {p.Y} {chunkIndex} {areaId} {z} {GetElapsedTime(start).TotalMilliseconds}ms");
+            logger.LogTrace("GetAreaId: {PX} {PY} {ChunkIndex} {AreaId} {Z} {ElapsedMs}ms", p.X, p.Y, chunkIndex, areaId, z, GetElapsedTime(start).TotalMilliseconds);
         }
 
         return (areaId, z);

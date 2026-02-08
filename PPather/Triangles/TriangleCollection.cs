@@ -85,13 +85,8 @@ public sealed class TriangleCollection
         {
             var end = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
 
-            logger.LogTrace($"Mesh [||,||] Bounds: " +
-                $"[{Min.X:F4}, {Min.Y:F4}] " +
-                $"[{Max.X:F4}, {Max.Y:F4}] - " +
-                $"{TriangleCount} tri - " +
-                $"{VertexCount} ver - " +
-                $"{matrix.Count} c - " +
-                $"{end}ms");
+            logger.LogTrace("Mesh [||,||] Bounds: [{MinX:F4}, {MinY:F4}] [{MaxX:F4}, {MaxY:F4}] - {TriangleCount} tri - {VertexCount} ver - {MatrixCount} c - {ElapsedMs}ms",
+                Min.X, Min.Y, Max.X, Max.Y, TriangleCount, VertexCount, matrix.Count, end);
         }
 
         return matrix;

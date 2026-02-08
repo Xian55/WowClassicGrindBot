@@ -24,7 +24,7 @@ internal sealed class Test_NpcNameFinder : IDisposable
     private const bool saveImage = false;
     private const bool showOverlay = true;
 
-    private const bool LogEachUpdate = false;
+    private const bool LogEachUpdate = true;
     private const bool LogEachDetail = false;
 
     private const bool debugTargeting = false;
@@ -41,12 +41,14 @@ internal sealed class Test_NpcNameFinder : IDisposable
     private readonly StringBuilder stringBuilder;
 
     private readonly NpcNameOverlay? npcNameOverlay;
+    private readonly INpcLineSegmentProvider provider;
 
     private DateTime lastNpcUpdate;
     private double updateDuration;
 
     public Test_NpcNameFinder(ILogger logger, WowProcess process,
-        IWowScreen screen, ILoggerFactory loggerFactory, NpcNames types)
+        IWowScreen screen, ILoggerFactory loggerFactory, NpcNames types,
+        bool useGpu = false)
     {
         this.logger = logger;
         this.screen = screen;
@@ -54,7 +56,22 @@ internal sealed class Test_NpcNameFinder : IDisposable
         stringBuilder = new();
 
         INpcResetEvent npcResetEvent = new NpcResetEvent();
-        npcNameFinder = new(logger, screen, npcResetEvent);
+        CpuLineSegmentProvider cpuProvider = new(screen);
+
+        INpcLineSegmentProvider provider;
+        if (useGpu && screen is IGpuTextureProvider gpuTextureProvider)
+        {
+            provider = new GpuLineSegmentProvider(
+                loggerFactory.CreateLogger<GpuLineSegmentProvider>(),
+                gpuTextureProvider, cpuProvider);
+        }
+        else
+        {
+            provider = cpuProvider;
+        }
+
+        this.provider = provider;
+        npcNameFinder = new(logger, screen, npcResetEvent, provider);
 
         locations = new(npcNameFinder);
 
@@ -83,6 +100,7 @@ internal sealed class Test_NpcNameFinder : IDisposable
 
     public void Dispose()
     {
+        (provider as IDisposable)?.Dispose();
         npcNameOverlay?.Dispose();
     }
 

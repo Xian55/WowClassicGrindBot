@@ -62,8 +62,8 @@ public sealed class RemotePathingAPI : IPPather, IPathVizualizer, IDisposable
             new(JsonSerializer.Serialize(lineArgs, options),
             Encoding.UTF8, "application/json");
 
-        logger.LogDebug($"Drawing lines " +
-            $"'{string.Join(", ", lineArgs.Select(l => l.MapId))}'...");
+        logger.LogDebug("Drawing lines '{MapIds}'...",
+            string.Join(", ", lineArgs.Select(l => l.MapId)));
 
         await client.PostAsync("Drawlines", content);
     }
@@ -104,7 +104,7 @@ public sealed class RemotePathingAPI : IPPather, IPathVizualizer, IDisposable
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{mapFrom} to {mapTo}");
+            logger.LogError(ex, "{MapFrom} to {MapTo}", mapFrom, mapTo);
             return Array.Empty<Vector3>();
         }
     }
@@ -139,7 +139,7 @@ public sealed class RemotePathingAPI : IPPather, IPathVizualizer, IDisposable
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, $"{worldFrom} to {worldTo}");
+            logger.LogError(ex, "{WorldFrom} to {WorldTo}", worldFrom, worldTo);
             return Array.Empty<Vector3>();
         }
     }

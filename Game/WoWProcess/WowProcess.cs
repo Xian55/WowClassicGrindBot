@@ -123,9 +123,27 @@ public sealed class WowProcess
         if (info.FileMajorPart > 0)
         {
             Version v = new(info.FileMajorPart, info.FileMinorPart, info.FileBuildPart, info.FilePrivatePart);
+
+            v = CorrectVersion(v);
+
             return (path, v);
         }
 
         return (path, new Version());
+    }
+
+    // Blizzard occasionally ships executables with broken file versions
+    // where Major encodes both the real Major and Build digits (e.g. 205
+    // means Major=2, Build=5) and Build*10+Revision gives the real Revision.
+    private static Version CorrectVersion(Version v)
+    {
+        if (v.Major < 100)
+            return v;
+
+        return new Version(
+            v.Major / 100,
+            v.Minor,
+            v.Major % 100,
+            v.Build * 10 + v.Revision);
     }
 }

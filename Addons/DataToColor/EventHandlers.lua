@@ -141,9 +141,7 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('CHAT_MSG_PARTY_LEADER', 'OnMessageParty')
 
     -- allows to use the addon with older client version
-    pcall(function()
-        DataToColor:RegisterEvent("PLAYER_SOFT_INTERACT_CHANGED", "OnPlayerSoftInteractChanged")
-    end)
+    DataToColor:SafeRegisterEvent("PLAYER_SOFT_INTERACT_CHANGED", "OnPlayerSoftInteractChanged")
 
     -- Season of mastery / vanilla
     if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
@@ -172,7 +170,7 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('UNIT_INVENTORY_CHANGED', 'OnInventoryChanged_BitCache')
     DataToColor:RegisterEvent('UPDATE_INVENTORY_DURABILITY', 'OnDurabilityChanged_BitCache')
     DataToColor:RegisterEvent('CHARACTER_POINTS_CHANGED', 'OnTalentChanged_BitCache')
-    DataToColor:RegisterEvent('PLAYER_TALENT_UPDATE', 'OnTalentChanged_BitCache')
+    DataToColor:SafeRegisterEvent('PLAYER_TALENT_UPDATE', 'OnTalentChanged_BitCache')
     DataToColor:RegisterEvent('START_AUTOREPEAT_SPELL', 'OnSpellStateChanged_BitCache')
     DataToColor:RegisterEvent('STOP_AUTOREPEAT_SPELL', 'OnSpellStateChanged_BitCache')
     DataToColor:RegisterEvent('CURRENT_SPELL_CAST_CHANGED', 'OnSpellStateChanged_BitCache')
@@ -299,7 +297,10 @@ function DataToColor:UnfilteredCombatEvent(event, ...)
 end
 
 local COMBATLOG_OBJECT_TYPE_NPC = COMBATLOG_OBJECT_TYPE_NPC
+local COMBATLOG_OBJECT_TYPE_PET = COMBATLOG_OBJECT_TYPE_PET
+local COMBATLOG_OBJECT_TYPE_GUARDIAN = COMBATLOG_OBJECT_TYPE_GUARDIAN
 local COMBATLOG_OBJECT_TYPE_PLAYER_OR_PET = COMBATLOG_OBJECT_TYPE_PLAYER + COMBATLOG_OBJECT_TYPE_PET
+local COMBATLOG_OBJECT_REACTION_HOSTILE = COMBATLOG_OBJECT_REACTION_HOSTILE
 
 
 local playerDamageTakenEvents = {
@@ -345,12 +346,16 @@ local playerSummon = {
     SPELL_SUMMON = true
 }
 
+local auraApplied = {
+    SPELL_AURA_APPLIED = true
+}
+
 local unitDied = {
     UNIT_DIED = true
 }
 
 function DataToColor:OnCombatEvent(...)
-    local _, subEvent, _, sourceGUID, _, sourceFlags, _, destGUID, _, destFlags, _, spellId, spellName, _ = ...
+    local _, subEvent, _, sourceGUID, sourceName, sourceFlags, _, destGUID, destName, destFlags, _, spellId, spellName, _ = ...
     --print(...)
 
     if playerDamageTakenEvents[subEvent] and
@@ -499,6 +504,33 @@ function DataToColor:OnCombatEvent(...)
         end
     end
 
+    -- Track when hostile NPCs summon creatures (totems, pets, etc.)
+    -- Method 1: SPELL_SUMMON from hostile NPC (works in some client versions)
+    if playerSummon[subEvent] and
+        band(sourceFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 and
+        band(sourceFlags, COMBATLOG_OBJECT_TYPE_NPC) > 0 then
+        -- destGUID is the summoned creature (totem), destName from destructuring
+        DataToColor.EnemySummonQueue:push(DataToColor:getGuidFromUUID(destGUID))
+        if destName then
+            DataToColor:PushTotemName(destName)
+            --DataToColor:Print("Enemy summon detected: ", destName, " GUID: ", destGUID)
+        end
+    end
+
+    -- Method 2: SPELL_AURA_APPLIED from hostile Guardian to player (Classic 1.14.x)
+    -- In Classic, NPC totems appear as "Guardian" type (0x2000) and apply auras to the player
+    if auraApplied[subEvent] and
+        band(sourceFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 and
+        band(sourceFlags, COMBATLOG_OBJECT_TYPE_GUARDIAN) > 0 and
+        destGUID == DataToColor.playerGUID then
+        -- sourceGUID is the totem that applied the debuff, sourceName from destructuring
+        DataToColor.EnemySummonQueue:push(DataToColor:getGuidFromUUID(sourceGUID))
+        if sourceName then
+            DataToColor:PushTotemName(sourceName)
+            --DataToColor:Print("Enemy totem detected: ", sourceName, " GUID: ", sourceGUID)
+        end
+    end
+
     if DataToColor.playerPetSummons[sourceGUID] then
         if playerDamageDone[subEvent] then
             DataToColor.CombatDamageDoneQueue:push(DataToColor:getGuidFromUUID(destGUID))
@@ -623,6 +655,14 @@ end
 
 function DataToColor:OnPlayerTargetChanged(event)
     DataToColor.targetChanged = true
+
+    -- Push target name via unified TextQueue (only for players, NPCs use CreatureDB)
+    if UnitIsPlayer(DataToColor.C.unitTarget) then
+        local targetName = UnitName(DataToColor.C.unitTarget)
+        if targetName then
+            DataToColor:PushTargetName(targetName)
+        end
+    end
 
     -- Update BitCache target state
     if DataToColor.BitCache and DataToColor.BitCache.updateTarget then
@@ -749,41 +789,23 @@ function DataToColor:OnBindingsChanged()
 end
 
 function DataToColor:OnMessageWhisper(event, msg, author)
-    AddMessageToQueue(0, msg, author)
+    DataToColor:PushChatMessage(DataToColor.TextCommand.ChatWhisper, author, msg)
 end
 
 function DataToColor:OnMessageSay(event, msg, author)
-    AddMessageToQueue(1, msg, author)
+    DataToColor:PushChatMessage(DataToColor.TextCommand.ChatSay, author, msg)
 end
 
 function DataToColor:OnMessageYell(event, msg, author)
-    AddMessageToQueue(2, msg, author)
+    DataToColor:PushChatMessage(DataToColor.TextCommand.ChatYell, author, msg)
 end
 
 function DataToColor:OnMessageEmote(event, msg, author)
-    AddMessageToQueue(3, msg, author)
+    DataToColor:PushChatMessage(DataToColor.TextCommand.ChatEmote, author, msg)
 end
 
 function DataToColor:OnMessageParty(event, msg, author)
-    AddMessageToQueue(4, msg, author)
-end
-
-function AddMessageToQueue(type, msg, author)
-    --print(author, msg)
-    --author split '-' MyName-Realm
-    local i, length = string.find(author, '-')
-    if i ~= nil then
-        length = length - 1
-    else
-        length = string.len(author)
-    end
-    author = string.sub(author, 1, length)
-
-    msg = author .. ' ' .. msg
-
-    --print(type, string.len(msg), msg)
-
-    DataToColor.ChatQueue:push({ type = type, length = string.len(msg), msg = msg })
+    DataToColor:PushChatMessage(DataToColor.TextCommand.ChatParty, author, msg)
 end
 
 function DataToColor:OnPlayerSoftInteractChanged(event, old, new)

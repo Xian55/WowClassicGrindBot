@@ -18,6 +18,7 @@ public sealed class CombatLog : IReader
     public HashSet<int> DamageDone { get; } = [];
     public HashSet<int> DamageTaken { get; } = [];
     public HashSet<int> EvadeMobs { get; } = [];
+    public HashSet<int> EnemySummons { get; } = [];
 
     public HashSet<int> ToPull { get; } = [];
 
@@ -34,6 +35,7 @@ public sealed class CombatLog : IReader
     public RecordInt TargetDodge { get; }
 
     public RecordInt LastDamageDoneTime { get; }
+    public RecordInt EnemySummonGuid { get; }
 
     public CombatLog(AddonBits bits)
     {
@@ -44,6 +46,7 @@ public sealed class CombatLog : IReader
         DeadGuid = new RecordInt(66);
 
         LastDamageDoneTime = new(109);
+        EnemySummonGuid = new(110);
 
         TargetMissType = new(67);
         TargetDodge = new(67);
@@ -55,12 +58,14 @@ public sealed class CombatLog : IReader
 
         DamageDone.Clear();
         DamageTaken.Clear();
+        EnemySummons.Clear();
 
         DamageDoneGuid.Reset();
         DamageTakenGuid.Reset();
         DeadGuid.Reset();
 
         LastDamageDoneTime.Reset();
+        EnemySummonGuid.Reset();
 
         TargetMissType.Reset();
         TargetDodge.Reset();
@@ -80,6 +85,11 @@ public sealed class CombatLog : IReader
         if (combat && DamageDoneGuid.Updated(reader) && DamageDoneGuid.Value > 0)
         {
             DamageDone.Add(DamageDoneGuid.Value);
+        }
+
+        if (combat && EnemySummonGuid.Updated(reader) && EnemySummonGuid.Value > 0)
+        {
+            EnemySummons.Add(EnemySummonGuid.Value);
         }
 
         if (TargetMissType.Updated(reader))
@@ -121,6 +131,7 @@ public sealed class CombatLog : IReader
             // left combat
             DamageTaken.Clear();
             DamageDone.Clear();
+            EnemySummons.Clear();
             ToPull.Clear();
         }
 

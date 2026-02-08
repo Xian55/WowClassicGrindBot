@@ -33,6 +33,7 @@ public sealed partial class RequirementFactory
     private readonly CreatureDB creatureDb;
     private readonly ItemDB itemDb;
     private readonly CombatLog combatLog;
+    private readonly CorpseTracker corpseTracker;
 
     private readonly ClassConfiguration classConfig;
 
@@ -107,6 +108,8 @@ public sealed partial class RequirementFactory
         TargetDebuffStatus targetDebuffs = sp.GetRequiredService<TargetDebuffStatus>();
         SessionStat sessionStat = sp.GetRequiredService<SessionStat>();
         combatLog = sp.GetRequiredService<CombatLog>();
+        corpseTracker = sp.GetRequiredService<CorpseTracker>();
+        TotemDetector totemDetector = sp.GetRequiredService<TotemDetector>();
 
         var playerBuff = sp.GetRequiredService<AuraTimeReader<IPlayerBuffTimeReader>>();
         var playerDebuff = sp.GetRequiredService<AuraTimeReader<IPlayerDebuffTimeReader>>();
@@ -128,6 +131,7 @@ public sealed partial class RequirementFactory
             { "TargetCastingSpell", CreateTargetCastingSpell },
             { "Form", CreateForm },
             { "Race", CreateRace },
+            { "Equipment:", CreateEquipment },
             { "Spell", CreateSpell },
             { "Talent", CreateTalent },
             { "Trigger:", CreateTrigger },
@@ -194,8 +198,17 @@ public sealed partial class RequirementFactory
             { "Dead", bits.Dead },
 
             { "MenuOpen", bits.GameMenuWindowShown },
-            { "ChatInputVisible", bits.ChatInputIsVisible }
+            { "ChatInputVisible", bits.ChatInputIsVisible },
+
+            // Corpse-based abilities
+            { "CannibalizeCorpse", CannibalizeCorpseNearby },
+
+            // Totem detection
+            { "DamageTakenFromTotem", totemDetector.HasDamagingTotem }
         };
+
+        bool CannibalizeCorpseNearby() =>
+            corpseTracker.HasCannibalizeCorpseNearby(playerReader.WorldPos, playerReader.WorldMapArea);
 
         AddAura("", boolVariables, playerBuffs);
         AddAura("F_", boolVariables, focusBuffs);
@@ -424,7 +437,8 @@ public sealed partial class RequirementFactory
                         continue;
                     }
 
-                    LogProcessing(logger, name, trim.ToString());
+                    if (logger.IsEnabled(LogLevel.Information))
+                        LogProcessing(logger, name, trim.ToString());
                     stack.Push(CreateRequirement(trim));
                 }
             }
@@ -1062,6 +1076,46 @@ public sealed partial class RequirementFactory
 
             bool f() => playerReader.Race == race;
             string s() => playerReader.Race.ToStringF();
+
+            return new Requirement
+            {
+                HasRequirement = f,
+                LogMessage = s
+            };
+        }
+    }
+
+    private Requirement CreateEquipment(ReadOnlySpan<char> requirement)
+    {
+        return create(requirement, equipmentReader);
+        static Requirement create(ReadOnlySpan<char> requirement, EquipmentReader equipmentReader)
+        {
+            // 'Equipment:_SLOT_' or 'Equipment:_SLOT_:_ITEMID_'
+            int firstSep = requirement.IndexOf(SEP1);
+            int lastSep = requirement.LastIndexOf(SEP1);
+
+            ReadOnlySpan<char> slotName;
+            int itemId = 0;
+
+            if (firstSep != lastSep)
+            {
+                slotName = requirement[(firstSep + 1)..lastSep];
+                itemId = int.Parse(requirement[(lastSep + 1)..]);
+            }
+            else
+            {
+                slotName = requirement[(firstSep + 1)..];
+            }
+
+            InventorySlotId slot = Enum.Parse<InventorySlotId>(slotName, true);
+
+            bool f() => itemId == 0
+                ? equipmentReader.GetId((int)slot) != 0
+                : equipmentReader.GetId((int)slot) == itemId;
+
+            string s() => itemId == 0
+                ? $"Equipment {slot.ToStringF()}"
+                : $"Equipment {slot.ToStringF()}:{itemId}";
 
             return new Requirement
             {

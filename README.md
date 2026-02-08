@@ -572,6 +572,7 @@ For normal quick startup of `HeadlessServer` please look at the `HeadlessServer\
 | `-t`<br>`-otargeting` | While overlay enabled, show Targeting points | `false` | - |
 | `-s`<br>`-oskinning` | While overlay enabled, show Skinning points | `false` | - |
 | `-v`<br>`-otargetvsadd` | While overlay enabled, show Target vs Add points | `false` | - |
+| `-g`<br>`--gpu` | Use GPU compute shader for NPC name finding | `true` | `true` or `false` |
 | `--loadonly` | Loads the given class profile then exits | `false` | - |
 
 e.g. run from Powershell without any optional parameter
@@ -2165,6 +2166,46 @@ e.g.
 ```
 
 ---
+### **Equipment requirements**
+
+Check if the player has an item equipped in the specified `slot`. Optionally check for a specific `itemId`.
+
+Useful to determine weapon availability for combat rotations (e.g., dual-wield classes, ranged pulls).
+
+Formula: `Equipment:[slot]` or `Equipment:[slot]:[itemId]`
+
+| slot |
+| --- |
+| Ammo |
+| Head |
+| Neck |
+| Shoulder |
+| Shirt |
+| Chest |
+| Waist |
+| Legs |
+| Feet |
+| Wrists |
+| Hands |
+| Finger_1 |
+| Finger_2 |
+| Trinket_1 |
+| Trinket_2 |
+| Back |
+| Mainhand |
+| Offhand |
+| Ranged |
+| Tabard |
+
+e.g.
+```json
+"Requirement": "Equipment:Mainhand"                        // Must have main hand weapon equipped
+"Requirement": "!Equipment:Offhand"                        // Should not have off hand equipped
+"Requirement": "Equipment:Mainhand && Equipment:Offhand"   // Must be dual-wielding
+"Requirement": "Equipment:Mainhand:4513"                   // Must have item 4513 equipped in main hand
+```
+
+---
 ### **Spell requirements**
 
 If a given Spell `name` or `id` must be known by the player then you can use this requirement. 
@@ -2416,6 +2457,8 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"MenuOpen"` | Returns true if the Game Menu window is open (ESC) |
 | `"ChatInputVisible"` | Returns true if the Chat inputbox is open (ENTER) |
 | `"Dead"` | The player is currently dead. |
+| `"CannibalizeCorpse"` | A Humanoid or Undead corpse is within 5 yards of the player. |
+| `"DamageTakenFromTotem"` | The player has taken damage from a Totem creature type. Useful to detect nearby totems. |
 | `"Has Pet"` | The player's pet is alive |
 | `"Pet HasTarget"` | Players pet has target |
 | `"Pet Happy"` | Pet happienss is green |

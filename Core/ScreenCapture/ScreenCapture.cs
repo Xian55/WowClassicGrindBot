@@ -61,7 +61,7 @@ public sealed partial class ScreenCapture : ScreenCaptureCleaner, IDisposable
         }
 
         if (logger.IsEnabled(LogLevel.Debug))
-            logger.LogDebug($"Thread stopped!");
+            logger.LogDebug("Thread stopped!");
     }
 
     public override void Request()

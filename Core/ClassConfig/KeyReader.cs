@@ -504,7 +504,7 @@ public static class KeyReader
     /// Supports modifier prefixes like "Shift-F", "Ctrl-1", "Alt-Q".
     /// Used as fallback when BindingID is not set or not resolved.
     /// </summary>
-    private static bool ResolveFromKeyString(ILogger logger, KeyAction key)
+    internal static bool ResolveFromKeyString(ILogger logger, KeyAction key)
     {
         // Parse modifier prefix first (e.g., "Shift-F" -> "F", Shift)
         var (baseKey, modifier) = ModifierKeyExtensions.ParseKeyString(key.Key);
@@ -528,7 +528,7 @@ public static class KeyReader
             // No slot for these keys
             if (!key.BaseAction)
             {
-                logger.LogWarning($"[{key.Name}] Unable to assign Actionbar {nameof(KeyAction.Slot)}!");
+                logger.LogWarning("[{Name}] Unable to assign Actionbar Slot!", key.Name);
             }
             return true;
         }
@@ -540,7 +540,7 @@ public static class KeyReader
             key.Modifier = modifier;
             if (!key.BaseAction)
             {
-                logger.LogWarning($"[{key.Name}] Unable to assign Actionbar {nameof(KeyAction.Slot)}!");
+                logger.LogWarning("[{Name}] Unable to assign Actionbar Slot!", key.Name);
             }
             return true;
         }
