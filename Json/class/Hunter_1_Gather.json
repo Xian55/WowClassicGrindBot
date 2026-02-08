@@ -1,0 +1,145 @@
+{
+  "ClassName": "Hunter",
+  //"Mode": "AttendedGrind",
+  //"Mode": "AttendedGather",
+  "Mode": "AutoGather",
+  //"PathFilename": "1_Gnome.json",
+  "IntVariables": {
+    "ITEM_ARROW": 2512,
+    "MIN_COUNT_ARROW": 100,
+    "AMMO_SLOT": 5
+  },
+  "StringVariables": {
+    "$ITEM_NAME_ARROW": "ITEM_ARROW",
+    "$AMMO_SLOT": "AMMO_SLOT"
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Paths": [
+    {
+      "PathFilename": "1-5_Gnome.json",
+      "PathThereAndBack": false,
+      "PathReduceSteps": false,
+      "Requirements": [
+        "Level < 4"
+      ]
+    },
+    {
+      "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\1-4_Dun Morogh.json",
+      "PathThereAndBack": true,
+      "PathReduceSteps": false,
+      "Requirements": [
+        "Level < 5"
+      ]
+    },
+    {
+      "PathFilename": "_pack\\1-20\\Dwarf.Gnome\\4-6_Dun Morogh.json",
+      "PathThereAndBack": false,
+      "PathReduceSteps": false
+    }
+  ],
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Auto Shot",
+        "Key": "3",
+        "BeforeCastStop": true,
+        "AfterCastWaitCombat": true,
+        "Item": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!InMeleeRange",
+          "!AutoShot",
+          "HasAmmo"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Auto Shot",
+        "Key": "3",
+        "Item": true,
+        "BeforeCastStop": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!InMeleeRange",
+          "!AutoShot",
+          "HasAmmo"
+        ]
+      },
+      {
+        "Name": "Stepback",
+        "Key": "S",
+        "PressDuration": 3000,
+        "BaseAction": true,
+        "Requirements": [
+          "TargetsMe",
+          "LastAutoShotMs < 400",
+          "!InMeleeRange",
+          "AutoShot"
+        ],
+        "Interrupt": "RangedSwing < -500 && TargetAlive"
+      },
+      {
+        "Name": "Raptor Strike",
+        "Key": "4",
+        "WhenUsable": true,
+        "AfterCastWaitSwing": true,
+        "Requirements": [
+          "MainHandSwing > -400",
+          "InMeleeRange",
+          "!AutoShot"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "InMeleeRange"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Log": false,
+        "Requirements": [
+          "InMeleeRange"
+        ]
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Key": "C",
+        "Requirement": "Durability% < 35"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Key": "C",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        "Cost": 6,
+        "Name": "VendorAmmo",
+        "Requirements": [
+          "!BagItem:ITEM_ARROW:MIN_COUNT_ARROW"
+        ],
+        "MacroText": "/run local a={'$ITEM_NAME_ARROW',$AMMO_SLOT} for i=1,GetMerchantNumItems() do if GetMerchantItemInfo(i)==a[1] then for j=1,a[2] do BuyMerchantItem(i,200) end end end"
+      }
+    ]
+  }
+}

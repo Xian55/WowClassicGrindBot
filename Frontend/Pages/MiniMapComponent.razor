@@ -18,6 +18,7 @@
                     Minimap
                     <span style="float: right">
                         <button class="btn btn-sm @(previewEnabled ? "btn-danger" : "btn-primary")" @onclick="TogglePreview">Preview</button>
+                        <button class="btn btn-sm @(debugEnabled ? "btn-warning" : "btn-secondary")" @onclick="ToggleDebug" disabled="@(!previewEnabled)">Debug</button>
                         <ToggleButton />
                     </span>
                 </td>
@@ -29,7 +30,16 @@
         {
             if (DateTime.UtcNow > lastUpdate.AddMilliseconds(UpdateIntervalMs))
             {
-                image = provider.MiniMapImage.ToBase64String(JpegFormat.Instance);
+                if (debugEnabled)
+                {
+                    using var debugImage = minimapNodeFinder.CreateDebugImage();
+                    image = debugImage.ToBase64String(JpegFormat.Instance);
+                }
+                else
+                {
+                    image = provider.MiniMapImage.ToBase64String(JpegFormat.Instance);
+                }
+
                 if (image != "")
                     lastUpdate = DateTime.UtcNow;
             }
@@ -124,8 +134,17 @@
         }
     }
 
+    private bool debugEnabled;
+
     private void TogglePreview()
     {
         previewEnabled = !previewEnabled;
+        if (!previewEnabled)
+            debugEnabled = false;
+    }
+
+    private void ToggleDebug()
+    {
+        debugEnabled = !debugEnabled;
     }
 }

@@ -1,6 +1,7 @@
 //#define SAVE_ADDON_IMAGE
 //#define SAVE_SCREEN_IMAGE
 //#define SAVE_RAW_FRAME
+//#define SAVE_MINIMAP_IMAGE
 
 using Game;
 
@@ -21,6 +22,8 @@ using Vortice.Direct3D;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 using Vortice.Mathematics;
+
+using SharedLib;
 
 using WinAPI;
 
@@ -62,6 +65,11 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
     public const int MiniMapSize = 200;
     public Rectangle MiniMapRect { get; private set; }
     public Image<Bgra32> MiniMapImage { get; init; }
+
+    public MinimapSettings MinimapSettings =>
+        Data.Length > 2
+        ? new(Data[16], Data[17])
+        : new(9013, 220016); //debug only
 
     // D3D11 resources
     private static readonly FeatureLevel[] s_featureLevels =
@@ -530,6 +538,10 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
 
         Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
         ScreenCaptureHelper.CopyRegion(fullFrame, rowPitch, minimapX, minimapY, dest, MiniMapRect.Width, MiniMapRect.Height);
+
+#if SAVE_MINIMAP_IMAGE
+        MiniMapImage.SaveAsJpeg("minimap_wgc.jpg");
+#endif
     }
 
     private static bool RegionFitsInFrame(

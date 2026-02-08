@@ -15,13 +15,10 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
 {
     public const int SIZE = 100;
 
-    private const byte maxBlue = 34;
-    private const byte minRedGreen = 176;
+    private const byte maxBlue = 80;
+    private const byte minRedGreen = 150;
 
-    private const int minX = 6;
-    private const int maxX = 170;
-    private const int minY = 36;
-    private readonly int maxY;
+    private const int EDGE_PIXEL = 10;
 
     public readonly Rectangle rect;
     private readonly Point center;
@@ -32,17 +29,19 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
     private readonly ArrayCounter counter;
 
     public MinimapRowOperation(Buffer2D<Bgra32> source,
-        Rectangle minimapRect, ArrayCounter counter, Point[] points)
+        MinimapSettings settings, ArrayCounter counter, Point[] points)
     {
         this.source = source;
         this.points = points;
         this.counter = counter;
 
-        maxY = minimapRect.Height - 6;
+        int size = settings.Width;
+        int x = source.Width - settings.RightOffset - size;
+        int y = settings.TopOffset;
 
-        rect = new(minX, minY, maxX - minX, maxY - minY);
+        rect = new Rectangle(x, y, size, size);
         center = rect.Centre();
-        radius = (maxX - minX) / 2f;
+        radius = (size / 2f) - EDGE_PIXEL;
     }
 
     public int GetRequiredBufferLength(Rectangle bounds)
@@ -58,7 +57,7 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
         int i = 0;
         int bufferLen = span.Length;
 
-        for (int x = minX; x < maxX; x++)
+        for (int x = rect.Left; x < rect.Right; x++)
         {
             if (!IsValidSquareLocation(x, y, center, radius))
             {
@@ -90,6 +89,56 @@ internal readonly struct MinimapRowOperation : IRowOperation<Point>
         {
             return MathF.Sqrt(((x - center.X) * (x - center.X)) + ((y - center.Y) * (y - center.Y))) < width;
         }
+
+        static bool IsMatch(byte red, byte green, byte blue)
+        {
+            return blue < maxBlue && red > minRedGreen && green > minRedGreen;
+        }
+    }
+
+    internal static void DrawDebugMask(Image<Bgra32> image, MinimapSettings settings)
+    {
+        int size = settings.Width;
+        int x = image.Width - settings.RightOffset - size;
+        int y = settings.TopOffset;
+
+        Rectangle rect = new(x, y, size, size);
+        Point center = rect.Centre();
+        float radius = (size / 2f) - EDGE_PIXEL;
+
+        image.ProcessPixelRows(accessor =>
+        {
+            for (int row = 0; row < accessor.Height; row++)
+            {
+                Span<Bgra32> pixelRow = accessor.GetRowSpan(row);
+
+                for (int col = 0; col < pixelRow.Length; col++)
+                {
+                    ref Bgra32 pixel = ref pixelRow[col];
+
+                    float dx = col - center.X;
+                    float dy = row - center.Y;
+                    float dist = MathF.Sqrt((dx * dx) + (dy * dy));
+
+                    if (MathF.Abs(dist - radius) < 1.5f)
+                    {
+                        pixel = new Bgra32(255, 255, 0, 255); // cyan (BGRA)
+                    }
+                    else if (dist >= radius)
+                    {
+                        pixel = new Bgra32(
+                            (byte)(pixel.B / 3u),
+                            (byte)(pixel.G / 3u),
+                            (byte)(pixel.R / 3u),
+                            pixel.A);
+                    }
+                    else if (IsMatch(pixel.R, pixel.G, pixel.B))
+                    {
+                        pixel = new Bgra32(255, 0, 255, 255); // magenta (BGRA)
+                    }
+                }
+            }
+        });
 
         static bool IsMatch(byte red, byte green, byte blue)
         {
