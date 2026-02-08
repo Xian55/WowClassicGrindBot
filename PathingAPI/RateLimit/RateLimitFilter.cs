@@ -19,9 +19,13 @@ public sealed class RateLimitFilter : IAsyncActionFilter
         }
 
         isBusy = true;
-
-        await next();
-
-        isBusy = false;
+        try
+        {
+            await next();
+        }
+        finally
+        {
+            isBusy = false;
+        }
     }
 }
