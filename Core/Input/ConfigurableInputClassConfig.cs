@@ -7,6 +7,8 @@ public sealed partial class ConfigurableInput
     public bool KeyboardOnly => classConfig.KeyboardOnly;
     public bool UseMouseLookTurn => classConfig.UseMouseLookTurn;
     public float MouseTurnPixelsPerRadian => classConfig.MouseTurnPixelsPerRadian;
+    public int MouseTurnStepPixels => classConfig.MouseTurnStepPixels;
+    public int MouseTurnStepDelayMs => classConfig.MouseTurnStepDelayMs;
 
     public ConsoleKey ForwardKey => classConfig.ForwardKey;
     public ConsoleKey BackwardKey => classConfig.BackwardKey;

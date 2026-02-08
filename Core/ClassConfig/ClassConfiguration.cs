@@ -46,6 +46,8 @@ public sealed partial class ClassConfiguration
     public bool KeyboardOnly { get; set; }
     public bool UseMouseLookTurn { get; set; }
     public float MouseTurnPixelsPerRadian { get; set; } = 850f;
+    public int MouseTurnStepPixels { get; set; } = 30;
+    public int MouseTurnStepDelayMs { get; set; } = 6;
     public bool AllowPvP { get; set; }
     public bool AutoPetAttack { get; set; } = true;
 

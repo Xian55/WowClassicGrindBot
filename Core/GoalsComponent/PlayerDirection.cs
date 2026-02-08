@@ -105,6 +105,9 @@ public sealed partial class PlayerDirection
         int pixelsToMove = Math.Max(1, (int)MathF.Round(turnAmount * input.MouseTurnPixelsPerRadian));
         int sign = turnLeft ? -1 : 1;
 
+        int stepPixels = Math.Max(1, input.MouseTurnStepPixels);
+        int stepDelayMs = Math.Max(0, input.MouseTurnStepDelayMs);
+
         input.BeginMouseLook();
 
         try
@@ -112,13 +115,13 @@ public sealed partial class PlayerDirection
             int remaining = pixelsToMove;
             while (remaining > 0 && !token.IsCancellationRequested)
             {
-                int step = Math.Min(remaining, 120);
+                int step = Math.Min(remaining, stepPixels);
                 input.MoveMouseLook(sign * step, 0);
                 remaining -= step;
 
-                if (remaining > 0)
+                if (remaining > 0 && stepDelayMs > 0)
                 {
-                    Thread.Sleep(5);
+                    Thread.Sleep(stepDelayMs);
                 }
             }
         }
