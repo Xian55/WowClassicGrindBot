@@ -39,7 +39,7 @@ public sealed class TargetPetTargetGoal : GoapGoal
 
     public override bool CanRun()
     {
-        return playerReader.PetAlive() && bits.Pet_Defensive();
+        return playerReader.PetAlive() && bits.Pet_Defensive() && bits.PetTarget_Alive();
     }
 
     public override void Update()
