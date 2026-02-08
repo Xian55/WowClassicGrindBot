@@ -166,7 +166,6 @@ end
 
 -- initialization
 local globalTick = 0
-local initPhase = 10
 
 DataToColor.DATA_CONFIG = {
     ACCEPT_PARTY_REQUESTS = false, -- O
@@ -177,6 +176,7 @@ DataToColor.DATA_CONFIG = {
 }
 
 local FRAME_CHANGE_RATE = 5
+local initPhase = 2 * FRAME_CHANGE_RATE
 
 -- How often item frames change
 local ITEM_ITERATION_FRAME_CHANGE_RATE = FRAME_CHANGE_RATE
@@ -804,6 +804,13 @@ function DataToColor:CreateFrames()
 
     local function updateFrames()
         if not SETUP_SEQUENCE and globalTick >= initPhase then
+            -- Ensure globalTime is past the C# FullReset threshold (Value <= 3)
+            -- so queue data is processed immediately when rendering starts.
+            -- Without this, the first queue items only get ~1 frame of C# visibility.
+            if DataToColor.globalTime < initPhase then
+                DataToColor.globalTime = initPhase
+            end
+
             Pixel(int, 0, 0)
             -- The final data square, reserved for additional metadata.
             Pixel(int, 2000001, NUMBER_OF_FRAMES - 1)
