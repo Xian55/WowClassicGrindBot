@@ -47,6 +47,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
     public event Action? OnChanged;
 
     public bool Enabled { get; set; } = true;
+    public bool AlwaysCapture { get; set; }
     public bool EnablePostProcess { get; set; } = true;
     public bool MinimapEnabled { get; set; }
 
@@ -403,7 +404,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
                 if (frames.Length > 2)
                     UpdateAddonImage(fullFrame, rowPitch, frameSize);
 
-                if (Enabled)
+                if (Enabled || AlwaysCapture)
                     UpdateScreenImage(fullFrame, rowPitch, frameSize);
 
                 if (MinimapEnabled)
