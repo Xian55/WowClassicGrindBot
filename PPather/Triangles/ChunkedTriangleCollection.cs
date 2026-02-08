@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 
 using PPather;
 using PPather.Graph;
+using PPather.Triangles;
 using PPather.Triangles.Data;
 
 using System;
@@ -78,6 +79,16 @@ public sealed class ChunkedTriangleCollection
         grid_y = (int)(y / ChunkReader.TILESIZE);
     }
 
+    /// <summary>
+    /// Get MCNK-level grid coordinates (256x finer granularity than ADT)
+    /// Key format: (adt_x << 24) | (adt_y << 16) | (mcnk_x << 8) | mcnk_y
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void GetMCNKGridCoord(float x, float y, out int grid_x, out int grid_y, out int mcnk_x, out int mcnk_y)
+    {
+        MCNKHelper.GetMCNKCoord(x, y, out grid_x, out grid_y, out mcnk_x, out mcnk_y);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void GetGridLimits(int grid_x, int grid_y,
                                 out float min_x, out float min_y,
@@ -122,6 +133,58 @@ public sealed class ChunkedTriangleCollection
     public TriangleCollection GetChunkAt(float x, float y)
     {
         return LoadChunkAt(x, y);
+    }
+
+    /// <summary>
+    /// Load triangles for a specific MCNK chunk (33.33 yards)
+    /// This loads only:
+    /// - 145 MCVT terrain vertices for this MCNK
+    /// - Models/WMOs that intersect this MCNK's bounds
+    /// Memory: ~97% reduction compared to loading full ADT
+    /// </summary>
+    private TriangleCollection LoadMCNKAt(float x, float y)
+    {
+        GetMCNKGridCoord(x, y, out int adt_x, out int adt_y, out int mcnk_x, out int mcnk_y);
+
+        // Use combined grid coordinate that includes MCNK offsets
+        // grid_x_combined = (adt_x * 16) + mcnk_x
+        // grid_y_combined = (adt_y * 16) + mcnk_y
+        int grid_x_combined = (adt_x * MapTile.SIZE) + mcnk_x;
+        int grid_y_combined = (adt_y * MapTile.SIZE) + mcnk_y;
+
+        if (chunks.TryGetValue(grid_x_combined, grid_y_combined, out TriangleCollection cached))
+        {
+            return cached;
+        }
+
+        MCNKHelper.GetMCNKBounds(adt_x, adt_y, mcnk_x, mcnk_y,
+            out float min_x, out float min_y, out float max_x, out float max_y);
+
+        long startTime = Stopwatch.GetTimestamp();
+        TriangleCollection tc = new(logger);
+        tc.SetLimits(min_x - 1, min_y - 1, -1E30f, max_x + 1, max_y + 1, 1E30f);
+
+        // Load only this specific MCNK's geometry
+        supplier.GetMCNKTriangles(tc, adt_x, adt_y, mcnk_x, mcnk_y);
+        var endTime = Stopwatch.GetElapsedTime(startTime);
+
+        chunks.Add(grid_x_combined, grid_y_combined, tc);
+
+        if (logger.IsEnabled(LogLevel.Trace))
+        {
+            logger.LogTrace($"MCNK [{adt_x},{adt_y}:{mcnk_x},{mcnk_y}] Bounds: [{min_x:F4}, {min_y:F4}] [{max_x:F4}, {max_y:F4}] - Count: {chunks.Count} - Loaded {endTime.TotalMilliseconds}ms");
+        }
+        NotifyChunkAdded?.Invoke(new ChunkEventArgs(adt_x, adt_y));
+
+        return tc;
+    }
+
+    /// <summary>
+    /// Get MCNK-level chunk at world position (new optimized path)
+    /// </summary>
+    public TriangleCollection GetMCNKAt(float x, float y)
+    {
+        return LoadMCNKAt(x, y);
     }
 
     public TriangleCollection GetChunkAt(int grid_x, int grid_y)
@@ -400,6 +463,62 @@ public sealed class ChunkedTriangleCollection
     }
 
     [SkipLocalsInit]
+    public int GradiantScoreTiered(float x, float y, int gradiantMax)
+    {
+        TriangleCollection tc = GetChunkAt(x, y);
+        TriangleMatrix tm = tc.GetTriangleMatrix();
+
+        var tSpan = tc.TrianglesSpan;
+        var vSpan = tc.VerteciesSpan;
+
+        ReadOnlySpan<int> ts = tm.GetAllCloseTo(x, y, 3);
+
+        float maxZ1 = float.MinValue, minZ1 = float.MaxValue;
+        float maxZ2 = float.MinValue, minZ2 = float.MaxValue;
+        float maxZ3 = float.MinValue, minZ3 = float.MaxValue;
+
+        foreach (int index in ts)
+        {
+            TriangleCollection.GetTriangleVertices(tSpan, vSpan, index,
+                out Vector3 v0,
+                out Vector3 v1,
+                out Vector3 v2,
+                out TriangleType flags);
+
+            if (flags != TriangleType.Terrain)
+                continue;
+
+            float triMinX = Min3(v0.X, v1.X, v2.X);
+            float triMaxX = Max3(v0.X, v1.X, v2.X);
+            float triMinY = Min3(v0.Y, v1.Y, v2.Y);
+            float triMaxY = Max3(v0.Y, v1.Y, v2.Y);
+
+            // Tier 3 (range=3) — all triangles qualify (already filtered by GetAllCloseTo)
+            maxZ3 = Max4(maxZ3, v0.Z, v1.Z, v2.Z);
+            minZ3 = Min4(minZ3, v0.Z, v1.Z, v2.Z);
+
+            // Tier 2 (range=2)
+            if (triMaxX >= x - 2 && triMinX <= x + 2 && triMaxY >= y - 2 && triMinY <= y + 2)
+            {
+                maxZ2 = Max4(maxZ2, v0.Z, v1.Z, v2.Z);
+                minZ2 = Min4(minZ2, v0.Z, v1.Z, v2.Z);
+            }
+
+            // Tier 1 (range=1)
+            if (triMaxX >= x - 1 && triMinX <= x + 1 && triMaxY >= y - 1 && triMinY <= y + 1)
+            {
+                maxZ1 = Max4(maxZ1, v0.Z, v1.Z, v2.Z);
+                minZ1 = Min4(minZ1, v0.Z, v1.Z, v2.Z);
+            }
+        }
+
+        if ((int)(maxZ1 - minZ1) > gradiantMax) return 128;
+        if ((int)(maxZ2 - minZ2) > gradiantMax) return 64;
+        if ((int)(maxZ3 - minZ3) > gradiantMax) return 32;
+        return 0;
+    }
+
+    [SkipLocalsInit]
     public bool IsCloseToType(float x, float y, float z, float range, TriangleType type)
     {
         TriangleCollection tc = GetChunkAt(x, y);
@@ -422,9 +541,9 @@ public sealed class ChunkedTriangleCollection
 
             if (flags.Has(type))
             {
-                // ignore the triangle if it is below the toon
-                float minZ = Min3(v0.Z, v1.Z, v2.Z);
-                if (minZ < z)
+                // ignore the triangle if it is entirely below the toon
+                float maxZ = Max3(v0.Z, v1.Z, v2.Z);
+                if (maxZ < z)
                     continue;
 
                 float d = PointDistanceToTriangle(toon, v0, v1, v2);
@@ -435,6 +554,133 @@ public sealed class ChunkedTriangleCollection
             }
         }
         return false;
+    }
+
+    [SkipLocalsInit]
+    public float ClosestDistanceToType(float x, float y, float z, float range, TriangleType type)
+    {
+        TriangleCollection tc = GetChunkAt(x, y);
+        TriangleMatrix tm = tc.GetTriangleMatrix();
+
+        Vector3 toon = new(x, y, z);
+
+        var tSpan = tc.TrianglesSpan;
+        var vSpan = tc.VerteciesSpan;
+
+        float minDist = float.MaxValue;
+
+        ReadOnlySpan<int> ts = tm.GetAllCloseTo(x, y, range);
+        foreach (int index in ts)
+        {
+            TriangleCollection.GetTriangleVertices(tSpan, vSpan, index,
+                out Vector3 v0,
+                out Vector3 v1,
+                out Vector3 v2,
+                out TriangleType flags);
+
+            if (!flags.Has(type))
+                continue;
+
+            float maxZ = Max3(v0.Z, v1.Z, v2.Z);
+            if (maxZ < z)
+                continue;
+
+            float d = PointDistanceToTriangle(toon, v0, v1, v2);
+            if (d < minDist)
+                minDist = d;
+        }
+
+        return minDist;
+    }
+
+    /// <summary>
+    /// Combined closeness distance + gradient scoring in a single triangle query.
+    /// Eliminates duplicate GetChunkAt/GetTriangleMatrix/GetAllCloseTo calls
+    /// that occur when calling ClosestDistanceToType and GradiantScoreTiered separately.
+    /// </summary>
+    [SkipLocalsInit]
+    public (float closestDist, int gradientScore) CombinedScoring(
+        float x, float y, float z,
+        float closenessRange, TriangleType closenessMask,
+        int gradiantMax)
+    {
+        TriangleCollection tc = GetChunkAt(x, y);
+        TriangleMatrix tm = tc.GetTriangleMatrix();
+
+        var tSpan = tc.TrianglesSpan;
+        var vSpan = tc.VerteciesSpan;
+
+        // Query once with the larger range (closenessRange >= 3)
+        ReadOnlySpan<int> ts = tm.GetAllCloseTo(x, y, closenessRange);
+
+        Vector3 toon = new(x, y, z);
+        float minDist = float.MaxValue;
+
+        float maxZ1 = float.MinValue, minZ1 = float.MaxValue;
+        float maxZ2 = float.MinValue, minZ2 = float.MaxValue;
+        float maxZ3 = float.MinValue, minZ3 = float.MaxValue;
+
+        foreach (int index in ts)
+        {
+            TriangleCollection.GetTriangleVertices(tSpan, vSpan, index,
+                out Vector3 v0,
+                out Vector3 v1,
+                out Vector3 v2,
+                out TriangleType flags);
+
+            // Closeness scoring (Model|Object triangles)
+            if (flags.Has(closenessMask))
+            {
+                float maxVertZ = Max3(v0.Z, v1.Z, v2.Z);
+                if (maxVertZ >= z)
+                {
+                    // Skip floors/ceilings — only wall-like (mostly vertical) triangles
+                    GetTriangleNormal(v0, v1, v2, out Vector3 normal);
+                    if (Abs(normal.Z) > 0.7f)
+                        continue;
+
+                    float d = PointDistanceToTriangle(toon, v0, v1, v2);
+                    if (d < minDist)
+                        minDist = d;
+                }
+            }
+
+            // Gradient scoring (Terrain triangles only, within range 3)
+            if (flags == TriangleType.Terrain)
+            {
+                float triMinX = Min3(v0.X, v1.X, v2.X);
+                float triMaxX = Max3(v0.X, v1.X, v2.X);
+                float triMinY = Min3(v0.Y, v1.Y, v2.Y);
+                float triMaxY = Max3(v0.Y, v1.Y, v2.Y);
+
+                // Only consider triangles within gradient range (3)
+                if (triMaxX >= x - 3 && triMinX <= x + 3 && triMaxY >= y - 3 && triMinY <= y + 3)
+                {
+                    maxZ3 = Max4(maxZ3, v0.Z, v1.Z, v2.Z);
+                    minZ3 = Min4(minZ3, v0.Z, v1.Z, v2.Z);
+
+                    if (triMaxX >= x - 2 && triMinX <= x + 2 && triMaxY >= y - 2 && triMinY <= y + 2)
+                    {
+                        maxZ2 = Max4(maxZ2, v0.Z, v1.Z, v2.Z);
+                        minZ2 = Min4(minZ2, v0.Z, v1.Z, v2.Z);
+                    }
+
+                    if (triMaxX >= x - 1 && triMinX <= x + 1 && triMaxY >= y - 1 && triMinY <= y + 1)
+                    {
+                        maxZ1 = Max4(maxZ1, v0.Z, v1.Z, v2.Z);
+                        minZ1 = Min4(minZ1, v0.Z, v1.Z, v2.Z);
+                    }
+                }
+            }
+        }
+
+        int gradientScore;
+        if ((int)(maxZ1 - minZ1) > gradiantMax) gradientScore = 128;
+        else if ((int)(maxZ2 - minZ2) > gradiantMax) gradientScore = 64;
+        else if ((int)(maxZ3 - minZ3) > gradiantMax) gradientScore = 32;
+        else gradientScore = 0;
+
+        return (minDist, gradientScore);
     }
 
     [SkipLocalsInit]
@@ -456,6 +702,42 @@ public sealed class ChunkedTriangleCollection
                 out Vector3 v0,
                 out Vector3 v1,
                 out Vector3 v2, out _);
+
+            if (SegmentTriangleIntersect(s0, s1, v0, v1, v2, out _))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Check line of sight considering only triangles matching the blocking mask.
+    /// Triangles not matching the mask are ignored (transparent to this check).
+    /// </summary>
+    [SkipLocalsInit]
+    public bool LineOfSightExists(Vector3 a, Vector3 b, TriangleType blockingMask)
+    {
+        TriangleCollection tc = GetChunkAt(a.X, a.Y);
+        TriangleMatrix tm = tc.GetTriangleMatrix();
+        ReadOnlySpan<int> ts = tm.GetAllCloseTo(a.X, a.Y, Vector3.Distance(a, b) + 1);
+
+        var tSpan = tc.TrianglesSpan;
+        var vSpan = tc.VerteciesSpan;
+
+        Vector3 s0 = a;
+        Vector3 s1 = b;
+
+        foreach (int index in ts)
+        {
+            TriangleCollection.GetTriangleVertices(tSpan, vSpan, index,
+                out Vector3 v0,
+                out Vector3 v1,
+                out Vector3 v2,
+                out TriangleType flags);
+
+            if (!flags.Has(blockingMask))
+                continue;
 
             if (SegmentTriangleIntersect(s0, s1, v0, v1, v2, out _))
             {
@@ -591,6 +873,73 @@ public sealed class ChunkedTriangleCollection
         }
 
         return best_flags != TriangleType.None;
+    }
+
+    [SkipLocalsInit]
+    public bool TryGetWallRepulsion(float x, float y, float z, float range, TriangleType type, out Vector3 repulsionDir, out float wallDistance)
+    {
+        TriangleCollection tc = GetChunkAt(x, y);
+        TriangleMatrix tm = tc.GetTriangleMatrix();
+
+        Vector3 toon = new(x, y, z);
+
+        var tSpan = tc.TrianglesSpan;
+        var vSpan = tc.VerteciesSpan;
+
+        float minDist = float.MaxValue;
+        Vector3 closestPoint = default;
+
+        ReadOnlySpan<int> ts = tm.GetAllCloseTo(x, y, range);
+        foreach (int index in ts)
+        {
+            TriangleCollection.GetTriangleVertices(tSpan, vSpan, index,
+                out Vector3 v0,
+                out Vector3 v1,
+                out Vector3 v2,
+                out TriangleType flags);
+
+            if (!flags.Has(type))
+                continue;
+
+            float maxZ = Max3(v0.Z, v1.Z, v2.Z);
+            if (maxZ < z)
+                continue;
+
+            // Skip floors/ceilings — only wall-like (mostly vertical) triangles
+            GetTriangleNormal(v0, v1, v2, out Vector3 normal);
+            if (Abs(normal.Z) > 0.7f)
+                continue;
+
+            Vector3 cp = ClosestPointOnTriangle(toon, v0, v1, v2);
+            float d = Vector3.Distance(toon, cp);
+            if (d < minDist)
+            {
+                minDist = d;
+                closestPoint = cp;
+            }
+        }
+
+        if (minDist < range)
+        {
+            // XY-only repulsion direction (away from wall)
+            float dx = x - closestPoint.X;
+            float dy = y - closestPoint.Y;
+            float len = Sqrt(dx * dx + dy * dy);
+            if (len > 1e-6f)
+            {
+                repulsionDir = new Vector3(dx / len, dy / len, 0);
+            }
+            else
+            {
+                repulsionDir = Vector3.UnitX;
+            }
+            wallDistance = minDist;
+            return true;
+        }
+
+        repulsionDir = default;
+        wallDistance = float.MaxValue;
+        return false;
     }
 
     public (int, float) GetAreaIdAndZ(Vector3 location)

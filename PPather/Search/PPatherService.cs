@@ -98,6 +98,13 @@ public sealed class PPatherService
         return search.PathGraph.triangleWorld.GetChunkAt(grid_x, grid_y);
     }
 
+    public ChunkedTriangleCollection TriangleWorld => search.PathGraph.triangleWorld;
+
+    public IEnumerable<Spot> GetSpots()
+    {
+        return search.PathGraph.SpotManager.AllSpots();
+    }
+
     public void ChunkAdded(ChunkEventArgs e)
     {
         OnChunkAdded?.Invoke(e);
