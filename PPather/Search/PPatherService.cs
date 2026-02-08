@@ -87,13 +87,22 @@ public sealed class PPatherService
             return false;
         }
 
-        logger.LogInformation($"MPQ files exist. {string.Join(' ', mpqFiles)}");
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("MPQ files exist. {MpqFiles}", string.Join(' ', mpqFiles));
+
         return true;
     }
 
     public TriangleCollection GetChunkAt(int grid_x, int grid_y)
     {
         return search.PathGraph.triangleWorld.GetChunkAt(grid_x, grid_y);
+    }
+
+    public ChunkedTriangleCollection TriangleWorld => search.PathGraph.triangleWorld;
+
+    public IEnumerable<Spot> GetSpots()
+    {
+        return search.PathGraph.SpotManager.AllSpots();
     }
 
     public void ChunkAdded(ChunkEventArgs e)
@@ -166,7 +175,7 @@ public sealed class PPatherService
         search.PathGraph.Save();
 
         if (logger.IsEnabled(LogLevel.Trace))
-            logger.LogTrace($"Saved GraphChunks {GetElapsedTime(timestamp).TotalMilliseconds} ms");
+            logger.LogTrace("Saved GraphChunks {ElapsedMs} ms", GetElapsedTime(timestamp).TotalMilliseconds);
     }
 
     public void SetLocations(Vector4 from, Vector4 to)

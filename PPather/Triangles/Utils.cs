@@ -31,6 +31,7 @@ namespace WowTriangles;
 
 public static class Utils
 {
+    private const float ParallelEpsilon = 1e-6f;
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool SegmentTriangleIntersect(
@@ -50,7 +51,7 @@ public static class Utils
         float det = Dot(e1, pvec);
 
         // If determinant is near zero → ray is parallel to triangle plane
-        if (Abs(det) < float.Epsilon)
+        if (Abs(det) < ParallelEpsilon)
         {
             I = default;
             return false;
@@ -127,12 +128,19 @@ public static class Utils
     {
         Vector3 u = Subtract(t1, t0); // triangle vector 1
         Vector3 v = Subtract(t2, t0); // triangle vector 2
-        Vector3 n = Cross(u, v); // triangle normal
-        n *= -1E6f;
+        Vector3 n = Cross(u, v);      // unnormalized triangle normal
 
-        if (SegmentTriangleIntersect(p0, n, t0, t1, t2, out Vector3 intersect))
+        float normalLenSq = Dot(n, n);
+        if (normalLenSq >= 1e-12f)
         {
-            return Subtract(intersect, p0).Length();
+            Vector3 normalDir = n * (1.0f / Sqrt(normalLenSq));
+            Vector3 above = p0 + normalDir * 1E6f;
+            Vector3 below = p0 - normalDir * 1E6f;
+
+            if (SegmentTriangleIntersect(above, below, t0, t1, t2, out Vector3 intersect))
+            {
+                return Subtract(intersect, p0).Length();
+            }
         }
 
         float d0 = PointDistanceToSegment(p0, t0, t1);
@@ -358,5 +366,52 @@ public static class Utils
     public static float Max4(float a, float b, float c, float d)
     {
         return Max(Max(a, b), Max(c, d));
+    }
+
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3 ClosestPointOnSegment(in Vector3 p0, in Vector3 x1, in Vector3 x2)
+    {
+        Vector3 L = x2 - x1;
+        float l2 = Dot(L, L);
+        if (l2 < 1e-12f)
+            return x1;
+
+        float t = Math.Clamp(Dot(p0 - x1, L) / l2, 0.0f, 1.0f);
+        return x1 + (L * t);
+    }
+
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector3 ClosestPointOnTriangle(in Vector3 p0, in Vector3 t0, in Vector3 t1, in Vector3 t2)
+    {
+        Vector3 u = Subtract(t1, t0);
+        Vector3 v = Subtract(t2, t0);
+        Vector3 n = Cross(u, v);
+
+        float normalLenSq = Dot(n, n);
+        if (normalLenSq >= 1e-12f)
+        {
+            Vector3 normalDir = n * (1.0f / Sqrt(normalLenSq));
+            Vector3 above = p0 + normalDir * 1E6f;
+            Vector3 below = p0 - normalDir * 1E6f;
+
+            if (SegmentTriangleIntersect(above, below, t0, t1, t2, out Vector3 intersect))
+            {
+                return intersect;
+            }
+        }
+
+        Vector3 c0 = ClosestPointOnSegment(p0, t0, t1);
+        Vector3 c1 = ClosestPointOnSegment(p0, t1, t2);
+        Vector3 c2 = ClosestPointOnSegment(p0, t2, t0);
+
+        float d0 = Subtract(c0, p0).LengthSquared();
+        float d1 = Subtract(c1, p0).LengthSquared();
+        float d2 = Subtract(c2, p0).LengthSquared();
+
+        if (d0 <= d1 && d0 <= d2) return c0;
+        if (d1 <= d2) return c1;
+        return c2;
     }
 }

@@ -34,7 +34,7 @@ public sealed class FactionTemplateDB
         }
         catch (Exception ex)
         {
-            logger.LogWarning($"Failed to load {FileName}: {ex.Message}");
+            logger.LogWarning("Failed to load {FileName}: {Message}", FileName, ex.Message);
             logger.LogWarning("AdhocNPC profiles with 'Auto NPC Route' features will not work properly!");
         }
 

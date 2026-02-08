@@ -134,7 +134,8 @@ public sealed partial class BotController : IBotController, IDisposable
             !Enum.IsDefined<UnitClass>(playerReader.Class) ||
             playerReader.Class == UnitClass.None);
 
-        logger.LogInformation($"{playerReader.Version.ToStringF()} {playerReader.Race.ToStringF()} {playerReader.Class.ToStringF()}!");
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("{Version} {Race} {Class}!", playerReader.Version.ToStringF(), playerReader.Race.ToStringF(), playerReader.Class.ToStringF());
 
         screenshotThread = new(ScreenshotThread);
         screenshotThread.Start();
@@ -205,12 +206,12 @@ public sealed partial class BotController : IBotController, IDisposable
                     if (oldSlot == 0)
                     {
                         logger.LogInformation(
-                            $"[{action.Name,-17}] Macro resolved: Slot:{newSlot} -> Key:{action.ConsoleKey}");
+                            "[{Name,-17}] Macro resolved: Slot:{Slot} -> Key:{ConsoleKey}", action.Name, newSlot, action.ConsoleKey);
                     }
                     else if (oldSlot != newSlot)
                     {
                         logger.LogInformation(
-                            $"[{action.Name,-17}] Macro moved: Slot:{oldSlot} -> {newSlot} -> Key:{action.ConsoleKey}");
+                            "[{Name,-17}] Macro moved: Slot:{OldSlot} -> {NewSlot} -> Key:{ConsoleKey}", action.Name, oldSlot, newSlot, action.ConsoleKey);
                     }
                 }
                 else if (newSlot == 0 && oldSlot > 0)
@@ -220,13 +221,13 @@ public sealed partial class BotController : IBotController, IDisposable
                         KeyReader.ResolveFromKeyString(logger, action))
                     {
                         logger.LogInformation(
-                            $"[{action.Name,-17}] Macro not on action bar, using Key:{action.Key} -> {action.ConsoleKey}");
+                            "[{Name,-17}] Macro not on action bar, using Key:{Key} -> {ConsoleKey}", action.Name, action.Key, action.ConsoleKey);
                     }
                     else
                     {
                         action.ConsoleKey = ConsoleKey.NoName;
                         logger.LogWarning(
-                            $"[{action.Name,-17}] Macro removed from action bar (was Slot:{oldSlot})");
+                            "[{Name,-17}] Macro removed from action bar (was Slot:{OldSlot})", action.Name, oldSlot);
                     }
                 }
             }
@@ -403,7 +404,7 @@ public sealed partial class BotController : IBotController, IDisposable
         ProfileLoaded -= OnProfileLoaded;
 
         if (logger.IsEnabled(LogLevel.Debug))
-            logger.LogDebug($"{nameof(RemotePathingThread)} stopped!");
+            logger.LogDebug("RemotePathingThread stopped!");
     }
 
     public void ToggleBotStatus()

@@ -355,4 +355,18 @@ public sealed class PPatherController : ControllerBase
 
         return Accepted();
     }
+
+    /// <summary>
+    /// 
+    /// Resets the ppather service, clearing any cached data or state.
+    /// 
+    /// </summary>
+    [HttpPost("Reset")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [RateLimit]
+    public IActionResult Reset()
+    {
+        service.Reset();
+        return Accepted();
+    }
 }

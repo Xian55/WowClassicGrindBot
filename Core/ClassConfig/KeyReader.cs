@@ -528,7 +528,7 @@ public static class KeyReader
             // No slot for these keys
             if (!key.BaseAction)
             {
-                logger.LogWarning($"[{key.Name}] Unable to assign Actionbar {nameof(KeyAction.Slot)}!");
+                logger.LogWarning("[{Name}] Unable to assign Actionbar Slot!", key.Name);
             }
             return true;
         }
@@ -540,7 +540,7 @@ public static class KeyReader
             key.Modifier = modifier;
             if (!key.BaseAction)
             {
-                logger.LogWarning($"[{key.Name}] Unable to assign Actionbar {nameof(KeyAction.Slot)}!");
+                logger.LogWarning("[{Name}] Unable to assign Actionbar Slot!", key.Name);
             }
             return true;
         }

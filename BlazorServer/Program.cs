@@ -105,15 +105,18 @@ public static class Program
 
         Microsoft.Extensions.Logging.ILogger log = logFactory.CreateLogger("Program");
 
-        log.LogInformation(
-            $"{Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName} " +
-            $"{DateTimeOffset.Now}");
+        if (log.IsEnabled(LogLevel.Information))
+        {
+            log.LogInformation("{Language} {Timestamp}",
+                Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName,
+                DateTimeOffset.Now);
+        }
 
         services.AddStartupConfigurations(configuration);
 
         services.AddWoWProcess(log);
 
-        services.AddCoreBase();
+        services.AddCoreBase(log);
 
         if (AddonConfig.Exists() && FrameConfig.Exists())
         {

@@ -27,11 +27,11 @@ using static WinAPI.NativeMethods;
 
 namespace Core;
 
-public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
+public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureProvider
 {
     private readonly ILogger<WowScreenDXGI> logger;
     private readonly WowProcess process;
-    private readonly int Bgra32Size;
+    private const int Bgra32Size = ScreenCaptureHelper.Bgra32Size;
 
     public event Action? OnChanged;
 
@@ -76,6 +76,13 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
 
     private readonly bool windowedMode;
 
+    // IGpuTextureProvider
+    private ID3D11Texture2D? lastCapturedTexture;
+
+    ID3D11Device IGpuTextureProvider.Device => device;
+    ID3D11DeviceContext IGpuTextureProvider.DeviceContext => device.ImmediateContext;
+    ID3D11Texture2D? IGpuTextureProvider.GetCapturedTexture() => lastCapturedTexture;
+
     // IAddonDataProvider
 
     private SixLabors.ImageSharp.Size addonSize;
@@ -90,8 +97,6 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
     {
         this.logger = logger;
         this.process = process;
-
-        Bgra32Size = Unsafe.SizeOf<Bgra32>();
 
         GetRectangle(out screenRect);
         ScreenImage = new(ContiguousJpegConfiguration, screenRect.Width, screenRect.Height);
@@ -169,11 +174,9 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         };
         minimapTexture = device.CreateTexture2D(miniMapTextureDesc);
 
-        logger.LogInformation($"{screenRect} - " +
-            $"Windowed Mode: {windowedMode} - " +
-            $"Scale: {DPI2PPI(GetDpi()):F2} - " +
-            $"Monitor Rect: {monitorRect} - " +
-            $"Monitor Index: {srcIdx}");
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("{ScreenRect} - Windowed Mode: {WindowedMode} - Scale: {Scale:F2} - Monitor Rect: {MonitorRect} - Monitor Index: {MonitorIndex}",
+                screenRect, windowedMode, DPI2PPI(GetDpi()), monitorRect, srcIdx);
     }
 
     public void Dispose()
@@ -181,6 +184,7 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         try { duplication?.ReleaseFrame(); } catch { }
         try { duplication?.Dispose(); } catch { }
 
+        try { lastCapturedTexture?.Dispose(); } catch { }
         try { minimapTexture.Dispose(); } catch { }
         try { addonTexture.Dispose(); } catch { }
         try { screenTexture.Dispose(); } catch { }
@@ -224,7 +228,8 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         addonTexture?.Dispose();
         addonTexture = device.CreateTexture2D(addonTextureDesc);
 
-        logger.LogDebug($"DataFrames {frames.Length} - Texture: {addonSize}");
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogDebug("DataFrames {FrameCount} - Texture: {AddonSize}", frames.Length, addonSize);
     }
 
     [SkipLocalsInit]
@@ -261,6 +266,9 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         ID3D11Texture2D texture
             = idxgiResource.QueryInterface<ID3D11Texture2D>();
 
+        lastCapturedTexture?.Dispose();
+        lastCapturedTexture = texture;
+
         if (frames.Length > 2)
             UpdateAddonImage(texture);
 
@@ -269,8 +277,6 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
 
         if (MinimapEnabled)
             UpdateMinimapImage(texture);
-
-        texture.Dispose();
     }
 
     [SkipLocalsInit]
@@ -290,29 +296,22 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         MappedSubresource resource = device.ImmediateContext
             .Map(addonTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
 
-        int rowPitch = (int)resource.RowPitch;
-        ReadOnlySpan<byte> src = resource.AsSpan(addonSize.Height * rowPitch);
-        Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
-
-        if (addonSize.Height == 1 && src.TryCopyTo(dest))
+        try
         {
-            goto Cleanup;
-        }
+            int rowPitch = (int)resource.RowPitch;
+            ReadOnlySpan<byte> src = resource.AsSpan(addonSize.Height * rowPitch);
+            Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
 
-        int bytesToCopy = addonSize.Width * Bgra32Size;
-        for (int y = 0; y < addonSize.Height; y++)
-        {
-            ReadOnlySpan<byte> srcRow = src.Slice(y * rowPitch, bytesToCopy);
-            Span<byte> destRow = dest.Slice(y * bytesToCopy, bytesToCopy);
-            srcRow.TryCopyTo(destRow);
-        }
+            ScreenCaptureHelper.CopyRegion(src, rowPitch, 0, 0, dest, addonSize.Width, addonSize.Height);
 
 #if SAVE_ADDON_IMAGE
-        addonImage.SaveAsJpeg("addon.jpg");
+            addonImage.SaveAsJpeg("addon.jpg");
 #endif
-
-    Cleanup:
-        device.ImmediateContext.Unmap(addonTexture, 0);
+        }
+        finally
+        {
+            device.ImmediateContext.Unmap(addonTexture, 0);
+        }
     }
 
     [SkipLocalsInit]
@@ -331,34 +330,22 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         MappedSubresource resource = device.ImmediateContext
             .Map(screenTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
 
-        int rowPitch = (int)resource.RowPitch;
-        ReadOnlySpan<byte> src = resource.AsSpan(screenRect.Height * rowPitch);
-        Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
+        try
+        {
+            int rowPitch = (int)resource.RowPitch;
+            ReadOnlySpan<byte> src = resource.AsSpan(screenRect.Height * rowPitch);
+            Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
 
-        // Issue: at 3440x1440 resolution game fullscreen
-        // the dest Span.Length much smaller then the src Span.Length
-        // this fails to copy the buffer
-        // so when TryCopyTo fails just fallback
-        // to copy by row
-        if (!windowedMode && src.TryCopyTo(dest))
-        {
-        }
-        else
-        {
-            int bytesToCopy = screenRect.Width * Bgra32Size;
-            for (int y = 0; y < screenRect.Height; y++)
-            {
-                ReadOnlySpan<byte> srcRow = src.Slice(y * rowPitch, bytesToCopy);
-                Span<byte> destRow = dest.Slice(y * bytesToCopy, bytesToCopy);
-                srcRow.TryCopyTo(destRow);
-            }
-        }
+            ScreenCaptureHelper.CopyRegion(src, rowPitch, 0, 0, dest, screenRect.Width, screenRect.Height);
 
 #if SAVE_SCREEN_IMAGE
-        ScreenImage.SaveAsJpeg("screen.jpg");
+            ScreenImage.SaveAsJpeg("screen.jpg");
 #endif
-
-        device.ImmediateContext.Unmap(screenTexture, 0);
+        }
+        finally
+        {
+            device.ImmediateContext.Unmap(screenTexture, 0);
+        }
     }
 
     [SkipLocalsInit]
@@ -377,19 +364,18 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider
         MappedSubresource resource = device.ImmediateContext
             .Map(minimapTexture, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
 
-        int rowPitch = (int)resource.RowPitch;
-        ReadOnlySpan<byte> src = resource.AsSpan(MiniMapRect.Height * rowPitch);
-        Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
-
-        int bytesToCopy = MiniMapRect.Width * Bgra32Size;
-        for (int y = 0; y < MiniMapRect.Height; y++)
+        try
         {
-            ReadOnlySpan<byte> srcRow = src.Slice(y * rowPitch, bytesToCopy);
-            Span<byte> destRow = dest.Slice(y * bytesToCopy, bytesToCopy);
-            srcRow.TryCopyTo(destRow);
-        }
+            int rowPitch = (int)resource.RowPitch;
+            ReadOnlySpan<byte> src = resource.AsSpan(MiniMapRect.Height * rowPitch);
+            Span<byte> dest = MemoryMarshal.Cast<Bgra32, byte>(memory.Span);
 
-        device.ImmediateContext.Unmap(minimapTexture, 0);
+            ScreenCaptureHelper.CopyRegion(src, rowPitch, 0, 0, dest, MiniMapRect.Width, MiniMapRect.Height);
+        }
+        finally
+        {
+            device.ImmediateContext.Unmap(minimapTexture, 0);
+        }
     }
 
     public void UpdateData()

@@ -572,6 +572,7 @@ For normal quick startup of `HeadlessServer` please look at the `HeadlessServer\
 | `-t`<br>`-otargeting` | While overlay enabled, show Targeting points | `false` | - |
 | `-s`<br>`-oskinning` | While overlay enabled, show Skinning points | `false` | - |
 | `-v`<br>`-otargetvsadd` | While overlay enabled, show Target vs Add points | `false` | - |
+| `-g`<br>`--gpu` | Use GPU compute shader for NPC name finding | `true` | `true` or `false` |
 | `--loadonly` | Loads the given class profile then exits | `false` | - |
 
 e.g. run from Powershell without any optional parameter
@@ -2457,6 +2458,7 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"ChatInputVisible"` | Returns true if the Chat inputbox is open (ENTER) |
 | `"Dead"` | The player is currently dead. |
 | `"CannibalizeCorpse"` | A Humanoid or Undead corpse is within 5 yards of the player. |
+| `"DamageTakenFromTotem"` | The player has taken damage from a Totem creature type. Useful to detect nearby totems. |
 | `"Has Pet"` | The player's pet is alive |
 | `"Pet HasTarget"` | Players pet has target |
 | `"Pet Happy"` | Pet happienss is green |

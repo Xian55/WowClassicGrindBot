@@ -50,7 +50,7 @@ public sealed partial class AddonConfigurator
     {
         if (string.IsNullOrEmpty(Config.Author))
         {
-            logger.LogError($"{nameof(Config)}.{nameof(Config.Author)} - error - cannot be empty: '{Config.Author}'");
+            logger.LogError("Config.Author - error - cannot be empty: '{Author}'", Config.Author);
             return false;
         }
 
@@ -67,7 +67,7 @@ public sealed partial class AddonConfigurator
 
             if (Config.Title.Length == 0)
             {
-                logger.LogError($"{nameof(Config)}.{nameof(Config.Title)} - error - use letters only: '{Config.Title}'");
+                logger.LogError("Config.Title - error - use letters only: '{Title}'", Config.Title);
                 return false;
             }
 
@@ -75,18 +75,18 @@ public sealed partial class AddonConfigurator
         }
         else
         {
-            logger.LogError($"{nameof(Config)}.{nameof(Config.Title)} - error - cannot be empty: '{Config.Title}'");
+            logger.LogError("Config.Title - error - cannot be empty: '{Title}'", Config.Title);
             return false;
         }
 
         if (!int.TryParse(Config.CellSize, out int size))
         {
-            logger.LogError($"{nameof(Config)}.{nameof(Config.CellSize)} - error - be a number: '{Config.CellSize}'");
+            logger.LogError("Config.CellSize - error - be a number: '{CellSize}'", Config.CellSize);
             return false;
         }
         else if (size < 1 || size > 9)
         {
-            logger.LogError($"{nameof(Config)}.{nameof(Config.CellSize)} - error - must be, including between 1 and 9: '{Config.CellSize}'");
+            logger.LogError("Config.CellSize - error - must be, including between 1 and 9: '{CellSize}'", Config.CellSize);
             return false;
         }
 
@@ -102,11 +102,11 @@ public sealed partial class AddonConfigurator
             RenameAddon();
             MakeUnique();
 
-            logger.LogInformation($"{nameof(Install)} - Success");
+            logger.LogInformation("Install - Success");
         }
         catch (Exception e)
         {
-            logger.LogInformation($"{nameof(Install)} - Failed\n{e.Message}");
+            logger.LogInformation("Install - Failed\n{Message}", e.Message);
         }
     }
 
@@ -114,13 +114,13 @@ public sealed partial class AddonConfigurator
     {
         if (Directory.Exists(DefaultAddonPath))
         {
-            logger.LogInformation($"{nameof(DeleteAddon)} -> Default Addon Exists");
+            logger.LogInformation("DeleteAddon -> Default Addon Exists");
             Directory.Delete(DefaultAddonPath, true);
         }
 
         if (!string.IsNullOrEmpty(Config.Title) && Directory.Exists(FinalAddonPath))
         {
-            logger.LogInformation($"{nameof(DeleteAddon)} -> Unique Addon Exists");
+            logger.LogInformation("DeleteAddon -> Unique Addon Exists");
             Directory.Delete(FinalAddonPath, true);
         }
     }
@@ -130,7 +130,7 @@ public sealed partial class AddonConfigurator
         try
         {
             CopyFolder("");
-            logger.LogInformation($"{nameof(CopyAddonFiles)} - Success");
+            logger.LogInformation("CopyAddonFiles - Success");
         }
         catch (Exception e)
         {
@@ -138,7 +138,7 @@ public sealed partial class AddonConfigurator
 
             // This only should be happen when running from IDE
             CopyFolder(".");
-            logger.LogInformation($"{nameof(CopyAddonFiles)} - Success");
+            logger.LogInformation("CopyAddonFiles - Success");
         }
     }
 

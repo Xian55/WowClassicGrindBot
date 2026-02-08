@@ -199,13 +199,13 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
                 {
                     if (targetBlacklist.Is())
                     {
-                        logger.LogWarning($"Losing the target due blacklist!");
+                        logger.LogWarning("Losing the target due blacklist!");
                         return;
                     }
 
                     if (playerReader.MinRange() < initialTargetMinRange)
                     {
-                        logger.LogWarning($"Found a closer target! {playerReader.MinRange()} < {initialTargetMinRange}");
+                        logger.LogWarning("Found a closer target! {MinRange} < {InitialTargetMinRange}", playerReader.MinRange(), initialTargetMinRange);
 
                         initialMinRange = playerReader.MinRange();
                     }

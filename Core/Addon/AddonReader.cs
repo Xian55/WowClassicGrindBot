@@ -20,6 +20,7 @@ public sealed class AddonReader : IAddonReader
     private readonly CreatureDB creatureDb;
 
     private readonly CombatLog combatLog;
+    private readonly TextReader textReader;
 
     private readonly ImmutableArray<IReader> readers;
 
@@ -41,12 +42,14 @@ public sealed class AddonReader : IAddonReader
         PlayerReader playerReader, ManualResetEventSlim resetEvent,
         CreatureDB creatureDb,
         CombatLog combatLog,
+        TextReader textReader,
         DataFrame[] frames,
         IServiceProvider sp)
     {
         this.reader = reader;
         this.creatureDb = creatureDb;
         this.combatLog = combatLog;
+        this.textReader = textReader;
         this.playerReader = playerReader;
         DataReady = resetEvent;
 
@@ -86,7 +89,7 @@ public sealed class AddonReader : IAddonReader
             TargetName =
                 creatureDb.Entries.TryGetValue(playerReader.TargetId, out Creature c)
                 ? c.Name
-                : reader.GetString(16).Trim() + reader.GetString(17).Trim();
+                : textReader.LastTargetName;
         }
 
         if (lastMouseOverId != playerReader.MouseOverId)

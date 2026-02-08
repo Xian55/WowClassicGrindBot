@@ -2,5 +2,6 @@
 
 public enum AddonDataProviderType
 {
-    DXGI
+    DXGI,
+    WGC  // Windows Graphics Capture - supports background window capture
 }
