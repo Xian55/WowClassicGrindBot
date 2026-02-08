@@ -176,6 +176,72 @@ public sealed class MPQTriangleSupplier
         }
     }
 
+    /// <summary>
+    /// Load triangles for a specific MCNK chunk with spatial model culling.
+    /// Only loads:
+    /// - 145 MCVT vertices for this MCNK's terrain
+    /// - Models/WMOs whose bounding boxes intersect this MCNK
+    /// </summary>
+    [SkipLocalsInit]
+    public void GetMCNKTriangles(TriangleCollection tc, int adt_x, int adt_y, int mcnk_x, int mcnk_y)
+    {
+        if (tc == null || wdtf == null || wdt == null)
+            return;
+        if (adt_x < 0 || adt_y < 0 || adt_x > 63 || adt_y > 63)
+            return;
+        if (mcnk_x < 0 || mcnk_y < 0 || mcnk_x > 15 || mcnk_y > 15)
+            return;
+
+        int index = adt_y * WDT.SIZE + adt_x;
+
+        // Load ADT if not already loaded
+        if (!wdt.loaded[index])
+        {
+            wdtf.LoadMapTile(adt_x, adt_y, index);
+        }
+
+        MapTile mapTile = wdt.maptiles[index];
+        if (!wdt.loaded[index])
+            return;
+
+        // Get MCNK bounds for spatial filtering
+        MCNKHelper.GetMCNKBounds(adt_x, adt_y, mcnk_x, mcnk_y,
+            out float mcnk_minX, out float mcnk_minY, out float mcnk_maxX, out float mcnk_maxY);
+
+        // 1. Load ONLY this specific MCNK's terrain
+        int mcnk_index = MCNKHelper.GetMCNKIndex(mcnk_x, mcnk_y);
+        if (mapTile.hasChunk[mcnk_index])
+        {
+            AddTriangles(tc, mapTile.chunks[mcnk_index]);
+        }
+
+        // 2. Load ONLY WMOs that intersect this MCNK's bounds
+        for (int i = 0; i < mapTile.wmois.Length; i++)
+        {
+            WMOInstance wi = mapTile.wmois[i];
+            if (MCNKHelper.WMOIntersectsMCNK(wi, mcnk_minX, mcnk_minY, mcnk_maxX, mcnk_maxY))
+            {
+                AddTriangles(tc, wi);
+            }
+        }
+
+        // 3. Load ONLY M2 models that intersect this MCNK's bounds
+        for (int i = 0; i < mapTile.modelis.Length; i++)
+        {
+            ModelInstance mi = mapTile.modelis[i];
+            if (MCNKHelper.ModelIntersectsMCNK(mi, mcnk_minX, mcnk_minY, mcnk_maxX, mcnk_maxY))
+            {
+                AddDetailedTriangles(tc, mi);
+            }
+        }
+
+        // Note: Global WMOs are handled at a higher level if needed
+        // They span multiple MCNKs so we don't include them here
+
+        // Mark as not loaded to allow garbage collection
+        wdt.loaded[index] = false;
+    }
+
     [SkipLocalsInit]
     private static void AddTriangles(TriangleCollection tc, MapChunk c)
     {
