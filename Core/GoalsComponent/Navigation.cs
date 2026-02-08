@@ -47,7 +47,7 @@ public sealed partial class Navigation : IDisposable
     private float lastWorldDistance = float.MaxValue;
 
     private const float minAngleToTurn = PI / 35f;              // 5.14 degree
-    private const float minAngleToStopBeforeTurn = PI / 2f;     // 90 degree
+    private const float minAngleToStopBeforeTurn = PI / 3f;     // 60 degree
 
     private readonly Stack<Vector3> wayPoints = new();
     private readonly Stack<Vector3> routeToNextWaypoint = new();
