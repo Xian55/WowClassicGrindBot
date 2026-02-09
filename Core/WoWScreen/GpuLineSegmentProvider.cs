@@ -103,6 +103,12 @@ public sealed class GpuLineSegmentProvider : IConfigurableLineSegmentProvider, I
         {
             return ExecuteGpu(capturedTexture, area, minLength, minEndLength);
         }
+        catch (Exception ex) when (IsDeviceRemoved())
+        {
+            permanentFallback = true;
+            logger.LogError(ex, "[GpuLineSegmentProvider] GPU device removed — permanent CPU fallback");
+            return cpuFallback.GetLineSegments(area, minLength, minEndLength);
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "[GpuLineSegmentProvider] GPU dispatch failed, falling back to CPU for {Frames} frames", FALLBACK_COOLDOWN);
@@ -316,6 +322,12 @@ public sealed class GpuLineSegmentProvider : IConfigurableLineSegmentProvider, I
                 cb.FuzzSqr4 = fuzzSqr;
                 break;
         }
+    }
+
+    private bool IsDeviceRemoved()
+    {
+        try { return !gpuProvider.Device.DeviceRemovedReason.Success; }
+        catch { return true; }
     }
 
     public void Dispose()
