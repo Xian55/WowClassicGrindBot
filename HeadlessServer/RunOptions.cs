@@ -30,8 +30,9 @@ public sealed class RunOptions
         "reader",
         Required = false,
         Default = AddonDataProviderType.DXGI,
-        HelpText = $"Screen reader backend." +
-        $"'{nameof(AddonDataProviderType.DXGI)}': DirectX based works from Win8.")]
+        HelpText = $"Screen reader backend. " +
+        $"'{nameof(AddonDataProviderType.DXGI)}': DirectX based, works from Win8. " +
+        $"'{nameof(AddonDataProviderType.WGC)}': Windows Graphics Capture, supports background capture (Win10 2004+).")]
     public AddonDataProviderType Reader { get; set; }
 
     [Option("hostv1",
