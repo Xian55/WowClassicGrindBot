@@ -1378,10 +1378,17 @@ function DataToColor:CreateFrames()
                     mapId, posX, posY = GetPartyUnitPosition(unit)
                     mapId = mapId or 0
                     vitalsPayload = EncodePartyVitals(unit)
-                    nameHash = HashName20(UnitName(unit))
+                    local name = UnitName(unit)
+                    nameHash = HashName20(name)
+                    if name then
+                        DataToColor:PushPartyName(partyIndex, name)
+                    end
                     local _, classTag, classNumericId = UnitClass(unit)
                     classId = classNumericId or DataToColor.C.CHARACTER_CLASS_MAP[classTag] or 0
                     level = UnitLevel(unit) or 0
+                else
+                    -- Clear stale names when a slot is empty
+                    DataToColor:PushPartyName(partyIndex, "")
                 end
 
                 local inCombat = exists and UnitAffectingCombat(unit) and 1 or 0
