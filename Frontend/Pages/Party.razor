@@ -230,7 +230,24 @@
             }
             else
             {
-                snapshot.Add(new PlayerReader.PartyMemberStatus(slot, false, false, 0, 0, 0, 0, 0, 0, PowerType.Mana, 0, 0, 0, 0, 0));
+                snapshot.Add(new PlayerReader.PartyMemberStatus(
+                    slot,
+                    Exists: false,
+                    InCombat: false,
+                    MapId: 0,
+                    MapX: 0,
+                    MapY: 0,
+                    NameHash: 0,
+                    ClassId: 0,
+                    Level: 0,
+                    HealthPercent: 0,
+                    PowerPercent: 0,
+                    PowerType: PowerType.Mana,
+                    BuffSpellId1: 0,
+                    BuffSpellId2: 0,
+                    BuffSpellId3: 0,
+                    DebuffSpellId1: 0,
+                    DebuffSpellId2: 0));
             }
         }
 
