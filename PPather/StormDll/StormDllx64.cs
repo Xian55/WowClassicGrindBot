@@ -9,19 +9,19 @@ namespace StormDll;
 
 internal sealed partial class StormDllx64
 {
-    [LibraryImport("MPQ\\StormLib_x64.dll")]
+    [LibraryImport(StormLibNative.LibraryName)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SFileOpenArchive(
-        [MarshalAs(UnmanagedType.LPWStr)] string szMpqName,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string szMpqName,
         uint dwPriority,
         OpenArchive dwFlags,
         out nint phMpq);
 
-    [LibraryImport("MPQ\\StormLib_x64.dll")]
+    [LibraryImport(StormLibNative.LibraryName)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SFileCloseArchive(nint hMpq);
 
-    [LibraryImport("MPQ\\StormLib_x64.dll", SetLastError = true)]
+    [LibraryImport(StormLibNative.LibraryName, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SFileReadFile(
        nint fileHandle,
@@ -29,24 +29,24 @@ internal sealed partial class StormDllx64
        [MarshalAs(UnmanagedType.I8)] long toRead,
        out long read);
 
-    [LibraryImport("MPQ\\StormLib_x64.dll")]
+    [LibraryImport(StormLibNative.LibraryName)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SFileCloseFile(
         nint fileHandle);
 
-    [LibraryImport("MPQ\\StormLib_x64.dll")]
+    [LibraryImport(StormLibNative.LibraryName)]
     public static partial uint SFileGetFileSize(
         nint fileHandle,
         out long fileSizeHigh);
 
-    [LibraryImport("MPQ\\StormLib_x64.dll")]
+    [LibraryImport(StormLibNative.LibraryName)]
     public static partial uint SFileSetFilePointer(
         nint fileHandle,
         long filePos,
         ref uint plFilePosHigh,
         SeekOrigin origin);
 
-    [LibraryImport("MPQ\\StormLib_x64.dll")]
+    [LibraryImport(StormLibNative.LibraryName)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SFileOpenFileEx(
         nint archiveHandle,

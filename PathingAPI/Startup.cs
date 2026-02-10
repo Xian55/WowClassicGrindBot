@@ -24,6 +24,7 @@ using SharedLib.Converters;
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 
@@ -82,7 +83,10 @@ public sealed class Startup
         services.AddRazorPages();
         services.AddServerSideBlazor();
         services.AddSingleton<CancellationTokenSource>();
-        services.AddSingleton<DataConfig>(x => DataConfig.Load(exp));
+
+        DataConfig dataConfig = DataConfig.Load(exp);
+        ValidateMpqAvailability(dataConfig);
+        services.AddSingleton(dataConfig);
         services.AddSingleton<WorldMapAreaDB>();
         services.AddSingleton<PPatherService>();
         services.AddSingleton<FactionTemplateDB>();
@@ -127,6 +131,20 @@ public sealed class Startup
         });
 
         services.BuildServiceProvider(new ServiceProviderOptions() { ValidateOnBuild = true });
+    }
+
+    private static void ValidateMpqAvailability(DataConfig dataConfig)
+    {
+        if (!Directory.Exists(dataConfig.MPQ))
+        {
+            throw new InvalidOperationException($"MPQ directory not found at '{dataConfig.MPQ}'. Mount your MPQ data into that path (e.g., docker run -v /host/Json:/app/Json ...).");
+        }
+
+        bool hasMpq = Directory.EnumerateFiles(dataConfig.MPQ, "*.MPQ", SearchOption.TopDirectoryOnly).Any();
+        if (!hasMpq)
+        {
+            throw new InvalidOperationException($"No MPQ archives found in '{dataConfig.MPQ}'. Mount your MPQ data into that path (e.g., docker run -v /host/Json:/app/Json ...).");
+        }
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

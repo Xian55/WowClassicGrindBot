@@ -55,6 +55,16 @@ public sealed class MPQTriangleSupplier
         modelmanager = new ModelManager(archive);
         wmomanager = new WMOManager(archive, modelmanager);
 
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            var archives = archive.ArchiveNames;
+            logger.LogInformation("Initializing MPQTriangleSupplier for map {MapId} with {ArchiveCount} archives from {MpqRoot}",
+                mapId, archives.Count, dataConfig.MPQ);
+
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("Archive order: {Archives}", string.Join(", ", archives));
+        }
+
         wdt = new WDT();
         wdtf = new WDTFile(archive, mapId, wdt, wmomanager, modelmanager, logger);
 

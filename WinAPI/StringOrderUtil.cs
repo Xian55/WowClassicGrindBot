@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security;
 
@@ -15,6 +16,12 @@ public sealed class NaturalStringComparer : IComparer<string>
 {
     public int Compare(string x, string y)
     {
+        // shlwapi.dll exists only on Windows; fall back to managed compare elsewhere
+        if (!OperatingSystem.IsWindows())
+        {
+            return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+        }
+
         return SafeNativeMethods.StrCmpLogicalW(x, y);
     }
 }

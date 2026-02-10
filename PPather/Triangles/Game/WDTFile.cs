@@ -39,6 +39,7 @@ internal sealed class WDTFile
     private readonly ModelManager modelmanager;
     private readonly WDT wdt;
     private readonly ArchiveSet archive;
+    private readonly float mapId;
 
     private readonly string pathName;
 
@@ -48,57 +49,74 @@ internal sealed class WDTFile
     {
         this.logger = logger;
         this.pathName = ContinentDB.IdToName[mapId];
+        this.mapId = mapId;
 
         this.wdt = wdt;
         this.wmomanager = wmomanager;
         this.modelmanager = modelmanager;
         this.archive = archive;
 
-        ReadOnlySpan<char> path = pathName.AsSpan();
-        ReadOnlySpan<char> wdtfile = Path.Join("World".AsSpan(), "Maps".AsSpan(), path, $"{path}.wdt".AsSpan());
-        using MpqFileStream mpq = archive.GetStream(wdtfile);
+        // MPQ listfile entries use backslashes; avoid Path.Join ("/") on Linux
+        string wdtfile = $"World\\Maps\\{pathName}\\{pathName}.wdt";
 
-        var pooler = ArrayPool<byte>.Shared;
-        byte[] buffer = pooler.Rent((int)mpq.Length);
-        mpq.ReadAllBytesTo(buffer);
+        logger.LogInformation("Loading WDT for map {MapId} from {WdtFile}", mapId, wdtfile);
 
-        using MemoryStream stream = new(buffer, 0, (int)mpq.Length, false);
-        using BinaryReader file = new(stream);
-
-        string[] gwmos = [];
-
-        do
+        MpqFileStream mpq;
+        try
         {
-            uint type = file.ReadUInt32();
-            uint size = file.ReadUInt32();
-            long curpos = file.BaseStream.Position;
+            mpq = archive.GetStream(wdtfile);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException || ex is IOException)
+        {
+            logger.LogError(ex, "Failed to open WDT {WdtFile} for map {MapId}; archives searched: {Archives}",
+                wdtfile, mapId, string.Join(", ", archive.ArchiveNames));
+            throw;
+        }
 
-            switch (type)
+        using (mpq)
+        {
+            var pooler = ArrayPool<byte>.Shared;
+            byte[] buffer = pooler.Rent((int)mpq.Length);
+            mpq.ReadAllBytesTo(buffer);
+
+            using MemoryStream stream = new(buffer, 0, (int)mpq.Length, false);
+            using BinaryReader file = new(stream);
+
+            string[] gwmos = [];
+
+            do
             {
-                case ChunkReader.MVER:
-                    break;
-                case ChunkReader.MPHD:
-                    break;
-                case ChunkReader.MODF:
-                    HandleMODF(file, wdt, gwmos, wmomanager, size);
-                    break;
-                case ChunkReader.MWMO when size != 0:
-                    gwmos = ChunkReader.ExtractFileNames(file, size);
-                    break;
-                case ChunkReader.MAIN:
-                    HandleMAIN(file, size);
-                    break;
-                default:
-                    //logger.LogWarning($"WDT Unknown {type} - {file.BaseStream.Length} - {curpos} - {size}");
-                    break;
-            }
-            file.BaseStream.Seek(Math.Min(curpos + size, file.BaseStream.Length), SeekOrigin.Begin);
-        } while (!file.EOF());
+                uint type = file.ReadUInt32();
+                uint size = file.ReadUInt32();
+                long curpos = file.BaseStream.Position;
 
-        if (gwmos.Length != 0)
-            ArrayPool<string>.Shared.Return(gwmos);
+                switch (type)
+                {
+                    case ChunkReader.MVER:
+                        break;
+                    case ChunkReader.MPHD:
+                        break;
+                    case ChunkReader.MODF:
+                        HandleMODF(file, wdt, gwmos, wmomanager, size);
+                        break;
+                    case ChunkReader.MWMO when size != 0:
+                        gwmos = ChunkReader.ExtractFileNames(file, size);
+                        break;
+                    case ChunkReader.MAIN:
+                        HandleMAIN(file, size);
+                        break;
+                    default:
+                        //logger.LogWarning($"WDT Unknown {type} - {file.BaseStream.Length} - {curpos} - {size}");
+                        break;
+                }
+                file.BaseStream.Seek(Math.Min(curpos + size, file.BaseStream.Length), SeekOrigin.Begin);
+            } while (!file.EOF());
 
-        pooler.Return(buffer);
+            if (gwmos.Length != 0)
+                ArrayPool<string>.Shared.Return(gwmos);
+
+            pooler.Return(buffer);
+        }
 
         loaded = true;
     }
@@ -114,8 +132,17 @@ internal sealed class WDTFile
         if (logger.IsEnabled(LogLevel.Trace))
             logger.LogTrace("Reading adt: {Filename}", filename.ToString());
 
-        wdt.maptiles[index] = MapTileFile.Read(archive, filename, wmomanager, modelmanager);
-        wdt.loaded[index] = true;
+        try
+        {
+            wdt.maptiles[index] = MapTileFile.Read(archive, filename, wmomanager, modelmanager);
+            wdt.loaded[index] = true;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException || ex is IOException)
+        {
+            logger.LogError(ex, "Failed to load ADT {Filename} for map {MapId}; archives searched: {Archives}",
+                filename.ToString(), mapId, string.Join(", ", archive.ArchiveNames));
+            throw;
+        }
     }
 
     private static void HandleMODF(BinaryReader file, WDT wdt, Span<string> gwmos, WMOManager wmomanager, uint size)

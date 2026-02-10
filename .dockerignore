@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+.vs/
+.vscode/
+.git/
+*.user
+*.suo
+*.pdb
+*.db
+*.nupkg
+*.snupkg
+*.log
+out*.log
+Json/
+PPather/MPQ/
+Addons/
+images/
