@@ -10,7 +10,7 @@ namespace Core;
 
 public static class FrameConfigMeta
 {
-    public const int Version = 4;
+    public const int Version = 5;
     public const string DefaultFilename = "frame_config.json";
 }
 

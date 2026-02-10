@@ -19,7 +19,7 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     private readonly AreaDB areaDb;
     private readonly AddonBits bits;
 
-    private const int PartyPayloadCell = 111;
+    private static readonly int[] PartyPayloadCells = [111, 112, 113, 114];
     private const int PartyPayloadMask = 0xFFFFF;
 
     private readonly PartyMemberState[] partyMembers = new PartyMemberState[4];
@@ -379,20 +379,39 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     private void UpdatePartyMembers(IAddonDataProvider provider)
     {
-        int encoded = provider.GetInt(PartyPayloadCell);
-
-        int prefix = encoded >> 20;
-        int payload = encoded & PartyPayloadMask;
-
-        int memberIndex = prefix & 0x3;
-        int phase = prefix >> 2;
-
-        if ((uint)memberIndex >= partyMembers.Length)
+        if (provider.Data.Length <= PartyPayloadCells[^1])
         {
             return;
         }
 
-        ref PartyMemberState state = ref partyMembers[memberIndex];
+        for (int i = 0; i < PartyPayloadCells.Length; i++)
+        {
+            UpdatePartyMember(provider, i, PartyPayloadCells[i]);
+        }
+    }
+
+    private void UpdatePartyMember(IAddonDataProvider provider, int memberIndex, int cellIndex)
+    {
+        int encoded = provider.GetInt(cellIndex);
+
+        int prefix = encoded >> 20;
+        int payload = encoded & PartyPayloadMask;
+
+        int encodedMemberIndex = prefix & 0x3;
+        int phase = prefix >> 2;
+
+        int targetIndex = memberIndex;
+        if ((uint)encodedMemberIndex < partyMembers.Length)
+        {
+            targetIndex = encodedMemberIndex;
+        }
+
+        if ((uint)targetIndex >= partyMembers.Length)
+        {
+            return;
+        }
+
+        ref PartyMemberState state = ref partyMembers[targetIndex];
 
         switch (phase)
         {
