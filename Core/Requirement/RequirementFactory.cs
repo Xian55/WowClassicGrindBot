@@ -132,7 +132,7 @@ public sealed partial class RequirementFactory
             { "Form", CreateForm },
             { "Race", CreateRace },
             { "Equipment:", CreateEquipment },
-            { "Spell", CreateSpell },
+            { "Spell:", CreateSpell },
             { "Talent", CreateTalent },
             { "Trigger:", CreateTrigger },
             { "Usable:", CreateUsable },
