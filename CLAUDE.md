@@ -1,5 +1,9 @@
 # WowClassicGrindBot - Claude Code Guidelines
 
+## bash commands
+* don't pipe to /dev/nul. we run git bash on windows and it doesn't work.
+* in case the file exists use `rm -f "./WowClassicGrindBot/nul"`
+
 ## Project Overview
 Multi-project .NET 10 solution (MasterOfPuppets.sln) with Blazor Server frontend, SignalR communication, and various utility projects.
 
