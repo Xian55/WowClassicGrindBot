@@ -37,6 +37,9 @@ local HasPetUI = HasPetUI
 local GetPetHappiness = GetPetHappiness
 local GetPetActionInfo = GetPetActionInfo
 local UnitIsTrivial = UnitIsTrivial
+local CharacterFrame = CharacterFrame
+local SpellBookFrame = SpellBookFrame
+local FriendsFrame = FriendsFrame
 
 --------------------------------------------------------------------------------
 -- Bit Cache Storage
@@ -110,6 +113,10 @@ local bits3Cache = {
     chatInputActive = false,        -- bit 9 (polled)
     softTargetEnabled = false,      -- bit 10
     mailFrameShown = false,         -- bit 11
+    anyBagOpen = false,             -- bit 12 (event-driven: BAG_OPEN/BAG_CLOSED)
+    characterFrameOpen = false,     -- bit 13 (hooked)
+    spellBookFrameOpen = false,     -- bit 14 (hooked)
+    friendsFrameOpen = false,       -- bit 15 (hooked)
 }
 
 -- Track if cache has been initialized
@@ -409,6 +416,11 @@ local function InitializeCache()
     UpdateLootFrameCache()
     UpdateMailFrameCache()
 
+    bits3Cache.anyBagOpen = DataToColor:AnyBagOpen()
+    bits3Cache.characterFrameOpen = DataToColor:CharacterFrameOpen()
+    bits3Cache.spellBookFrameOpen = DataToColor:SpellBookFrameOpen()
+    bits3Cache.friendsFrameOpen = DataToColor:FriendsFrameOpen()
+
     -- Initialize polled values (includes UpdateSpellStateCache)
     UpdatePolledValues()
 
@@ -503,7 +515,11 @@ function DataToColor:Bits3Cached()
         (bits3Cache.lootFrameShown and 2 or 0) ^ 8 +
         (bits3Cache.chatInputActive and 2 or 0) ^ 9 +
         (bits3Cache.softTargetEnabled and 2 or 0) ^ 10 +
-        (bits3Cache.mailFrameShown and 2 or 0) ^ 11
+        (bits3Cache.mailFrameShown and 2 or 0) ^ 11 +
+        (bits3Cache.anyBagOpen and 2 or 0) ^ 12 +
+        (bits3Cache.characterFrameOpen and 2 or 0) ^ 13 +
+        (bits3Cache.spellBookFrameOpen and 2 or 0) ^ 14 +
+        (bits3Cache.friendsFrameOpen and 2 or 0) ^ 15
 end
 
 --------------------------------------------------------------------------------
@@ -514,13 +530,42 @@ end
 
 local cacheInitializedOnce = false
 
+local function HookFrameVisibility()
+    if CharacterFrame then
+        CharacterFrame:HookScript("OnShow", function()
+            bits3Cache.characterFrameOpen = true
+        end)
+        CharacterFrame:HookScript("OnHide", function()
+            bits3Cache.characterFrameOpen = false
+        end)
+    end
+
+    if SpellBookFrame then
+        SpellBookFrame:HookScript("OnShow", function()
+            bits3Cache.spellBookFrameOpen = true
+        end)
+        SpellBookFrame:HookScript("OnHide", function()
+            bits3Cache.spellBookFrameOpen = false
+        end)
+    end
+
+    if FriendsFrame then
+        FriendsFrame:HookScript("OnShow", function()
+            bits3Cache.friendsFrameOpen = true
+        end)
+        FriendsFrame:HookScript("OnHide", function()
+            bits3Cache.friendsFrameOpen = false
+        end)
+    end
+end
+
 function DataToColor:RegisterBitCacheEvents()
     -- Initialize cache (events are registered in EventHandlers.lua)
     InitializeCache()
 
     if not cacheInitializedOnce then
         cacheInitializedOnce = true
-        --DataToColor:Print("BitCache initialized - event-driven caching enabled")
+        HookFrameVisibility()
     end
 end
 

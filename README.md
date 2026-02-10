@@ -2456,6 +2456,10 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"Flying"` | The player is currently flying, not touching the ground. |
 | `"MenuOpen"` | Returns true if the Game Menu window is open (ESC) |
 | `"ChatInputVisible"` | Returns true if the Chat inputbox is open (ENTER) |
+| `"AnyBagOpen"` | Returns true if any bag frame is visible on screen |
+| `"CharacterFrameOpen"` | Returns true if the Character Info window is open (C) |
+| `"SpellBookFrameOpen"` | Returns true if the Spellbook window is open (P) |
+| `"FriendsFrameOpen"` | Returns true if the Social/Friends window is open (O) |
 | `"Dead"` | The player is currently dead. |
 | `"CannibalizeCorpse"` | A Humanoid or Undead corpse is within 5 yards of the player. |
 | `"DamageTakenFromTotem"` | The player has taken damage from a Totem creature type. Useful to detect nearby totems. |

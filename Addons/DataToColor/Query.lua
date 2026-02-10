@@ -57,6 +57,10 @@ local GameMenuFrame = GameMenuFrame
 local LootFrame = LootFrame
 local ChatEdit_GetActiveWindow = ChatEdit_GetActiveWindow
 local MailFrame = MailFrame
+local IsBagOpen = IsBagOpen
+local CharacterFrame = CharacterFrame
+local SpellBookFrame = SpellBookFrame
+local FriendsFrame = FriendsFrame
 
 local HasPetUI = HasPetUI
 
@@ -195,7 +199,11 @@ function DataToColor:Bits3()
         (LootFrame:IsShown() and 2 or 0) ^ 8 +
         (DataToColor:IsChatInputActive() and 2 or 0) ^ 9 +
         (DataToColor:SoftTargetInteractEnabled() and 2 or 0) ^ 10 +
-        (MailFrame:IsShown() and 2 or 0) ^ 11
+        (MailFrame:IsShown() and 2 or 0) ^ 11 +
+        (DataToColor:AnyBagOpen() and 2 or 0) ^ 12 +
+        (DataToColor:CharacterFrameOpen() and 2 or 0) ^ 13 +
+        (DataToColor:SpellBookFrameOpen() and 2 or 0) ^ 14 +
+        (DataToColor:FriendsFrameOpen() and 2 or 0) ^ 15
 end
 
 function DataToColor:CustomTrigger(t)
@@ -654,6 +662,27 @@ end
 function DataToColor:SoftTargetInteractEnabled()
     local success, value = pcall(GetCVar, DataToColor.C.CVarSoftTargetInteract)
     return success and tonumber(value) == 3
+end
+
+function DataToColor:AnyBagOpen()
+    for i = 0, NUM_BAG_SLOTS do
+        if IsBagOpen(i) then
+            return true
+        end
+    end
+    return false
+end
+
+function DataToColor:CharacterFrameOpen()
+    return CharacterFrame and CharacterFrame:IsShown() or false
+end
+
+function DataToColor:SpellBookFrameOpen()
+    return SpellBookFrame and SpellBookFrame:IsShown() or false
+end
+
+function DataToColor:FriendsFrameOpen()
+    return FriendsFrame and FriendsFrame:IsShown() or false
 end
 
 -- Returns true if target of our target is us
