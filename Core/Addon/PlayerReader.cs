@@ -1,5 +1,6 @@
 ﻿using Core.Addon;
 using Core.Database;
+using Core.Goals;
 
 using SharedLib;
 
