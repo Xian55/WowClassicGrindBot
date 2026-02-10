@@ -96,7 +96,7 @@ public sealed class RunOptions
 
     [Option('g', "gpu",
         Required = false,
-        Default = true,
+        Default = false,
         HelpText = "Use GPU compute shader for NPC name finding")]
     public bool UseGpu { get; set; }
 
