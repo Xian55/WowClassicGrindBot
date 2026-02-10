@@ -5,6 +5,7 @@ using SharedLib;
 
 using System;
 using System.Collections.Specialized;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 
@@ -33,6 +34,16 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
         public bool HasCoordinates => MapId != 0 && (MapX != 0 || MapY != 0);
     }
+
+    public readonly record struct PartyMemberDebug(int Slot, bool Exists, bool InCombat, int MapId, float MapX, float MapY, int NameHash);
+
+    public IReadOnlyList<PartyMemberDebug> PartyDebug =>
+    [
+        new PartyMemberDebug(1, partyMembers[0].Exists, partyMembers[0].InCombat, partyMembers[0].MapId, partyMembers[0].MapX, partyMembers[0].MapY, partyMembers[0].NameHash),
+        new PartyMemberDebug(2, partyMembers[1].Exists, partyMembers[1].InCombat, partyMembers[1].MapId, partyMembers[1].MapX, partyMembers[1].MapY, partyMembers[1].NameHash),
+        new PartyMemberDebug(3, partyMembers[2].Exists, partyMembers[2].InCombat, partyMembers[2].MapId, partyMembers[2].MapX, partyMembers[2].MapY, partyMembers[2].NameHash),
+        new PartyMemberDebug(4, partyMembers[3].Exists, partyMembers[3].InCombat, partyMembers[3].MapId, partyMembers[3].MapX, partyMembers[3].MapY, partyMembers[3].NameHash)
+    ];
 
     public PlayerReader(
         IAddonDataProvider reader,
