@@ -171,6 +171,11 @@ public static class DependencyInjection
         s.AddSingleton<WApi>();
         s.AddSingleton<FrontendUpdate>();
 
+        // Expose the currently loaded class profile to UI components.
+        // Falls back to a fresh config to keep pages from throwing before a profile is loaded.
+        s.AddScoped<ClassConfiguration>(sp =>
+            sp.GetRequiredService<IBotController>().ClassConfig ?? new ClassConfiguration());
+
         return s;
     }
 
