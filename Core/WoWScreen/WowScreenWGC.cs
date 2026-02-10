@@ -110,7 +110,14 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
 
     ID3D11Device IGpuTextureProvider.Device => device;
     ID3D11DeviceContext IGpuTextureProvider.DeviceContext => deviceContext;
-    ID3D11Texture2D? IGpuTextureProvider.GetCapturedTexture() => gpuTextureCopy;
+
+    ID3D11Texture2D? IGpuTextureProvider.GetCapturedTexture()
+    {
+        using (frameLock.EnterScope())
+        {
+            return gpuTextureCopy;
+        }
+    }
 
     // Client area offset (WGC captures full window including title bar)
     private Point clientOffset;
@@ -144,6 +151,11 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
             out device!);
 
         deviceContext = device.ImmediateContext;
+
+        using (ID3D11Multithread multithread = device.QueryInterface<ID3D11Multithread>())
+        {
+            multithread.SetMultithreadProtected(true);
+        }
 
         // Create WinRT device for WGC
         winrtDevice = GraphicsCaptureInterop.CreateDirect3DDeviceFromD3D11(device)
@@ -247,35 +259,43 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
 
                 // Copy client area only to GPU texture for compute shader
                 // (WGC captures full window including title bar; match CPU path)
-                if (gpuTextureCopy == null ||
-                    gpuTextureSize.Width != screenRect.Width ||
-                    gpuTextureSize.Height != screenRect.Height)
+                // Clamp to frame content bounds to avoid out-of-bounds copy
+                // during window resize or DPI changes
+                int gpuCopyWidth = Math.Min(screenRect.Width, contentSize.Width - clientOffset.X);
+                int gpuCopyHeight = Math.Min(screenRect.Height, contentSize.Height - clientOffset.Y);
+
+                if (gpuCopyWidth > 0 && gpuCopyHeight > 0)
                 {
-                    gpuTextureCopy?.Dispose();
-
-                    Texture2DDescription gpuDesc = frameTexture.Description;
-                    gpuDesc.Width = (uint)screenRect.Width;
-                    gpuDesc.Height = (uint)screenRect.Height;
-                    gpuDesc.Usage = ResourceUsage.Default;
-                    gpuDesc.BindFlags = BindFlags.ShaderResource;
-                    gpuDesc.CPUAccessFlags = CpuAccessFlags.None;
-                    gpuDesc.MiscFlags = ResourceOptionFlags.None;
-
-                    gpuTextureCopy = device.CreateTexture2D(gpuDesc);
-                    gpuTextureSize = new SizeInt32
+                    if (gpuTextureCopy == null ||
+                        gpuTextureSize.Width != gpuCopyWidth ||
+                        gpuTextureSize.Height != gpuCopyHeight)
                     {
-                        Width = screenRect.Width,
-                        Height = screenRect.Height
-                    };
-                }
+                        Texture2DDescription gpuDesc = frameTexture.Description;
+                        gpuDesc.Width = (uint)gpuCopyWidth;
+                        gpuDesc.Height = (uint)gpuCopyHeight;
+                        gpuDesc.Usage = ResourceUsage.Default;
+                        gpuDesc.BindFlags = BindFlags.ShaderResource;
+                        gpuDesc.CPUAccessFlags = CpuAccessFlags.None;
+                        gpuDesc.MiscFlags = ResourceOptionFlags.None;
 
-                Box clientBox = new(
-                    clientOffset.X, clientOffset.Y, 0,
-                    clientOffset.X + screenRect.Width,
-                    clientOffset.Y + screenRect.Height, 1);
-                deviceContext.CopySubresourceRegion(
-                    gpuTextureCopy, 0, 0, 0, 0,
-                    frameTexture, 0, clientBox);
+                        ID3D11Texture2D? oldGpuTexture = gpuTextureCopy;
+                        gpuTextureCopy = device.CreateTexture2D(gpuDesc);
+                        gpuTextureSize = new SizeInt32
+                        {
+                            Width = gpuCopyWidth,
+                            Height = gpuCopyHeight
+                        };
+                        oldGpuTexture?.Dispose();
+                    }
+
+                    Box clientBox = new(
+                        clientOffset.X, clientOffset.Y, 0,
+                        clientOffset.X + gpuCopyWidth,
+                        clientOffset.Y + gpuCopyHeight, 1);
+                    deviceContext.CopySubresourceRegion(
+                        gpuTextureCopy, 0, 0, 0, 0,
+                        frameTexture, 0, clientBox);
+                }
 
                 // Only swap if Update() isn't actively reading from readStagingTexture.
                 // If processingFrame is true, we just overwrote writeStagingTexture in place

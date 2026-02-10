@@ -18,6 +18,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
@@ -77,12 +78,23 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
     private readonly bool windowedMode;
     private bool deviceRemoved;
 
-    // IGpuTextureProvider
+    // IGpuTextureProvider -- Default-usage copy of client area for GPU compute shader
     private ID3D11Texture2D? lastCapturedTexture;
+    private readonly Lock gpuTextureLock = new();
+    private ID3D11Texture2D? gpuTextureCopy;
+    private int gpuTextureWidth;
+    private int gpuTextureHeight;
 
     ID3D11Device IGpuTextureProvider.Device => device;
     ID3D11DeviceContext IGpuTextureProvider.DeviceContext => device.ImmediateContext;
-    ID3D11Texture2D? IGpuTextureProvider.GetCapturedTexture() => lastCapturedTexture;
+
+    ID3D11Texture2D? IGpuTextureProvider.GetCapturedTexture()
+    {
+        using (gpuTextureLock.EnterScope())
+        {
+            return gpuTextureCopy;
+        }
+    }
 
     // IAddonDataProvider
 
@@ -143,10 +155,15 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
 
         output1 = output.QueryInterface<IDXGIOutput1>();
         result = D3D11.D3D11CreateDevice(adapter, DriverType.Unknown,
-            DeviceCreationFlags.Singlethreaded, s_featureLevels, out device!);
+            DeviceCreationFlags.None, s_featureLevels, out device!);
 
         if (result == Result.Fail)
             throw new Exception($"device is null {result.Description}");
+
+        using (ID3D11Multithread multithread = device.QueryInterface<ID3D11Multithread>())
+        {
+            multithread.SetMultithreadProtected(true);
+        }
 
         duplication = output1.DuplicateOutput(device);
 
@@ -192,6 +209,7 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
         try { duplication?.ReleaseFrame(); } catch { }
         try { duplication?.Dispose(); } catch { }
 
+        try { gpuTextureCopy?.Dispose(); } catch { }
         try { lastCapturedTexture?.Dispose(); } catch { }
         try { minimapTexture.Dispose(); } catch { }
         try { addonTexture.Dispose(); } catch { }
@@ -288,6 +306,39 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
 
             lastCapturedTexture?.Dispose();
             lastCapturedTexture = texture;
+
+            // Copy client area to GPU texture for compute shader
+            // (desktop duplication captures the full monitor; the shader uses
+            //  0-based coordinates relative to the client area)
+            using (gpuTextureLock.EnterScope())
+            {
+                if (gpuTextureCopy == null ||
+                    gpuTextureWidth != screenRect.Width ||
+                    gpuTextureHeight != screenRect.Height)
+                {
+                    ID3D11Texture2D? oldTexture = gpuTextureCopy;
+                    gpuTextureCopy = device.CreateTexture2D(new Texture2DDescription
+                    {
+                        Width = (uint)screenRect.Width,
+                        Height = (uint)screenRect.Height,
+                        MipLevels = 1,
+                        ArraySize = 1,
+                        Format = Format.B8G8R8A8_UNorm,
+                        SampleDescription = new(1, 0),
+                        Usage = ResourceUsage.Default,
+                        BindFlags = BindFlags.ShaderResource
+                    });
+                    gpuTextureWidth = screenRect.Width;
+                    gpuTextureHeight = screenRect.Height;
+                    oldTexture?.Dispose();
+                }
+            }
+
+            Box gpuBox = new(
+                screenRect.X, screenRect.Y, 0,
+                screenRect.Right, screenRect.Bottom, 1);
+            device.ImmediateContext.CopySubresourceRegion(
+                gpuTextureCopy, 0, 0, 0, 0, texture, 0, gpuBox);
 
             if (frames.Length > 2)
                 UpdateAddonImage(texture);
