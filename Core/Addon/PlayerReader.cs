@@ -430,8 +430,9 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
                 continue;
             }
 
-            state.MapX = provider.GetInt(baseIndex + PartyPosXOffset) / 1_000_000f;
-            state.MapY = provider.GetInt(baseIndex + PartyPosYOffset) / 1_000_000f;
+            // C_Map returns normalized coordinates (0-1); multiply by 100 to align with map-percentage expectations.
+            state.MapX = provider.GetInt(baseIndex + PartyPosXOffset) / 1_000_000f * 100f;
+            state.MapY = provider.GetInt(baseIndex + PartyPosYOffset) / 1_000_000f * 100f;
             state.NameHash = provider.GetInt(baseIndex + PartyNameOffset);
 
             int classLevel = provider.GetInt(baseIndex + PartyClassLevelOffset);
