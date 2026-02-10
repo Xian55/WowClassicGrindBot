@@ -18,6 +18,7 @@ public enum TextCommand
     ChatParty = 4,
     TargetName = 5,
     TotemName = 6,
+    PartyName = 7,
 }
 
 public enum ChatMessageType
@@ -66,6 +67,8 @@ public sealed class TextReader : IReader
     /// <summary>Collection of received chat messages for UI binding.</summary>
     public ObservableCollection<ChatMessageEntry> Messages { get; } = [];
 
+    public string[] PartyNames { get; } = new string[4];
+
     public TextReader(ILogger<TextReader> logger)
     {
         this.logger = logger;
@@ -77,6 +80,11 @@ public sealed class TextReader : IReader
         currentLength = 0;
         LastTotemName = string.Empty;
         LastTargetName = string.Empty;
+
+        for (int i = 0; i < PartyNames.Length; i++)
+        {
+            PartyNames[i] = string.Empty;
+        }
     }
 
     public void Update(IAddonDataProvider reader)
@@ -142,6 +150,10 @@ public sealed class TextReader : IReader
             case TextCommand.ChatParty:
                 ProcessChatMessage(text);
                 break;
+
+            case TextCommand.PartyName:
+                ProcessPartyName(text);
+                break;
         }
 
         lastOffset = -1;
@@ -175,6 +187,24 @@ public sealed class TextReader : IReader
         ChatMessageReceived?.Invoke(chatType, author, message);
 
         logger.LogInformation(entry.ToString());
+    }
+
+    private void ProcessPartyName(string text)
+    {
+        int spaceIdx = text.IndexOf(' ');
+        if (spaceIdx == -1)
+        {
+            logger.LogWarning("Malformed party name payload: {Text}", text);
+            return;
+        }
+
+        string slotPart = text[..spaceIdx];
+        string name = text[(spaceIdx + 1)..];
+
+        if (int.TryParse(slotPart, out int slot) && slot >= 1 && slot <= 4)
+        {
+            PartyNames[slot - 1] = name;
+        }
     }
 
     /// <summary>

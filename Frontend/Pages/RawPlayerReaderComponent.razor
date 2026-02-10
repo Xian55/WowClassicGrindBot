@@ -11,13 +11,14 @@
 @inject SessionStat sessionStat
 @inject GossipReader gossipReader
 @inject ActionBarBits<ICurrentAction> currentAction
+@inject TextReader textReader
 
 @implements IDisposable
 
 <div class="container">
     @RenderCard("AddonReader", "addon", addonReader)
     @RenderCard("PlayerReader", "player", PlayerReader)
-    @RenderCard("Party", "party", PlayerReader.PartyDebug)
+    @RenderCard("Party", "party", PlayerReader.PartyDebug, RenderPartyBody())
     @RenderCard("AddonBits", "bits", bits)
     @RenderCard("CurrentAction", "currentAction", currentAction)
     @RenderCard("SpellInRange", "spell", spellInRange)
@@ -48,7 +49,7 @@
         base.InvokeAsync(StateHasChanged);
     }
 
-    private RenderFragment RenderCard(string title, string key, object obj) => builder =>
+    private RenderFragment RenderCard(string title, string key, object obj, RenderFragment? bodyOverride = null) => builder =>
     {
         int seq = 0;
         builder.OpenElement(seq++, "div");
@@ -73,9 +74,18 @@
             builder.OpenElement(seq++, "div");
             builder.AddAttribute(seq++, "class", "card-body");
             builder.AddAttribute(seq++, "style", "padding-bottom: 0");
-            builder.OpenComponent<TableOfComponent>(seq++);
-            builder.AddAttribute(seq++, "Obj", obj);
-            builder.CloseComponent();
+
+            if (bodyOverride is not null)
+            {
+                builder.AddContent(seq++, bodyOverride);
+            }
+            else
+            {
+                builder.OpenComponent<TableOfComponent>(seq++);
+                builder.AddAttribute(seq++, "Obj", obj);
+                builder.CloseComponent();
+            }
+
             builder.CloseElement();
         }
 
@@ -89,5 +99,57 @@
             expandedSections.Remove(key);
         }
     }
+
+    private RenderFragment RenderPartyBody() => builder =>
+    {
+        int seq = 0;
+        builder.OpenElement(seq++, "table");
+        builder.AddAttribute(seq++, "class", "table table-bordered mb-0");
+
+        builder.OpenElement(seq++, "thead");
+        builder.OpenElement(seq++, "tr");
+        builder.AddContent(seq++, (MarkupString)"<th>Member</th><th>Exists</th><th>Name</th><th>Location</th><th>In Combat</th>");
+        builder.CloseElement();
+        builder.CloseElement();
+
+        builder.OpenElement(seq++, "tbody");
+        foreach (var member in PlayerReader.PartyDebug)
+        {
+            builder.OpenElement(seq++, "tr");
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, $"Party{member.Slot}");
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.Exists ? "Yes" : "No");
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            string name = textReader.PartyNames[Math.Clamp(member.Slot - 1, 0, 3)];
+            builder.AddContent(seq++, string.IsNullOrWhiteSpace(name) ? (member.NameHash == 0 ? "-" : $"Hash {member.NameHash}") : name);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            if (member.MapId == 0)
+            {
+                builder.AddContent(seq++, "-");
+            }
+            else
+            {
+                builder.AddContent(seq++, $"Map {member.MapId}: {member.MapX:F2}, {member.MapY:F2}");
+            }
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.InCombat ? "Yes" : "No");
+            builder.CloseElement();
+
+            builder.CloseElement();
+        }
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
 
 }
