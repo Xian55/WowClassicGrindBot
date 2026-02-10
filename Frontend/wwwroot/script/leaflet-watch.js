@@ -1891,6 +1891,9 @@ function removeCustomMarker(markerId) {
 
 // Expose to global scope for popup button
 window.removeCustomMarker = removeCustomMarker;
+// Expose map helpers for Blazor interop
+window.setPartyLocations = setPartyLocations;
+window.setPlayerLocation = setPlayerLocation;
 
 ///////////////////////////////////////////////////
 
