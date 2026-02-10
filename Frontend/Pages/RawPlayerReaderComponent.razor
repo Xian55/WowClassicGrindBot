@@ -15,106 +15,23 @@
 @implements IDisposable
 
 <div class="container">
-    <div class="card">
-        <div class="card-header">
-            AddonReader
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@addonReader" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            PlayerReader
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@PlayerReader" />
-        </div>
-    </div>
-    <div class="card">
-        <div class="card-header">
-            AddonBits
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@bits" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            CurrentAction
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@currentAction" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            SpellInRange
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@spellInRange" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            CombatLog
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@combatLog" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            Player Buffs
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@playerbuffs" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            Focus Buffs
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@focusbuffs" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            Actionbar Cost Reader
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@costReader" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            Session Stats
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@sessionStat" />
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header">
-            Gossip
-        </div>
-        <div class="card-body" style="padding-bottom: 0">
-            <TableOfComponent Obj="@gossipReader" />
-        </div>
-    </div>
+    @RenderCard("AddonReader", "addon", addonReader)
+    @RenderCard("PlayerReader", "player", PlayerReader)
+    @RenderCard("Party", "party", PlayerReader.PartyDebug)
+    @RenderCard("AddonBits", "bits", bits)
+    @RenderCard("CurrentAction", "currentAction", currentAction)
+    @RenderCard("SpellInRange", "spell", spellInRange)
+    @RenderCard("CombatLog", "combat", combatLog)
+    @RenderCard("Player Buffs", "playerBuffs", playerbuffs)
+    @RenderCard("Focus Buffs", "focusBuffs", focusbuffs)
+    @RenderCard("Actionbar Cost Reader", "cost", costReader)
+    @RenderCard("Session Stats", "session", sessionStat)
+    @RenderCard("Gossip", "gossip", gossipReader)
 </div>
 
 @code {
+
+    private readonly HashSet<string> expandedSections = new(["addon", "player", "party", "bits", "currentAction", "spell", "combat", "playerBuffs", "focusBuffs", "cost", "session", "gossip"]);
 
     protected override void OnInitialized()
     {
@@ -129,6 +46,48 @@
     private void OnAddonDataChanged()
     {
         base.InvokeAsync(StateHasChanged);
+    }
+
+    private RenderFragment RenderCard(string title, string key, object obj) => builder =>
+    {
+        int seq = 0;
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", "card");
+
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", "card-header d-flex justify-content-between align-items-center");
+        builder.OpenElement(seq++, "span");
+        builder.AddContent(seq++, title);
+        builder.CloseElement();
+
+        builder.OpenElement(seq++, "button");
+        builder.AddAttribute(seq++, "class", "btn btn-sm btn-outline-secondary");
+        builder.AddAttribute(seq++, "type", "button");
+        builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create(this, () => Toggle(key)));
+        builder.AddContent(seq++, expandedSections.Contains(key) ? "Hide" : "Show");
+        builder.CloseElement();
+        builder.CloseElement();
+
+        if (expandedSections.Contains(key))
+        {
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(seq++, "class", "card-body");
+            builder.AddAttribute(seq++, "style", "padding-bottom: 0");
+            builder.OpenComponent<TableOfComponent>(seq++);
+            builder.AddAttribute(seq++, "Obj", obj);
+            builder.CloseComponent();
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+
+    private void Toggle(string key)
+    {
+        if (!expandedSections.Add(key))
+        {
+            expandedSections.Remove(key);
+        }
     }
 
 }
