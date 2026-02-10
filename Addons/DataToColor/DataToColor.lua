@@ -271,6 +271,7 @@ local TEXT_CMD_CHAT_EMOTE = 3
 local TEXT_CMD_CHAT_PARTY = 4
 local TEXT_CMD_TARGET_NAME = 5
 local TEXT_CMD_TOTEM_NAME = 6
+local TEXT_CMD_PARTY_NAME = 7
 
 -- Export for other files
 DataToColor.TextCommand = {
@@ -281,6 +282,7 @@ DataToColor.TextCommand = {
     ChatParty = TEXT_CMD_CHAT_PARTY,
     TargetName = TEXT_CMD_TARGET_NAME,
     TotemName = TEXT_CMD_TOTEM_NAME,
+    PartyName = TEXT_CMD_PARTY_NAME,
 }
 
 -- Pre-allocated free-list pool to avoid table allocation on push
@@ -338,6 +340,23 @@ function DataToColor:PushTotemName(name)
     DataToColor:PushText(TEXT_CMD_TOTEM_NAME, name)
 end
 
+function DataToColor:PushPartyName(slot, name)
+    if not slot or slot < 1 or slot > 4 then return end
+    if not name or name == "" then return end
+
+    -- Strip realm if present
+    local dashPos = name:find('-')
+    if dashPos then
+        name = name:sub(1, dashPos - 1)
+    end
+
+    local cached = DataToColor.partyNameCache[slot]
+    if cached == name then return end
+
+    DataToColor.partyNameCache[slot] = name
+    DataToColor:PushText(TEXT_CMD_PARTY_NAME, slot .. " " .. name)
+end
+
 function DataToColor:PushTargetName(name)
     DataToColor:PushText(TEXT_CMD_TARGET_NAME, name)
 end
@@ -352,6 +371,7 @@ function DataToColor:PushChatMessage(command, author, msg)
 end
 
 DataToColor.playerPetSummons = {}
+DataToColor.partyNameCache = {}
 
 DataToColor.playerBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
 DataToColor.playerDebuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
@@ -1321,7 +1341,9 @@ function DataToColor:CreateFrames()
                     elseif phase == 2 then
                         payload = EncodeCoord(posY)
                     elseif phase == 3 then
-                        payload = HashName20(UnitName(unit))
+                        local unitName = UnitName(unit)
+                        payload = HashName20(unitName)
+                        DataToColor:PushPartyName(partyIndex, unitName)
                     end
                 end
             end
