@@ -1,0 +1,12 @@
+{
+  "name": "wcgb-cypress",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "cy:open": "cypress open",
+    "cy:run": "cypress run"
+  },
+  "devDependencies": {
+    "cypress": "^13.7.0"
+  }
+}
