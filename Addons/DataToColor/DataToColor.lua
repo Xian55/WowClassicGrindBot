@@ -417,6 +417,39 @@ local function GetPartyUnitPosition(unit)
     return uiMapId, pos.x, pos.y
 end
 
+local function EncodePartyVitals(unit)
+    local healthMax = UnitHealthMax(unit) or 0
+    local health = UnitHealth(unit) or 0
+    local healthPct = 0
+    if healthMax > 0 then
+        healthPct = min(100, max(0, floor((health / healthMax) * 100 + 0.5)))
+    end
+
+    local powerType = UnitPowerType(unit) or 0
+    local powerMax = UnitPowerMax(unit, powerType) or 0
+    local power = UnitPower(unit, powerType) or 0
+    local powerPct = 0
+    if powerMax > 0 then
+        powerPct = min(100, max(0, floor((power / powerMax) * 100 + 0.5)))
+    end
+
+    -- PowerType enum is offset by 2 in C# to avoid negative values
+    local encodedPowerType = min(63, max(0, powerType + 2))
+
+    -- Pack into 20 bits: health(7) | power(7) | powerType(6)
+    return lshift(healthPct, 13) + lshift(powerPct, 6) + encodedPowerType
+end
+
+local function GetAuraSpellId(isBuff, unit, index)
+    local _, _, _, _, _, _, spellId
+    if isBuff then
+        _, _, _, _, _, _, spellId = DataToColor:GetCachedBuff(unit, index)
+    else
+        _, _, _, _, _, _, spellId = DataToColor:GetCachedDebuff(unit, index)
+    end
+    return spellId or 0
+end
+
 function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
     DataToColor:RegisterChatCommand('dccpu', 'GetCPUImpact')
@@ -1316,10 +1349,10 @@ function DataToColor:CreateFrames()
             -- Enemy summons (totems, pets summoned by hostile NPCs)
             Pixel(int, DataToColor.EnemySummonQueue:shift(globalTick) or 0, 110)
 
-            -- Party member multiplexed payload (phase << 2 | memberIndex in the upper 4 bits)
-            local partyCycle = globalTick % 16
-            local partyIndex = floor(partyCycle / 4) + 1
-            local phase = partyCycle % 4
+            -- Party member multiplexed payload (phase encodes data type, member index in low bits)
+            local partyCycle = globalTick % 40
+            local partyIndex = floor(partyCycle / 10) + 1
+            local phase = partyCycle % 10
             local prefix = lshift(phase, 2) + (partyIndex - 1)
             local payload = 0
 
@@ -1327,24 +1360,44 @@ function DataToColor:CreateFrames()
             if unit then
                 local exists = UnitExists(unit)
                 local mapId, posX, posY = nil, nil, nil
+                local vitalsPayload = 0
+                local buff1, buff2, buff3 = 0, 0, 0
+                local debuff1, debuff2 = 0, 0
+
                 if exists then
                     mapId, posX, posY = GetPartyUnitPosition(unit)
+                    vitalsPayload = EncodePartyVitals(unit)
+                    buff1 = GetAuraSpellId(true, unit, 1)
+                    buff2 = GetAuraSpellId(true, unit, 2)
+                    buff3 = GetAuraSpellId(true, unit, 3)
+                    debuff1 = GetAuraSpellId(false, unit, 1)
+                    debuff2 = GetAuraSpellId(false, unit, 2)
                 end
 
                 if phase == 0 then
                     local inCombat = exists and UnitAffectingCombat(unit) and 1 or 0
                     mapId = mapId or 0
                     payload = lshift(mapId, 2) + lshift(inCombat, 1) + (exists and 1 or 0)
-                elseif exists and mapId then
-                    if phase == 1 then
-                        payload = EncodeCoord(posX)
-                    elseif phase == 2 then
-                        payload = EncodeCoord(posY)
-                    elseif phase == 3 then
-                        local unitName = UnitName(unit)
-                        payload = HashName20(unitName)
-                        DataToColor:PushPartyName(partyIndex, unitName)
-                    end
+                elseif phase == 1 and exists and mapId then
+                    payload = EncodeCoord(posX)
+                elseif phase == 2 and exists and mapId then
+                    payload = EncodeCoord(posY)
+                elseif phase == 3 and exists then
+                    local unitName = UnitName(unit)
+                    payload = HashName20(unitName)
+                    DataToColor:PushPartyName(partyIndex, unitName)
+                elseif phase == 4 and exists then
+                    payload = vitalsPayload
+                elseif phase == 5 and exists then
+                    payload = buff1
+                elseif phase == 6 and exists then
+                    payload = buff2
+                elseif phase == 7 and exists then
+                    payload = buff3
+                elseif phase == 8 and exists then
+                    payload = debuff1
+                elseif phase == 9 and exists then
+                    payload = debuff2
                 end
             end
 

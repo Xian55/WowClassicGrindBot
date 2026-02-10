@@ -32,11 +32,36 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         public bool Exists;
         public bool InCombat;
         public int NameHash;
+        public int HealthPercent;
+        public int PowerPercent;
+        public int PowerType;
+        public int BuffSpellId1;
+        public int BuffSpellId2;
+        public int BuffSpellId3;
+        public int DebuffSpellId1;
+        public int DebuffSpellId2;
 
         public bool HasCoordinates => MapId != 0 && (MapX != 0 || MapY != 0);
     }
 
     public readonly record struct PartyMemberDebug(int Slot, bool Exists, bool InCombat, int MapId, float MapX, float MapY, int NameHash);
+
+    public readonly record struct PartyMemberStatus(
+        int Slot,
+        bool Exists,
+        bool InCombat,
+        int MapId,
+        float MapX,
+        float MapY,
+        int NameHash,
+        int HealthPercent,
+        int PowerPercent,
+        PowerType PowerType,
+        int BuffSpellId1,
+        int BuffSpellId2,
+        int BuffSpellId3,
+        int DebuffSpellId1,
+        int DebuffSpellId2);
 
     public IReadOnlyList<PartyMemberDebug> PartyDebug =>
     [
@@ -44,6 +69,14 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         new PartyMemberDebug(2, partyMembers[1].Exists, partyMembers[1].InCombat, partyMembers[1].MapId, partyMembers[1].MapX, partyMembers[1].MapY, partyMembers[1].NameHash),
         new PartyMemberDebug(3, partyMembers[2].Exists, partyMembers[2].InCombat, partyMembers[2].MapId, partyMembers[2].MapX, partyMembers[2].MapY, partyMembers[2].NameHash),
         new PartyMemberDebug(4, partyMembers[3].Exists, partyMembers[3].InCombat, partyMembers[3].MapId, partyMembers[3].MapX, partyMembers[3].MapY, partyMembers[3].NameHash)
+    ];
+
+    public IReadOnlyList<PartyMemberStatus> PartyStatus =>
+    [
+        new PartyMemberStatus(1, partyMembers[0].Exists, partyMembers[0].InCombat, partyMembers[0].MapId, partyMembers[0].MapX, partyMembers[0].MapY, partyMembers[0].NameHash, partyMembers[0].HealthPercent, partyMembers[0].PowerPercent, (PowerType)partyMembers[0].PowerType, partyMembers[0].BuffSpellId1, partyMembers[0].BuffSpellId2, partyMembers[0].BuffSpellId3, partyMembers[0].DebuffSpellId1, partyMembers[0].DebuffSpellId2),
+        new PartyMemberStatus(2, partyMembers[1].Exists, partyMembers[1].InCombat, partyMembers[1].MapId, partyMembers[1].MapX, partyMembers[1].MapY, partyMembers[1].NameHash, partyMembers[1].HealthPercent, partyMembers[1].PowerPercent, (PowerType)partyMembers[1].PowerType, partyMembers[1].BuffSpellId1, partyMembers[1].BuffSpellId2, partyMembers[1].BuffSpellId3, partyMembers[1].DebuffSpellId1, partyMembers[1].DebuffSpellId2),
+        new PartyMemberStatus(3, partyMembers[2].Exists, partyMembers[2].InCombat, partyMembers[2].MapId, partyMembers[2].MapX, partyMembers[2].MapY, partyMembers[2].NameHash, partyMembers[2].HealthPercent, partyMembers[2].PowerPercent, (PowerType)partyMembers[2].PowerType, partyMembers[2].BuffSpellId1, partyMembers[2].BuffSpellId2, partyMembers[2].BuffSpellId3, partyMembers[2].DebuffSpellId1, partyMembers[2].DebuffSpellId2),
+        new PartyMemberStatus(4, partyMembers[3].Exists, partyMembers[3].InCombat, partyMembers[3].MapId, partyMembers[3].MapX, partyMembers[3].MapY, partyMembers[3].NameHash, partyMembers[3].HealthPercent, partyMembers[3].PowerPercent, (PowerType)partyMembers[3].PowerType, partyMembers[3].BuffSpellId1, partyMembers[3].BuffSpellId2, partyMembers[3].BuffSpellId3, partyMembers[3].DebuffSpellId1, partyMembers[3].DebuffSpellId2)
     ];
 
     public PlayerReader(
@@ -377,6 +410,14 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
                     state.MapX = 0;
                     state.MapY = 0;
                     state.NameHash = 0;
+                    state.HealthPercent = 0;
+                    state.PowerPercent = 0;
+                    state.PowerType = 0;
+                    state.BuffSpellId1 = 0;
+                    state.BuffSpellId2 = 0;
+                    state.BuffSpellId3 = 0;
+                    state.DebuffSpellId1 = 0;
+                    state.DebuffSpellId2 = 0;
                 }
                 break;
 
@@ -398,6 +439,50 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
                 if (state.Exists)
                 {
                     state.NameHash = payload;
+                }
+                break;
+
+            case 4:
+                if (state.Exists)
+                {
+                    state.HealthPercent = payload >> 13;
+                    state.PowerPercent = (payload >> 6) & 0x7F;
+                    state.PowerType = payload & 0x3F;
+                }
+                break;
+
+            case 5:
+                if (state.Exists)
+                {
+                    state.BuffSpellId1 = payload;
+                }
+                break;
+
+            case 6:
+                if (state.Exists)
+                {
+                    state.BuffSpellId2 = payload;
+                }
+                break;
+
+            case 7:
+                if (state.Exists)
+                {
+                    state.BuffSpellId3 = payload;
+                }
+                break;
+
+            case 8:
+                if (state.Exists)
+                {
+                    state.DebuffSpellId1 = payload;
+                }
+                break;
+
+            case 9:
+                if (state.Exists)
+                {
+                    state.DebuffSpellId2 = payload;
                 }
                 break;
         }

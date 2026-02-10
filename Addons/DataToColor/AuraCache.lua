@@ -41,6 +41,11 @@ local trackedUnits = {
     "softinteract",
 }
 
+-- Track party units for aura snapshots
+for i = 1, 4 do
+    trackedUnits[#trackedUnits + 1] = "party" .. i
+end
+
 -- Initialize cache structure for each unit
 for _, unit in ipairs(trackedUnits) do
     unitCache[unit] = {
@@ -76,6 +81,7 @@ local function ReleaseAuraEntry(entry)
         entry.count = nil
         entry.duration = nil
         entry.expirationTime = nil
+        entry.spellId = nil
         poolSize = poolSize + 1
         auraPool[poolSize] = entry
     end
@@ -110,7 +116,7 @@ local function RefreshBuffCache(unitId)
 
     -- Scan buffs (max 40)
     for i = 1, 40 do
-        local name, texture, count, debuffType, duration, expirationTime = UnitBuff(unitId, i)
+        local name, texture, count, debuffType, duration, expirationTime, _, _, _, spellId = UnitBuff(unitId, i)
         if not name then
             break
         end
@@ -121,6 +127,7 @@ local function RefreshBuffCache(unitId)
         entry.count = count or 0
         entry.duration = duration or 0
         entry.expirationTime = expirationTime or 0
+        entry.spellId = spellId or 0
 
         cache.buffCount = cache.buffCount + 1
         cache.buffs[cache.buffCount] = entry
@@ -148,7 +155,7 @@ local function RefreshDebuffCache(unitId)
 
     -- Scan debuffs (max 40)
     for i = 1, 40 do
-        local name, texture, count, debuffType, duration, expirationTime = UnitDebuff(unitId, i)
+        local name, texture, count, debuffType, duration, expirationTime, _, _, _, spellId = UnitDebuff(unitId, i)
         if not name then
             break
         end
@@ -159,6 +166,7 @@ local function RefreshDebuffCache(unitId)
         entry.count = count or 0
         entry.duration = duration or 0
         entry.expirationTime = expirationTime or 0
+        entry.spellId = spellId or 0
 
         cache.debuffCount = cache.debuffCount + 1
         cache.debuffs[cache.debuffCount] = entry
@@ -212,7 +220,7 @@ function DataToColor:GetCachedBuff(unitId, index)
         return nil
     end
 
-    return entry.name, entry.texture, entry.count, nil, entry.duration, entry.expirationTime
+    return entry.name, entry.texture, entry.count, nil, entry.duration, entry.expirationTime, entry.spellId
 end
 
 -- Get cached debuff data (replacement for UnitDebuff)
@@ -227,7 +235,7 @@ function DataToColor:GetCachedDebuff(unitId, index)
         return nil
     end
 
-    return entry.name, entry.texture, entry.count, nil, entry.duration, entry.expirationTime
+    return entry.name, entry.texture, entry.count, nil, entry.duration, entry.expirationTime, entry.spellId
 end
 
 -- Get cached buff count

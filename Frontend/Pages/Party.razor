@@ -1,0 +1,197 @@
+@page "/Party"
+
+@inject IAddonReader addonReader
+@inject PlayerReader PlayerReader
+@inject TextReader textReader
+@inject IconDB iconDB
+@inject WorldMapAreaDB worldMapAreaDB
+@inject IJSRuntime jsRuntime
+
+@using System.Linq
+
+@implements IDisposable
+
+<div class="container py-3">
+    <div class="row g-3">
+        <div class="col-lg-5">
+            @foreach (var member in PlayerReader.PartyStatus)
+            {
+                var name = GetName(member);
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>@(string.IsNullOrWhiteSpace(name) ? $"Party {member.Slot}" : name)</strong>
+                            <span class="text-muted ms-2">Map @member.MapId</span>
+                        </div>
+                        <span class="badge @(member.InCombat ? "bg-danger" : "bg-secondary")">@(member.InCombat ? "Combat" : "Idle")</span>
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var buffIcons = GetBuffIcons(member).ToArray();
+                            var debuffIcons = GetDebuffIcons(member).ToArray();
+                        }
+                        <div class="small text-muted mb-1">Location: @(member.MapId == 0 ? "-" : $"{member.MapX:F2}, {member.MapY:F2}")</div>
+                        <div class="mb-2">
+                            <div class="progress" style="height:16px;">
+                                <div class="progress-bar bg-danger" role="progressbar" style="width:@member.HealthPercent%">@member.HealthPercent%</div>
+                            </div>
+                            <div class="progress mt-1" style="height:14px;">
+                                <div class="progress-bar @GetPowerClass(member.PowerType)" role="progressbar" style="width:@member.PowerPercent%">
+                                    @member.PowerPercent% @(member.PowerType.ToStringF())
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <div class="small text-muted">Buffs</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var icon in buffIcons)
+                                {
+                                    <img src="@icon" width="28" height="28" class="rounded" alt="buff" />
+                                }
+                                @if (buffIcons.Length == 0)
+                                {
+                                    <span class="text-muted small">None</span>
+                                }
+                            </div>
+                        </div>
+                        <div>
+                            <div class="small text-muted">Debuffs</div>
+                            <div class="d-flex flex-wrap gap-1">
+                                @foreach (var icon in debuffIcons)
+                                {
+                                    <img src="@icon" width="28" height="28" class="rounded border border-danger" alt="debuff" />
+                                }
+                                @if (debuffIcons.Length == 0)
+                                {
+                                    <span class="text-muted small">None</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="col-lg-7">
+            <LeafletComponent Size="60vh" Edit="false" />
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool mapReady;
+
+    protected override void OnInitialized()
+    {
+        addonReader.AddonDataChanged += OnAddonDataChanged;
+    }
+
+    public void Dispose()
+    {
+        addonReader.AddonDataChanged -= OnAddonDataChanged;
+    }
+
+    private void OnAddonDataChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            mapReady = true;
+        }
+
+        await PushPartyMarkers();
+    }
+
+    private string GetName(PlayerReader.PartyMemberStatus member)
+    {
+        if (member.Slot < 1 || member.Slot > textReader.PartyNames.Length)
+        {
+            return string.Empty;
+        }
+
+        return textReader.PartyNames[member.Slot - 1];
+    }
+
+    private string GetPowerClass(PowerType powerType) => powerType switch
+    {
+        PowerType.Rage => "bg-danger",
+        PowerType.Focus => "bg-warning text-dark",
+        PowerType.Energy => "bg-warning text-dark",
+        PowerType.RunicPower => "bg-info",
+        PowerType.Pain => "bg-info",
+        PowerType.HolyPower => "bg-warning text-dark",
+        _ => "bg-primary"
+    };
+
+    private IEnumerable<string> GetBuffIcons(PlayerReader.PartyMemberStatus member)
+    {
+        string? first = ToIconUrl(member.BuffSpellId1);
+        string? second = ToIconUrl(member.BuffSpellId2);
+        string? third = ToIconUrl(member.BuffSpellId3);
+
+        if (!string.IsNullOrEmpty(first)) yield return first;
+        if (!string.IsNullOrEmpty(second)) yield return second;
+        if (!string.IsNullOrEmpty(third)) yield return third;
+    }
+
+    private IEnumerable<string> GetDebuffIcons(PlayerReader.PartyMemberStatus member)
+    {
+        string? first = ToIconUrl(member.DebuffSpellId1);
+        string? second = ToIconUrl(member.DebuffSpellId2);
+
+        if (!string.IsNullOrEmpty(first)) yield return first;
+        if (!string.IsNullOrEmpty(second)) yield return second;
+    }
+
+    private string? ToIconUrl(int spellId)
+    {
+        if (spellId <= 0)
+        {
+            return null;
+        }
+
+        return iconDB.GetIconUrlForSpell(spellId, 36);
+    }
+
+    private async Task PushPartyMarkers()
+    {
+        if (!mapReady)
+        {
+            return;
+        }
+
+        List<object> markers = new();
+        foreach (var member in PlayerReader.PartyStatus)
+        {
+            if (!member.Exists || member.MapId == 0)
+            {
+                continue;
+            }
+
+            if (!worldMapAreaDB.TryGet(member.MapId, out WorldMapArea area))
+            {
+                continue;
+            }
+
+            var world = worldMapAreaDB.ToWorld_FlipXY(member.MapId, new System.Numerics.Vector3(member.MapX, member.MapY, 0));
+            string label = GetMarkerLabel(member);
+            markers.Add(new { x = world.X, y = world.Y, label });
+        }
+
+        await jsRuntime.InvokeVoidAsync("setPartyLocations", markers);
+    }
+
+    private string GetMarkerLabel(PlayerReader.PartyMemberStatus member)
+    {
+        string name = GetName(member);
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            return name[..1].ToUpperInvariant();
+        }
+
+        return $"P{member.Slot}";
+    }
+}

@@ -136,6 +136,7 @@ const ADTGridTextLayer = new L.LayerGroup();
 const editableLayers = new L.FeatureGroup();
 
 var playerLayer;
+var partyLayerGroup;
 
 var recordPlayerPath = false;
 var currentRecordPlayerPath = '';
@@ -745,6 +746,43 @@ function createPlayer(latlng) {
         });
         playerLayer = new L.marker(latlng, { icon: playerIcon })
         playerLayer.addTo(LeafletMap);
+    });
+}
+
+function ensurePartyLayer() {
+    if (partyLayerGroup === undefined || partyLayerGroup === null) {
+        partyLayerGroup = L.layerGroup().addTo(LeafletMap);
+    }
+}
+
+function setPartyLocations(members) {
+    if (LeafletMap === undefined || LeafletMap === null) {
+        return;
+    }
+
+    ensurePartyLayer();
+    partyLayerGroup.clearLayers();
+
+    if (!Array.isArray(members)) {
+        return;
+    }
+
+    members.forEach(m => {
+        if (!m || m.x === undefined || m.y === undefined) {
+            return;
+        }
+
+        const latlng = worldTolatLng(m.x, m.y);
+        const label = m.label || '';
+        const badge = `<div style="width:18px;height:18px;background:#0dcaf0;border-radius:50%;color:#fff;font-size:11px;line-height:18px;text-align:center;border:1px solid #0aa4c2;">${label}</div>`;
+        const icon = L.divIcon({
+            className: 'party-icon',
+            iconSize: [18, 18],
+            html: badge,
+        });
+
+        const marker = new L.marker(latlng, { icon: icon, title: label });
+        marker.addTo(partyLayerGroup);
     });
 }
 
