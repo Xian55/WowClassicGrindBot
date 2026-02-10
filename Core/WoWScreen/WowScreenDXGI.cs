@@ -76,6 +76,7 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
     private readonly IDXGIOutputDuplication duplication;
 
     private readonly bool windowedMode;
+    private bool deviceRemoved;
 
     // IGpuTextureProvider
     private ID3D11Texture2D? lastCapturedTexture;
@@ -243,6 +244,9 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
     [SkipLocalsInit]
     public void Update()
     {
+        if (deviceRemoved)
+            return;
+
         if (windowedMode)
         {
             GetRectangle(out screenRect);
@@ -255,7 +259,14 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
                 return;
         }
 
-        duplication.ReleaseFrame();
+        try
+        {
+            duplication.ReleaseFrame();
+        }
+        catch (SharpGenException) when (CheckDeviceRemoved())
+        {
+            return;
+        }
 
         Result result = duplication.AcquireNextFrame(5,
             out OutduplFrameInfo frame,
@@ -271,20 +282,41 @@ public sealed class WowScreenDXGI : IWowScreen, IAddonDataProvider, IGpuTextureP
             return;
         }
 
-        ID3D11Texture2D texture
-            = idxgiResource.QueryInterface<ID3D11Texture2D>();
+        try
+        {
+            ID3D11Texture2D texture
+                = idxgiResource.QueryInterface<ID3D11Texture2D>();
 
-        lastCapturedTexture?.Dispose();
-        lastCapturedTexture = texture;
+            lastCapturedTexture?.Dispose();
+            lastCapturedTexture = texture;
 
-        if (frames.Length > 2)
-            UpdateAddonImage(texture);
+            if (frames.Length > 2)
+                UpdateAddonImage(texture);
 
-        if (Enabled || AlwaysCapture)
-            UpdateScreenImage(texture);
+            if (Enabled || AlwaysCapture)
+                UpdateScreenImage(texture);
 
-        if (MinimapEnabled)
-            UpdateMinimapImage(texture);
+            if (MinimapEnabled)
+                UpdateMinimapImage(texture);
+        }
+        catch (SharpGenException) when (CheckDeviceRemoved())
+        {
+            // Device lost — silently stop capturing
+        }
+    }
+
+    private bool CheckDeviceRemoved()
+    {
+        try
+        {
+            if (device.DeviceRemovedReason.Success)
+                return false;
+        }
+        catch { }
+
+        deviceRemoved = true;
+        logger.LogError("GPU device removed (DXGI_ERROR_DEVICE_REMOVED). Screen capture disabled. Restart the bot to recover.");
+        return true;
     }
 
     [SkipLocalsInit]

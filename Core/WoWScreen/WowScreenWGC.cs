@@ -7,6 +7,8 @@ using Game;
 
 using Microsoft.Extensions.Logging;
 
+using SharpGen.Runtime;
+
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.PixelFormats;
@@ -91,6 +93,8 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
     private GraphicsCaptureItem? captureItem;
     private Direct3D11CaptureFramePool? framePool;
     private GraphicsCaptureSession? captureSession;
+
+    private bool deviceRemoved;
 
     // Double-buffer: WGC writes async, Update() reads
     private readonly Lock frameLock = new();
@@ -372,6 +376,9 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
     [SkipLocalsInit]
     public void Update()
     {
+        if (deviceRemoved)
+            return;
+
         // Get latest window rect
         GetRectangle(out Rectangle newRect);
 
@@ -423,6 +430,10 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
                 deviceContext.Unmap(frameToProcess, 0);
             }
         }
+        catch (SharpGenException) when (CheckDeviceRemoved())
+        {
+            // Device lost — silently stop capturing
+        }
         finally
         {
             using (frameLock.EnterScope())
@@ -459,6 +470,20 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
         }
     }
 #endif
+
+    private bool CheckDeviceRemoved()
+    {
+        try
+        {
+            if (device.DeviceRemovedReason.Success)
+                return false;
+        }
+        catch { }
+
+        deviceRemoved = true;
+        logger.LogError("GPU device removed (DXGI_ERROR_DEVICE_REMOVED). Screen capture disabled. Restart the bot to recover.");
+        return true;
+    }
 
     private void RecreateFramePool()
     {
