@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 using System;
 using System.Collections.Frozen;
@@ -43,6 +44,13 @@ public enum CoordinateSource
     World = 1
 }
 
+public enum PartyRole
+{
+    Tank = 0,
+    Healer = 1,
+    DPS = 2
+}
+
 [Flags]
 public enum FollowRadiusEnforcements
 {
@@ -56,6 +64,9 @@ public sealed class PartyOptions
     public PartyFollowMode Mode { get; set; } = PartyFollowMode.Focus;
 
     public CoordinateSource CoordinateSource { get; set; } = CoordinateSource.Map;
+
+    [JsonConverter(typeof(StringEnumConverter))]
+    public PartyRole Role { get; set; } = PartyRole.DPS;
 
     public float FollowRadius { get; set; } = 4f;
 

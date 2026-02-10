@@ -1,0 +1,87 @@
+{
+  "ClassName": "Shaman",
+  "Skin": false,
+  "UseMount": true,
+  "Mode": "PartyFollow",
+  "PathThereAndBack": true,
+  "PathReduceSteps": true,
+  "NPCMaxLevels_Above": 2,
+  "NPCMaxLevels_Below": 7,
+  "Mount": { "Key": "N1" },
+  "Party": {
+    "Mode": "Focus",
+    "CoordinateSource": "Map",
+    "Role": "Healer",
+    "FollowRadius": 4.0,
+    "CombatLeash": 30.0,
+    "RepathIntervalSeconds": 1.0,
+    "Enforcements": "LineOfSight, FallbackToRegroup",
+    "LeaderName": "",
+    "LeaderSlot": 1
+  },
+  "Pull": {
+    "Sequence": []
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Lesser Healing Wave",
+        "Key": "3",
+        "HasCastBar": true,
+        "Cooldown": 1500,
+        "Requirements": [
+          "Health% < 65"
+        ]
+      },
+      {
+        "Name": "Healing Wave",
+        "Key": "4",
+        "HasCastBar": true,
+        "Cooldown": 2500,
+        "Requirements": [
+          "Health% < 40"
+        ]
+      },
+      {
+        "Name": "Earth Shock",
+        "Key": "2",
+        "Cooldown": 6000,
+        "Requirements": [
+          "InMeleeRange",
+          "Mana% > 25"
+        ]
+      },
+      {
+        "Name": "AutoAttack"
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Lightning Shield",
+        "Key": "5",
+        "Requirement": "!Lightning Shield"
+      },
+      {
+        "Name": "Water Walking",
+        "Key": "N0",
+        "Requirement": "!Swimming"
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < 40"
+      },
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < 45"
+      }
+    ]
+  }
+}

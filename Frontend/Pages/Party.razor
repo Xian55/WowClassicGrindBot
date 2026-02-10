@@ -6,15 +6,21 @@
 @inject IconDB iconDB
 @inject WorldMapAreaDB worldMapAreaDB
 @inject IJSRuntime jsRuntime
+@inject ClassConfiguration classConfig
 
 @using System.Linq
+@using System.Collections.Generic
 
 @implements IDisposable
 
 <div class="container py-3">
     <div class="row g-3">
         <div class="col-lg-5">
-            @foreach (var member in PlayerReader.PartyStatus)
+            <div class="d-flex align-items-center mb-2">
+                <div class="me-2 fw-semibold">Role</div>
+                <span class="badge bg-info text-dark">@classConfig.Party.Role.ToString()</span>
+            </div>
+            @foreach (var member in GetStableParty())
             {
                 var name = GetName(member);
                 <div class="card mb-3">
@@ -79,6 +85,9 @@
 
 @code {
     private bool mapReady;
+    private readonly Dictionary<int, PlayerReader.PartyMemberStatus> lastParty = new();
+    private readonly Dictionary<int, DateTime> lastSeen = new();
+    private static readonly TimeSpan PartyStaleAfter = TimeSpan.FromSeconds(5);
 
     protected override void OnInitialized()
     {
@@ -163,8 +172,10 @@
             return;
         }
 
+        var party = GetStableParty();
+
         List<object> markers = new();
-        foreach (var member in PlayerReader.PartyStatus)
+        foreach (var member in party)
         {
             if (!member.Exists || member.MapId == 0)
             {
@@ -178,7 +189,7 @@
 
             var world = worldMapAreaDB.ToWorld_FlipXY(member.MapId, new System.Numerics.Vector3(member.MapX, member.MapY, 0));
             string label = GetMarkerLabel(member);
-            markers.Add(new { x = world.X, y = world.Y, label });
+            markers.Add(new { id = member.Slot, x = world.X, y = world.Y, label });
         }
 
         await jsRuntime.InvokeVoidAsync("setPartyLocations", markers);
@@ -193,5 +204,36 @@
         }
 
         return $"P{member.Slot}";
+    }
+
+    private IReadOnlyList<PlayerReader.PartyMemberStatus> GetStableParty()
+    {
+        foreach (var member in PlayerReader.PartyStatus)
+        {
+            if (member.Exists)
+            {
+                lastParty[member.Slot] = member;
+                lastSeen[member.Slot] = DateTime.UtcNow;
+            }
+        }
+
+        List<PlayerReader.PartyMemberStatus> snapshot = new(capacity: 4);
+        var now = DateTime.UtcNow;
+
+        for (int slot = 1; slot <= 4; slot++)
+        {
+            if (lastParty.TryGetValue(slot, out var cached) &&
+                lastSeen.TryGetValue(slot, out var seen) &&
+                now - seen <= PartyStaleAfter)
+            {
+                snapshot.Add(cached);
+            }
+            else
+            {
+                snapshot.Add(new PlayerReader.PartyMemberStatus(slot, false, false, 0, 0, 0, 0, 0, 0, PowerType.Mana, 0, 0, 0, 0, 0));
+            }
+        }
+
+        return snapshot;
     }
 }
