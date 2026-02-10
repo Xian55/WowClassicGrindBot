@@ -1,4 +1,5 @@
 ﻿@using System.Reflection
+@using System.Collections
 
 @if (Obj != null)
 {
@@ -52,9 +53,38 @@
         string objName = obj.ToString() ?? "";
         if (objName.Length > 0) objName += ".";
 
+        if (obj is IEnumerable enumerable && obj is not string)
+        {
+            int idx = 0;
+            foreach (var item in enumerable)
+            {
+                if (item == null)
+                {
+                    idx++;
+                    continue;
+                }
+
+                if (item.GetType().IsPrimitive || item is string)
+                {
+                    propList.Add(new ObjectField() { Name = objName + "[" + idx + "]", Value = item.ToString() ?? string.Empty });
+                }
+                else
+                {
+                    foreach (var nested in GetPropertyValues(item))
+                    {
+                        propList.Add(new ObjectField() { Name = "[" + idx + "]." + nested.Name, Value = nested.Value });
+                    }
+                }
+
+                idx++;
+            }
+
+            return propList;
+        }
+
         foreach (var pinfo in obj.GetType().GetProperties())
         {
-            if (pinfo.GetIndexParameters().Length != 0) return propList;
+            if (pinfo.GetIndexParameters().Length != 0) continue;
 
             var value = pinfo.GetValue(obj, null);
             if (value == null) continue;
