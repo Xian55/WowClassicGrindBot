@@ -5,15 +5,27 @@
 -- Trigger between emitting game data and frame location data
 local SETUP_SEQUENCE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 117
+local NUMBER_OF_FRAMES = 170
 -- Set number of pixel rows
-local FRAME_ROWS = 1
+local FRAME_ROWS = 2
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
 local CELL_SIZE = 1 -- 1-9
 -- Spacing in px between data squares.
 local CELL_SPACING = 1 -- 0 or 1
 
 local GLOBAL_TIME_CELL = NUMBER_OF_FRAMES - 2
+
+-- Party frame layout (dedicated frames per member on second row)
+local PARTY_FRAME_START = 121 -- first party frame index (odd -> row 2)
+local PARTY_FRAME_STRIDE = 12 -- keeps all party frames on row 2 (odd indices only)
+local PARTY_FRAME_OFFSETS = {
+    MapFlags = 0,     -- mapId + inCombat + exists
+    Vitals = 2,       -- health%, power%, powerType
+    PosX = 4,         -- encoded X
+    PosY = 6,         -- encoded Y
+    Name = 8,         -- 20-bit hash of name
+    ClassLevel = 10,  -- level + classId
+}
 
 -- Dont modify values below
 
@@ -1349,60 +1361,41 @@ function DataToColor:CreateFrames()
             -- Enemy summons (totems, pets summoned by hostile NPCs)
             Pixel(int, DataToColor.EnemySummonQueue:shift(globalTick) or 0, 110)
 
-            -- Party members now have dedicated frames (one per slot) but still share the phase cycle
-            -- Phase encodes data type (0-9); lower bits in prefix keep slot for backward compatibility
-            local phase = globalTick % 10
-
+            -- Party members: dedicated frames per member (all on second row)
+            -- Offsets per member: map flags, vitals, posX, posY, name hash, class/level
             for partyIndex = 1, 4 do
-                local prefix = lshift(phase, 2) + (partyIndex - 1)
-                local payload = 0
-
+                local base = PARTY_FRAME_START + (partyIndex - 1) * PARTY_FRAME_STRIDE
                 local unit = DataToColor.C.unitPartyNames[partyIndex]
-                if unit then
-                    local exists = UnitExists(unit)
-                    local mapId, posX, posY = nil, nil, nil
-                    local vitalsPayload = 0
-                    local buff1, buff2, buff3 = 0, 0, 0
-                    local debuff1, debuff2 = 0, 0
+                local exists = unit and UnitExists(unit)
 
-                    if exists then
-                        mapId, posX, posY = GetPartyUnitPosition(unit)
-                        vitalsPayload = EncodePartyVitals(unit)
-                        buff1 = GetAuraSpellId(true, unit, 1)
-                        buff2 = GetAuraSpellId(true, unit, 2)
-                        buff3 = GetAuraSpellId(true, unit, 3)
-                        debuff1 = GetAuraSpellId(false, unit, 1)
-                        debuff2 = GetAuraSpellId(false, unit, 2)
-                    end
+                local mapId, posX, posY = 0, 0, 0
+                local vitalsPayload = 0
+                local nameHash = 0
+                local classId = 0
+                local level = 0
 
-                    if phase == 0 then
-                        local inCombat = exists and UnitAffectingCombat(unit) and 1 or 0
-                        mapId = mapId or 0
-                        payload = lshift(mapId, 2) + lshift(inCombat, 1) + (exists and 1 or 0)
-                    elseif phase == 1 and exists and mapId then
-                        payload = EncodeCoord(posX)
-                    elseif phase == 2 and exists and mapId then
-                        payload = EncodeCoord(posY)
-                    elseif phase == 3 and exists then
-                        local unitName = UnitName(unit)
-                        payload = HashName20(unitName)
-                        DataToColor:PushPartyName(partyIndex, unitName)
-                    elseif phase == 4 and exists then
-                        payload = vitalsPayload
-                    elseif phase == 5 and exists then
-                        payload = buff1
-                    elseif phase == 6 and exists then
-                        payload = buff2
-                    elseif phase == 7 and exists then
-                        payload = buff3
-                    elseif phase == 8 and exists then
-                        payload = debuff1
-                    elseif phase == 9 and exists then
-                        payload = debuff2
-                    end
+                if exists then
+                    mapId, posX, posY = GetPartyUnitPosition(unit)
+                    mapId = mapId or 0
+                    vitalsPayload = EncodePartyVitals(unit)
+                    nameHash = HashName20(UnitName(unit))
+                    local _, classTag, classNumericId = UnitClass(unit)
+                    classId = classNumericId or DataToColor.C.CHARACTER_CLASS_MAP[classTag] or 0
+                    level = UnitLevel(unit) or 0
                 end
 
-                Pixel(int, lshift(prefix, 20) + payload, 110 + partyIndex)
+                local inCombat = exists and UnitAffectingCombat(unit) and 1 or 0
+                local mapFlags = lshift(mapId, 2) + lshift(inCombat, 1) + (exists and 1 or 0)
+                Pixel(int, mapFlags, base + PARTY_FRAME_OFFSETS.MapFlags)
+
+                Pixel(int, vitalsPayload, base + PARTY_FRAME_OFFSETS.Vitals)
+                Pixel(int, exists and EncodeCoord(posX) or 0, base + PARTY_FRAME_OFFSETS.PosX)
+                Pixel(int, exists and EncodeCoord(posY) or 0, base + PARTY_FRAME_OFFSETS.PosY)
+                Pixel(int, nameHash, base + PARTY_FRAME_OFFSETS.Name)
+
+                -- Pack classId (lower 6 bits) and level (upper bits)
+                local classLevel = lshift(level, 6) + band(classId, 0x3F)
+                Pixel(int, classLevel, base + PARTY_FRAME_OFFSETS.ClassLevel)
             end
 
             UpdateGlobalTime()

@@ -19,7 +19,15 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     private readonly AreaDB areaDb;
     private readonly AddonBits bits;
 
-    private static readonly int[] PartyPayloadCells = [111, 112, 113, 114];
+    private const int PartyFrameStart = 121;
+    private const int PartyFrameStride = 12;
+    private const int PartyMapOffset = 0;
+    private const int PartyVitalsOffset = 2;
+    private const int PartyPosXOffset = 4;
+    private const int PartyPosYOffset = 6;
+    private const int PartyNameOffset = 8;
+    private const int PartyClassLevelOffset = 10;
+
     private const int PartyPayloadMask = 0xFFFFF;
 
     private readonly PartyMemberState[] partyMembers = new PartyMemberState[4];
@@ -32,6 +40,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         public bool Exists;
         public bool InCombat;
         public int NameHash;
+        public int ClassId;
+        public int Level;
         public int HealthPercent;
         public int PowerPercent;
         public int PowerType;
@@ -54,6 +64,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         float MapX,
         float MapY,
         int NameHash,
+        int ClassId,
+        int Level,
         int HealthPercent,
         int PowerPercent,
         PowerType PowerType,
@@ -73,10 +85,10 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public IReadOnlyList<PartyMemberStatus> PartyStatus =>
     [
-        new PartyMemberStatus(1, partyMembers[0].Exists, partyMembers[0].InCombat, partyMembers[0].MapId, partyMembers[0].MapX, partyMembers[0].MapY, partyMembers[0].NameHash, partyMembers[0].HealthPercent, partyMembers[0].PowerPercent, (PowerType)partyMembers[0].PowerType, partyMembers[0].BuffSpellId1, partyMembers[0].BuffSpellId2, partyMembers[0].BuffSpellId3, partyMembers[0].DebuffSpellId1, partyMembers[0].DebuffSpellId2),
-        new PartyMemberStatus(2, partyMembers[1].Exists, partyMembers[1].InCombat, partyMembers[1].MapId, partyMembers[1].MapX, partyMembers[1].MapY, partyMembers[1].NameHash, partyMembers[1].HealthPercent, partyMembers[1].PowerPercent, (PowerType)partyMembers[1].PowerType, partyMembers[1].BuffSpellId1, partyMembers[1].BuffSpellId2, partyMembers[1].BuffSpellId3, partyMembers[1].DebuffSpellId1, partyMembers[1].DebuffSpellId2),
-        new PartyMemberStatus(3, partyMembers[2].Exists, partyMembers[2].InCombat, partyMembers[2].MapId, partyMembers[2].MapX, partyMembers[2].MapY, partyMembers[2].NameHash, partyMembers[2].HealthPercent, partyMembers[2].PowerPercent, (PowerType)partyMembers[2].PowerType, partyMembers[2].BuffSpellId1, partyMembers[2].BuffSpellId2, partyMembers[2].BuffSpellId3, partyMembers[2].DebuffSpellId1, partyMembers[2].DebuffSpellId2),
-        new PartyMemberStatus(4, partyMembers[3].Exists, partyMembers[3].InCombat, partyMembers[3].MapId, partyMembers[3].MapX, partyMembers[3].MapY, partyMembers[3].NameHash, partyMembers[3].HealthPercent, partyMembers[3].PowerPercent, (PowerType)partyMembers[3].PowerType, partyMembers[3].BuffSpellId1, partyMembers[3].BuffSpellId2, partyMembers[3].BuffSpellId3, partyMembers[3].DebuffSpellId1, partyMembers[3].DebuffSpellId2)
+        new PartyMemberStatus(1, partyMembers[0].Exists, partyMembers[0].InCombat, partyMembers[0].MapId, partyMembers[0].MapX, partyMembers[0].MapY, partyMembers[0].NameHash, partyMembers[0].ClassId, partyMembers[0].Level, partyMembers[0].HealthPercent, partyMembers[0].PowerPercent, (PowerType)partyMembers[0].PowerType, partyMembers[0].BuffSpellId1, partyMembers[0].BuffSpellId2, partyMembers[0].BuffSpellId3, partyMembers[0].DebuffSpellId1, partyMembers[0].DebuffSpellId2),
+        new PartyMemberStatus(2, partyMembers[1].Exists, partyMembers[1].InCombat, partyMembers[1].MapId, partyMembers[1].MapX, partyMembers[1].MapY, partyMembers[1].NameHash, partyMembers[1].ClassId, partyMembers[1].Level, partyMembers[1].HealthPercent, partyMembers[1].PowerPercent, (PowerType)partyMembers[1].PowerType, partyMembers[1].BuffSpellId1, partyMembers[1].BuffSpellId2, partyMembers[1].BuffSpellId3, partyMembers[1].DebuffSpellId1, partyMembers[1].DebuffSpellId2),
+        new PartyMemberStatus(3, partyMembers[2].Exists, partyMembers[2].InCombat, partyMembers[2].MapId, partyMembers[2].MapX, partyMembers[2].MapY, partyMembers[2].NameHash, partyMembers[2].ClassId, partyMembers[2].Level, partyMembers[2].HealthPercent, partyMembers[2].PowerPercent, (PowerType)partyMembers[2].PowerType, partyMembers[2].BuffSpellId1, partyMembers[2].BuffSpellId2, partyMembers[2].BuffSpellId3, partyMembers[2].DebuffSpellId1, partyMembers[2].DebuffSpellId2),
+        new PartyMemberStatus(4, partyMembers[3].Exists, partyMembers[3].InCombat, partyMembers[3].MapId, partyMembers[3].MapX, partyMembers[3].MapY, partyMembers[3].NameHash, partyMembers[3].ClassId, partyMembers[3].Level, partyMembers[3].HealthPercent, partyMembers[3].PowerPercent, (PowerType)partyMembers[3].PowerType, partyMembers[3].BuffSpellId1, partyMembers[3].BuffSpellId2, partyMembers[3].BuffSpellId3, partyMembers[3].DebuffSpellId1, partyMembers[3].DebuffSpellId2)
     ];
 
     public PlayerReader(
@@ -379,131 +391,66 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     private void UpdatePartyMembers(IAddonDataProvider provider)
     {
-        if (provider.Data.Length <= PartyPayloadCells[^1])
+        int requiredIndex = PartyFrameStart + (partyMembers.Length - 1) * PartyFrameStride + PartyClassLevelOffset;
+        if (provider.Data.Length <= requiredIndex)
         {
             return;
         }
 
-        for (int i = 0; i < PartyPayloadCells.Length; i++)
+        for (int i = 0; i < partyMembers.Length; i++)
         {
-            UpdatePartyMember(provider, i, PartyPayloadCells[i]);
-        }
-    }
+            int baseIndex = PartyFrameStart + i * PartyFrameStride;
 
-    private void UpdatePartyMember(IAddonDataProvider provider, int memberIndex, int cellIndex)
-    {
-        int encoded = provider.GetInt(cellIndex);
+            ref PartyMemberState state = ref partyMembers[i];
 
-        int prefix = encoded >> 20;
-        int payload = encoded & PartyPayloadMask;
+            int mapFlags = provider.GetInt(baseIndex + PartyMapOffset);
+            int mapId = mapFlags >> 2;
+            bool inCombat = (mapFlags & 0x2) != 0;
+            bool exists = (mapFlags & 0x1) != 0;
 
-        int encodedMemberIndex = prefix & 0x3;
-        int phase = prefix >> 2;
+            state.Exists = exists;
+            state.InCombat = exists && inCombat;
+            state.MapId = exists ? mapId : 0;
 
-        int targetIndex = memberIndex;
-        if ((uint)encodedMemberIndex < partyMembers.Length)
-        {
-            targetIndex = encodedMemberIndex;
-        }
+            if (!exists)
+            {
+                state.MapX = 0;
+                state.MapY = 0;
+                state.NameHash = 0;
+                state.ClassId = 0;
+                state.Level = 0;
+                state.HealthPercent = 0;
+                state.PowerPercent = 0;
+                state.PowerType = 0;
+                state.BuffSpellId1 = 0;
+                state.BuffSpellId2 = 0;
+                state.BuffSpellId3 = 0;
+                state.DebuffSpellId1 = 0;
+                state.DebuffSpellId2 = 0;
+                continue;
+            }
 
-        if ((uint)targetIndex >= partyMembers.Length)
-        {
-            return;
-        }
+            state.MapX = provider.GetInt(baseIndex + PartyPosXOffset) / 1_000_000f;
+            state.MapY = provider.GetInt(baseIndex + PartyPosYOffset) / 1_000_000f;
+            state.NameHash = provider.GetInt(baseIndex + PartyNameOffset);
 
-        ref PartyMemberState state = ref partyMembers[targetIndex];
+            int classLevel = provider.GetInt(baseIndex + PartyClassLevelOffset);
+            state.ClassId = classLevel & 0x3F;
+            state.Level = classLevel >> 6;
 
-        switch (phase)
-        {
-            case 0:
-                int mapId = payload >> 2;
-                bool inCombat = (payload & 0x2) != 0;
-                bool exists = (payload & 0x1) != 0;
+            int vitals = provider.GetInt(baseIndex + PartyVitalsOffset);
+            state.HealthPercent = vitals >> 13;
+            state.PowerPercent = (vitals >> 6) & 0x7F;
 
-                state.Exists = exists;
-                state.InCombat = exists && inCombat;
-                state.MapId = exists ? mapId : 0;
+            int encodedPowerType = vitals & 0x3F;
+            state.PowerType = Math.Max(0, encodedPowerType - 2);
 
-                if (!exists)
-                {
-                    state.MapX = 0;
-                    state.MapY = 0;
-                    state.NameHash = 0;
-                    state.HealthPercent = 0;
-                    state.PowerPercent = 0;
-                    state.PowerType = 0;
-                    state.BuffSpellId1 = 0;
-                    state.BuffSpellId2 = 0;
-                    state.BuffSpellId3 = 0;
-                    state.DebuffSpellId1 = 0;
-                    state.DebuffSpellId2 = 0;
-                }
-                break;
-
-            case 1:
-                if (state.Exists)
-                {
-                    state.MapX = payload / 1_000_000f;
-                }
-                break;
-
-            case 2:
-                if (state.Exists)
-                {
-                    state.MapY = payload / 1_000_000f;
-                }
-                break;
-
-            case 3:
-                if (state.Exists)
-                {
-                    state.NameHash = payload;
-                }
-                break;
-
-            case 4:
-                if (state.Exists)
-                {
-                    state.HealthPercent = payload >> 13;
-                    state.PowerPercent = (payload >> 6) & 0x7F;
-                    state.PowerType = payload & 0x3F;
-                }
-                break;
-
-            case 5:
-                if (state.Exists)
-                {
-                    state.BuffSpellId1 = payload;
-                }
-                break;
-
-            case 6:
-                if (state.Exists)
-                {
-                    state.BuffSpellId2 = payload;
-                }
-                break;
-
-            case 7:
-                if (state.Exists)
-                {
-                    state.BuffSpellId3 = payload;
-                }
-                break;
-
-            case 8:
-                if (state.Exists)
-                {
-                    state.DebuffSpellId1 = payload;
-                }
-                break;
-
-            case 9:
-                if (state.Exists)
-                {
-                    state.DebuffSpellId2 = payload;
-                }
-                break;
+            // Buff/debuff spell ids are not transmitted in the compact layout
+            state.BuffSpellId1 = 0;
+            state.BuffSpellId2 = 0;
+            state.BuffSpellId3 = 0;
+            state.DebuffSpellId1 = 0;
+            state.DebuffSpellId2 = 0;
         }
     }
 
