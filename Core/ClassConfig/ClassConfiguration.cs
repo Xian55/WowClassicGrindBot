@@ -26,7 +26,48 @@ public enum Mode
     AttendedGather = 2,
     AttendedGrind = 3,
     AssistFocus = 4,
-    AutoGather = 5
+    AutoGather = 5,
+    PartyFollow = 6
+}
+
+public enum PartyFollowMode
+{
+    Name = 0,
+    PartySlot = 1,
+    Focus = 2
+}
+
+public enum CoordinateSource
+{
+    Map = 0,
+    World = 1
+}
+
+[Flags]
+public enum FollowRadiusEnforcements
+{
+    None = 0,
+    LineOfSight = 1,
+    FallbackToRegroup = 2
+}
+
+public sealed class PartyOptions
+{
+    public PartyFollowMode Mode { get; set; } = PartyFollowMode.Focus;
+
+    public CoordinateSource CoordinateSource { get; set; } = CoordinateSource.Map;
+
+    public float FollowRadius { get; set; } = 4f;
+
+    public float CombatLeash { get; set; } = 30f;
+
+    public float RepathIntervalSeconds { get; set; } = 1f;
+
+    public FollowRadiusEnforcements Enforcements { get; set; } = FollowRadiusEnforcements.None;
+
+    public string LeaderName { get; set; } = string.Empty;
+
+    public int LeaderSlot { get; set; } = 1;
 }
 
 
@@ -62,6 +103,8 @@ public sealed partial class ClassConfiguration
     public PathSettings[] Paths { get; set; } = [];
 
     public Mode Mode { get; set; } = Mode.Grind;
+
+    public PartyOptions Party { get; set; } = new();
 
     public bool GatheringMode => Mode is Mode.AttendedGather or Mode.AutoGather;
 

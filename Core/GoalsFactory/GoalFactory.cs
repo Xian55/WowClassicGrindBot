@@ -80,6 +80,7 @@ public static class GoalFactory
         services.AddScoped<StuckDetector>();
         services.AddScoped<CombatTracker>();
         services.AddScoped<SafeSpotCollector>();
+        services.AddScoped<IPartyLeaderProvider, PartyLeaderProvider>();
 
         var playerReader = sp.GetRequiredService<PlayerReader>();
 
@@ -156,6 +157,34 @@ public static class GoalFactory
             }
 
             ResolveAdhocGoals(services, classConfig);
+        }
+        else if (classConfig.Mode == Mode.PartyFollow)
+        {
+            services.AddScoped<GoapGoal, WalkToCorpseGoal>();
+            services.AddScoped<GoapGoal, FollowPartyLeaderGoal>();
+            services.AddScoped<GoapGoal, PullTargetGoal>();
+            services.AddScoped<GoapGoal, ApproachTargetGoal>();
+            AddFleeGoal(services, classConfig);
+            services.AddScoped<GoapGoal, CombatGoal>();
+
+            ResolveLootAndSkin(services, classConfig);
+
+            ResolvePetClass(services, playerReader.Class);
+
+            if (classConfig.Parallel.Sequence.Length > 0)
+            {
+                services.AddScoped<GoapGoal, ParallelGoal>();
+            }
+
+            ResolveAdhocGoals(services, classConfig);
+
+            ResolveAdhocNPCGoal(services, classConfig,
+                sp.GetRequiredService<DataConfig>());
+
+            ResolveMailGoal(services, classConfig,
+                sp.GetRequiredService<DataConfig>());
+
+            ResolveWaitGoal(services, classConfig);
         }
         else if (classConfig.Mode is Mode.Grind or Mode.AttendedGrind)
         {

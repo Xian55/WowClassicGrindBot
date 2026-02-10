@@ -1,0 +1,211 @@
+{
+  "ClassName": "Hunter",
+  "Skin": false,
+  "UseMount": true,
+  "Mode": "PartyFollow",
+  "PathThereAndBack": true,
+  "PathReduceSteps": true,
+  "NPCMaxLevels_Above": 3,
+  "Mount": { "Key": "N0" },
+  "Party": {
+    "Mode": "Focus",
+    "CoordinateSource": "Map",
+    "FollowRadius": 4.0,
+    "CombatLeash": 30.0,
+    "RepathIntervalSeconds": 1.0,
+    "Enforcements": "LineOfSight, FallbackToRegroup",
+    "LeaderName": "",
+    "LeaderSlot": 1
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Hunter's Mark",
+        "Key": "7",
+        "Cooldown": 60000
+      },
+      {
+        "Name": "Concussive Shot",
+        "Key": "9",
+        "BeforeCastStop": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!InMeleeRange",
+          "HasAmmo"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Mend Pet",
+        "Key": "N7",
+        "Cooldown": 15000,
+        "Requirements": [
+          "Has Pet",
+          "PetHealth% < 50"
+        ]
+      },
+      {
+        "Name": "Intimidation",
+        "Key": "N4",
+        "WhenUsable": true,
+        "Requirements": [
+          "Has Pet",
+          "TargetHealth% < 70 || TargetCastingSpell"
+        ]
+      },
+      {
+        "Name": "Bestial Wrath",
+        "Key": "N2",
+        "WhenUsable": true,
+        "Requirements": [
+          "!InMeleeRange",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "Has Pet",
+          "TargetHealth% > 85"
+        ]
+      },
+      {
+        "Name": "Rapid Fire",
+        "Key": "N3",
+        "WhenUsable": true,
+        "Requirements": [
+          "!InMeleeRange",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "TargetHealth% > 75"
+        ]
+      },
+      {
+        "Name": "Kill Command",
+        "Key": "N1",
+        "WhenUsable": true,
+        "Requirements": [
+          "Has Pet"
+        ]
+      },
+      {
+        "Name": "Multi-Shot",
+        "Key": "8",
+        "WhenUsable": true,
+        "Cooldown": 10000,
+        "Requirements": [
+          "!InMeleeRange",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "LastAutoShotMs < 500"
+        ]
+      },
+      {
+        "Name": "Arcane Shot",
+        "Key": "2",
+        "WhenUsable": true,
+        "Cooldown": 6000,
+        "Requirements": [
+          "!InMeleeRange",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "LastAutoShotMs < 500",
+          "Mana% > 30"
+        ]
+      },
+      {
+        "Name": "Steady Shot",
+        "Key": "6",
+        "WhenUsable": true,
+        "HasCastBar": true,
+        "Charge": 2,
+        "Cooldown": 5000,
+        "Requirements": [
+          "!InMeleeRange",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "LastAutoShotMs < 500"
+        ]
+      },
+      {
+        "Name": "Auto Shot",
+        "Key": "3",
+        "Item": true,
+        "Requirements": [
+          "!InMeleeRange",
+          "HasRangedWeapon",
+          "!AutoShot",
+          "HasAmmo"
+        ]
+      },
+      {
+        "Name": "Disengage",
+        "Key": "N8",
+        "WhenUsable": true,
+        "Cooldown": 5000,
+        "Requirements": [
+          "InMeleeRange",
+          "AutoAttacking"
+        ]
+      },
+      {
+        "Name": "Raptor Strike",
+        "Key": "4",
+        "WhenUsable": true,
+        "AfterCastWaitSwing": true,
+        "AfterCastStepBack": 1000,
+        "Requirements": [
+          "MainHandSwing > -400",
+          "InMeleeRange",
+          "!AutoShot"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "InMeleeRange",
+          "!AutoShot"
+        ]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Aspect of the Hawk",
+        "Key": "5",
+        "Requirement": "!Aspect of the Hawk"
+      },
+      {
+        "Name": "feedpet",
+        "Key": "N5",
+        "WhenUsable": true,
+        "Cooldown": 20000,
+        "Requirements": [
+          "Has Pet",
+          "!Pet Happy"
+        ]
+      },
+      {
+        "Name": "sumpet",
+        "Key": "N6",
+        "HasCastBar": true,
+        "Cooldown": 4000,
+        "Requirement": "!Has Pet"
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "Key": "-",
+        "Requirement": "Health% < 40"
+      },
+      {
+        "Name": "Drink",
+        "Key": "=",
+        "Requirement": "Mana% < 40"
+      }
+    ]
+  }
+}

@@ -50,7 +50,10 @@ local DataToColor = unpack(Load)
 
 local band = bit.band
 local rshift = bit.rshift
+local lshift = bit.lshift
+local bxor = bit.bxor
 local floor = math.floor
+local min = math.min
 local max = math.max
 
 local strjoin = strjoin
@@ -99,6 +102,7 @@ local GetRuneType = GetRuneType
 
 local UnitBuff = UnitBuff
 local UnitDebuff = UnitDebuff
+local UnitAffectingCombat = UnitAffectingCombat
 local UnitXP = UnitXP
 local UnitXPMax = UnitXPMax
 local UnitExists = UnitExists
@@ -360,6 +364,38 @@ DataToColor.customTrigger1 = {}
 DataToColor.sessionKillCount = 0
 
 local SpellQueueWindow = min(tonumber(DataToColor.SafeGetCVar(DataToColor.C.SpellQueueWindow, "0")) or 0, 999)
+
+local function EncodeCoord(value)
+    if not value then return 0 end
+    return min(1048575, max(0, floor(value * 1000000 + 0.5)))
+end
+
+local function HashName20(name)
+    if not name or name == "" then return 0 end
+
+    name = name:lower()
+
+    local hash = 2166136261
+    for i = 1, #name do
+        hash = band((bxor(hash, byte(name, i)) * 16777619), 0xFFFFFFFF)
+    end
+
+    return band(hash, 0xFFFFF)
+end
+
+local function GetPartyUnitPosition(unit)
+    local uiMapId = DataToColor.GetBestMapForUnit(unit)
+    if not uiMapId then
+        return nil, nil, nil
+    end
+
+    local pos = C_Map.GetPlayerMapPosition(uiMapId, unit)
+    if not pos then
+        return nil, nil, nil
+    end
+
+    return uiMapId, pos.x, pos.y
+end
 
 function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
@@ -1259,6 +1295,38 @@ function DataToColor:CreateFrames()
 
             -- Enemy summons (totems, pets summoned by hostile NPCs)
             Pixel(int, DataToColor.EnemySummonQueue:shift(globalTick) or 0, 110)
+
+            -- Party member multiplexed payload (phase << 2 | memberIndex in the upper 4 bits)
+            local partyCycle = globalTick % 16
+            local partyIndex = floor(partyCycle / 4) + 1
+            local phase = partyCycle % 4
+            local prefix = lshift(phase, 2) + (partyIndex - 1)
+            local payload = 0
+
+            local unit = DataToColor.C.unitPartyNames[partyIndex]
+            if unit then
+                local exists = UnitExists(unit)
+                local mapId, posX, posY = nil, nil, nil
+                if exists then
+                    mapId, posX, posY = GetPartyUnitPosition(unit)
+                end
+
+                if phase == 0 then
+                    local inCombat = exists and UnitAffectingCombat(unit) and 1 or 0
+                    mapId = mapId or 0
+                    payload = lshift(mapId, 2) + lshift(inCombat, 1) + (exists and 1 or 0)
+                elseif exists and mapId then
+                    if phase == 1 then
+                        payload = EncodeCoord(posX)
+                    elseif phase == 2 then
+                        payload = EncodeCoord(posY)
+                    elseif phase == 3 then
+                        payload = HashName20(UnitName(unit))
+                    end
+                end
+            end
+
+            Pixel(int, lshift(prefix, 20) + payload, 111)
 
             UpdateGlobalTime()
             -- NUMBER_OF_FRAMES - 1 reserved for validation

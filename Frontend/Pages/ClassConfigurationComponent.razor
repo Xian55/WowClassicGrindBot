@@ -1,6 +1,10 @@
 ﻿@inject IBotController botController
 @inject IAddonReader addonReader
 
+@using Core
+@using System.Globalization
+@using System.Linq
+
 @implements IDisposable
 
 <div class="container">
@@ -9,11 +13,97 @@
             Class Configuration
         </CardHeader>
         <CardBody style="padding-bottom: 0">
-            <table class="table table-sm table-bordered">
-                <tbody>
-                    @foreach (var property in classConfig.GetType().GetProperties())
+            @if (classConfig is not null)
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Mode</label>
+                        <select class="form-select" value="@classConfig.Mode" @onchange="OnModeChanged">
+                            @foreach (var mode in Enum.GetValues<Mode>())
+                            {
+                                <option value="@mode" selected="@(classConfig.Mode == mode)">@mode</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Party Follow Mode</label>
+                        <select class="form-select" value="@classConfig.Party.Mode" @onchange="OnPartyFollowModeChanged">
+                            @foreach (var option in Enum.GetValues<PartyFollowMode>())
+                            {
+                                <option value="@option" selected="@(classConfig.Party.Mode == option)">@option</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Coordinate Source</label>
+                        <select class="form-select" value="@classConfig.Party.CoordinateSource" @onchange="OnCoordinateSourceChanged">
+                            @foreach (var option in Enum.GetValues<CoordinateSource>())
+                            {
+                                <option value="@option" selected="@(classConfig.Party.CoordinateSource == option)">@option</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Follow Radius (yd)</label>
+                        <input class="form-control" type="number" step="0.5" value="@classConfig.Party.FollowRadius"
+                               @onchange="c => OnFloatChanged(v => classConfig.Party.FollowRadius = v, c)" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Combat Leash (yd)</label>
+                        <input class="form-control" type="number" step="0.5" value="@classConfig.Party.CombatLeash"
+                               @onchange="c => OnFloatChanged(v => classConfig.Party.CombatLeash = v, c)" />
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Repath Interval (s)</label>
+                        <input class="form-control" type="number" step="0.1" value="@classConfig.Party.RepathIntervalSeconds"
+                               @onchange="c => OnFloatChanged(v => classConfig.Party.RepathIntervalSeconds = v, c)" />
+                    </div>
+
+                    @if (classConfig.Party.Mode == PartyFollowMode.Name)
                     {
-                        <tr>
+                        <div class="col-md-3">
+                            <label class="form-label">Leader Name</label>
+                            <input class="form-control" value="@classConfig.Party.LeaderName"
+                                   @onchange="c => { classConfig.Party.LeaderName = c.Value?.ToString() ?? string.Empty; Update(); }" />
+                        </div>
+                    }
+
+                    @if (classConfig.Party.Mode == PartyFollowMode.PartySlot)
+                    {
+                        <div class="col-md-3">
+                            <label class="form-label">Leader Party Slot</label>
+                            <input class="form-control" type="number" min="1" max="4" value="@classConfig.Party.LeaderSlot"
+                                   @onchange="c => { if (int.TryParse(c.Value?.ToString(), out int slot)) { classConfig.Party.LeaderSlot = slot; Update(); } }" />
+                        </div>
+                    }
+
+                    <div class="col-md-6">
+                        <label class="form-label">Follow Radius Enforcements</label>
+                        <select class="form-select" multiple @onchange="OnEnforcementsChanged">
+                            @foreach (var option in enforcementOptions)
+                            {
+                                <option value="@option" selected="@classConfig.Party.Enforcements.HasFlag(option)">@option</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            }
+            @if (classConfig is null)
+            {
+                <div>Loading class configuration…</div>
+            }
+            else
+            {
+                <table class="table table-sm table-bordered">
+                    <tbody>
+                        @foreach (var property in classConfig.GetType().GetProperties())
+                        {
+                            <tr>
                             @switch (Type.GetTypeCode(property.PropertyType))
                             {
                                 case TypeCode.String:
@@ -45,29 +135,38 @@
                                                @onchange="c => { property.SetValue(classConfig, c.Value); Update(); }" />
                                     </td>
                                     break;
+                                case TypeCode.Single:
+                                    if (hidden.Contains(property.Name))
+                                        break;
+                                    <td>@(property.Name)</td>
+                                    <td>
+                                        <input value="@property.GetValue(classConfig)" class="form-control" disabled="@(!editables.Contains(property.Name))"
+                                               @onchange="c => OnFloatPropertyChanged(property, c)" />
+                                    </td>
+                                    break;
                                 default:
                                     <!--<input Text="@value?.ToString()" Disabled="true" />-->
                                     break;
                             }
-                        </tr>
-
-                        @if (property.PropertyType == typeof(PathSettings[]))
-                        {
-                            var value = property.GetValue(classConfig, null);
-                            var array = value as PathSettings[];
-                            if (array == null) continue;
-
-
-                            <tr style="background-color: black">
-                                <td></td>
-                                <td></td>
                             </tr>
 
-                            @foreach (var item in array)
+                            @if (property.PropertyType == typeof(PathSettings[]))
                             {
-                                @foreach (var innerProp in item.GetType().GetProperties())
+                                var value = property.GetValue(classConfig, null);
+                                var array = value as PathSettings[];
+                                if (array == null) continue;
+
+
+                                <tr style="background-color: black">
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+
+                                @foreach (var item in array)
                                 {
-                                    <tr>
+                                    @foreach (var innerProp in item.GetType().GetProperties())
+                                    {
+                                        <tr>
                                         @switch (Type.GetTypeCode(innerProp.PropertyType))
                                         {
                                             case TypeCode.String:
@@ -93,19 +192,20 @@
                                             default:
                                                 break;
                                         }
+                                        </tr>
+                                    }
+
+                                    <tr style="background-color: black">
+                                        <td></td>
+                                        <td></td>
                                     </tr>
                                 }
-
-                                <tr style="background-color: black">
-                                    <td></td>
-                                    <td></td>
-                                </tr>
                             }
-                        }
 
-                    }
-                </tbody>
-            </table>
+                        }
+                    </tbody>
+                </table>
+            }
         </CardBody>
     </Card>
 </div>
@@ -113,6 +213,10 @@
 @code {
 
     private ClassConfiguration classConfig = null!;
+
+    private readonly FollowRadiusEnforcements[] enforcementOptions = Enum.GetValues<FollowRadiusEnforcements>()
+        .Where(x => x != FollowRadiusEnforcements.None)
+        .ToArray();
 
     private HashSet<string> editables = new()
     {
@@ -144,6 +248,8 @@
     nameof(ClassConfiguration.PathReduceSteps),
     nameof(ClassConfiguration.PathFilename),
     nameof(ClassConfiguration.OverridePathFilename),
+    nameof(ClassConfiguration.Mode),
+    nameof(ClassConfiguration.Party),
     ];
 
     protected override void OnInitialized()
@@ -183,6 +289,74 @@
     private void Update()
     {
         botController.OverrideClassConfig(classConfig);
+    }
+
+    private void OnModeChanged(ChangeEventArgs args)
+    {
+        if (Enum.TryParse(args.Value?.ToString(), out Mode mode))
+        {
+            classConfig.Mode = mode;
+            Update();
+        }
+    }
+
+    private void OnPartyFollowModeChanged(ChangeEventArgs args)
+    {
+        if (Enum.TryParse(args.Value?.ToString(), out PartyFollowMode mode))
+        {
+            classConfig.Party.Mode = mode;
+            Update();
+        }
+    }
+
+    private void OnCoordinateSourceChanged(ChangeEventArgs args)
+    {
+        if (Enum.TryParse(args.Value?.ToString(), out CoordinateSource source))
+        {
+            classConfig.Party.CoordinateSource = source;
+            Update();
+        }
+    }
+
+    private void OnFloatChanged(Action<float> setter, ChangeEventArgs args)
+    {
+        if (float.TryParse(args.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out float value))
+        {
+            setter(value);
+            Update();
+        }
+    }
+
+    private void OnFloatPropertyChanged(System.Reflection.PropertyInfo property, ChangeEventArgs args)
+    {
+        if (float.TryParse(args.Value?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out float value))
+        {
+            property.SetValue(classConfig, value);
+            Update();
+        }
+    }
+
+    private void OnEnforcementsChanged(ChangeEventArgs args)
+    {
+        FollowRadiusEnforcements selected = FollowRadiusEnforcements.None;
+
+        if (args.Value is IEnumerable<string> values)
+        {
+            foreach (string value in values)
+            {
+                if (Enum.TryParse(value, out FollowRadiusEnforcements parsed))
+                {
+                    selected |= parsed;
+                }
+            }
+        }
+        else if (args.Value is string single && Enum.TryParse(single, out FollowRadiusEnforcements parsedSingle))
+        {
+            selected |= parsedSingle;
+        }
+
+        classConfig.Party.Enforcements = selected;
+        Update();
     }
 
     private bool CBool(object? o)

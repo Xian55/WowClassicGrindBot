@@ -6,6 +6,7 @@ using SharedLib;
 using System;
 using System.Collections.Specialized;
 using System.Numerics;
+using System.Text;
 
 namespace Core;
 
@@ -15,6 +16,23 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     private readonly WorldMapAreaDB worldMapAreaDB;
     private readonly AreaDB areaDb;
     private readonly AddonBits bits;
+
+    private const int PartyPayloadCell = 111;
+    private const int PartyPayloadMask = 0xFFFFF;
+
+    private readonly PartyMemberState[] partyMembers = new PartyMemberState[4];
+
+    private struct PartyMemberState
+    {
+        public int MapId;
+        public float MapX;
+        public float MapY;
+        public bool Exists;
+        public bool InCombat;
+        public int NameHash;
+
+        public bool HasCoordinates => MapId != 0 && (MapX != 0 || MapY != 0);
+    }
 
     public PlayerReader(
         IAddonDataProvider reader,
@@ -286,6 +304,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
         UIErrorTime.Update(reader);
 
+        UpdatePartyMembers(reader);
+
         if (UIError != UI_ERROR.NONE)
             LastUIError = UIError;
     }
@@ -293,6 +313,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     public void Reset()
     {
         UIMapId.Reset();
+
+        Array.Clear(partyMembers);
 
         // Reset all RecordInt
         AutoShot.Reset();
@@ -308,6 +330,145 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         UIErrorTime.Reset();
 
         GCD.Reset();
+    }
+
+    private void UpdatePartyMembers(IAddonDataProvider provider)
+    {
+        int encoded = provider.GetInt(PartyPayloadCell);
+
+        int prefix = encoded >> 20;
+        int payload = encoded & PartyPayloadMask;
+
+        int memberIndex = prefix & 0x3;
+        int phase = prefix >> 2;
+
+        if ((uint)memberIndex >= partyMembers.Length)
+        {
+            return;
+        }
+
+        ref PartyMemberState state = ref partyMembers[memberIndex];
+
+        switch (phase)
+        {
+            case 0:
+                int mapId = payload >> 2;
+                bool inCombat = (payload & 0x2) != 0;
+                bool exists = (payload & 0x1) != 0;
+
+                state.Exists = exists;
+                state.InCombat = exists && inCombat;
+                state.MapId = exists ? mapId : 0;
+
+                if (!exists)
+                {
+                    state.MapX = 0;
+                    state.MapY = 0;
+                    state.NameHash = 0;
+                }
+                break;
+
+            case 1:
+                if (state.Exists)
+                {
+                    state.MapX = payload / 1_000_000f;
+                }
+                break;
+
+            case 2:
+                if (state.Exists)
+                {
+                    state.MapY = payload / 1_000_000f;
+                }
+                break;
+
+            case 3:
+                if (state.Exists)
+                {
+                    state.NameHash = payload;
+                }
+                break;
+        }
+    }
+
+    private bool TryCreatePartySnapshot(in PartyMemberState state, out PartyLeaderSnapshot snapshot)
+    {
+        if (!state.Exists || state.MapId == 0 || !state.HasCoordinates)
+        {
+            snapshot = PartyLeaderSnapshot.None;
+            return false;
+        }
+
+        Vector3 map = new(state.MapX, state.MapY, 0);
+
+        if (worldMapAreaDB.TryGet(state.MapId, out _))
+        {
+            Vector3 world = worldMapAreaDB.ToWorld_FlipXY(state.MapId, map);
+            snapshot = PartyLeaderSnapshot.FromBoth(map, world, state.InCombat, state.MapId);
+        }
+        else
+        {
+            snapshot = PartyLeaderSnapshot.FromMap(map, state.InCombat, state.MapId);
+        }
+
+        return snapshot.HasPosition;
+    }
+
+    private static int HashName20(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return 0;
+        }
+
+        byte[] bytes = Encoding.UTF8.GetBytes(name.ToLowerInvariant());
+        const uint offset = 2166136261;
+        const uint prime = 16777619;
+
+        uint hash = offset;
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            hash ^= bytes[i];
+            hash *= prime;
+        }
+
+        return (int)(hash & PartyPayloadMask);
+    }
+
+    public bool TryGetPartySnapshotBySlot(int slot, out PartyLeaderSnapshot snapshot)
+    {
+        snapshot = PartyLeaderSnapshot.None;
+
+        if (slot < 1 || slot > partyMembers.Length)
+        {
+            return false;
+        }
+
+        return TryCreatePartySnapshot(partyMembers[slot - 1], out snapshot);
+    }
+
+    public bool TryGetPartySnapshotByName(string name, out PartyLeaderSnapshot snapshot)
+    {
+        snapshot = PartyLeaderSnapshot.None;
+
+        int hash = HashName20(name);
+        if (hash == 0)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < partyMembers.Length; i++)
+        {
+            ref readonly PartyMemberState state = ref partyMembers[i];
+            if (!state.Exists || state.NameHash != hash)
+            {
+                continue;
+            }
+
+            return TryCreatePartySnapshot(state, out snapshot);
+        }
+
+        return false;
     }
 
     public bool IsMeleeSwingingDefault() => IsMeleeSwinging(500);
