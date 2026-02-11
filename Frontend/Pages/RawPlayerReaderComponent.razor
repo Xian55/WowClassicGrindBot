@@ -104,21 +104,21 @@
     {
         int seq = 0;
         builder.OpenElement(seq++, "table");
-        builder.AddAttribute(seq++, "class", "table table-bordered mb-0");
+        builder.AddAttribute(seq++, "class", "table table-bordered mb-0 table-sm align-middle");
 
         builder.OpenElement(seq++, "thead");
         builder.OpenElement(seq++, "tr");
-        builder.AddContent(seq++, (MarkupString)"<th>Member</th><th>Exists</th><th>Name</th><th>Location</th><th>In Combat</th>");
+        builder.AddContent(seq++, (MarkupString)"<th>Slot</th><th>Exists</th><th>Name</th><th>Hash</th><th>Map</th><th>Pos X</th><th>Pos Y</th><th>In Combat</th><th>ClassId</th><th>Level</th><th>HP%</th><th>Power%</th><th>PowerType</th>");
         builder.CloseElement();
         builder.CloseElement();
 
         builder.OpenElement(seq++, "tbody");
-        foreach (var member in PlayerReader.PartyDebug)
+        foreach (var member in PlayerReader.PartyStatus)
         {
             builder.OpenElement(seq++, "tr");
 
             builder.OpenElement(seq++, "td");
-            builder.AddContent(seq++, $"Party{member.Slot}");
+            builder.AddContent(seq++, member.Slot);
             builder.CloseElement();
 
             builder.OpenElement(seq++, "td");
@@ -127,22 +127,47 @@
 
             builder.OpenElement(seq++, "td");
             string name = textReader.PartyNames[Math.Clamp(member.Slot - 1, 0, 3)];
-            builder.AddContent(seq++, string.IsNullOrWhiteSpace(name) ? (member.NameHash == 0 ? "-" : $"Hash {member.NameHash}") : name);
+            builder.AddContent(seq++, string.IsNullOrWhiteSpace(name) ? "-" : name);
             builder.CloseElement();
 
             builder.OpenElement(seq++, "td");
-            if (member.MapId == 0)
-            {
-                builder.AddContent(seq++, "-");
-            }
-            else
-            {
-                builder.AddContent(seq++, $"Map {member.MapId}: {member.MapX:F2}, {member.MapY:F2}");
-            }
+            builder.AddContent(seq++, member.NameHash);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.MapId);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.MapX.ToString("F2"));
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.MapY.ToString("F2"));
             builder.CloseElement();
 
             builder.OpenElement(seq++, "td");
             builder.AddContent(seq++, member.InCombat ? "Yes" : "No");
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.ClassId);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.Level);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.HealthPercent);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.PowerPercent);
+            builder.CloseElement();
+
+            builder.OpenElement(seq++, "td");
+            builder.AddContent(seq++, member.PowerType.ToString());
             builder.CloseElement();
 
             builder.CloseElement();
