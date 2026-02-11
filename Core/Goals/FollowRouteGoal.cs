@@ -38,7 +38,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
     private readonly IBlacklist targetBlacklist;
     private readonly TargetFinder targetFinder;
-    private const NpcNames NpcNameToFind = NpcNames.Enemy | NpcNames.Neutral;
+    private readonly NpcNames npcNameToFind;
 
     private const int MIN_TIME_TO_START_CYCLE_PROFESSION = 5000;
     private const int CYCLE_PROFESSION_PERIOD = 8000;
@@ -105,6 +105,10 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
         this.mountHandler = mountHandler;
         this.targetFinder = targetFinder;
         this.targetBlacklist = targetBlacklist;
+
+        npcNameToFind = classConfig.TargetNeutral
+            ? NpcNames.Enemy | NpcNames.Neutral
+            : NpcNames.Enemy;
 
         if (pathSettings.Requirements.Count > 0)
         {
@@ -272,7 +276,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
         while (!sideActivityCts.IsCancellationRequested)
         {
             if (pathSettings.CanRunSideActivity() &&
-                targetFinder.Search(NpcNameToFind, bits.Target_NotDead, sideActivityCts.Token))
+                targetFinder.Search(npcNameToFind, bits.Target_NotDead, sideActivityCts.Token))
             {
                 if (bits.Target() && targetBlacklist.Is())
                 {

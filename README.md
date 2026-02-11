@@ -657,6 +657,7 @@ The class configuration controls all aspects of bot behavior. Here's why each se
 | `"Salvage"` | Should salvage the mob | true | `false` |
 | `"UseMount"` | Should use mount when its possible | true | `false` |
 | `"AllowPvP"` | Should engage combat with the opposite faction | true | `false` |
+| `"TargetNeutral"` | Should detect neutral (yellow) nameplates in addition to hostile (red). Enable for starting zones (levels 1-5) where mobs are neutral. | true | `false` |
 | `"AutoPetAttack"` | Should the pet start attacking as soon as possible | true | `true` |
 | `"KeyboardOnly"` | Use keyboard to interact only. See [KeyboardOnly](#keyboardonly) | false | `true` |
 | --- | --- | --- | --- |

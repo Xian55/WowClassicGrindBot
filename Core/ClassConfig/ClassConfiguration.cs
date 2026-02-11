@@ -46,6 +46,7 @@ public sealed partial class ClassConfiguration
     public bool UseMount { get; set; } = true;
     public bool KeyboardOnly { get; set; }
     public bool AllowPvP { get; set; }
+    public bool TargetNeutral { get; set; }
     public bool AutoPetAttack { get; set; } = true;
 
     // Keeping this for backward compatibility
