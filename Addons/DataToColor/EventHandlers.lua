@@ -179,6 +179,7 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('LOOT_OPENED', 'OnLootOpened_BitCache')
     DataToColor:RegisterEvent('MAIL_SHOW', 'OnMailShow_BitCache')
     DataToColor:RegisterEvent('MAIL_CLOSED', 'OnMailClosed_BitCache')
+    DataToColor:RegisterEvent('BAG_OPEN', 'OnBagOpen_BitCache')
 
     -- Classic-only events
     if DataToColor:IsClassicPreCata() then
@@ -642,6 +643,11 @@ function DataToColor:OnBagUpdate(event, containerID)
             DataToColor.equipmentQueue:push(invID)
         end
     end
+
+    -- Update BitCache on bag close (recheck since other bags may still be open)
+    if event == "BAG_CLOSED" and DataToColor.BitCache and DataToColor.BitCache.bits3 then
+        DataToColor.BitCache.bits3.anyBagOpen = DataToColor:AnyBagOpen()
+    end
     --DataToColor:Print("OnBagUpdate "..containerID)
 end
 
@@ -1058,5 +1064,11 @@ end
 function DataToColor:OnMailClosed_BitCache(event)
     if DataToColor.BitCache and DataToColor.BitCache.bits3 then
         DataToColor.BitCache.bits3.mailFrameShown = false
+    end
+end
+
+function DataToColor:OnBagOpen_BitCache(event, containerID)
+    if DataToColor.BitCache and DataToColor.BitCache.bits3 then
+        DataToColor.BitCache.bits3.anyBagOpen = true
     end
 end

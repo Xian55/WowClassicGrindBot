@@ -70,11 +70,11 @@ internal sealed class Program
         //screen = new WowScreenDXGI(loggerFactory.CreateLogger<WowScreenDXGI>(), process, mockFrames);
         screen = new WowScreenWGC(loggerFactory.CreateLogger<WowScreenWGC>(), process, mockFrames);
 
-        //Test_NPCNameFinder();
+        Test_NPCNameFinder();
         //Test_Input();
         //Test_CursorGrabber();
         //Test_CursorCompare();
-        Test_MinimapNodeFinder();
+        //Test_MinimapNodeFinder();
         //Test_FindTargetByCursor();
 
         Log.CloseAndFlush();

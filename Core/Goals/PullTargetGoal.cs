@@ -120,7 +120,11 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
 
         if (requiresNpcNameFinder)
         {
-            npcNameTargeting.ChangeNpcType(NpcNames.Enemy);
+            NpcNames npcTypes = NpcNames.Enemy;
+            if (classConfig.TargetNeutral)
+                npcTypes |= NpcNames.Neutral;
+
+            npcNameTargeting.ChangeNpcType(npcTypes);
         }
 
         pullStart = GetTimestamp();

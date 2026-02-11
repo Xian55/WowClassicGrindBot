@@ -116,4 +116,12 @@ public sealed class AddonBits : IReader, IGameMenuWindowShown
     public bool MailFrameShown() => v3[Mask._11];
 
     public bool NotMailFrameShown() => !MailFrameShown();
+
+    public bool AnyBagOpen() => v3[Mask._12];
+
+    public bool CharacterFrameOpen() => v3[Mask._13];
+
+    public bool SpellBookFrameOpen() => v3[Mask._14];
+
+    public bool FriendsFrameOpen() => v3[Mask._15];
 }

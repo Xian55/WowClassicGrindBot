@@ -133,7 +133,7 @@ public sealed partial class RequirementFactory
             { "Race", CreateRace },
             { "PartyRole", CreatePartyRole },
             { "Equipment:", CreateEquipment },
-            { "Spell", CreateSpell },
+            { "Spell:", CreateSpell },
             { "Talent", CreateTalent },
             { "Trigger:", CreateTrigger },
             { "Usable:", CreateUsable },
@@ -200,6 +200,10 @@ public sealed partial class RequirementFactory
 
             { "MenuOpen", bits.GameMenuWindowShown },
             { "ChatInputVisible", bits.ChatInputIsVisible },
+            { "AnyBagOpen", bits.AnyBagOpen },
+            { "CharacterFrameOpen", bits.CharacterFrameOpen },
+            { "SpellBookFrameOpen", bits.SpellBookFrameOpen },
+            { "FriendsFrameOpen", bits.FriendsFrameOpen },
 
             // Corpse-based abilities
             { "CannibalizeCorpse", CannibalizeCorpseNearby },

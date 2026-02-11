@@ -11,6 +11,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
+using static System.Diagnostics.Stopwatch;
+
 namespace SharedLib.NpcFinder;
 
 public sealed partial class NpcNameFinder
@@ -32,6 +34,8 @@ public sealed partial class NpcNameFinder
     private const float refWidth = 1920;
     private const float refHeight = 1080;
 
+    private const long RemoveAddThreatAfterMS = 1500;
+
     public readonly float ScaleToRefWidth = 1;
     public readonly float ScaleToRefHeight = 1;
 
@@ -49,7 +53,7 @@ public sealed partial class NpcNameFinder
     public bool PotentialAddsExist { get; private set; }
     public bool _PotentialAddsExist() => PotentialAddsExist;
 
-    public DateTime LastPotentialAddsSeen { get; private set; }
+    private long LastPotentialAddsSeen;
 
     private readonly NpcPositionComparer npcPosComparer;
 
@@ -171,15 +175,15 @@ public sealed partial class NpcNameFinder
         TargetCount = Npcs.Count(TargetsCount);
         AddCount = Npcs.Count(IsAdd);
 
-        if (AddCount > 0 && TargetCount >= 1)
+        if (AddCount > 0)
         {
             PotentialAddsExist = true;
-            LastPotentialAddsSeen = DateTime.UtcNow;
+            LastPotentialAddsSeen = GetTimestamp();
         }
         else
         {
             if (PotentialAddsExist &&
-                (DateTime.UtcNow - LastPotentialAddsSeen).TotalSeconds > 1)
+                GetElapsedTime(LastPotentialAddsSeen).TotalMilliseconds > RemoveAddThreatAfterMS)
             {
                 PotentialAddsExist = false;
                 AddCount = 0;

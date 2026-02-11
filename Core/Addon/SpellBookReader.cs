@@ -54,7 +54,7 @@ public sealed class SpellBookReader : IReader
 
     public bool Has(int id)
     {
-        return spells.Contains(id) || spellNames.Contains(SpellDB.Spells[id].Name);
+        return spells.Contains(id) || (SpellDB.Spells.TryGetValue(id, out Spell spell) && spellNames.Contains(spell.Name));
     }
 
     public bool TryGetValue(int id, out Spell spell)

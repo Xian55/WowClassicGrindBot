@@ -99,140 +99,6 @@ V1 Local and V1 Remote does not have the capability as of this moment to read th
 - Added Skinning Goal -> `GatherCorpse` (Skin, Herb, Mine, Salvage)
 - Introduced a concept of `Produce`/`Consume` corpses. Killing multiple enemies in a single combat can consume them all.
 
-## Mail Feature
-
-Automatically mail items and gold to another character when visiting a mailbox.
-
-### Quick Setup
-
-1. Enable mail in your class profile:
-```json
-{
-  "Mail": true,
-  "MailConfig": {
-    "RecipientName": "YourAltCharacter"
-  }
-}
-```
-
-2. The bot will mail items after vendoring/repairing when:
-   - Items meet the quality threshold (default: Green/Uncommon)
-   - Player has excess gold above minimum threshold
-   - Player is at a mailbox
-
-### Configuration Options
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `Mail` | bool | `false` | Enable/disable mail for this profile |
-| `MailFilename` | string | `""` | External mail config file (relative to `Json/mail/`) |
-| `MailConfig.RecipientName` | string | `""` | Character name to send mail to |
-| `MailConfig.MinimumGoldToKeep` | int | `10000` | Minimum gold to keep (in copper, 10000 = 1g) |
-| `MailConfig.MinimumItemQuality` | int | `2` | Minimum item quality (0=Grey, 1=White, 2=Green, 3=Blue, 4=Epic) |
-| `MailConfig.SendGold` | bool | `true` | Whether to send excess gold |
-| `MailConfig.SendItems` | bool | `true` | Whether to send items |
-| `MailConfig.ExcludedItemIds` | int[] | `[]` | Item IDs to never mail |
-
-### Recipient Priority
-
-The recipient is determined in this order:
-1. **UI Setting** (localStorage) - Set via Frontend Mail page
-2. **Environment Variable** - `MAIL_RECIPIENT=CharacterName`
-3. **JSON Config** - `MailConfig.RecipientName`
-
-### Special Recipient Keywords
-
-Instead of a character name, you can use special keywords:
-
-| Keyword | Behavior |
-|---------|----------|
-| `UseRandomFriendList` | Randomly selects a character from your friend list (online or offline) |
-
-**Example:**
-```json
-{
-  "Mail": true,
-  "MailConfig": {
-    "RecipientName": "UseRandomFriendList",
-    "MinimumItemQuality": 2
-  }
-}
-```
-
-**Note:** If using `UseRandomFriendList` and your friend list is empty, mail sending will be skipped.
-
-### Example: Full Mail Configuration
-
-```json
-{
-  "ClassName": "Warrior",
-  "Mail": true,
-  "MailConfig": {
-    "RecipientName": "MyBankAlt",
-    "MinimumGoldToKeep": 50000,
-    "MinimumItemQuality": 2,
-    "SendGold": true,
-    "SendItems": true,
-    "ExcludedItemIds": [6948, 5956, 4306]
-  }
-}
-```
-
-### Example: Using External Config File
-
-```json
-{
-  "Mail": true,
-  "MailFilename": "bank_alt_mail.json"
-}
-```
-
-Create `Json/mail/bank_alt_mail.json`:
-```json
-{
-  "RecipientName": "MyBankAlt",
-  "MinimumGoldToKeep": 20000,
-  "MinimumItemQuality": 1,
-  "SendGold": true,
-  "SendItems": true,
-  "ExcludedItemIds": [6948]
-}
-```
-
-### Item Quality Reference
-
-| Value | Quality | Color |
-|-------|---------|-------|
-| 0 | Poor | Grey |
-| 1 | Common | White |
-| 2 | Uncommon | Green |
-| 3 | Rare | Blue |
-| 4 | Epic | Purple |
-| 5 | Legendary | Orange |
-
-### What Gets Mailed
-
-**Mailed:**
-- Items meeting quality threshold
-- Not in excluded items list
-- Tradable (not soulbound, not quest items)
-
-**Never Mailed:**
-- Soulbound items
-- Quest items
-- Bind-on-Pickup (BoP) items
-- Items in exclusion list
-- Hearthstone (recommended to exclude: 6948)
-
-### Frontend Mail Page
-
-The Mail page in the browser UI allows you to:
-- Set recipient name (persists across sessions)
-- Configure quality threshold and gold minimum
-- Visually browse your inventory
-- Click items to add/remove from exclusion list
-- Save settings to profile or use runtime overrides
-
 ## Additional Features
 
 - Corpse run
@@ -283,59 +149,6 @@ The Mail page in the browser UI allows you to:
 <a href="https://mega.nz/file/KDRiCAzI#DamyH3QCha8vm4qfhqVYRb6ffbkhvfyZxWhz9D1OKEc" target="_blank">
    <img alt="Death Knight 2" src="https://i.imgur.com/3nXwSoy.jpeg" width="50%">
 </a>
-
-# Important: Migration Guide for Existing Users
-
-If you are upgrading from a previous version, please read this section carefully.
-
-## Breaking Changes
-
-### Keybinding System Overhaul
-
-The application now **automatically reads your in-game keybindings** instead of requiring manual configuration. This is a significant improvement but requires some migration steps.
-
-**What Changed:**
-1. The addon now sends your actual WoW keybindings to the application
-2. Modifier keys (Shift, Ctrl, Alt) are now fully supported
-3. BindPad addon is bundled and used internally for secure macro buttons
-4. Custom actions (StopAttack, ClearTarget) now use Alt-modified keys by default
-
-**Migration Steps:**
-
-1. **Update the Addon**: Copy the new `DataToColor` addon to your WoW Addons folder, replacing the old version.
-
-2. **Install BindPad**: Copy the `BindPad` addon from the `Addons/BindPad/` folder to your WoW Addons folder. This is required for TBC Classic 2.5.5+ compatibility.
-
-3. **First Login**: On first login after the update, the addon will:
-   - Automatically set up essential keybindings if they are missing
-   - Create secure action buttons for StopAttack, ClearTarget, etc.
-   - Read and send all your keybindings to the application
-
-4. **Check Your Class Profile**: The default keys for some BaseActions have changed:
-   | Action | Old Default | New Default |
-   | --- | --- | --- |
-   | Interact | `I` | `Alt-Home` |
-   | InteractMouseOver | `J` | `Alt-End` |
-   | ClearTarget | `Insert` | `Alt-Insert` |
-   | StopAttack | `Delete` | `Alt-Delete` |
-   | TargetFocus | `PageUp` | `Alt-PageUp` |
-   | FollowTarget | `PageDown` | `Alt-PageDown` |
-
-   If your class profile overrides these keys, you may need to update them.
-
-5. **In-Game Verification**: After logging in, you can verify the bindings are working:
-   - Press `Shift-PageUp` to toggle addon config mode (should see "Config mode" / "Normal mode" messages)
-   - Press `Shift-PageDown` to flush addon state (should see "Flush State" message)
-
-### Troubleshooting
-
-If bindings are not working after migration:
-1. Make sure you are not in combat when logging in (bindings cannot be set in combat)
-2. Run `/<prefix>actions` to manually create and bind the custom actions (e.g., `/dcactions`)
-3. Run `/<prefix>bindings` to set up default action bar bindings (e.g., `/dcbindings`)
-4. Check the Frontend "Key Bindings" page to see what bindings the addon detected
-
-**Note**: The command prefix (e.g., `dc`) is derived from your addon title. If you named your addon "daq" during setup, use `/daqactions`, `/daqbindings`, etc.
 
 # Issues and Ideas
 
@@ -442,7 +255,21 @@ For Nvidia users, under Nvidia Control panel settings
 Known issues with other applications:
 * `f.lux` can affect final image color on the screen thus prevents NpcNameFinder to work properly.
 
-## 3.2 In-game Requirements
+## 3.2 Screen Capture Methods
+
+The bot supports two screen capture backends:
+
+| Feature | DXGI | WGC |
+|---------|------|-----|
+| **Minimum Windows** | Windows 8+ | Windows 10 2004 (build 19041+) |
+| **Background capture** | No — game window must be uncovered | Yes — works behind other windows |
+| **Borderless capture** | N/A | Yes (build 20348+, no yellow border) |
+| **Default** | Yes | No (opt-in via `--reader WGC`) |
+| **GPU compute support** | Yes | Yes |
+
+DXGI is the default and most compatible. Use WGC if you want to capture the game window while it's behind other windows (requires Win10 2004+). If WGC is requested but unsupported, the application automatically falls back to DXGI.
+
+## 3.3 In-game Requirements
 
 Required game client settings. Press `ESC` -> `System`
   * System > Graphics > Anti-Aliasing: `None`
@@ -454,7 +281,7 @@ Required game client settings. Press `ESC` -> `System`
   * Disable Glow effect - type in the chat `/console ffxGlow 0`
   * To keep/save this settings make sure to properly shutdown the game.
 
-## 3.3 Optional - Replace default game Font
+## 3.4 Optional - Replace default game Font
 
 Highly recommended to replace the default in-game font with a much **Bolder** one with [this guide](https://classic.wowhead.com/guides/changing-wow-text-font)
 
@@ -462,7 +289,7 @@ Should be only concerned about `Friz Quadrata: the "Everything Else" Font` which
 
 Example - [Robot-Medium](https://fonts.google.com/specimen/Roboto?thickness=5) - Shows big improvement to the `NpcNameFinder` component which is responsible to find - friendly, enemy, corpse - names above NPCs head.
 
-## 3.4 Optional - Enable Minimum Character Name Size
+## 3.5 Optional - Enable Minimum Character Name Size
 
 In the modern client under ESC > Options > Accessibility > General > **Minimum Character Name Size = 6**
 
@@ -561,7 +388,7 @@ For normal quick startup of `HeadlessServer` please look at the `HeadlessServer\
 | ---- | ---- | ---- | ---- |
 | `-m`<br>`-mode` | Pathfinder type | `RemoteV3` | `Local` or `RemoteV1` or `RemoteV3` |
 | `-p`<br>`-pid` | World of Warcraft process id | `-1` | open up task manager to find PID |
-| `-r`<br>`-reader` | Addon data screen reader backend | `DXGI` | `DXGI` works since Win8 |
+| `-r`<br>`-reader` | Addon data screen reader backend | `DXGI` | `DXGI` or `WGC`. See [Screen Capture Methods](#32-screen-capture-methods) |
 | `hostv1` | Navigation Remote V1 host | `localhost` | - |
 | `portv1` | Navigation Remote V1 port | `5001` | - |
 | `hostv3` | Navigation Remote V3 host | `127.0.0.1` | - |
@@ -830,6 +657,7 @@ The class configuration controls all aspects of bot behavior. Here's why each se
 | `"Salvage"` | Should salvage the mob | true | `false` |
 | `"UseMount"` | Should use mount when its possible | true | `false` |
 | `"AllowPvP"` | Should engage combat with the opposite faction | true | `false` |
+| `"TargetNeutral"` | Should detect neutral (yellow) nameplates in addition to hostile (red). Enable for starting zones (levels 1-5) where mobs are neutral. | true | `false` |
 | `"AutoPetAttack"` | Should the pet start attacking as soon as possible | true | `true` |
 | `"KeyboardOnly"` | Use keyboard to interact only. See [KeyboardOnly](#keyboardonly) | false | `true` |
 | --- | --- | --- | --- |
@@ -860,7 +688,7 @@ The class configuration controls all aspects of bot behavior. Here's why each se
 | --- | --- | --- | --- |
 | `"Mail"` | Enable mail functionality | true | `false` |
 | `"MailFilename"` | External mail config file path (relative to `Json/mail/`) | true | `""` |
-| `"MailConfig"` | Inline mail configuration object. See [Mail Feature](#mail-feature) | true | `{}` |
+| `"MailConfig"` | Inline mail configuration object. See [Mail Goal](#mail-goal) | true | `{}` |
 | --- | --- | --- | --- |
 | `"GatherFindKeys"` | List of strings for switching between gathering profiles | true | `string[]` |
 | --- | --- | --- | --- |
@@ -1261,6 +1089,140 @@ From Addon version **1.6.0** it has been significantly changed to the point wher
 As a result in order to execute the [Pull Goal](#pull-goal) sequence in respect, have to combine its [KeyAction(s)](#keyaction) with `AfterCast` prefixed conditions.
 
 ---
+
+## Mail Goal
+
+Automatically mail items and gold to another character when visiting a mailbox.
+
+### Quick Setup
+
+1. Enable mail in your class profile:
+```json
+{
+  "Mail": true,
+  "MailConfig": {
+    "RecipientName": "YourAltCharacter"
+  }
+}
+```
+
+2. The bot will mail items after vendoring/repairing when:
+   - Items meet the quality threshold (default: Green/Uncommon)
+   - Player has excess gold above minimum threshold
+   - Player is at a mailbox
+
+### Configuration Options
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Mail` | bool | `false` | Enable/disable mail for this profile |
+| `MailFilename` | string | `""` | External mail config file (relative to `Json/mail/`) |
+| `MailConfig.RecipientName` | string | `""` | Character name to send mail to |
+| `MailConfig.MinimumGoldToKeep` | int | `10000` | Minimum gold to keep (in copper, 10000 = 1g) |
+| `MailConfig.MinimumItemQuality` | int | `2` | Minimum item quality (0=Grey, 1=White, 2=Green, 3=Blue, 4=Epic) |
+| `MailConfig.SendGold` | bool | `true` | Whether to send excess gold |
+| `MailConfig.SendItems` | bool | `true` | Whether to send items |
+| `MailConfig.ExcludedItemIds` | int[] | `[]` | Item IDs to never mail |
+
+### Recipient Priority
+
+The recipient is determined in this order:
+1. **UI Setting** (localStorage) - Set via Frontend Mail page
+2. **Environment Variable** - `MAIL_RECIPIENT=CharacterName`
+3. **JSON Config** - `MailConfig.RecipientName`
+
+### Special Recipient Keywords
+
+Instead of a character name, you can use special keywords:
+
+| Keyword | Behavior |
+|---------|----------|
+| `UseRandomFriendList` | Randomly selects a character from your friend list (online or offline) |
+
+**Example:**
+```json
+{
+  "Mail": true,
+  "MailConfig": {
+    "RecipientName": "UseRandomFriendList",
+    "MinimumItemQuality": 2
+  }
+}
+```
+
+**Note:** If using `UseRandomFriendList` and your friend list is empty, mail sending will be skipped.
+
+### Example: Full Mail Configuration
+
+```json
+{
+  "ClassName": "Warrior",
+  "Mail": true,
+  "MailConfig": {
+    "RecipientName": "MyBankAlt",
+    "MinimumGoldToKeep": 50000,
+    "MinimumItemQuality": 2,
+    "SendGold": true,
+    "SendItems": true,
+    "ExcludedItemIds": [6948, 5956, 4306]
+  }
+}
+```
+
+### Example: Using External Config File
+
+```json
+{
+  "Mail": true,
+  "MailFilename": "bank_alt_mail.json"
+}
+```
+
+Create `Json/mail/bank_alt_mail.json`:
+```json
+{
+  "RecipientName": "MyBankAlt",
+  "MinimumGoldToKeep": 20000,
+  "MinimumItemQuality": 1,
+  "SendGold": true,
+  "SendItems": true,
+  "ExcludedItemIds": [6948]
+}
+```
+
+### Item Quality Reference
+
+| Value | Quality | Color |
+|-------|---------|-------|
+| 0 | Poor | Grey |
+| 1 | Common | White |
+| 2 | Uncommon | Green |
+| 3 | Rare | Blue |
+| 4 | Epic | Purple |
+| 5 | Legendary | Orange |
+
+### What Gets Mailed
+
+**Mailed:**
+- Items meeting quality threshold
+- Not in excluded items list
+- Tradable (not soulbound, not quest items)
+
+**Never Mailed:**
+- Soulbound items
+- Quest items
+- Bind-on-Pickup (BoP) items
+- Items in exclusion list
+- Hearthstone (recommended to exclude: 6948)
+
+### Frontend Mail Page
+
+The Mail page in the browser UI allows you to:
+- Set recipient name (persists across sessions)
+- Configure quality threshold and gold minimum
+- Visually browse your inventory
+- Click items to add/remove from exclusion list
+- Save settings to profile or use runtime overrides
 
 ## Goal Groups
 
@@ -2456,6 +2418,10 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"Flying"` | The player is currently flying, not touching the ground. |
 | `"MenuOpen"` | Returns true if the Game Menu window is open (ESC) |
 | `"ChatInputVisible"` | Returns true if the Chat inputbox is open (ENTER) |
+| `"AnyBagOpen"` | Returns true if any bag frame is visible on screen |
+| `"CharacterFrameOpen"` | Returns true if the Character Info window is open (C) |
+| `"SpellBookFrameOpen"` | Returns true if the Spellbook window is open (P) |
+| `"FriendsFrameOpen"` | Returns true if the Social/Friends window is open (O) |
 | `"Dead"` | The player is currently dead. |
 | `"CannibalizeCorpse"` | A Humanoid or Undead corpse is within 5 yards of the player. |
 | `"DamageTakenFromTotem"` | The player has taken damage from a Totem creature type. Useful to detect nearby totems. |
@@ -3299,3 +3265,56 @@ Melee weapon enchant:
 **Q: Modifier keys (Shift/Ctrl/Alt) not working**
 - Only single modifiers are supported, not combinations like Shift-Alt
 - Verify the binding in WoW uses the same modifier
+
+# Important: Migration Guide for Existing Users
+
+If you are upgrading from a previous version, please read this section carefully.
+
+## Breaking Changes
+
+### Keybinding System Overhaul
+
+The application now **automatically reads your in-game keybindings** instead of requiring manual configuration. This is a significant improvement but requires some migration steps.
+
+**What Changed:**
+1. The addon now sends your actual WoW keybindings to the application
+2. Modifier keys (Shift, Ctrl, Alt) are now fully supported
+3. BindPad addon is bundled and used internally for secure macro buttons
+4. Custom actions (StopAttack, ClearTarget) now use Alt-modified keys by default
+
+**Migration Steps:**
+
+1. **Update the Addon**: Copy the new `DataToColor` addon to your WoW Addons folder, replacing the old version.
+
+2. **Install BindPad**: Copy the `BindPad` addon from the `Addons/BindPad/` folder to your WoW Addons folder. This is required for TBC Classic 2.5.5+ compatibility.
+
+3. **First Login**: On first login after the update, the addon will:
+   - Automatically set up essential keybindings if they are missing
+   - Create secure action buttons for StopAttack, ClearTarget, etc.
+   - Read and send all your keybindings to the application
+
+4. **Check Your Class Profile**: The default keys for some BaseActions have changed:
+   | Action | Old Default | New Default |
+   | --- | --- | --- |
+   | Interact | `I` | `Alt-Home` |
+   | InteractMouseOver | `J` | `Alt-End` |
+   | ClearTarget | `Insert` | `Alt-Insert` |
+   | StopAttack | `Delete` | `Alt-Delete` |
+   | TargetFocus | `PageUp` | `Alt-PageUp` |
+   | FollowTarget | `PageDown` | `Alt-PageDown` |
+
+   If your class profile overrides these keys, you may need to update them.
+
+5. **In-Game Verification**: After logging in, you can verify the bindings are working:
+   - Press `Shift-PageUp` to toggle addon config mode (should see "Config mode" / "Normal mode" messages)
+   - Press `Shift-PageDown` to flush addon state (should see "Flush State" message)
+
+### Troubleshooting
+
+If bindings are not working after migration:
+1. Make sure you are not in combat when logging in (bindings cannot be set in combat)
+2. Run `/<prefix>actions` to manually create and bind the custom actions (e.g., `/dcactions`)
+3. Run `/<prefix>bindings` to set up default action bar bindings (e.g., `/dcbindings`)
+4. Check the Frontend "Key Bindings" page to see what bindings the addon detected
+
+**Note**: The command prefix (e.g., `dc`) is derived from your addon title. If you named your addon "daq" during setup, use `/daqactions`, `/daqbindings`, etc.

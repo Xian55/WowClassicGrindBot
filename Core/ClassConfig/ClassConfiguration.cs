@@ -102,6 +102,7 @@ public sealed partial class ClassConfiguration
     public int MouseTurnStepPixels { get; set; } = 30;
     public int MouseTurnStepDelayMs { get; set; } = 6;
     public bool AllowPvP { get; set; }
+    public bool TargetNeutral { get; set; }
     public bool AutoPetAttack { get; set; } = true;
 
     // Keeping this for backward compatibility

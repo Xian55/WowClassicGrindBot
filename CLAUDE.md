@@ -1,5 +1,9 @@
 # WowClassicGrindBot - Claude Code Guidelines
 
+## bash commands
+* don't pipe to /dev/nul. we run git bash on windows and it doesn't work.
+* in case the file exists use `rm -f "./WowClassicGrindBot/nul"`
+
 ## Project Overview
 Multi-project .NET 10 solution (MasterOfPuppets.sln) with Blazor Server frontend, SignalR communication, and various utility projects.
 
@@ -20,6 +24,9 @@ dotnet run --project Benchmarks -c Release
 ## Constants
   - Replace magic strings/numbers with `public const` fields for cross-file discoverability
   - Place constants in the owning class to enable Find All References and compile-time safety
+
+## User facing API changes
+- When the `Core\Requirement\RequirementFactory.cs` is changed, a user facing API is added, removed, renamed make sure to update the `README.md` file
 
 ## Performance Guidelines
 Follow .NET performance best practices from:
@@ -85,6 +92,15 @@ Central package management via `Directory.Packages.props`:
 ## DataToColor WoW Addon (Lua 5.1)
 
 **Location:** `Addons/DataToColor/`
+
+### Addon version tracking
+
+In order to provide easy way for the user to receive addon changes we keep track of each addon change in a Pull Request. The pull request title starts with "Addon: [x.y.z] - TITLE"
+
+When a change happens in the *.lua files make sure to bump the patch version (if not changed already) in the following files
+* `Addons\DataToColor\DataToColor_TBC.toc`
+* `Addons\DataToColor\DataToColor.toc`
+* `Addons\DataToColor\DataToColor_Classic.toc`
 
 World of Warcraft uses **Lua 5.1** (all versions including Classic). The addon encodes game state as pixel colors for external reading.
 
@@ -221,6 +237,7 @@ Addons/DataToColor/
 ├── DataToColor.lua       - Main frame update loop (performance critical)
 ├── Constants.lua         - Static data tables
 ├── Query.lua             - Game state queries
+├── BitCache.lua          - Cache for Query.lua avoid excessive amount of wow lua api calls.
 ├── Storage.lua           - Data storage structures
 ├── EventHandlers.lua     - WoW event handling
 ├── Collections.lua       - Data structure implementations
@@ -228,3 +245,7 @@ Addons/DataToColor/
 ├── ActionBarMacros.lua   - Macro detection
 └── libs/                 - Ace3 libraries (external, don't modify)
 ```
+
+### Use event driven change tracking
+Use Event driven change tracking in the addon instead of polling the state each time.
+The lua Events should be handled in `EventHandlers.lua`.
