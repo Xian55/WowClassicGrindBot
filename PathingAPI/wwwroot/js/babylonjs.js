@@ -177,6 +177,54 @@
         pcs.buildMeshAsync();
     })
 
+    connection.on("drawWeightedLines", (arrays, name) => {
+        if (scene == null) return;
+
+        if (arrays.length === 0)
+            return;
+
+        const height = getHeight(1); // green height
+
+        removeMesh(name);
+
+        // Find min/max W (cost) for normalization
+        let minW = Infinity;
+        let maxW = -Infinity;
+        for (let i = 0; i < arrays.length; i++) {
+            const w = arrays[i][3];
+            if (w < minW) minW = w;
+            if (w > maxW) maxW = w;
+        }
+        const range = maxW - minW;
+
+        const pcs = new BABYLON.PointsCloudSystem(name, div, scene);
+
+        pcs.addPoints(arrays.length, (particle, i) => {
+            const v = arrays[i];
+            particle.position = new BABYLON.Vector3(v[0] / div, (v[2] / div) + height, v[1] / div);
+
+            // Normalize weight to [0..1] and map to HSL green(120)->yellow(60)->red(0)
+            const t = range > 0 ? (v[3] - minW) / range : 0;
+            const hue = (1 - t) * 120;
+            particle.color = hslToColor4(hue);
+        });
+
+        pcs.buildMeshAsync();
+    })
+
+    // HSL to BABYLON.Color4 without string allocation.
+    // Hardcoded s=1, l=0.5 (full saturation, mid lightness) since we only
+    // vary hue along the green->red gradient.
+    function hslToColor4(h) {
+        const k1 = (0  + h / 30) % 12;
+        const k2 = (8  + h / 30) % 12;
+        const k3 = (4  + h / 30) % 12;
+        const r = 0.5 - 0.5 * Math.max(Math.min(k1 - 3, 9 - k1, 1), -1);
+        const g = 0.5 - 0.5 * Math.max(Math.min(k2 - 3, 9 - k2, 1), -1);
+        const b = 0.5 - 0.5 * Math.max(Math.min(k3 - 3, 9 - k3, 1), -1);
+        return new BABYLON.Color4(r, g, b, 1);
+    }
+
     connection.on("drawPath", (arrays, color, name) => {
         if (scene == null) return;
 
