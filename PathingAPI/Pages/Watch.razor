@@ -323,7 +323,7 @@
                 if (testPointsCount != pPatherService.TestPoints.Count)
                 {
                     testPointsCount = pPatherService.TestPoints.Count;
-                    await SendDrawLines(pPatherService.TestPoints.ToHashSet(), Color.Green, "debug", token);
+                    await SendDrawWeightedLines(pPatherService.TestPoints, "debug", token);
                 }
 
                 if (blockedPointsCount != pPatherService.BlockedPoints.Count)
@@ -389,7 +389,7 @@
 
             if (DrawTestPoints && BabylonJs)
             {
-                await SendDrawLines(pPatherService.TestPoints, Color.Green, "debug", Token);
+                await SendDrawWeightedLines(pPatherService.TestPoints, "debug", Token);
                 await SendDrawLines(pPatherService.BlockedPoints, Color.Red, "debug2", Token);
             }
 
@@ -681,6 +681,16 @@
         try
         {
             await hubContext.Clients.All.SendAsync("drawLines", points, (int)color, name, token);
+        }
+        catch (Exception) when (token.IsCancellationRequested) { }
+        catch (JSDisconnectedException) { }
+    }
+
+    private async Task SendDrawWeightedLines(IEnumerable<Vector4> points, string name, CancellationToken token)
+    {
+        try
+        {
+            await hubContext.Clients.All.SendAsync("drawWeightedLines", points, name, token);
         }
         catch (Exception) when (token.IsCancellationRequested) { }
         catch (JSDisconnectedException) { }

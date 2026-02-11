@@ -620,7 +620,7 @@ public sealed class PathGraph
     public Spot ClosestSpot;
     public Spot PeekSpot;
 
-    public readonly HashSet<Vector3> TestPoints = [];
+    public readonly HashSet<Vector4> TestPoints = [];
     public readonly HashSet<Vector3> BlockedPoints = [];
 
     private Spot Search(Spot fromSpot, Spot destinationSpot, SearchStrategy searchScoreSpot, float minHowClose)
@@ -714,10 +714,11 @@ public sealed class PathGraph
                 // Use SpotManager for flag and search state checks
                 if (linked != null && !spotManager.IsFlagSet(linked, Spot.FLAG_BLOCKED) && !spotManager.SearchIsClosed(linked))
                 {
-                    // Use SpotManager to get location
-                    TestPoints.Add(spotManager.GetLocation(linked));
-
                     ScoreSpot(linked, destinationSpot, searchScoreSpot, currentSearchID, prioritySpotQueue);
+
+                    // Store location with F_Score in W for weighted visualization
+                    Vector3 loc = spotManager.GetLocation(linked);
+                    TestPoints.Add(new Vector4(loc.X, loc.Y, loc.Z, spotManager.SearchScoreGet(linked)));
                 }
             }
         }

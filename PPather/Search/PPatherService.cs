@@ -39,7 +39,7 @@ public sealed class PPatherService
     public Vector3 ClosestLocation => search?.PathGraph?.ClosestSpot?.Loc ?? Vector3.Zero;
     public Vector3 PeekLocation => search?.PathGraph?.PeekSpot?.Loc ?? Vector3.Zero;
 
-    public HashSet<Vector3> TestPoints => search?.PathGraph?.TestPoints ?? [];
+    public HashSet<Vector4> TestPoints => search?.PathGraph?.TestPoints ?? [];
 
     public HashSet<Vector3> BlockedPoints => search?.PathGraph?.BlockedPoints ?? [];
 
