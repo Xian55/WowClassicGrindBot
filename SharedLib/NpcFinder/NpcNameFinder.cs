@@ -175,7 +175,7 @@ public sealed partial class NpcNameFinder
         TargetCount = Npcs.Count(TargetsCount);
         AddCount = Npcs.Count(IsAdd);
 
-        if (AddCount > 0 && TargetCount >= 1)
+        if (AddCount > 0)
         {
             PotentialAddsExist = true;
             LastPotentialAddsSeen = GetTimestamp();

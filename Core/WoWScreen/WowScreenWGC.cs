@@ -52,7 +52,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
     public event Action? OnChanged;
 
     public bool Enabled { get => true; set { } }
-    public bool EnablePostProcess { get; set; } = true;
+    public bool EnablePostProcess { get => true; set { } }
     public bool MinimapEnabled { get; set; }
 
     public Rectangle ScreenRect => screenRect;
