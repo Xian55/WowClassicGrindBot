@@ -126,7 +126,9 @@
             builder.CloseElement();
 
             builder.OpenElement(seq++, "td");
-            string name = textReader.PartyNames[Math.Clamp(member.Slot - 1, 0, 3)];
+            string name = !string.IsNullOrWhiteSpace(member.Name)
+                ? member.Name
+                : textReader.PartyNames[Math.Clamp(member.Slot - 1, 0, 3)];
             builder.AddContent(seq++, string.IsNullOrWhiteSpace(name) ? "-" : name);
             builder.CloseElement();
 

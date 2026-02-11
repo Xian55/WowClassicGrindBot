@@ -20,7 +20,9 @@ local PARTY_FRAME_START = 121 -- first party frame index (odd -> row 2)
 local PARTY_FRAME_STRIDE = 12 -- keeps all party frames on row 2 (odd indices only)
 local PARTY_FRAME_OFFSETS = {
     MapFlags = 0,     -- mapId + inCombat + exists
-    Vitals = 2,       -- health%, power%, powerType
+    NamePart1 = 1,    -- name bytes 1-3 (packed)
+    NamePart2 = 2,    -- name bytes 4-6 (packed)
+    Vitals = 3,       -- health%, power%, powerType
     PosX = 4,         -- encoded X
     PosY = 6,         -- encoded Y
     Name = 8,         -- 20-bit hash of name
@@ -450,6 +452,14 @@ local function EncodePartyVitals(unit)
 
     -- Pack into 20 bits: health(7) | power(7) | powerType(6)
     return lshift(healthPct, 13) + lshift(powerPct, 6) + encodedPowerType
+end
+
+-- Packs up to three UTF-8 bytes from a string slice into a single integer.
+local function PackNameChunk(name, startIndex)
+    local b1 = byte(name, startIndex) or 0
+    local b2 = byte(name, startIndex + 1) or 0
+    local b3 = byte(name, startIndex + 2) or 0
+    return lshift(b1, 16) + lshift(b2, 8) + b3
 end
 
 local function GetAuraSpellId(isBuff, unit, index)
@@ -1382,6 +1392,11 @@ function DataToColor:CreateFrames()
                     nameHash = HashName20(name)
                     if name then
                         DataToColor:PushPartyName(partyIndex, name)
+                        Pixel(int, PackNameChunk(name, 1), base + PARTY_FRAME_OFFSETS.NamePart1)
+                        Pixel(int, PackNameChunk(name, 4), base + PARTY_FRAME_OFFSETS.NamePart2)
+                    else
+                        Pixel(int, 0, base + PARTY_FRAME_OFFSETS.NamePart1)
+                        Pixel(int, 0, base + PARTY_FRAME_OFFSETS.NamePart2)
                     end
                     local _, classTag, classNumericId = UnitClass(unit)
                     classId = classNumericId or DataToColor.C.CHARACTER_CLASS_MAP[classTag] or 0
@@ -1389,6 +1404,8 @@ function DataToColor:CreateFrames()
                 else
                     -- Clear stale names when a slot is empty
                     DataToColor:PushPartyName(partyIndex, "")
+                    Pixel(int, 0, base + PARTY_FRAME_OFFSETS.NamePart1)
+                    Pixel(int, 0, base + PARTY_FRAME_OFFSETS.NamePart2)
                 end
 
                 local inCombat = exists and UnitAffectingCombat(unit) and 1 or 0

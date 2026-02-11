@@ -116,12 +116,17 @@
 
     private string GetName(PlayerReader.PartyMemberStatus member)
     {
-        if (member.Slot < 1 || member.Slot > textReader.PartyNames.Length)
+        if (!string.IsNullOrWhiteSpace(member.Name))
         {
-            return string.Empty;
+            return member.Name;
         }
 
-        return textReader.PartyNames[member.Slot - 1];
+        if (member.Slot >= 1 && member.Slot <= textReader.PartyNames.Length)
+        {
+            return textReader.PartyNames[member.Slot - 1];
+        }
+
+        return string.Empty;
     }
 
     private string GetPowerClass(PowerType powerType) => powerType switch
@@ -237,6 +242,7 @@
                     MapId: 0,
                     MapX: 0,
                     MapY: 0,
+                    Name: string.Empty,
                     NameHash: 0,
                     ClassId: 0,
                     Level: 0,
