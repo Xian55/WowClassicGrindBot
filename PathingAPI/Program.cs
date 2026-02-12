@@ -1,3 +1,4 @@
+using System;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -9,20 +10,25 @@ namespace PathingAPI;
 
 public sealed class Program
 {
-    public static string hostUrl = "http://127.0.0.1:5001";
+    private const string DefaultHostUrl = "http://127.0.0.1:5001";
+    private const string HostUrlEnvVar = "HOST_URL";
+    private const string AspNetCoreUrlsEnvVar = "ASPNETCORE_URLS";
 
     public static void Main(string[] args)
     {
-        CreateHostBuilder(args).Build().Run();
+        string hostUrl = ResolveHostUrl();
+
+        CreateHostBuilder(args, hostUrl).Build().Run();
     }
 
-    public static IHostBuilder CreateHostBuilder(string[] args) =>
+    public static IHostBuilder CreateHostBuilder(string[] args, string hostUrl) =>
         Host.CreateDefaultBuilder(args)
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.ConfigureAppConfiguration((context, config) =>
                 {
                     config.AddCommandLine(args);
+                    config.AddEnvironmentVariables(prefix: "PATHINGAPI_");
                 });
 
                 webBuilder.UseUrls(hostUrl);
@@ -30,4 +36,21 @@ public sealed class Program
                     logging.ClearProviders().AddSerilog());
                 webBuilder.UseStartup<Startup>();
             });
+
+    private static string ResolveHostUrl()
+    {
+        string hostUrl = Environment.GetEnvironmentVariable(HostUrlEnvVar);
+        if (!string.IsNullOrWhiteSpace(hostUrl))
+        {
+            return hostUrl;
+        }
+
+        string aspNetCoreUrls = Environment.GetEnvironmentVariable(AspNetCoreUrlsEnvVar);
+        if (!string.IsNullOrWhiteSpace(aspNetCoreUrls))
+        {
+            return aspNetCoreUrls;
+        }
+
+        return DefaultHostUrl;
+    }
 }

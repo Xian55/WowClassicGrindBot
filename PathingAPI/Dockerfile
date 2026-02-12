@@ -16,9 +16,12 @@ RUN git clone --depth 1 https://github.com/ladislav-zezula/StormLib.git /tmp/sto
 	&& cp "$libpath" /usr/local/lib/libstorm.so
 
 COPY . .
+RUN if [ ! -f PathingAPI/data_config.json ]; then \
+	echo '{"Version":14,"Root":"..\\json"}' > PathingAPI/data_config.json; \
+	fi
 RUN dotnet restore MasterOfPuppets.sln /p:EnableWindowsTargeting=true
-WORKDIR /src/PathingAPI.Container
-RUN dotnet publish PathingAPI.Container.csproj -c Release -o /app/publish /p:UseAppHost=false /p:EnableWindowsTargeting=true \
+WORKDIR /src/PathingAPI
+RUN dotnet publish PathingAPI.csproj -c Release -o /app/publish /p:UseAppHost=false /p:EnableWindowsTargeting=true \
 	&& cp /usr/local/lib/libstorm.so /app/publish/
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
@@ -27,4 +30,4 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:5001
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 COPY --from=build /app/publish .
 EXPOSE 5001
-ENTRYPOINT ["dotnet", "PathingAPI.Container.dll"]
+ENTRYPOINT ["dotnet", "PathingAPI.dll"]
