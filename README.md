@@ -352,6 +352,34 @@ The app reads the game state using small blocks of color shown at the top of the
     * Complete `5. Frame Configuration` steps again
     * Click on `Auto` -> `Start` [Validate FrameConfiguration](../../wiki/Validating-FrameConfiguration)
 
+### Command-line Configuration Overrides
+
+`run.bat` forwards all arguments to `dotnet run`, so any setting from `BlazorServer/appsettings.json` can be overridden using `--Section:Property=Value` syntax.
+
+**Example:**
+
+```
+run.bat --Reader:Type=WGC --Pathing:Mode=Local --Reader:UseGpu=true
+```
+
+| Section | Property | Type | Default | Valid Values | Description |
+|---|---|---|---|---|---|
+| `Process` | `Id` | int | `-1` | Any process ID | WoW process ID. `-1` for auto-detect |
+| `Reader` | `Type` | string | `DXGI` | `DXGI`, `WGC` | Screen reader type. `WGC` = Windows Graphics Capture (supports background window) |
+| `Reader` | `UseGpu` | bool | `false` | `true`, `false` | Use GPU acceleration for screen reading |
+| `Pathing` | `Mode` | string | `RemoteV3` | `Local`, `RemoteV1`, `RemoteV3` | Pathfinding mode |
+| `Pathing` | `hostv1` | string | `localhost` | hostname/IP | RemoteV1 pathing server host |
+| `Pathing` | `portv1` | int | `5001` | port number | RemoteV1 pathing server port |
+| `Pathing` | `hostv3` | string | `127.0.0.1` | hostname/IP | RemoteV3 pathing server host |
+| `Pathing` | `portv3` | int | `47111` | port number | RemoteV3 pathing server port |
+| `Diagnostics` | `Enabled` | bool | `false` | `true`, `false` | Enable diagnostic mode |
+| `Overlay` | `Enabled` | bool | `false` | `true`, `false` | Enable NPC overlay |
+| `Overlay` | `ShowTargeting` | bool | `false` | `true`, `false` | Show targeting overlay |
+| `Overlay` | `ShowSkinning` | bool | `false` | `true`, `false` | Show skinning overlay |
+| `Overlay` | `ShowTargetVsAdd` | bool | `false` | `true`, `false` | Show target vs add overlay |
+
+These properties can also be edited directly in `BlazorServer/appsettings.json`.
+
 ## 6. BlazorServer should restart and show the dashboard page.
 
 ## 7 Optional - Running HeadlessServer
