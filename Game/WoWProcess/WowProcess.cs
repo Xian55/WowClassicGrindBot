@@ -133,8 +133,9 @@ public sealed class WowProcess
     }
 
     // Blizzard occasionally ships executables with broken file versions
-    // where Major encodes both the real Major and Build digits (e.g. 205
-    // means Major=2, Build=5) and Build*10+Revision gives the real Revision.
+    // where FileMajorPart encodes realMajor*100+realMinor (e.g. 115 means
+    // Major=1, Minor=15), FileMinorPart is the real Build, and
+    // FileBuildPart*10+FilePrivatePart gives the real Revision.
     private static Version CorrectVersion(Version v)
     {
         if (v.Major < 100)
@@ -142,8 +143,8 @@ public sealed class WowProcess
 
         return new Version(
             v.Major / 100,
-            v.Minor,
             v.Major % 100,
+            v.Minor,
             v.Build * 10 + v.Revision);
     }
 }
