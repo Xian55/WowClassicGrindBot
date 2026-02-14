@@ -2156,6 +2156,70 @@ e.g.
 ```
 
 ---
+### **Target requirements**
+
+If the current target must be a specific creature type use this requirement. Uses the DBC creature database to look up the target's type by NPC ID.
+
+Useful for abilities that only work on certain creature types (e.g. Paladin's Exorcism on Undead/Demon).
+
+Formula: `Target:[type]`
+
+| type |
+| --- |
+| Beast |
+| Dragonkin |
+| Demon |
+| Elemental |
+| Giant |
+| Undead |
+| Humanoid |
+| Critter |
+| Mechanical |
+| NotSpecified |
+| Totem |
+| NonCombatPet |
+| GasCloud |
+
+e.g.
+```json
+"Requirement": "Target:Undead"                          // Target must be Undead
+"Requirement": "Target:Demon"                             // Target must be Demon
+"Requirement": "!Target:Humanoid"                         // Target must not be Humanoid
+"Requirement": "Target:Undead || Target:Demon"            // Target is Undead or Demon
+```
+
+---
+### **MouseOver requirements**
+
+If the current mouseover must be a specific creature type use this requirement. Uses the DBC creature database to look up the mouseover's type by NPC ID.
+
+Formula: `MouseOver:[type]`
+
+| type |
+| --- |
+| Beast |
+| Dragonkin |
+| Demon |
+| Elemental |
+| Giant |
+| Undead |
+| Humanoid |
+| Critter |
+| Mechanical |
+| NotSpecified |
+| Totem |
+| NonCombatPet |
+| GasCloud |
+
+e.g.
+```json
+"Requirement": "MouseOver:Undead"                          // MouseOver must be Undead
+"Requirement": "MouseOver:Demon"                           // MouseOver must be Demon
+"Requirement": "!MouseOver:Humanoid"                       // MouseOver must not be Humanoid
+"Requirement": "MouseOver:Undead || MouseOver:Demon"       // MouseOver is Undead or Demon
+```
+
+---
 ### **Equipment requirements**
 
 Check if the player has an item equipped in the specified `slot`. Optionally check for a specific `itemId`.

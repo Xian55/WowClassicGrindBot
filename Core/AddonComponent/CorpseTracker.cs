@@ -76,7 +76,7 @@ public sealed class CorpseTracker
             if (!creatureDb.Entries.TryGetValue(npcId, out Creature creature))
                 continue;
 
-            if (!CreatureTypes.IsCannibalizable(creature.Type))
+            if (!creature.Type.IsCannibalizable())
                 continue;
 
             Vector3 corpseWorldPos = WorldMapAreaDB.ToWorld_FlipXY(corpse.MapLoc, worldMapArea);
