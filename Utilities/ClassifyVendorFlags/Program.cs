@@ -10,6 +10,7 @@ using SharedLib;
 using SharedLib.Data;
 
 const int VendorSubtypeMask = (int)(NpcFlags.VendorAmmo | NpcFlags.VendorFood | NpcFlags.VendorPoison | NpcFlags.VendorReagent);
+const int TrainerMask = (int)(NpcFlags.Trainer | NpcFlags.ClassTrainer | NpcFlags.ProfessionTrainer);
 
 bool auditMode = args.Contains("--audit", StringComparer.OrdinalIgnoreCase);
 
@@ -45,6 +46,14 @@ if (auditMode)
     RunAudit(files, basePath);
     return 0;
 }
+
+// ── Phase -1: Remap SoM NpcFlags from Classic to TBC+ layout ──
+// SoM creatures.json stores NpcFlags in Classic (1.14.x) bit layout.
+// Our NpcFlags enum uses TBC+ layout. Remap before any classification.
+Console.WriteLine("=== Phase -1: Remap SoM NpcFlags from Classic to TBC+ layout ===");
+int remapCount = RemapSomNpcFlags(files);
+Console.WriteLine($"Phase -1 remapped: {remapCount}");
+Console.WriteLine();
 
 // ── Phase DB: Classify vendors from actual sell data ──
 // Load vendoritems.json + items.json per expansion to determine vendor sub-types
@@ -136,6 +145,124 @@ foreach (string expansion in expansions)
 
         creature["NpcFlag"] = newFlag;
         phaseDbCount++;
+    }
+
+    // ── Phase DB Repair: Apply Wowhead repair ground truth ──
+    string repairPath = Path.Combine(basePath, expansion, "repair.json");
+    if (File.Exists(repairPath))
+    {
+        HashSet<int> repairNpcIds = new(
+            JsonConvert.DeserializeObject<int[]>(File.ReadAllText(repairPath))!);
+
+        Console.WriteLine($"  [{expansion}] Loaded {repairNpcIds.Count} repair NPCs from ground truth");
+
+        foreach (JObject creature in creatures)
+        {
+            int entry = creature.Value<int>("Entry");
+            int npcFlag = creature.Value<int>("NpcFlag");
+            bool hasRepair = (npcFlag & (int)NpcFlags.Repair) != 0;
+            bool shouldRepair = repairNpcIds.Contains(entry);
+
+            if (shouldRepair && !hasRepair)
+            {
+                int newFlag = npcFlag | (int)NpcFlags.Repair;
+                string name = creature.Value<string>("Name") ?? "?";
+                Console.WriteLine($"  [{expansion}] [{entry}] {name}: {npcFlag} -> {newFlag} (+Repair)");
+                creature["NpcFlag"] = newFlag;
+                phaseDbCount++;
+            }
+            else if (!shouldRepair && hasRepair)
+            {
+                int newFlag = npcFlag & ~(int)NpcFlags.Repair;
+                string name = creature.Value<string>("Name") ?? "?";
+                Console.WriteLine($"  [{expansion}] [{entry}] {name}: {npcFlag} -> {newFlag} (-Repair)");
+                creature["NpcFlag"] = newFlag;
+                phaseDbCount++;
+            }
+        }
+    }
+
+    // ── Phase DB Trainer: Apply Wowhead trainer ground truth ──
+    string trainerPath = Path.Combine(basePath, expansion, "trainer.json");
+    string classTrainerPath = Path.Combine(basePath, expansion, "classtrainer.json");
+    if (File.Exists(trainerPath))
+    {
+        HashSet<int> trainerNpcIds = new(
+            JsonConvert.DeserializeObject<int[]>(File.ReadAllText(trainerPath))!);
+
+        HashSet<int> classTrainerNpcIds = File.Exists(classTrainerPath)
+            ? new(JsonConvert.DeserializeObject<int[]>(File.ReadAllText(classTrainerPath))!)
+            : [];
+
+        Console.WriteLine($"  [{expansion}] Loaded {trainerNpcIds.Count} trainers, {classTrainerNpcIds.Count} class trainers from ground truth");
+
+        foreach (JObject creature in creatures)
+        {
+            int entry = creature.Value<int>("Entry");
+            int npcFlag = creature.Value<int>("NpcFlag");
+            int currentTrainer = npcFlag & TrainerMask;
+
+            int expectedTrainer;
+            if (classTrainerNpcIds.Contains(entry))
+                expectedTrainer = (int)(NpcFlags.Trainer | NpcFlags.ClassTrainer);
+            else if (trainerNpcIds.Contains(entry))
+                expectedTrainer = (int)(NpcFlags.Trainer | NpcFlags.ProfessionTrainer);
+            else if (currentTrainer != 0)
+                expectedTrainer = 0; // false positive — strip all trainer flags
+            else
+                continue; // not a trainer, no flags to change
+
+            if (currentTrainer == expectedTrainer)
+                continue;
+
+            int newFlag = (npcFlag & ~TrainerMask) | expectedTrainer;
+            string name = creature.Value<string>("Name") ?? "?";
+
+            int added = expectedTrainer & ~currentTrainer;
+            int removed = currentTrainer & ~expectedTrainer;
+            string detail = "";
+            if (added != 0) detail += $"+{(NpcFlags)added}";
+            if (removed != 0) detail += (detail.Length > 0 ? " " : "") + $"-{(NpcFlags)removed}";
+
+            Console.WriteLine($"  [{expansion}] [{entry}] {name}: {npcFlag} -> {newFlag} ({detail})");
+            creature["NpcFlag"] = newFlag;
+            phaseDbCount++;
+        }
+    }
+
+    // ── Phase DB FlightMaster: Apply Wowhead flightmaster ground truth ──
+    string flightMasterPath = Path.Combine(basePath, expansion, "flightmaster.json");
+    if (File.Exists(flightMasterPath))
+    {
+        HashSet<int> flightMasterNpcIds = new(
+            JsonConvert.DeserializeObject<int[]>(File.ReadAllText(flightMasterPath))!);
+
+        Console.WriteLine($"  [{expansion}] Loaded {flightMasterNpcIds.Count} flightmaster NPCs from ground truth");
+
+        foreach (JObject creature in creatures)
+        {
+            int entry = creature.Value<int>("Entry");
+            int npcFlag = creature.Value<int>("NpcFlag");
+            bool hasFlightMaster = (npcFlag & (int)NpcFlags.FlightMaster) != 0;
+            bool shouldFlightMaster = flightMasterNpcIds.Contains(entry);
+
+            if (shouldFlightMaster && !hasFlightMaster)
+            {
+                int newFlag = npcFlag | (int)NpcFlags.FlightMaster;
+                string name = creature.Value<string>("Name") ?? "?";
+                Console.WriteLine($"  [{expansion}] [{entry}] {name}: {npcFlag} -> {newFlag} (+FlightMaster)");
+                creature["NpcFlag"] = newFlag;
+                phaseDbCount++;
+            }
+            else if (!shouldFlightMaster && hasFlightMaster)
+            {
+                int newFlag = npcFlag & ~(int)NpcFlags.FlightMaster;
+                string name = creature.Value<string>("Name") ?? "?";
+                Console.WriteLine($"  [{expansion}] [{entry}] {name}: {npcFlag} -> {newFlag} (-FlightMaster)");
+                creature["NpcFlag"] = newFlag;
+                phaseDbCount++;
+            }
+        }
     }
 }
 
@@ -233,7 +360,7 @@ Console.WriteLine($"Final pass updated: {finalStripCount}");
 Console.WriteLine();
 
 // ── Save ──
-int totalUpdated = phaseDbCount + phase0Count + phase1Count + phase2Count + phase3Count + finalStripCount;
+int totalUpdated = remapCount + phaseDbCount + phase0Count + phase1Count + phase2Count + phase3Count + finalStripCount;
 Console.WriteLine($"Total updated: {totalUpdated}");
 
 if (totalUpdated > 0)
@@ -252,6 +379,83 @@ if (totalUpdated > 0)
 return 0;
 
 // ── Helper methods ──
+
+int RemapSomNpcFlags(Dictionary<string, JArray> allFiles)
+{
+    if (!allFiles.TryGetValue("som", out JArray? creatures))
+        return 0;
+
+    int count = 0;
+    foreach (JObject creature in creatures)
+    {
+        int orig = creature.Value<int>("NpcFlag");
+        if (orig == 0)
+            continue;
+
+        int result = 0;
+
+        // Same position: bits 0 (Gossip), 1 (QuestGiver), 4 (Trainer)
+        result |= orig & ((1 << 0) | (1 << 1) | (1 << 4));
+
+        // Conditional bits 5-6 based on Trainer (bit 4)
+        // When Trainer is set: 5=ClassTrainer, 6=ProfessionTrainer (same as TBC+)
+        // When Trainer is not set: 5=SpiritHealer, 6=SpiritGuide (Classic positions)
+        bool isTrainer = (orig & (1 << 4)) != 0;
+        if (isTrainer)
+        {
+            result |= orig & ((1 << 5) | (1 << 6));
+        }
+        else
+        {
+            if ((orig & (1 << 5)) != 0) result |= 1 << 14;  // SpiritHealer
+            if ((orig & (1 << 6)) != 0) result |= 1 << 15;  // SpiritGuide
+        }
+
+        // Classic Vendor (bit 2) → merge into bit 7 (TBC+ Vendor)
+        bool classicVendor = (orig & (1 << 2)) != 0;
+        if (classicVendor)
+            result |= 1 << 7;
+
+        // Conditional bits 7-11 based on Classic Vendor bit 2
+        if (classicVendor)
+        {
+            // Keep as-is: 7=Vendor, 8=VendorAmmo, 9=VendorFood,
+            // 10=VendorPoison, 11=VendorReagent
+            result |= orig & ((1 << 7) | (1 << 8) | (1 << 9) | (1 << 10) | (1 << 11));
+        }
+        else
+        {
+            // bit 7 stays (edge case — non-vendor with bit 7 set)
+            result |= orig & (1 << 7);
+            // 8→17 Banker, 9→18 Petitioner, 10→19 TabardDesigner, 11→20 Battlemaster
+            if ((orig & (1 << 8)) != 0) result |= 1 << 17;
+            if ((orig & (1 << 9)) != 0) result |= 1 << 18;
+            if ((orig & (1 << 10)) != 0) result |= 1 << 19;
+            if ((orig & (1 << 11)) != 0) result |= 1 << 20;
+        }
+
+        // Unconditional remaps
+        if ((orig & (1 << 3)) != 0) result |= 1 << 13;   // FlightMaster
+        if ((orig & (1 << 12)) != 0) result |= 1 << 21;  // Auctioneer
+        if ((orig & (1 << 13)) != 0) result |= 1 << 22;  // StableMaster
+        if ((orig & (1 << 14)) != 0) result |= 1 << 12;  // Repair
+
+        // Bits ≥15: carry over from original (rare, already TBC+ position)
+        result |= orig & unchecked((int)0xFFFF8000);
+
+        if (result != orig)
+        {
+            string name = creature.Value<string>("Name") ?? "?";
+            int entry = creature.Value<int>("Entry");
+            Console.WriteLine($"  [som] [{entry}] {name}: {orig} -> {result} ({(NpcFlags)orig} -> {(NpcFlags)(uint)result})");
+
+            creature["NpcFlag"] = result;
+            count++;
+        }
+    }
+
+    return count;
+}
 
 int ApplyFlags(Dictionary<string, JArray> allFiles, Dictionary<int, int> lookup, string phase,
     HashSet<(string, int)> dbClassifiedVendors)

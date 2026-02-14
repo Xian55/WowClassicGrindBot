@@ -1060,7 +1060,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -1268,7 +1268,7 @@
     "MaxLevel": 23,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -2295,7 +2295,7 @@
     "MaxLevel": 13,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -2334,7 +2334,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -2685,7 +2685,7 @@
     "MaxLevel": 62,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -2711,7 +2711,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -2724,7 +2724,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -2737,7 +2737,7 @@
     "MaxLevel": 13,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -3543,7 +3543,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -3556,7 +3556,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -3569,7 +3569,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -4089,7 +4089,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -4297,7 +4297,7 @@
     "MaxLevel": 62,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -4310,7 +4310,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -6910,7 +6910,7 @@
     "MaxLevel": 20,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -7183,7 +7183,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -7859,7 +7859,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -7937,7 +7937,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -7963,7 +7963,7 @@
     "MaxLevel": 44,
     "Rank": 0,
     "Faction": 120,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8002,7 +8002,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8015,7 +8015,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8028,7 +8028,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8041,7 +8041,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8054,7 +8054,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8067,7 +8067,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8080,7 +8080,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8093,7 +8093,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8158,7 +8158,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8171,7 +8171,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8184,7 +8184,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8197,7 +8197,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8405,7 +8405,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8574,7 +8574,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8756,7 +8756,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8769,7 +8769,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8782,7 +8782,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -8795,7 +8795,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -10082,7 +10082,7 @@
     "MaxLevel": 22,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11421,7 +11421,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11460,7 +11460,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11512,7 +11512,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11538,7 +11538,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11551,7 +11551,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11577,7 +11577,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11590,7 +11590,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11668,7 +11668,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -11733,7 +11733,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -12370,7 +12370,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -12578,7 +12578,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -12955,7 +12955,7 @@
     "MaxLevel": 46,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13072,7 +13072,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13345,7 +13345,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13371,7 +13371,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13384,7 +13384,7 @@
     "MaxLevel": 53,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13540,7 +13540,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13553,7 +13553,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13579,7 +13579,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13605,7 +13605,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13618,7 +13618,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -13631,7 +13631,7 @@
     "MaxLevel": 64,
     "Rank": 0,
     "Faction": 16,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -14229,7 +14229,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -14333,7 +14333,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -14372,7 +14372,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -14411,7 +14411,7 @@
     "MaxLevel": 14,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -16790,7 +16790,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -16842,7 +16842,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -17089,7 +17089,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -17102,7 +17102,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -17115,7 +17115,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -17128,7 +17128,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -19312,7 +19312,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21626,7 +21626,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21691,7 +21691,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21743,7 +21743,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21756,7 +21756,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21769,7 +21769,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21782,7 +21782,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21795,7 +21795,7 @@
     "MaxLevel": 14,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21808,7 +21808,7 @@
     "MaxLevel": 17,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21834,7 +21834,7 @@
     "MaxLevel": 16,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -21847,7 +21847,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -22731,7 +22731,7 @@
     "MaxLevel": 1,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 6
@@ -22744,7 +22744,7 @@
     "MaxLevel": 1,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 6
@@ -22757,7 +22757,7 @@
     "MaxLevel": 1,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 6
@@ -23979,7 +23979,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -24707,7 +24707,7 @@
     "MaxLevel": 29,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -24720,7 +24720,7 @@
     "MaxLevel": 32,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -24824,7 +24824,7 @@
     "MaxLevel": 56,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -24889,7 +24889,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 88,
-    "NpcFlag": 4226,
+    "NpcFlag": 130,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -25812,7 +25812,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -25864,7 +25864,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -25903,7 +25903,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -28477,7 +28477,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 876,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -29959,7 +29959,7 @@
     "MaxLevel": 54,
     "Rank": 0,
     "Faction": 120,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -29972,7 +29972,7 @@
     "MaxLevel": 46,
     "Rank": 0,
     "Faction": 120,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -30180,7 +30180,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -30193,7 +30193,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -30206,7 +30206,7 @@
     "MaxLevel": 23,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -30388,7 +30388,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 51,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -30401,7 +30401,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 49,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -30947,7 +30947,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 656,
+    "NpcFlag": 640,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -31675,7 +31675,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -31779,7 +31779,7 @@
     "MaxLevel": 46,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -31792,7 +31792,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -31805,7 +31805,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -31857,7 +31857,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32078,7 +32078,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32091,7 +32091,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32104,7 +32104,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32117,7 +32117,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32130,7 +32130,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32156,7 +32156,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32182,7 +32182,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32195,7 +32195,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32208,7 +32208,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32221,7 +32221,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32234,7 +32234,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32247,7 +32247,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32260,7 +32260,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 147,
+    "NpcFlag": 179,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32273,7 +32273,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32286,7 +32286,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32299,7 +32299,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32312,7 +32312,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32325,7 +32325,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32455,7 +32455,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32468,7 +32468,7 @@
     "MaxLevel": 9,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32481,7 +32481,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32494,7 +32494,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32507,7 +32507,7 @@
     "MaxLevel": 14,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32520,7 +32520,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32533,7 +32533,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32546,7 +32546,7 @@
     "MaxLevel": 13,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -32585,7 +32585,7 @@
     "MaxLevel": 23,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33391,7 +33391,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33599,7 +33599,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33612,7 +33612,7 @@
     "MaxLevel": 8,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33638,7 +33638,7 @@
     "MaxLevel": 9,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33651,7 +33651,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33807,7 +33807,7 @@
     "MaxLevel": 43,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33833,7 +33833,7 @@
     "MaxLevel": 16,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33846,7 +33846,7 @@
     "MaxLevel": 37,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33859,7 +33859,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33872,7 +33872,7 @@
     "MaxLevel": 27,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -33989,7 +33989,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -34002,7 +34002,7 @@
     "MaxLevel": 14,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -35328,7 +35328,7 @@
     "MaxLevel": 27,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -35497,7 +35497,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 51,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -35692,7 +35692,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -35705,7 +35705,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -35718,7 +35718,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -35952,7 +35952,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -35991,7 +35991,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36056,7 +36056,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36069,7 +36069,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36082,7 +36082,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36095,7 +36095,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36225,7 +36225,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36719,7 +36719,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36732,7 +36732,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36758,7 +36758,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36771,7 +36771,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36784,7 +36784,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -36836,7 +36836,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -37629,7 +37629,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -37837,7 +37837,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 69,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -38201,7 +38201,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -38253,7 +38253,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 16,
-    "NpcFlag": 0,
+    "NpcFlag": 4096,
     "SkinLoot": 3529,
     "Family": 0,
     "Type": 7
@@ -38279,7 +38279,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 16,
-    "NpcFlag": 0,
+    "NpcFlag": 4096,
     "SkinLoot": 3531,
     "Family": 0,
     "Type": 7
@@ -38305,7 +38305,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 16,
-    "NpcFlag": 0,
+    "NpcFlag": 4096,
     "SkinLoot": 3533,
     "Family": 0,
     "Type": 7
@@ -38461,7 +38461,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -38513,7 +38513,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -38617,7 +38617,7 @@
     "MaxLevel": 28,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39033,7 +39033,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39046,7 +39046,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39059,7 +39059,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39085,7 +39085,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39098,7 +39098,7 @@
     "MaxLevel": 19,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39111,7 +39111,7 @@
     "MaxLevel": 20,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39124,7 +39124,7 @@
     "MaxLevel": 21,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39150,7 +39150,7 @@
     "MaxLevel": 22,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39163,7 +39163,7 @@
     "MaxLevel": 28,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39176,7 +39176,7 @@
     "MaxLevel": 17,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39202,7 +39202,7 @@
     "MaxLevel": 29,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39371,7 +39371,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39397,7 +39397,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -39410,7 +39410,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -40073,7 +40073,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -40099,7 +40099,7 @@
     "MaxLevel": 44,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -40203,7 +40203,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -40268,7 +40268,7 @@
     "MaxLevel": 42,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -40281,7 +40281,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -40307,7 +40307,7 @@
     "MaxLevel": 18,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -40320,7 +40320,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -42946,7 +42946,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -42959,7 +42959,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -42972,7 +42972,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -44493,7 +44493,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -44519,7 +44519,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -44532,7 +44532,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -44545,7 +44545,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -44558,7 +44558,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45208,7 +45208,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45221,7 +45221,7 @@
     "MaxLevel": 46,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45247,7 +45247,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45273,7 +45273,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45637,7 +45637,7 @@
     "MaxLevel": 29,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45767,7 +45767,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45884,7 +45884,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45897,7 +45897,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45910,7 +45910,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45936,7 +45936,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 147,
+    "NpcFlag": 179,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45949,7 +45949,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -45962,7 +45962,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -46391,7 +46391,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -46443,7 +46443,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -47210,7 +47210,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -49797,7 +49797,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -49810,7 +49810,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -49823,7 +49823,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -49836,7 +49836,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 6
@@ -49849,7 +49849,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -49862,7 +49862,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -49992,7 +49992,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50083,7 +50083,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50109,7 +50109,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50174,7 +50174,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50187,7 +50187,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50200,7 +50200,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50213,7 +50213,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50330,7 +50330,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50382,7 +50382,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50408,7 +50408,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -50447,7 +50447,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -51929,7 +51929,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -51955,7 +51955,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -51968,7 +51968,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53138,7 +53138,7 @@
     "MaxLevel": 37,
     "Rank": 0,
     "Faction": 894,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53164,7 +53164,7 @@
     "MaxLevel": 37,
     "Rank": 0,
     "Faction": 894,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53827,7 +53827,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53840,7 +53840,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53853,7 +53853,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53866,7 +53866,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53879,7 +53879,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53892,7 +53892,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53905,7 +53905,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53918,7 +53918,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -53931,7 +53931,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -54425,7 +54425,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 80,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -54490,7 +54490,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 80,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -54503,7 +54503,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 80,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -54529,7 +54529,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 80,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -54542,7 +54542,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 80,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55231,7 +55231,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55244,7 +55244,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55517,7 +55517,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55569,7 +55569,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55582,7 +55582,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55595,7 +55595,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55608,7 +55608,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55621,7 +55621,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55634,7 +55634,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55647,7 +55647,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55660,7 +55660,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55673,7 +55673,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55725,7 +55725,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55777,7 +55777,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55868,7 +55868,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55881,7 +55881,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55894,7 +55894,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55907,7 +55907,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55946,7 +55946,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55959,7 +55959,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55972,7 +55972,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -55985,7 +55985,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -56011,7 +56011,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -57688,7 +57688,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58754,7 +58754,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58767,7 +58767,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58793,7 +58793,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58819,7 +58819,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58845,7 +58845,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58871,7 +58871,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58884,7 +58884,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58923,7 +58923,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58936,7 +58936,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58949,7 +58949,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58962,7 +58962,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58975,7 +58975,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -58988,7 +58988,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59001,7 +59001,7 @@
     "MaxLevel": 57,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59014,7 +59014,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59040,7 +59040,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59053,7 +59053,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59066,7 +59066,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59131,7 +59131,7 @@
     "MaxLevel": 33,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59157,7 +59157,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59222,7 +59222,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59417,7 +59417,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59430,7 +59430,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -59742,7 +59742,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -61887,7 +61887,7 @@
     "MaxLevel": 28,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -62173,7 +62173,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -62992,7 +62992,7 @@
     "MaxLevel": 14,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -63018,7 +63018,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -63031,7 +63031,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -63044,7 +63044,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -63057,7 +63057,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -63980,7 +63980,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -63993,7 +63993,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64006,7 +64006,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64019,7 +64019,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64032,7 +64032,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64045,7 +64045,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64058,7 +64058,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64071,7 +64071,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64084,7 +64084,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64097,7 +64097,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64110,7 +64110,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64123,7 +64123,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64136,7 +64136,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64149,7 +64149,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64162,7 +64162,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64175,7 +64175,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64188,7 +64188,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64461,7 +64461,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64721,7 +64721,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -64773,7 +64773,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -66775,7 +66775,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 51,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -66944,7 +66944,7 @@
     "MaxLevel": 23,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -66957,7 +66957,7 @@
     "MaxLevel": 13,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -66970,7 +66970,7 @@
     "MaxLevel": 8,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -67035,7 +67035,7 @@
     "MaxLevel": 29,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -67087,7 +67087,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -67503,7 +67503,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -68959,7 +68959,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 471,
-    "NpcFlag": 51,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -70701,7 +70701,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -70714,7 +70714,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -70727,7 +70727,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -71754,7 +71754,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -71767,7 +71767,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -71780,7 +71780,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -72209,7 +72209,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -72222,7 +72222,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -72261,7 +72261,7 @@
     "MaxLevel": 55,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -73314,7 +73314,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 120,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -74120,7 +74120,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -76382,7 +76382,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -76395,7 +76395,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -76993,7 +76993,7 @@
     "MaxLevel": 57,
     "Rank": 0,
     "Faction": 64,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77045,7 +77045,7 @@
     "MaxLevel": 52,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77123,7 +77123,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77682,7 +77682,7 @@
     "MaxLevel": 55,
     "Rank": 0,
     "Faction": 474,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77812,7 +77812,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 894,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77825,7 +77825,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 894,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77838,7 +77838,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77864,7 +77864,7 @@
     "MaxLevel": 51,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77890,7 +77890,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -77981,7 +77981,7 @@
     "MaxLevel": 42,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -78761,7 +78761,7 @@
     "MaxLevel": 27,
     "Rank": 0,
     "Faction": 1076,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -81543,7 +81543,7 @@
     "MaxLevel": 53,
     "Rank": 0,
     "Faction": 474,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -81569,7 +81569,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 69,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -84767,7 +84767,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -85573,7 +85573,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -87458,7 +87458,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -87471,7 +87471,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -87484,7 +87484,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 51,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -87497,7 +87497,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 51,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -88147,7 +88147,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -88186,7 +88186,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -88199,7 +88199,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -88212,7 +88212,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -88238,7 +88238,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 51,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -92658,7 +92658,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93165,7 +93165,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 69,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93217,7 +93217,7 @@
     "MaxLevel": 46,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93321,7 +93321,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93334,7 +93334,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93360,7 +93360,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93373,7 +93373,7 @@
     "MaxLevel": 31,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93399,7 +93399,7 @@
     "MaxLevel": 33,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93477,7 +93477,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 875,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93529,7 +93529,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93542,7 +93542,7 @@
     "MaxLevel": 32,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93568,7 +93568,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93594,7 +93594,7 @@
     "MaxLevel": 23,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93607,7 +93607,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93620,7 +93620,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93633,7 +93633,7 @@
     "MaxLevel": 32,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93646,7 +93646,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93659,7 +93659,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93672,7 +93672,7 @@
     "MaxLevel": 51,
     "Rank": 0,
     "Faction": 894,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93789,7 +93789,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93802,7 +93802,7 @@
     "MaxLevel": 26,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93815,7 +93815,7 @@
     "MaxLevel": 23,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93828,7 +93828,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93854,7 +93854,7 @@
     "MaxLevel": 27,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93867,7 +93867,7 @@
     "MaxLevel": 21,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -93997,7 +93997,7 @@
     "MaxLevel": 32,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -94023,7 +94023,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -94036,7 +94036,7 @@
     "MaxLevel": 36,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 3,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -94049,7 +94049,7 @@
     "MaxLevel": 24,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 1,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -94075,7 +94075,7 @@
     "MaxLevel": 55,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -94426,7 +94426,7 @@
     "MaxLevel": 54,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -94582,7 +94582,7 @@
     "MaxLevel": 52,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -94595,7 +94595,7 @@
     "MaxLevel": 51,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -95960,7 +95960,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -96012,7 +96012,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1076,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -96077,7 +96077,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 122,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -97286,7 +97286,7 @@
     "MaxLevel": 55,
     "Rank": 0,
     "Faction": 414,
-    "NpcFlag": 147,
+    "NpcFlag": 211,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -100107,7 +100107,7 @@
     "MaxLevel": 50,
     "Rank": 1,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -100120,7 +100120,7 @@
     "MaxLevel": 50,
     "Rank": 1,
     "Faction": 80,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -100133,7 +100133,7 @@
     "MaxLevel": 50,
     "Rank": 1,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -100146,7 +100146,7 @@
     "MaxLevel": 50,
     "Rank": 1,
     "Faction": 29,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -100159,7 +100159,7 @@
     "MaxLevel": 50,
     "Rank": 1,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -100172,7 +100172,7 @@
     "MaxLevel": 50,
     "Rank": 1,
     "Faction": 68,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -101199,7 +101199,7 @@
     "MaxLevel": 51,
     "Rank": 0,
     "Faction": 994,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -101264,7 +101264,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 126,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -101394,7 +101394,7 @@
     "MaxLevel": 51,
     "Rank": 0,
     "Faction": 994,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -106165,7 +106165,7 @@
     "MaxLevel": 50,
     "Rank": 1,
     "Faction": 55,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -106984,7 +106984,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -107530,7 +107530,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 104,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -118008,7 +118008,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -118021,7 +118021,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -118060,7 +118060,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -118073,7 +118073,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -118086,7 +118086,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -119308,7 +119308,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 4243,
+    "NpcFlag": 4307,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -120296,7 +120296,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -120426,7 +120426,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -124508,7 +124508,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 16,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -126198,7 +126198,7 @@
     "MaxLevel": 16,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -126211,7 +126211,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -126575,7 +126575,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 16,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127355,7 +127355,7 @@
     "MaxLevel": 14,
     "Rank": 0,
     "Faction": 1623,
-    "NpcFlag": 659,
+    "NpcFlag": 723,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127498,7 +127498,7 @@
     "MaxLevel": 13,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 16,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127511,7 +127511,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127550,7 +127550,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127563,7 +127563,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127576,7 +127576,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127589,7 +127589,7 @@
     "MaxLevel": 8,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127602,7 +127602,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127628,7 +127628,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127641,7 +127641,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127654,7 +127654,7 @@
     "MaxLevel": 14,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127680,7 +127680,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -127693,7 +127693,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -128733,7 +128733,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -128746,7 +128746,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -130163,7 +130163,7 @@
     "MaxLevel": 6,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -130176,7 +130176,7 @@
     "MaxLevel": 6,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -130189,7 +130189,7 @@
     "MaxLevel": 6,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -130202,7 +130202,7 @@
     "MaxLevel": 6,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -130215,7 +130215,7 @@
     "MaxLevel": 6,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131008,7 +131008,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1729,
-    "NpcFlag": 4243,
+    "NpcFlag": 4307,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131060,7 +131060,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1729,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131073,7 +131073,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1729,
-    "NpcFlag": 3219,
+    "NpcFlag": 3283,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131463,7 +131463,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131710,7 +131710,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131736,7 +131736,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131762,7 +131762,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131788,7 +131788,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131801,7 +131801,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131814,7 +131814,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131853,7 +131853,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131866,7 +131866,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131879,7 +131879,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131892,7 +131892,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -131905,7 +131905,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132009,7 +132009,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132061,7 +132061,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132087,7 +132087,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132126,7 +132126,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132139,7 +132139,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132152,7 +132152,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132165,7 +132165,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132217,7 +132217,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132230,7 +132230,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132243,7 +132243,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132282,7 +132282,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132295,7 +132295,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132308,7 +132308,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132334,7 +132334,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132386,7 +132386,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132516,7 +132516,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132646,7 +132646,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132737,7 +132737,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132763,7 +132763,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132789,7 +132789,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132802,7 +132802,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132815,7 +132815,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132828,7 +132828,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132841,7 +132841,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132854,7 +132854,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132867,7 +132867,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132893,7 +132893,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132958,7 +132958,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -132984,7 +132984,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133062,7 +133062,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133127,7 +133127,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133166,7 +133166,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133205,7 +133205,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133218,7 +133218,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133283,7 +133283,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133309,7 +133309,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133413,7 +133413,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133439,7 +133439,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -133452,7 +133452,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -134011,7 +134011,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1737,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -134024,7 +134024,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1671,
-    "NpcFlag": 4241,
+    "NpcFlag": 4305,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -136312,7 +136312,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -137157,7 +137157,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 7040,
+    "NpcFlag": 2944,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -137300,7 +137300,7 @@
     "MaxLevel": 6,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -137456,7 +137456,7 @@
     "MaxLevel": 9,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 147,
+    "NpcFlag": 211,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -137573,7 +137573,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -137703,7 +137703,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -137716,7 +137716,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -137729,7 +137729,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -138756,7 +138756,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -138860,7 +138860,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -138886,7 +138886,7 @@
     "MaxLevel": 8,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -138899,7 +138899,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -138951,7 +138951,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -138990,7 +138990,7 @@
     "MaxLevel": 18,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 147,
+    "NpcFlag": 211,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -139250,7 +139250,7 @@
     "MaxLevel": 8,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 4241,
+    "NpcFlag": 4305,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -139263,7 +139263,7 @@
     "MaxLevel": 8,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 659,
+    "NpcFlag": 723,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -141551,7 +141551,7 @@
     "MaxLevel": 17,
     "Rank": 0,
     "Faction": 1698,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -141681,7 +141681,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 1698,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -141772,7 +141772,7 @@
     "MaxLevel": 9,
     "Rank": 0,
     "Faction": 1685,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -141785,7 +141785,7 @@
     "MaxLevel": 13,
     "Rank": 0,
     "Faction": 1685,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142253,7 +142253,7 @@
     "MaxLevel": 12,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142266,7 +142266,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142279,7 +142279,7 @@
     "MaxLevel": 6,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142292,7 +142292,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142305,7 +142305,7 @@
     "MaxLevel": 11,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142344,7 +142344,7 @@
     "MaxLevel": 9,
     "Rank": 0,
     "Faction": 12,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142357,7 +142357,7 @@
     "MaxLevel": 13,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142539,7 +142539,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142552,7 +142552,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142604,7 +142604,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142617,7 +142617,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142630,7 +142630,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142656,7 +142656,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142669,7 +142669,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142734,7 +142734,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -142747,7 +142747,7 @@
     "MaxLevel": 40,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -144203,7 +144203,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1667,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -144242,7 +144242,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1669,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -146855,7 +146855,7 @@
     "MaxLevel": 33,
     "Rank": 1,
     "Faction": 1698,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -148558,7 +148558,7 @@
     "MaxLevel": 10,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -157775,7 +157775,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1729,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -157788,7 +157788,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1729,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -157814,7 +157814,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1729,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -157827,7 +157827,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1729,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -157853,7 +157853,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 29,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -157866,7 +157866,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1729,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158061,7 +158061,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158074,7 +158074,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158087,7 +158087,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158100,7 +158100,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158113,7 +158113,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158126,7 +158126,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158139,7 +158139,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158165,7 +158165,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158230,7 +158230,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1638,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158243,7 +158243,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1638,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158256,7 +158256,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1638,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158282,7 +158282,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 126,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158425,7 +158425,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 3219,
+    "NpcFlag": 3283,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158451,7 +158451,7 @@
     "MaxLevel": 45,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 18,
+    "NpcFlag": 82,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158490,7 +158490,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1729,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158503,7 +158503,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1729,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158516,7 +158516,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1737,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158802,7 +158802,7 @@
     "MaxLevel": 73,
     "Rank": 3,
     "Faction": 45,
-    "NpcFlag": 64,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158815,7 +158815,7 @@
     "MaxLevel": 73,
     "Rank": 3,
     "Faction": 45,
-    "NpcFlag": 64,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158828,7 +158828,7 @@
     "MaxLevel": 73,
     "Rank": 3,
     "Faction": 45,
-    "NpcFlag": 64,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158841,7 +158841,7 @@
     "MaxLevel": 73,
     "Rank": 3,
     "Faction": 45,
-    "NpcFlag": 64,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -158854,7 +158854,7 @@
     "MaxLevel": 73,
     "Rank": 3,
     "Faction": 45,
-    "NpcFlag": 64,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -159998,7 +159998,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1760,
-    "NpcFlag": 8195,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160011,7 +160011,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1756,
-    "NpcFlag": 8195,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160063,7 +160063,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1638,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160076,7 +160076,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 35,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160089,7 +160089,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 694,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160102,7 +160102,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 35,
-    "NpcFlag": 8195,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160115,7 +160115,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1604,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160258,7 +160258,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1729,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160700,7 +160700,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1737,
-    "NpcFlag": 657,
+    "NpcFlag": 721,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160739,7 +160739,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 208,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160752,7 +160752,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 208,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -160778,7 +160778,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1710,
-    "NpcFlag": 657,
+    "NpcFlag": 721,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -161545,7 +161545,7 @@
     "MaxLevel": 63,
     "Rank": 0,
     "Faction": 1818,
-    "NpcFlag": 19,
+    "NpcFlag": 83,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -161610,7 +161610,7 @@
     "MaxLevel": 70,
     "Rank": 1,
     "Faction": 1743,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -162299,7 +162299,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1818,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -162377,7 +162377,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1818,
-    "NpcFlag": 659,
+    "NpcFlag": 723,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -162390,7 +162390,7 @@
     "MaxLevel": 63,
     "Rank": 0,
     "Faction": 1818,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -163209,7 +163209,7 @@
     "MaxLevel": 62,
     "Rank": 0,
     "Faction": 1744,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -163222,7 +163222,7 @@
     "MaxLevel": 63,
     "Rank": 0,
     "Faction": 1744,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -164015,7 +164015,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1729,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -164288,7 +164288,7 @@
     "MaxLevel": 63,
     "Rank": 0,
     "Faction": 1744,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -164301,7 +164301,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1735,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -164639,7 +164639,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1732,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -164899,7 +164899,7 @@
     "MaxLevel": 72,
     "Rank": 1,
     "Faction": 45,
-    "NpcFlag": 64,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -166004,7 +166004,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1735,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -166537,7 +166537,7 @@
     "MaxLevel": 70,
     "Rank": 1,
     "Faction": 1746,
-    "NpcFlag": 128,
+    "NpcFlag": 4224,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 10
@@ -166784,7 +166784,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1731,
-    "NpcFlag": 145,
+    "NpcFlag": 209,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -167031,7 +167031,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1074,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -167239,7 +167239,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -167304,7 +167304,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1743,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -167330,7 +167330,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 35,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -169748,7 +169748,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -169761,7 +169761,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -169787,7 +169787,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 16,
-    "NpcFlag": 19,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -169800,7 +169800,7 @@
     "MaxLevel": 30,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -172504,7 +172504,7 @@
     "MaxLevel": 55,
     "Rank": 1,
     "Faction": 1514,
-    "NpcFlag": 4098,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -172517,7 +172517,7 @@
     "MaxLevel": 55,
     "Rank": 1,
     "Faction": 1514,
-    "NpcFlag": 4098,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -172530,7 +172530,7 @@
     "MaxLevel": 55,
     "Rank": 1,
     "Faction": 1514,
-    "NpcFlag": 4098,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -172543,7 +172543,7 @@
     "MaxLevel": 55,
     "Rank": 1,
     "Faction": 1514,
-    "NpcFlag": 4098,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -172556,7 +172556,7 @@
     "MaxLevel": 55,
     "Rank": 1,
     "Faction": 1514,
-    "NpcFlag": 4098,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -172582,7 +172582,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1515,
-    "NpcFlag": 4098,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -172608,7 +172608,7 @@
     "MaxLevel": 55,
     "Rank": 0,
     "Faction": 1515,
-    "NpcFlag": 4098,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -173765,7 +173765,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1818,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -173778,7 +173778,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1818,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -175156,7 +175156,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1737,
-    "NpcFlag": 8195,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -175260,7 +175260,7 @@
     "MaxLevel": 68,
     "Rank": 0,
     "Faction": 1731,
-    "NpcFlag": 384,
+    "NpcFlag": 4480,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -177366,7 +177366,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1602,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -177379,7 +177379,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1640,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -178536,7 +178536,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 1314,
-    "NpcFlag": 18,
+    "NpcFlag": 82,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -178731,7 +178731,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 35,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -181799,7 +181799,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 126,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -182176,7 +182176,7 @@
     "MaxLevel": 63,
     "Rank": 0,
     "Faction": 1741,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -183775,7 +183775,7 @@
     "MaxLevel": 14,
     "Rank": 0,
     "Faction": 1638,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -185959,7 +185959,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1735,
-    "NpcFlag": 16,
+    "NpcFlag": 80,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -186219,7 +186219,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1732,
-    "NpcFlag": 8195,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -187415,7 +187415,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 1671,
-    "NpcFlag": 4099,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -188273,7 +188273,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1729,
-    "NpcFlag": 4099,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -189118,7 +189118,7 @@
     "MaxLevel": 72,
     "Rank": 1,
     "Faction": 45,
-    "NpcFlag": 64,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -190509,7 +190509,7 @@
     "MaxLevel": 70,
     "Rank": 1,
     "Faction": 1735,
-    "NpcFlag": 128,
+    "NpcFlag": 4224,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -194123,7 +194123,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1744,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -197100,7 +197100,7 @@
     "MaxLevel": 5,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 19,
+    "NpcFlag": 3,
     "SkinLoot": 0,
     "Family": 2,
     "Type": 1
@@ -199479,7 +199479,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1710,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -202235,7 +202235,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 1735,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -202521,7 +202521,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1741,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -202625,7 +202625,7 @@
     "MaxLevel": 65,
     "Rank": 1,
     "Faction": 84,
-    "NpcFlag": 8193,
+    "NpcFlag": 1,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -204705,7 +204705,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1215,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -204744,7 +204744,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1217,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -205095,7 +205095,7 @@
     "MaxLevel": 68,
     "Rank": 1,
     "Faction": 1217,
-    "NpcFlag": 4992,
+    "NpcFlag": 896,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -205108,7 +205108,7 @@
     "MaxLevel": 68,
     "Rank": 1,
     "Faction": 1215,
-    "NpcFlag": 4992,
+    "NpcFlag": 896,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -205121,7 +205121,7 @@
     "MaxLevel": 58,
     "Rank": 1,
     "Faction": 1335,
-    "NpcFlag": 4994,
+    "NpcFlag": 898,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -205290,7 +205290,7 @@
     "MaxLevel": 58,
     "Rank": 1,
     "Faction": 1334,
-    "NpcFlag": 4992,
+    "NpcFlag": 896,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -210503,7 +210503,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 1695,
-    "NpcFlag": 17,
+    "NpcFlag": 49,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -213454,7 +213454,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 1856,
-    "NpcFlag": 640,
+    "NpcFlag": 4736,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -213935,7 +213935,7 @@
     "MaxLevel": 72,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 7040,
+    "NpcFlag": 2944,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -213948,7 +213948,7 @@
     "MaxLevel": 15,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4096,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -215131,7 +215131,7 @@
     "MaxLevel": 60,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -217055,7 +217055,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 128,
+    "NpcFlag": 4224,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -219265,7 +219265,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -219278,7 +219278,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1074,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -219291,7 +219291,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -219304,7 +219304,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -220136,7 +220136,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 8192,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -223581,7 +223581,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 1743,
-    "NpcFlag": 4480,
+    "NpcFlag": 384,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -226714,7 +226714,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -226753,7 +226753,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 7040,
+    "NpcFlag": 2944,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -226766,7 +226766,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -226779,7 +226779,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -226792,7 +226792,7 @@
     "MaxLevel": 70,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -226974,7 +226974,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -226987,7 +226987,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -227000,7 +227000,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 35,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -227013,7 +227013,7 @@
     "MaxLevel": 65,
     "Rank": 0,
     "Faction": 1074,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -227130,7 +227130,7 @@
     "MaxLevel": 70,
     "Rank": 1,
     "Faction": 1960,
-    "NpcFlag": 8192,
+    "NpcFlag": 0,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -227377,7 +227377,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 894,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -227390,7 +227390,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 894,
-    "NpcFlag": 19,
+    "NpcFlag": 51,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -227403,7 +227403,7 @@
     "MaxLevel": 41,
     "Rank": 0,
     "Faction": 1604,
-    "NpcFlag": 17,
+    "NpcFlag": 81,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -227689,7 +227689,7 @@
     "MaxLevel": 50,
     "Rank": 0,
     "Faction": 120,
-    "NpcFlag": 4224,
+    "NpcFlag": 128,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
