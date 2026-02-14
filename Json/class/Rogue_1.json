@@ -1,7 +1,9 @@
 {
   "Log": false,
   "ClassName": "Rogue",
+  "PathFilename": "1-5_Gnome.json",
   "KeyboardOnly": true,
+  /*
   "Paths": [
     {
       "PathFilename": "1_Human.json",
@@ -25,12 +27,30 @@
       "PathReduceSteps": false
     }
   ],
-    "Wait": {
+  */
+  "Wait": {
     "Sequence": [
       {
         "Cost": 0.9,
         "Name": "User",
         "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Throw",
+        "Key": "4",
+        "Item": true,
+        "WhenUsable": true,
+        "BeforeCastStop": true,
+        "AfterCastWaitMeleeRange": true,
+        "Requirements": [
+          "AddVisible",                          // Uses NpcNameFinder to detect danger
+          "HasRangedWeapon && !Items Broken",
+          "!InMeleeRange && (SpellInRange:1)" // Throw
+        ]
       }
     ]
   },
@@ -46,10 +66,17 @@
         "Key": "2"
       },
       {
-        "Name": "AutoAttack"
+        "Name": "AutoAttack",
+        "Requirements": [
+          "InMeleeRange",
+          "!Charge Stun"
+        ]
       },
       {
         "Name": "Approach",
+        "Requirements": [
+          "!MeleeSwinging && !SoftTargetDead"
+        ],
         "Log": false
       }
     ]
@@ -58,7 +85,7 @@
     "Sequence": [
       {
         "Name": "Food",
-        "Key": "=",
+        "Key": "-",
         "Requirement": "Health% < 30"
       }
     ]
@@ -66,21 +93,17 @@
   "NPC": {
     "Sequence": [
       {
+        "Cost": 6,
         "Name": "Repair",
-        //"Key": "C",
-        "Requirement": "Durability% < 35",
-        //"PathFilename": "1_Gnome_Vendor.json",
-        "Cost": 6
+        "Requirement": "Durability% < 35"
       },
       {
+        "Cost": 6,
         "Name": "Sell",
-        //"Key": "C",
         "Requirements": [
           "BagFull",
           "BagGreyItem"
-        ],
-        //"PathFilename": "1_Gnome_Vendor.json",
-        "Cost": 6
+        ]
       }
     ]
   }
