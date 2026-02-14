@@ -14,30 +14,54 @@ public readonly record struct Creature
     public NpcFlags NpcFlag { get; init; }
     public int SkinLoot { get; init; }
     public int Family { get; init; }
-    public int Type { get; init; }
+    public CreatureType Type { get; init; }
 }
 
 /// <summary>
-/// Creature type constants from WoW database.
+/// Creature type values from DB2 CreatureType table.
 /// </summary>
-public static class CreatureTypes
+public enum CreatureType
 {
-    public const int Beast = 1;
-    public const int Dragonkin = 2;
-    public const int Demon = 3;
-    public const int Elemental = 4;
-    public const int Giant = 5;
-    public const int Undead = 6;
-    public const int Humanoid = 7;
-    public const int Critter = 8;
-    public const int Mechanical = 9;
-    public const int NotSpecified = 10;
-    public const int Totem = 11;
-    public const int NonCombatPet = 12;
-    public const int GasCloud = 13;
+    None = 0,
+    Beast = 1,
+    Dragonkin = 2,
+    Demon = 3,
+    Elemental = 4,
+    Giant = 5,
+    Undead = 6,
+    Humanoid = 7,
+    Critter = 8,
+    Mechanical = 9,
+    NotSpecified = 10,
+    Totem = 11,
+    NonCombatPet = 12,
+    GasCloud = 13
+}
+
+public static class CreatureType_Extension
+{
+    public static string ToStringF(this CreatureType value) => value switch
+    {
+        CreatureType.None => nameof(CreatureType.None),
+        CreatureType.Beast => nameof(CreatureType.Beast),
+        CreatureType.Dragonkin => nameof(CreatureType.Dragonkin),
+        CreatureType.Demon => nameof(CreatureType.Demon),
+        CreatureType.Elemental => nameof(CreatureType.Elemental),
+        CreatureType.Giant => nameof(CreatureType.Giant),
+        CreatureType.Undead => nameof(CreatureType.Undead),
+        CreatureType.Humanoid => nameof(CreatureType.Humanoid),
+        CreatureType.Critter => nameof(CreatureType.Critter),
+        CreatureType.Mechanical => nameof(CreatureType.Mechanical),
+        CreatureType.NotSpecified => nameof(CreatureType.NotSpecified),
+        CreatureType.Totem => nameof(CreatureType.Totem),
+        CreatureType.NonCombatPet => nameof(CreatureType.NonCombatPet),
+        CreatureType.GasCloud => nameof(CreatureType.GasCloud),
+        _ => nameof(CreatureType.None)
+    };
 
     /// <summary>
     /// Check if creature type is valid for Cannibalize (Humanoid or Undead).
     /// </summary>
-    public static bool IsCannibalizable(int type) => type is Humanoid or Undead;
+    public static bool IsCannibalizable(this CreatureType type) =>
+        type is CreatureType.Humanoid or CreatureType.Undead;
 }

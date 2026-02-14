@@ -136,7 +136,9 @@ public sealed partial class RequirementFactory
             { "Talent", CreateTalent },
             { "Trigger:", CreateTrigger },
             { "Usable:", CreateUsable },
-            { "CanRun:", CreateCanRun }
+            { "CanRun:", CreateCanRun },
+            { "Target:", CreateTargetType },
+            { "MouseOver:", CreateMouseOverType }
         };
         this.requirementMap = requirementMap.ToFrozenDictionary();
 
@@ -1056,7 +1058,7 @@ public sealed partial class RequirementFactory
         {
             // 'Form:_FORM_'
             int sep = requirement.IndexOf(SEP1);
-            Form form = Enum.Parse<Form>(requirement[(sep + 1)..]);
+            Form form = Enum.Parse<Form>(requirement[(sep + 1)..], true);
 
             bool f() => playerReader.Form == form;
             string s() => playerReader.Form.ToStringF();
@@ -1076,10 +1078,58 @@ public sealed partial class RequirementFactory
         {
             // 'Race:_RACE_'
             int sep = requirement.IndexOf(SEP1);
-            UnitRace race = Enum.Parse<UnitRace>(requirement[(sep + 1)..]);
+            UnitRace race = Enum.Parse<UnitRace>(requirement[(sep + 1)..], true);
 
             bool f() => playerReader.Race == race;
             string s() => playerReader.Race.ToStringF();
+
+            return new Requirement
+            {
+                HasRequirement = f,
+                LogMessage = s
+            };
+        }
+    }
+
+    private Requirement CreateTargetType(ReadOnlySpan<char> requirement)
+    {
+        return create(requirement, playerReader, creatureDb);
+        static Requirement create(ReadOnlySpan<char> requirement,
+            PlayerReader playerReader, CreatureDB creatureDb)
+        {
+            // 'Target:_TYPE_'
+            int sep = requirement.IndexOf(SEP1);
+            CreatureType type = Enum.Parse<CreatureType>(requirement[(sep + 1)..], true);
+
+            bool f() =>
+                creatureDb.Entries.TryGetValue(playerReader.TargetId, out Creature c)
+                && c.Type == type;
+
+            string s() => type.ToStringF();
+
+            return new Requirement
+            {
+                HasRequirement = f,
+                LogMessage = s
+            };
+        }
+    }
+
+    private Requirement CreateMouseOverType(ReadOnlySpan<char> requirement)
+    {
+        return create(requirement, playerReader, creatureDb);
+        static Requirement create(ReadOnlySpan<char> requirement,
+            PlayerReader playerReader, CreatureDB creatureDb)
+        {
+            // 'MouseOver:_TYPE_'
+            int sep = requirement.IndexOf(SEP1);
+            CreatureType type = Enum.Parse<CreatureType>(requirement[(sep + 1)..], true);
+
+            bool f() =>
+                creatureDb.Entries.TryGetValue(playerReader.MouseOverId, out Creature c)
+                && c.Type == type;
+
+            string s() => type.ToStringF();
 
             return new Requirement
             {

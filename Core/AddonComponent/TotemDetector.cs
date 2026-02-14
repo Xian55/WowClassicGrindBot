@@ -41,7 +41,7 @@ public sealed class TotemDetector
         {
             int npcId = GuidUtils.GetNpcId(packedGuid);
             if (creatureDb.Entries.TryGetValue(npcId, out Creature creature) &&
-                creature.Type == CreatureTypes.Totem)
+                creature.Type == CreatureType.Totem)
             {
                 totem = creature;
                 return true;
@@ -69,7 +69,7 @@ public sealed class TotemDetector
         {
             int npcId = GuidUtils.GetNpcId(packedGuid);
             if (creatureDb.Entries.TryGetValue(npcId, out Creature creature) &&
-                creature.Type == CreatureTypes.Totem)
+                creature.Type == CreatureType.Totem)
             {
                 totem = creature;
                 return true;
