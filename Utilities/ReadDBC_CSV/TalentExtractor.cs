@@ -27,12 +27,12 @@ internal sealed class TalentExtractor : IExtractor
         string talenttabFile = Path.Join(path, FileRequirement[0]);
         List<TalentTab> talenttabs = ExtractTalentTabs(talenttabFile);
         Console.WriteLine($"TalentTabs: {talenttabs.Count}");
-        File.WriteAllText(Path.Join(path, "talenttab.json"), JsonConvert.SerializeObject(talenttabs));
+        File.WriteAllText(Path.Join(path, "talenttab.json"), JsonConvert.SerializeObject(talenttabs, Formatting.Indented));
 
         string talentFile = Path.Join(path, FileRequirement[1]);
         List<TalentTreeElement> talents = ExtractTalentTrees(talentFile);
         Console.WriteLine($"Talents: {talents.Count}");
-        File.WriteAllText(Path.Join(path, "talent.json"), JsonConvert.SerializeObject(talents));
+        File.WriteAllText(Path.Join(path, "talent.json"), JsonConvert.SerializeObject(talents, Formatting.Indented));
     }
 
     private static List<TalentTab> ExtractTalentTabs(string path)

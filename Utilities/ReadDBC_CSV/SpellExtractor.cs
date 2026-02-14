@@ -32,7 +32,7 @@ internal sealed class SpellExtractor : IExtractor
 
         Console.WriteLine($"Spells: {spells.Count}");
 
-        File.WriteAllText(Path.Join(path, "spells.json"), JsonConvert.SerializeObject(spells));
+        File.WriteAllText(Path.Join(path, "spells.json"), JsonConvert.SerializeObject(spells, Formatting.Indented));
     }
 
     private static List<Spell> ExtractNames(string path)

@@ -21,7 +21,7 @@
 
 @inject JsonSerializerOptions options
 
-@implements IDisposable
+@implements IAsyncDisposable
 
 <style>
     .adtText {
@@ -141,9 +141,10 @@
             continent = PlayerReader.WorldMapArea.Continent;
             expansion = PlayerReader.Version.ToStringF().ToLower();
 
-            await jsRuntime.InvokeVoidAsync("init", 
+            await jsRuntime.InvokeVoidAsync("init",
                 expansion ?? "som",
-                continent ?? "Azeroth", zoom, x, y, Edit);
+                continent ?? "Azeroth", zoom, x, y, Edit,
+                NpcFlagsExtensions.ToDictionary());
 
             ActionZoneChangedAction();
         }
@@ -173,14 +174,26 @@
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         refreshTimer.Dispose();
 
         botController.ProfileLoaded -= OnProfileLoaded;
         addonReader.AddonDataChanged -= OnAddonDataChanged;
         areaDB.Changed -= OnZoneChanged;
-        // combatLog.PlayerDeath -= OnPlayerDeath;
+
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("disposeMap");
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit disconnected, JS cleanup not possible
+        }
+        catch (InvalidOperationException)
+        {
+            // Component disposed during prerendering, JS interop unavailable
+        }
     }
 
     private void OnAddonDataChanged()

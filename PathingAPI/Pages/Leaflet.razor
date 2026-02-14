@@ -99,7 +99,8 @@
         {
             await jsRuntime.InvokeVoidAsync("init",
                 expansion ?? "som", continent ?? "Azeroth",
-                zoom, x, y, true);
+                zoom, x, y, true,
+                NpcFlagsExtensions.ToDictionary());
 
             pPatherService.Reset();
 

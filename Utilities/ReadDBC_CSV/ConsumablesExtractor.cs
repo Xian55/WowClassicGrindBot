@@ -40,12 +40,12 @@ internal sealed class ConsumablesExtractor : IExtractor
         List<int> foodIds = ExtractItem(itemEffectFile, foodSpells);
         foodIds.Sort();
         Console.WriteLine($"Foods: {foodIds.Count}");
-        File.WriteAllText(Path.Join(path, "foods.json"), JsonConvert.SerializeObject(foodIds));
+        File.WriteAllText(Path.Join(path, "foods.json"), JsonConvert.SerializeObject(foodIds, Formatting.Indented));
 
         List<int> waterIds = ExtractItem(itemEffectFile, waterSpells);
         waterIds.Sort();
         Console.WriteLine($"Waters: {waterIds.Count}");
-        File.WriteAllText(Path.Join(path, "waters.json"), JsonConvert.SerializeObject(waterIds));
+        File.WriteAllText(Path.Join(path, "waters.json"), JsonConvert.SerializeObject(waterIds, Formatting.Indented));
     }
 
     private static List<int> ExtractSpells(string path, string descLang)

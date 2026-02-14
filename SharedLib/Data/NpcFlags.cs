@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Frozen;
+using System.Linq;
 
 namespace SharedLib.Data;
 
@@ -50,6 +52,15 @@ public enum NpcFlags : uint
 
 public static class NpcFlagsExtensions
 {
+    private static readonly FrozenDictionary<string, uint> s_flagsDictionary =
+        Enum.GetValues<NpcFlags>()
+            .Where(f => f != NpcFlags.None)
+            .ToFrozenDictionary(
+                f => f.ToString().ToLowerInvariant(),
+                f => (uint)f);
+
+    public static FrozenDictionary<string, uint> ToDictionary() => s_flagsDictionary;
+
     public static string ToStringF(this NpcFlags flags) => flags switch
     {
         NpcFlags.None => nameof(NpcFlags.None),

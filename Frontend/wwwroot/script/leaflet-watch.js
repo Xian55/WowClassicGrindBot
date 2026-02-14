@@ -62,6 +62,11 @@ var SubZones = {};
 var creatures = {};
 var spawnLocations = {};
 
+const clickableSprites = new Set();
+
+let savedLayerVisibility = null;
+const activatedPOICategories = new Set();
+
 const skinnableExclude = {
     21: true,       // Ram
     721: true,      // Rabiit
@@ -145,6 +150,7 @@ var layerNames = {};
 var LeafletMap;
 var pixiOverlay;
 var pixiContainer;
+var currentResizeObserver;
 
 var currentArea;
 var lastRenderArea;
@@ -160,7 +166,7 @@ var groupedOverlays = {
 let redrawScheduled = false;
 
 function schedulePixiRedraw() {
-    if (redrawScheduled) return;
+    if (redrawScheduled || !pixiOverlay) return;
 
     redrawScheduled = true;
     requestAnimationFrame(() => {
@@ -240,50 +246,7 @@ function createCreaturesLookup(db) {
     return lookup;
 }
 
-const npcFlags = {
-    // None
-    "none": 0,
-
-    // Interaction
-    "gossip": 1 << 0,              // 0x00000001
-    "questgiver": 1 << 1,          // 0x00000002
-    "spellclick": 1 << 24,         // 0x01000000
-    "playervehicle": 1 << 25,      // 0x02000000
-    "mailbox": 1 << 26,            // 0x04000000
-
-    // Trainers
-    "trainer": 1 << 4,             // 0x00000010
-    "classtrainer": 1 << 5,        // 0x00000020
-    "professiontrainer": 1 << 6,   // 0x00000040
-
-    // Vendors
-    "vendor": 1 << 7,              // 0x00000080
-    "vendorammo": 1 << 8,          // 0x00000100
-    "vendorfood": 1 << 9,          // 0x00000200
-    "vendorpoison": 1 << 10,       // 0x00000400
-    "vendorreagent": 1 << 11,      // 0x00000800
-    "repair": 1 << 12,             // 0x00001000
-
-    // Services
-    "flightmaster": 1 << 13,       // 0x00002000
-    "spiritgealer": 1 << 14,       // 0x00004000
-    "spiritguide": 1 << 15,        // 0x00008000
-    "innkeeper": 1 << 16,          // 0x00010000
-    "banker": 1 << 17,             // 0x00020000
-    "petitioner": 1 << 18,         // 0x00040000
-    "tabarddesigner": 1 << 19,     // 0x00080000
-    "battlemaster": 1 << 20,       // 0x00100000
-    "auctioneer": 1 << 21,         // 0x00200000
-    "stablemaster": 1 << 22,       // 0x00400000
-    "guildbanker": 1 << 23,        // 0x00800000
-
-    // Special
-    "artifactpowerrespec": 1 << 27, // 0x08000000
-    "transmogrifier": 1 << 28,      // 0x10000000
-    "vaultkeeper": 1 << 29,         // 0x20000000
-    "wildbattlepet": 1 << 30,       // 0x40000000
-    "blackbarket": 1 << 31          // 0x80000000
-};
+var npcFlags = {};
 
 function getCreatureByFlag(flag, excludedFactions = []) {
     return Object.values(creatures).filter(c => {
@@ -427,31 +390,68 @@ function initializeMap(x, y) {
 }
 
 function disposeMap() {
+    if (LeafletMap && Object.keys(layerNames).length > 0) {
+        savedLayerVisibility = new Map();
+        for (const name in layerNames) {
+            savedLayerVisibility.set(name, LeafletMap.hasLayer(layerNames[name]));
+        }
+    }
+
+    if (currentResizeObserver) {
+        currentResizeObserver.disconnect();
+        currentResizeObserver = null;
+    }
+
+    if (pixiOverlay) {
+        if (LeafletMap && LeafletMap.hasLayer(pixiOverlay)) {
+            pixiOverlay.remove();
+        }
+        pixiOverlay = null;
+    }
+
+    if (pixiContainer) {
+        pixiContainer.removeChildren();
+    }
+
+    clickableSprites.clear();
+
+    editableLayers.clearLayers();
+    ADTGridLayer.clearLayers();
+    ADTGridTextLayer.clearLayers();
+
+    playerLayer = null;
+
     if (LeafletMap) {
+        LeafletMap.off();
         LeafletMap.remove();
         LeafletMap = null;
     }
 
-    if (pixiOverlay) {
-        pixiOverlay.remove();
-        pixiOverlay = null;
+    for (const control of groupedLayerControls) {
+        try { control.remove(); } catch (_) { }
     }
-
-    pixiContainer.removeChildren();
+    groupedLayerControls = [];
 
     groupedOverlays = {
         "Zones": {},
         "Paths": {},
-        "Watch": {},
     };
 
     layerNames = {};
-    groupedLayerControls = [];
+
+    enableUrlEdit = false;
+    ADTEnabled = false;
+    recordPlayerPath = false;
+
+    currentArea = undefined;
+    lastRenderArea = undefined;
 }
 
-async function init(e, c, z, x, y, urlEdit) {
+async function init(e, c, z, x, y, urlEdit, flags) {
 
-    //disposeMap(); // clean previous state
+    npcFlags = flags;
+
+    disposeMap();
 
     expansion = e;
     enableUrlEdit = urlEdit;
@@ -668,20 +668,23 @@ async function init(e, c, z, x, y, urlEdit) {
     });
 
     LeafletMap.on('click', function (e) {
-        processOffsetClick(e);
+        if (!handleSpriteClick(e)) {
+            processOffsetClick(e);
+        }
     });
 
 
     const mapContainer = document.getElementById('js-map');
 
-    const resizeObserver = new ResizeObserver(() => {
+    currentResizeObserver = new ResizeObserver(() => {
         requestAnimationFrame(() => {
+            if (!LeafletMap || !pixiOverlay) return;
             LeafletMap.invalidateSize();
             pixiOverlay.redraw();
         })
     });
 
-    resizeObserver.observe(mapContainer);
+    currentResizeObserver.observe(mapContainer);
 
     const adtClick = document.getElementById("adtClick");
     if (adtClick != null)
@@ -703,6 +706,8 @@ async function init(e, c, z, x, y, urlEdit) {
 }
 
 async function updateArea(areaId) {
+    if (!LeafletMap) return;
+
     const area = Zones[areaId];
     if (area == null) {
         return;
@@ -721,6 +726,42 @@ async function updateArea(areaId) {
 
     currentArea = area;
 
+    await replayActivatedPOICategories();
+}
+
+async function replayActivatedPOICategories() {
+    if (activatedPOICategories.size === 0) return;
+    if (!currentArea) return;
+
+    for (const category of activatedPOICategories) {
+        if (category.startsWith('npc:')) {
+            await addNpc(category.substring(4));
+        } else if (category === 'skinnable') {
+            await addSkinnableNpcsToArea(currentArea.AreaID);
+        } else if (category === 'node:vein') {
+            await addNodeSpawnsToArea(currentArea.AreaID, 'vein');
+        } else if (category === 'node:herb') {
+            await addNodeSpawnsToArea(currentArea.AreaID, 'herb');
+        } else if (category === 'mailbox') {
+            await addMailboxes();
+        }
+    }
+
+    scheduleGroupedLayerControlUpdate();
+}
+
+function removeActivatedPOICategory(groupName) {
+    if (activatedPOICategories.delete(`npc:${groupName}`)) return;
+
+    const mapping = { 'Mailboxes': 'mailbox' };
+    if (mapping[groupName]) {
+        activatedPOICategories.delete(mapping[groupName]);
+        return;
+    }
+
+    if (groupName.endsWith(' Skinning')) activatedPOICategories.delete('skinnable');
+    else if (groupName.endsWith(' vein')) activatedPOICategories.delete('node:vein');
+    else if (groupName.endsWith(' herb')) activatedPOICategories.delete('node:herb');
 }
 
 function angleDifference(a, b) {
@@ -749,6 +790,8 @@ function createPlayer(latlng) {
 }
 
 function setPlayerLocation(x, y, dir) {
+    if (!LeafletMap) return;
+
     const latlng = worldTolatLng(x, y);
     LeafletMap.setView(latlng, LeafletMap.getZoom());
 
@@ -873,6 +916,7 @@ function isMap(p) {
 }
 
 function setPolyPath(name, path) {
+    if (!LeafletMap) return;
 
     let polyline = layerNames[name];
 
@@ -1012,28 +1056,15 @@ function createSprite(latlng, texture) {
 function addSpriteClickHandler(sprite, handler) {
     sprite.interactive = true;
     sprite.buttonMode = true;
+    sprite._leafletClickHandler = handler;
+    clickableSprites.add(sprite);
 
-    // Use 'click' instead of 'pointertap' as it's more reliable
     sprite.on('pointertap', (e) => {
-        //console.log('PIXI Sprite clicked!', sprite.latlng, window.location.pathname);
         handler(e);
     });
 
-    //sprite.on('click', (e) => {
-    //console.log('PIXI Sprite clicked!', sprite.latlng, window.location.pathname);
-    //handler(e);
-    //});
-
-    // hoover
     sprite.on('pointerover', (e) => {
-        //console.log('PIXI Sprite hovered!', sprite.latlng);
-        //console.log(sprite.worldTransform, sprite.getBounds(), sprite.interactive);
-        // Optionally change cursor or style here
     });
-
-    //sprite.on('pointerout', (e) => {
-    //console.log('PIXI Sprite unhovered!', sprite.latlng);
-    //});
 }
 
 
@@ -1224,6 +1255,7 @@ function addCloseButtonToGroupLayers(control) {
             }
 
             delete groupedOverlays[groupName];
+            removeActivatedPOICategory(groupName);
 
             scheduleGroupedLayerControlUpdate();
         };
@@ -1253,6 +1285,10 @@ function setBoundToArea(areaId) {
 function addToggleLayer(type, name, layer, visible = true) {
     if (layerNames[name] != null) {
         return;
+    }
+
+    if (savedLayerVisibility !== null && savedLayerVisibility.has(name)) {
+        visible = savedLayerVisibility.get(name);
     }
 
     assignLayer(type, name, layer, visible);
@@ -1306,14 +1342,9 @@ const PixiSpriteGroupLayer = L.Layer.extend({
     },
 
     destroy() {
-        const container = pixiContainer;
         for (const sprite of this._sprites) {
-            //if (container.children.includes(sprite)) {
-            //    container.removeChild(sprite);
-            //}
-            //sprite.destroy();
+            clickableSprites.delete(sprite);
         }
-        //this._sprites = [];
     },
 
     getBounds: function () {
@@ -1385,6 +1416,29 @@ function synchronizeTitleAndURL() {
 function setText(id, text) {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
+}
+
+function handleSpriteClick(e) {
+    if (!LeafletMap || clickableSprites.size === 0) return false;
+
+    const clickPoint = LeafletMap.latLngToContainerPoint(e.latlng);
+    const hitRadius = aSize / 2;
+    const hitRadiusSq = hitRadius * hitRadius;
+
+    for (const sprite of clickableSprites) {
+        if (!sprite.visible) continue;
+
+        const spritePoint = LeafletMap.latLngToContainerPoint(sprite.latlng);
+        const dx = clickPoint.x - spritePoint.x;
+        const dy = clickPoint.y - spritePoint.y;
+
+        if (dx * dx + dy * dy <= hitRadiusSq) {
+            sprite._leafletClickHandler();
+            return true;
+        }
+    }
+
+    return false;
 }
 
 async function processOffsetClick(e) {
@@ -2154,7 +2208,10 @@ async function addNpc(npcType) {
 L.Control.buttonNpcPOI = createLeafletButtonControl({
     className: 'poiatlas',
     setImageFn: setImage,
-    onClick: (npcType) => addNpc(npcType),
+    onClick: (npcType) => {
+        activatedPOICategories.add(`npc:${npcType}`);
+        addNpc(npcType);
+    },
 });
 
 L.Control.buttonADT = createLeafletButtonControl({
@@ -2198,6 +2255,7 @@ L.Control.buttonSkinnablePOI = createLeafletButtonControl({
     setImageFn: setImage,
     onClick: async () => {
         if (!currentArea) return;
+        activatedPOICategories.add('skinnable');
         await addSkinnableNpcsToArea(currentArea.AreaID);
         scheduleGroupedLayerControlUpdate();
     },
@@ -2208,6 +2266,7 @@ L.Control.buttonMineablePOI = createLeafletButtonControl({
     setImageFn: setImage,
     onClick: async () => {
         if (!currentArea) return;
+        activatedPOICategories.add('node:vein');
         await addNodeSpawnsToArea(currentArea.AreaID, 'vein');
         scheduleGroupedLayerControlUpdate();
     },
@@ -2218,6 +2277,7 @@ L.Control.buttonHerbPOI = createLeafletButtonControl({
     setImageFn: setImage,
     onClick: async () => {
         if (!currentArea) return;
+        activatedPOICategories.add('node:herb');
         await addNodeSpawnsToArea(currentArea.AreaID, 'herb');
         scheduleGroupedLayerControlUpdate();
     },
@@ -2227,6 +2287,7 @@ L.Control.buttonMailbox = createLeafletButtonControl({
     className: 'poiatlas',
     setImageFn: setImage,
     onClick: async () => {
+        activatedPOICategories.add('mailbox');
         await addMailboxes();
         scheduleGroupedLayerControlUpdate();
     },
@@ -2688,6 +2749,7 @@ window.addEventListener('DOMContentLoaded', function () {
         }
 
         delete groupedOverlays[groupName];
+        removeActivatedPOICategory(groupName);
 
         scheduleGroupedLayerControlUpdate();
     };
