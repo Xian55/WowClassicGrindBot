@@ -1,0 +1,425 @@
+/* ===== Sidebar Wrapper (two-column layout) ===== */
+
+.sidebar-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+/* Left column: layer controls */
+.sidebar-layers-column {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+}
+
+.sidebar-layers-column:empty {
+    display: none;
+}
+
+.sidebar-layers-column::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-layers-column::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-layers-column::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+/* Layer controls styling to match sidebar theme */
+.sidebar-layers-column .leaflet-control-layers {
+    position: relative;
+    background: rgba(0, 0, 0, 0.85);
+    color: #eee;
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.sidebar-layers-column .leaflet-control-layers-expanded {
+    padding: 6px 10px 6px 6px;
+}
+
+.sidebar-layers-column .leaflet-control-layers label {
+    color: #eee;
+}
+
+.sidebar-layers-column .leaflet-control-layers-group-name {
+    color: #ccc;
+}
+
+
+/* ===== Map Filter Sidebar ===== */
+
+.map-filter-sidebar {
+    background: rgba(0, 0, 0, 0.85);
+    color: #eee;
+    width: 280px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    border-radius: 4px;
+    font-size: 13px;
+    z-index: 1000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.map-filter-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.map-filter-sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.map-filter-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+/* Toggle button when sidebar is collapsed */
+.sidebar-toggle-btn {
+    background: rgba(0, 0, 0, 0.85);
+    color: #eee;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 4px;
+    display: block;
+    width: 100%;
+    text-align: right;
+}
+
+.sidebar-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Content wrapper */
+.sidebar-content {
+    padding: 0;
+}
+
+/* Header */
+.sidebar-header {
+    padding: 8px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    border-bottom: 1px solid #444;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Sections */
+.sidebar-section {
+    border-bottom: 1px solid #333;
+}
+
+.sidebar-section:last-child {
+    border-bottom: none;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+    font-size: 13px;
+    color: #ccc;
+    transition: background 0.15s;
+}
+
+.section-header:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.section-header-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.section-chevron {
+    font-size: 10px;
+    transition: transform 0.2s;
+    display: inline-block;
+}
+
+.section-chevron.collapsed {
+    transform: rotate(-90deg);
+}
+
+.section-clear-btn {
+    background: none;
+    border: 1px solid #555;
+    color: #999;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.section-clear-btn:hover {
+    color: #ff6666;
+    border-color: #ff6666;
+}
+
+.section-body {
+    padding: 6px 12px 10px;
+}
+
+.section-body.collapsed {
+    display: none;
+}
+
+/* Input/Select styles */
+.sidebar-select,
+.sidebar-input {
+    width: 100%;
+    background: #333;
+    color: #eee;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+    margin-bottom: 6px;
+}
+
+.sidebar-select:focus,
+.sidebar-input:focus {
+    border-color: #77aaff;
+}
+
+.sidebar-select option {
+    background: #333;
+    color: #eee;
+}
+
+/* Radio group (faction filter) */
+.sidebar-radio-group {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 6px;
+}
+
+.sidebar-radio-group label {
+    flex: 1;
+    text-align: center;
+    padding: 4px 0;
+    background: #333;
+    border: 1px solid #555;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.sidebar-radio-group label:first-child {
+    border-radius: 3px 0 0 3px;
+}
+
+.sidebar-radio-group label:last-child {
+    border-radius: 0 3px 3px 0;
+}
+
+.sidebar-radio-group input[type="radio"] {
+    display: none;
+}
+
+.sidebar-radio-group input[type="radio"]:checked + span {
+    color: #fff;
+}
+
+.sidebar-radio-group label:has(input:checked) {
+    background: #4a6fa5;
+    border-color: #5580bb;
+}
+
+/* Checkbox rows */
+.sidebar-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+    border-radius: 2px;
+}
+
+.sidebar-checkbox-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-checkbox-row input[type="checkbox"] {
+    accent-color: #4a6fa5;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.sidebar-checkbox-row .cb-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    background-image: url('../img/atlas.png');
+    image-rendering: pixelated;
+}
+
+.sidebar-checkbox-row .cb-label {
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Map-wide toggle */
+.sidebar-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-size: 11px;
+    color: #aaa;
+}
+
+.sidebar-toggle-row input[type="checkbox"] {
+    accent-color: #4a6fa5;
+    width: 13px;
+    height: 13px;
+}
+
+/* Search results */
+.npc-search-results {
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 6px;
+}
+
+.npc-search-results:empty {
+    display: none;
+}
+
+.npc-search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-size: 11px;
+    border-radius: 2px;
+    border-bottom: 1px solid #2a2a2a;
+    transition: background 0.1s;
+}
+
+.npc-search-result-item .result-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    background-image: url('../img/atlas.png');
+    image-rendering: pixelated;
+}
+
+.npc-search-result-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.npc-search-result-item .result-level {
+    color: #aaa;
+    font-size: 10px;
+}
+
+.npc-search-result-item .result-subname {
+    color: #888;
+    font-size: 10px;
+    font-style: italic;
+}
+
+/* Zone-required notice */
+.zone-required-notice {
+    color: #888;
+    font-style: italic;
+    font-size: 11px;
+    padding: 4px 0;
+}
+
+/* Coordinate marker inputs */
+.sidebar-coord-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.sidebar-coord-input {
+    width: 60px;
+    background: #333;
+    color: #eee;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-size: 11px;
+    outline: none;
+}
+
+.sidebar-coord-input:focus {
+    border-color: #77aaff;
+}
+
+.sidebar-coord-btn {
+    background: #4a6fa5;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.sidebar-coord-btn:hover {
+    background: #5580bb;
+}
+
+/* Section label styling */
+.section-label {
+    font-size: 11px;
+    color: #999;
+    margin-bottom: 4px;
+}
+
+/* Disabled state for resource checkboxes */
+.sidebar-checkbox-row.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Responsive: collapse on small screens */
+@media (max-width: 768px) {
+    .map-filter-sidebar {
+        width: 240px;
+    }
+
+    .sidebar-layers-column {
+        display: none;
+    }
+
+    .sidebar-content.auto-collapsed {
+        display: none;
+    }
+}
