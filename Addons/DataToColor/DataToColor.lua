@@ -359,8 +359,6 @@ DataToColor.customTrigger1 = {}
 
 DataToColor.sessionKillCount = 0
 
-local SpellQueueWindow = min(tonumber(DataToColor.SafeGetCVar(DataToColor.C.SpellQueueWindow, "0")) or 0, 999)
-
 function DataToColor:RegisterSlashCommands()
     DataToColor:RegisterChatCommand('dc', 'StartSetup')
     DataToColor:RegisterChatCommand('dccpu', 'GetCPUImpact')
@@ -1173,6 +1171,7 @@ function DataToColor:CreateFrames()
                 lagWorld = max(lagWorld, 10)
 
                 local lag = min(max(lagHome, lagWorld), 9999)
+                local SpellQueueWindow = min(tonumber(DataToColor.SafeGetCVar(DataToColor.C.SpellQueueWindow, "0")) or 0, 999)
 
                 Pixel(int, 10000 * SpellQueueWindow + lag, 96)
             end
