@@ -62,7 +62,9 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
     public DateTime LastActive => navigation.LastActive;
 
-    public Vector3[] MapRoute() => mapRoute;
+    public Vector3[] MapRoute() => pathSettings.WorldCoords
+        ? pathSettings.OriginalMapPath
+        : mapRoute;
 
     public Vector3[] PathingRoute()
     {
@@ -374,62 +376,111 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
     {
         Log($"{nameof(RefillWaypoints)} - findClosest:{onlyClosest} - ThereAndBack:{pathSettings.PathThereAndBack}");
 
-        Vector3 playerMap = playerReader.MapPos;
+        Span<Vector3> path = stackalloc Vector3[mapRoute.Length];
+        mapRoute.CopyTo(path);
 
-        Span<Vector3> pathMap = stackalloc Vector3[mapRoute.Length];
-        mapRoute.CopyTo(pathMap);
-
-        float mapDistanceToFirst = playerMap.MapDistanceXYTo(pathMap[0]);
-        float mapDistanceToLast = playerMap.MapDistanceXYTo(pathMap[^1]);
-
-        if (mapDistanceToLast < mapDistanceToFirst)
+        Vector3 playerPos;
+        if (pathSettings.WorldCoords)
         {
-            pathMap.Reverse();
-        }
+            playerPos = playerReader.WorldPos;
 
-        int closestIndex = 0;
-        Vector3 mapClosestPoint = Vector3.Zero;
-        float distance = float.MaxValue;
+            float distanceToFirst = playerPos.WorldDistanceXYTo(path[0]);
+            float distanceToLast = playerPos.WorldDistanceXYTo(path[^1]);
 
-        for (int i = 0; i < pathMap.Length; i++)
-        {
-            Vector3 p = pathMap[i];
-            float d = playerMap.MapDistanceXYTo(p);
-            if (d < distance)
+            if (distanceToLast < distanceToFirst)
+                path.Reverse();
+
+            int closestIndex = 0;
+            Vector3 closestPoint = Vector3.Zero;
+            float distance = float.MaxValue;
+
+            for (int i = 0; i < path.Length; i++)
             {
-                distance = d;
-                closestIndex = i;
-                mapClosestPoint = p;
+                float d = playerPos.WorldDistanceXYTo(path[i]);
+                if (d < distance)
+                {
+                    distance = d;
+                    closestIndex = i;
+                    closestPoint = path[i];
+                }
             }
-        }
 
-        if (onlyClosest)
-        {
-            if (debug)
-                LogDebug($"{nameof(RefillWaypoints)}: Closest wayPoint: {mapClosestPoint}");
-
-            navigation.SetWayPoints(stackalloc Vector3[1] { mapClosestPoint });
-
-            return;
-        }
-
-        if (mapClosestPoint == pathMap[0] || mapClosestPoint == pathMap[^1])
-        {
-            if (pathSettings.PathThereAndBack)
+            if (onlyClosest)
             {
-                navigation.SetWayPoints(pathMap);
+                if (debug)
+                    LogDebug($"{nameof(RefillWaypoints)}: Closest wayPoint: {closestPoint}");
+
+                navigation.SetWayPoints(stackalloc Vector3[1] { closestPoint });
+                return;
+            }
+
+            if (closestPoint == path[0] || closestPoint == path[^1])
+            {
+                if (pathSettings.PathThereAndBack)
+                    navigation.SetWayPoints(path);
+                else
+                {
+                    path.Reverse();
+                    navigation.SetWayPoints(path);
+                }
             }
             else
             {
-                pathMap.Reverse();
-                navigation.SetWayPoints(pathMap);
+                Span<Vector3> points = path[closestIndex..];
+                Log($"{nameof(RefillWaypoints)} - Set destination from closest to nearest endpoint - with {points.Length} waypoints");
+                navigation.SetWayPoints(points);
             }
         }
         else
         {
-            Span<Vector3> points = pathMap[closestIndex..];
-            Log($"{nameof(RefillWaypoints)} - Set destination from closest to nearest endpoint - with {points.Length} waypoints");
-            navigation.SetWayPoints(points);
+            playerPos = playerReader.MapPos;
+
+            float mapDistanceToFirst = playerPos.MapDistanceXYTo(path[0]);
+            float mapDistanceToLast = playerPos.MapDistanceXYTo(path[^1]);
+
+            if (mapDistanceToLast < mapDistanceToFirst)
+                path.Reverse();
+
+            int closestIndex = 0;
+            Vector3 mapClosestPoint = Vector3.Zero;
+            float distance = float.MaxValue;
+
+            for (int i = 0; i < path.Length; i++)
+            {
+                float d = playerPos.MapDistanceXYTo(path[i]);
+                if (d < distance)
+                {
+                    distance = d;
+                    closestIndex = i;
+                    mapClosestPoint = path[i];
+                }
+            }
+
+            if (onlyClosest)
+            {
+                if (debug)
+                    LogDebug($"{nameof(RefillWaypoints)}: Closest wayPoint: {mapClosestPoint}");
+
+                navigation.SetWayPoints(stackalloc Vector3[1] { mapClosestPoint });
+                return;
+            }
+
+            if (mapClosestPoint == path[0] || mapClosestPoint == path[^1])
+            {
+                if (pathSettings.PathThereAndBack)
+                    navigation.SetWayPoints(path);
+                else
+                {
+                    path.Reverse();
+                    navigation.SetWayPoints(path);
+                }
+            }
+            else
+            {
+                Span<Vector3> points = path[closestIndex..];
+                Log($"{nameof(RefillWaypoints)} - Set destination from closest to nearest endpoint - with {points.Length} waypoints");
+                navigation.SetWayPoints(points);
+            }
         }
     }
 

@@ -1,4 +1,6 @@
-﻿using SharedLib;
+﻿using Microsoft.Extensions.Logging;
+
+using SharedLib;
 using SharedLib.Extensions;
 
 using System;
@@ -7,13 +9,17 @@ using System.Numerics;
 
 namespace Core;
 
-public sealed class PathSettings
+public sealed partial class PathSettings
 {
     public int Id { get; set; }
     public string PathFilename { get; set; } = string.Empty;
     public string? OverridePathFilename { get; set; } = string.Empty;
     public bool PathThereAndBack { get; set; } = true;
     public bool PathReduceSteps { get; set; }
+    public int UIMapId { get; set; }
+
+    public bool WorldCoords { get; private set; }
+    public Vector3[] OriginalMapPath { get; private set; } = Array.Empty<Vector3>();
 
     public Vector3[] Path = Array.Empty<Vector3>();
 
@@ -21,6 +27,20 @@ public sealed class PathSettings
         !string.IsNullOrEmpty(OverridePathFilename)
         ? OverridePathFilename
         : PathFilename;
+
+    private static readonly (string Race, int AreaId)[] RaceStartingZones =
+    [
+        ("NightElf", 141),   // Teldrassil
+        ("BloodElf", 3430),  // Eversong Woods
+        ("Draenei", 3524),   // Azuremyst Isle
+        ("Undead", 85),      // Tirisfal Glades
+        ("Tauren", 215),     // Mulgore
+        ("Human", 12),       // Elwynn Forest
+        ("Dwarf", 1),        // Dun Morogh
+        ("Gnome", 1),        // Dun Morogh
+        ("Orc", 14),         // Durotar
+        ("Troll", 14),       // Durotar
+    ];
 
     public List<string> Requirements = [];
     public Requirement[] RequirementsRuntime = [];
@@ -45,6 +65,68 @@ public sealed class PathSettings
         this.globalTime = globalTime;
         this.playerReader = playerReader;
         Id = Id == default ? id : Id;
+    }
+
+    public void ConvertToWorldCoords(ILogger logger, WorldMapAreaDB worldMapAreaDB)
+    {
+        if (Path.Length == 0)
+            return;
+
+        int uiMapId;
+        if (UIMapId > 0)
+        {
+            uiMapId = UIMapId;
+        }
+        else
+        {
+            // 1. Try zone name from filepath
+            if (worldMapAreaDB.TryFindByAreaName(FileName, out WorldMapArea matchedArea))
+            {
+                LogUIMapIdFromFilename(logger, FileName, matchedArea.AreaName, matchedArea.UIMapId);
+                uiMapId = matchedArea.UIMapId;
+            }
+            // 2. Try race name from filepath → starting zone
+            else if (TryFindRaceZone(FileName, worldMapAreaDB, out int raceUIMapId))
+            {
+                LogUIMapIdAutoDetect(logger, FileName, raceUIMapId);
+                uiMapId = raceUIMapId;
+            }
+            // 3. Fallback to player's current zone
+            else
+            {
+                uiMapId = playerReader.UIMapId.Value;
+                LogUIMapIdAutoDetect(logger, FileName, uiMapId);
+                if (uiMapId <= 0)
+                    return;
+            }
+
+        }
+
+        OriginalMapPath = new Vector3[Path.Length];
+        Array.Copy(Path, OriginalMapPath, Path.Length);
+
+        worldMapAreaDB.ToWorldXY_FlipXY(uiMapId, Path);
+        WorldCoords = true;
+    }
+
+    private static bool TryFindRaceZone(ReadOnlySpan<char> input, WorldMapAreaDB worldMapAreaDB, out int uiMapId)
+    {
+        for (int i = 0; i < RaceStartingZones.Length; i++)
+        {
+            (string race, int areaId) = RaceStartingZones[i];
+            if (input.Contains(race, StringComparison.OrdinalIgnoreCase))
+            {
+                WorldMapArea wma = worldMapAreaDB.GetByAreaId(areaId);
+                if (wma.UIMapId > 0)
+                {
+                    uiMapId = wma.UIMapId;
+                    return true;
+                }
+            }
+        }
+
+        uiMapId = 0;
+        return false;
     }
 
     public bool CanRun()
@@ -89,25 +171,61 @@ public sealed class PathSettings
         ReadOnlySpan<Vector3> path = Path;
         Vector2 playerPosition = playerReader.WorldPos.AsVector2();
 
+        if (WorldCoords)
+        {
+            if (Path.Length == 1)
+                return (int)Vector2.Distance(path[0].AsVector2(), playerPosition);
+
+            float distance = float.MaxValue;
+            for (int i = 1; i < path.Length; i++)
+            {
+                Vector2 closestPoint = VectorExt.GetClosestPointOnLineSegment(
+                    path[i - 1].AsVector2(), path[i].AsVector2(), playerPosition);
+                float d = Vector2.Distance(closestPoint, playerPosition);
+                if (d < distance)
+                    distance = d;
+            }
+
+            return (int)distance;
+        }
+
         if (Path.Length == 1)
         {
             Vector3 a = WorldMapAreaDB.ToWorld_FlipXY(path[0], playerReader.WorldMapArea);
             return (int)Vector2.Distance(a.AsVector2(), playerPosition);
         }
 
-        float distance = float.MaxValue;
-
-        for (int i = 1; i < path.Length; i++)
         {
-            Vector3 a = WorldMapAreaDB.ToWorld_FlipXY(path[i - 1], playerReader.WorldMapArea);
-            Vector3 b = WorldMapAreaDB.ToWorld_FlipXY(path[i], playerReader.WorldMapArea);
+            float distance = float.MaxValue;
 
-            Vector2 closestPoint = VectorExt.GetClosestPointOnLineSegment(a.AsVector2(), b.AsVector2(), playerPosition);
-            float d = Vector2.Distance(closestPoint, playerPosition);
-            if (d < distance)
-                distance = d;
+            for (int i = 1; i < path.Length; i++)
+            {
+                Vector3 a = WorldMapAreaDB.ToWorld_FlipXY(path[i - 1], playerReader.WorldMapArea);
+                Vector3 b = WorldMapAreaDB.ToWorld_FlipXY(path[i], playerReader.WorldMapArea);
+
+                Vector2 closestPoint = VectorExt.GetClosestPointOnLineSegment(a.AsVector2(), b.AsVector2(), playerPosition);
+                float d = Vector2.Distance(closestPoint, playerPosition);
+                if (d < distance)
+                    distance = d;
+            }
+
+            return (int)distance;
         }
-
-        return (int)distance;
     }
+
+    #region Logging
+
+    [LoggerMessage(
+        EventId = 0020,
+        Level = LogLevel.Information,
+        Message = "[{fileName}] UIMapId auto-detect fallback {playerUIMapId}")]
+    static partial void LogUIMapIdAutoDetect(ILogger logger, string fileName, int playerUIMapId);
+
+    [LoggerMessage(
+        EventId = 0022,
+        Level = LogLevel.Information,
+        Message = "[{fileName}] UIMapId {uiMapId} detected from zone '{areaName}'")]
+    static partial void LogUIMapIdFromFilename(ILogger logger, string fileName, string areaName, int uiMapId);
+
+    #endregion
 }

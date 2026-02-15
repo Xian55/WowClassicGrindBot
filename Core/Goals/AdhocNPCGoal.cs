@@ -67,7 +67,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
     private PathState pathState = PathState.Finished;
 
-    private bool tryFindClosestNPC => key.Path.Length == 0;
+    private readonly bool tryFindClosestNPC;
     private Creature npc;
     private NpcSearchResult[] searchResult = [];
     private int searchCount;
@@ -150,6 +150,8 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             return new KeyValuePair<NpcFlags, SearchValues<string>>(flag, SearchValues.Create(strings, StringComparison.OrdinalIgnoreCase));
         })
         .ToFrozenDictionary(pair => pair.Key, pair => pair.Value);
+
+        tryFindClosestNPC = key.Path.Length == 0;
     }
 
     public void Dispose()
@@ -228,39 +230,67 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
     private void SetClosestWaypoint()
     {
-        Vector3 playerMap = playerReader.MapPos;
+        Span<Vector3> path = stackalloc Vector3[key.Path.Length];
+        key.Path.CopyTo(path);
 
-        Span<Vector3> pathMap = stackalloc Vector3[key.Path.Length];
-        key.Path.CopyTo(pathMap);
+        bool isWorldCoords = IsWorldCoords(path);
 
-        float mapDistanceToFirst = playerMap.MapDistanceXYTo(pathMap[0]);
-        float mapDistanceToLast = playerMap.MapDistanceXYTo(pathMap[^1]);
-
+        Vector3 playerPos;
         int closestIndex = 0;
-        Vector3 mapClosestPoint = Vector3.Zero;
+        Vector3 closestPoint = Vector3.Zero;
         float distance = float.MaxValue;
 
-        for (int i = 0; i < pathMap.Length; i++)
+        if (isWorldCoords)
         {
-            Vector3 p = pathMap[i];
-            float d = playerMap.MapDistanceXYTo(p);
-            if (d < distance)
-            {
-                distance = d;
-                closestIndex = i;
-                mapClosestPoint = p;
-            }
-        }
+            playerPos = playerReader.WorldPos;
 
-        if (mapClosestPoint == pathMap[0] || mapClosestPoint == pathMap[^1])
-        {
-            navigation.SetWayPoints(pathMap);
+            for (int i = 0; i < path.Length; i++)
+            {
+                float d = playerPos.WorldDistanceXYTo(path[i]);
+                if (d < distance)
+                {
+                    distance = d;
+                    closestIndex = i;
+                    closestPoint = path[i];
+                }
+            }
         }
         else
         {
-            Span<Vector3> points = pathMap[closestIndex..];
+            playerPos = playerReader.MapPos;
+
+            for (int i = 0; i < path.Length; i++)
+            {
+                float d = playerPos.MapDistanceXYTo(path[i]);
+                if (d < distance)
+                {
+                    distance = d;
+                    closestIndex = i;
+                    closestPoint = path[i];
+                }
+            }
+        }
+
+        if (closestPoint == path[0] || closestPoint == path[^1])
+        {
+            navigation.SetWayPoints(path);
+        }
+        else
+        {
+            Span<Vector3> points = path[closestIndex..];
             navigation.SetWayPoints(points);
         }
+    }
+
+    private static bool IsWorldCoords(ReadOnlySpan<Vector3> path)
+    {
+        for (int i = 0; i < path.Length; i++)
+        {
+            Vector3 p = path[i];
+            if (p.X is < 0 or > 100 || p.Y is < 0 or > 100)
+                return true;
+        }
+        return false;
     }
 
     private void UpdateClosestNPC(NpcFlags npcFlag)
@@ -557,7 +587,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         {
             searchResult = new NpcSearchResult[8];
 
-            int found = areaDB.GetNearestNpcs(playerReader.Faction, npcFlag, playerReader.WorldPos, allowedNames, searchResult.AsSpan(), out searchCount);
+            int found = areaDB.GetNearestNpcs(playerReader.Faction, npcFlag, playerReader.WorldPos, allowedNames, searchResult.AsSpan(), out searchCount, classConfig.CrossZoneSearch);
             if (found == 0 || searchCount == 0)
             {
                 return false;

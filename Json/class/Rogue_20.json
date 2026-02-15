@@ -1,6 +1,7 @@
 {
   "ClassName": "Rogue",
   "PathFilename": "10_Gnome.json",
+  "CrossZoneSearch": true,
   "Wait": {
     "Sequence": [
       {
@@ -98,7 +99,6 @@
         "HasCastbar": true,
         "WhenUsable": true,
         "AfterCastWaitCastbar": true,
-        
         "Requirements": [
           "Equipment:Offhand",
           "!HasOffHandEnchant"
@@ -113,6 +113,25 @@
           "BagItem:20768:1"
         ],
         "Log": false
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Name": "Repair Robert Aebischer",
+        "Key": "C",
+        "Requirement": "Durability% < 35",
+        "Cost": 6
+      },
+      {
+        "Name": "Sell Robert Aebischer",
+        "Key": "C",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ],
+        "Cost": 6
       }
     ]
   }

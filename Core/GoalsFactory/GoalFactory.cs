@@ -363,8 +363,10 @@ public static class GoalFactory
             services.AddKeyedScoped<PathSettings>(i,
                 (IServiceProvider sp, object? key) =>
                 GetPathSettings(
+                    sp.GetRequiredService<ILogger>(),
                     sp.GetRequiredService<ClassConfiguration>().Paths[(int)key!],
-                    sp.GetRequiredService<DataConfig>()));
+                    sp.GetRequiredService<DataConfig>(),
+                    sp.GetRequiredService<WorldMapAreaDB>()));
 
             services.AddScoped<GoapGoal>(sp =>
                 ActivatorUtilities.CreateInstance<FollowRouteGoal>(sp,
@@ -388,7 +390,8 @@ public static class GoalFactory
             : path;
     }
 
-    private static PathSettings GetPathSettings(PathSettings setting, DataConfig dataConfig)
+    private static PathSettings GetPathSettings(ILogger logger, PathSettings setting,
+        DataConfig dataConfig, WorldMapAreaDB worldMapAreaDB)
     {
         setting.PathFilename =
             RelativeFilePath(dataConfig, setting.PathFilename);
@@ -404,21 +407,23 @@ public static class GoalFactory
                 setting.Path[i].Z = 0;
         }
 
-        if (!setting.PathReduceSteps)
-            return setting;
-
-        int step = 2;
-        int reducedLength = setting.Path.Length % step == 0
-            ? setting.Path.Length / step
-            : (setting.Path.Length / step) + 1;
-
-        Vector3[] path = new Vector3[reducedLength];
-        for (int i = 0; i < path.Length; i++)
+        if (setting.PathReduceSteps)
         {
-            path[i] = setting.Path[i * step];
+            int step = 2;
+            int reducedLength = setting.Path.Length % step == 0
+                ? setting.Path.Length / step
+                : (setting.Path.Length / step) + 1;
+
+            Vector3[] path = new Vector3[reducedLength];
+            for (int i = 0; i < path.Length; i++)
+            {
+                path[i] = setting.Path[i * step];
+            }
+
+            setting.Path = path;
         }
 
-        setting.Path = path;
+        setting.ConvertToWorldCoords(logger, worldMapAreaDB);
 
         return setting;
     }

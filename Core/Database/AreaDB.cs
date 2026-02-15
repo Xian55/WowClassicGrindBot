@@ -136,7 +136,8 @@ public sealed class AreaDB : IDisposable
         Vector3 playerPosW,
         string[] allowedNames,
         Span<NpcSearchResult> destination, // caller-provided buffer
-        out int written)
+        out int written,
+        bool crossZoneSearch = false)
     {
         written = 0;
 
@@ -157,9 +158,12 @@ public sealed class AreaDB : IDisposable
 
                 foreach (var pos in worldPos)
                 {
-                    var mapPos = WorldMapAreaDB.ToMap_FlipXY(pos, Hitbox!.Value);
-                    if (mapPos.X <= 0 || mapPos.X >= 100 || mapPos.Y <= 0 || mapPos.Y >= 100)
-                        continue;
+                    if (!crossZoneSearch)
+                    {
+                        var mapPos = WorldMapAreaDB.ToMap_FlipXY(pos, Hitbox!.Value);
+                        if (mapPos.X <= 0 || mapPos.X >= 100 || mapPos.Y <= 0 || mapPos.Y >= 100)
+                            continue;
+                    }
 
                     if (!FriendlyToPlayer(n, faction, factionDB))
                         continue;

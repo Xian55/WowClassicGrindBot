@@ -12,6 +12,7 @@ namespace SharedLib;
 public sealed class WorldMapAreaDB
 {
     private readonly FrozenDictionary<int, WorldMapArea> wmas;
+    private readonly WorldMapArea[] areasByNameLengthDesc;
 
     public const int AreaIDOffset = 1000000;
 
@@ -43,6 +44,10 @@ public sealed class WorldMapAreaDB
 
         this.wmas = wmas.ToFrozenDictionary();
         this.AreaHitbox = areahitbox.ToFrozenDictionary();
+
+        areasByNameLengthDesc = [.. this.wmas.Values
+            .Where(static w => w.AreaName.Length > 0)
+            .OrderByDescending(static w => w.AreaName.Length)];
     }
 
     public int GetAreaId(int uiMap)
@@ -143,6 +148,22 @@ public sealed class WorldMapAreaDB
         }
 
         return maps.First();
+    }
+
+    public bool TryFindByAreaName(ReadOnlySpan<char> input, out WorldMapArea result)
+    {
+        ReadOnlySpan<WorldMapArea> areas = areasByNameLengthDesc;
+        for (int i = 0; i < areas.Length; i++)
+        {
+            if (input.Contains(areas[i].AreaName, StringComparison.OrdinalIgnoreCase))
+            {
+                result = areas[i];
+                return true;
+            }
+        }
+
+        result = default;
+        return false;
     }
 
     public WorldMapArea GetByAreaId(int areaId)
