@@ -85,6 +85,7 @@ local GetNumSpellTabs = GetNumSpellTabs
 local IsSpellKnown = IsSpellKnown
 
 local GetPlayerFacing = GetPlayerFacing
+local GetUnitSpeed = GetUnitSpeed
 local UnitLevel = UnitLevel
 local UnitLevelSafe = DataToColor.UnitLevelSafe
 local UnitHealthMax = UnitHealthMax
@@ -1258,6 +1259,9 @@ function DataToColor:CreateFrames()
 
             -- Enemy summons (totems, pets summoned by hostile NPCs)
             Pixel(int, DataToColor.EnemySummonQueue:shift(globalTick) or 0, 110)
+
+            local _, playerRunSpeed = GetUnitSpeed(DataToColor.C.unitPlayer)
+            Pixel(float, playerRunSpeed or 0, 111)
 
             UpdateGlobalTime()
             -- NUMBER_OF_FRAMES - 1 reserved for validation

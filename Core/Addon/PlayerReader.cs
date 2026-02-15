@@ -254,6 +254,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public int SoftInteract_Guid => reader.GetInt(101);
 
+    public float RunSpeed => reader.GetFixed(111);
+
     public int SoftInteract_Id => reader.GetInt(102);
 
     public GuidType SoftInteract_Type => (GuidType)reader.GetInt(103);
