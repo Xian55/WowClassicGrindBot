@@ -145,7 +145,7 @@
         "Name": "Repair",
         "Key": "C",
         "Requirement": "Durability% < 35",
-        "PathFilename": "5_Draenai_Vendor.json",
+        "PathFilename": "5_Draenei_Vendor.json",
         "Cost": 6
       },
       {
@@ -155,7 +155,7 @@
           "BagFull",
           "BagGreyItem"
         ],
-        "PathFilename": "5_Draenai_Vendor.json",
+        "PathFilename": "5_Draenei_Vendor.json",
         "Cost": 6
       }
     ]
