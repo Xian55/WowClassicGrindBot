@@ -1661,6 +1661,8 @@ Short Path Example:
 
 This is rather an **experimental** feature, and it is known to be unstable but it provides an easy way to add npc interaction in the **current zone**.
 
+With `CrossZoneSearch` enabled, the **current zone** restriction can be bypassed.
+
 The key limitation is the navigation, it is known to get stuck with [Indoors](https://wowwiki-archive.fandom.com/wiki/API_IsIndoors) npcs be are of that!
 
 The `"KeyAction.Name"` has a special formula which can be followed to have different behaviour!
