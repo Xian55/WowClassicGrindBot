@@ -107,6 +107,15 @@ local GetPetHappiness = GetPetHappiness
 
 local ammoSlot = GetInventorySlotInfo("AmmoSlot")
 
+local spellRangeNameCache = {}
+local spellRangeUnitNameCache = {}
+
+local cachedPetName = nil
+local petNameDirty = true
+
+local cachedShapeshiftForm = 0
+local shapeshiftDirty = true
+
 -- Use Astrolabe function to get current player position
 function DataToColor:GetPosition()
     if not DataToColor.map then
@@ -405,27 +414,43 @@ end
 -- -- Function to tell if a spell is on cooldown and if the specified slot has a spell assigned to it
 -- -- Slot ID information can be found on WoW Wiki. Slots we are using: 1-12 (main action bar), Bottom Right Action Bar maybe(49-60), and  Bottom Left (61-72)
 
+function DataToColor:PopulateSpellInRangeNames()
+    local S = DataToColor.S
+    for i = 1, #S.spellInRangeTarget do
+        local spellIconId = S.spellInRangeTarget[i]
+        local spellId = S.playerSpellBookIconToId[spellIconId] or spellIconId
+        spellRangeNameCache[i] = GetSpellInfo(spellId)
+    end
+    for i = 1, #S.spellInRangeUnit do
+        local data = S.spellInRangeUnit[i]
+        local spellId = S.playerSpellBookIconToId[data[1]]
+        if spellId then
+            spellRangeUnitNameCache[i] = GetSpellInfo(spellId)
+        end
+    end
+end
+
+function DataToColor:InvalidatePetNameCache()
+    petNameDirty = true
+end
+
 function DataToColor:areSpellsInRange()
     local inRange = 0
     local targetCount = #DataToColor.S.spellInRangeTarget
     for i = 1, targetCount do
-        local spellIconId = DataToColor.S.spellInRangeTarget[i]
-        local spellId = DataToColor.S.playerSpellBookIconToId[spellIconId] or spellIconId -- fallback to spellId
-        local spellName = GetSpellInfo(spellId)
+        local spellName = spellRangeNameCache[i]
         if spellName then
             if IsSpellInRange(spellName, DataToColor.C.unitTarget) == 1 then
                 inRange = inRange + (2 ^ (i - 1))
             end
-        else
-            --print(spellId .. " is null")
         end
     end
 
     for i = 1, #DataToColor.S.spellInRangeUnit do
         local data = DataToColor.S.spellInRangeUnit[i]
-        local spellId = DataToColor.S.playerSpellBookIconToId[data[1]]
+        local spellName = spellRangeUnitNameCache[i]
         local unit = data[2]
-        if spellId and IsSpellInRange(GetSpellInfo(spellId), unit) == 1 then
+        if spellName and IsSpellInRange(spellName, unit) == 1 then
             inRange = inRange + (2 ^ (targetCount + i - 1))
         end
     end
@@ -525,6 +550,30 @@ function DataToColor:isActionUseable(min, max)
   return isUsableBits
 end
 
+-- isActionUseable cache (cells 30-34)
+local actionUseableCache = { 0, 0, 0, 0, 0 }
+local actionUseableDirty = true
+
+local function RebuildActionUseableCache()
+    actionUseableCache[1] = DataToColor:isActionUseable(1, 24)
+    actionUseableCache[2] = DataToColor:isActionUseable(25, 48)
+    actionUseableCache[3] = DataToColor:isActionUseable(49, 72)
+    actionUseableCache[4] = DataToColor:isActionUseable(73, 96)
+    actionUseableCache[5] = DataToColor:isActionUseable(97, 120)
+    actionUseableDirty = false
+end
+
+function DataToColor:isActionUseableCached(chunk)
+    if actionUseableDirty then
+        RebuildActionUseableCache()
+    end
+    return actionUseableCache[chunk]
+end
+
+function DataToColor:InvalidateActionUseableCache()
+    actionUseableDirty = true
+end
+
 function DataToColor:isCurrentAction(min, max)
     local isUsableBits = 0
     for i = min, max do
@@ -533,6 +582,30 @@ function DataToColor:isCurrentAction(min, max)
         end
     end
     return isUsableBits
+end
+
+-- isCurrentAction cache (cells 25-29)
+local currentActionCache = { 0, 0, 0, 0, 0 }
+local currentActionDirty = true
+
+local function RebuildCurrentActionCache()
+    currentActionCache[1] = DataToColor:isCurrentAction(1, 24)
+    currentActionCache[2] = DataToColor:isCurrentAction(25, 48)
+    currentActionCache[3] = DataToColor:isCurrentAction(49, 72)
+    currentActionCache[4] = DataToColor:isCurrentAction(73, 96)
+    currentActionCache[5] = DataToColor:isCurrentAction(97, 120)
+    currentActionDirty = false
+end
+
+function DataToColor:isCurrentActionCached(chunk)
+    if currentActionDirty then
+        RebuildCurrentActionCache()
+    end
+    return currentActionCache[chunk]
+end
+
+function DataToColor:InvalidateCurrentActionCache()
+    currentActionDirty = true
 end
 
 -- Finds passed in string to return profession level
@@ -580,6 +653,22 @@ function DataToColor:getAvgEquipmentDurability()
     return math.max(0, floor((current + 1) * 100 / (max + 1)) - 1) -- 0-99
 end
 
+-- Equipment durability cache (cell 54)
+local cachedDurability = 0
+local durabilityDirty = true
+
+function DataToColor:getAvgEquipmentDurabilityCached()
+    if durabilityDirty then
+        cachedDurability = DataToColor:getAvgEquipmentDurability()
+        durabilityDirty = false
+    end
+    return cachedDurability
+end
+
+function DataToColor:InvalidateDurabilityCache()
+    durabilityDirty = true
+end
+
 -----------------------------------------------------------------
 -- Boolean functions --------------------------------------------
 -- Only put functions here that are part of a boolean sequence --
@@ -587,17 +676,21 @@ end
 -----------------------------------------------------------------
 
 function DataToColor:shapeshiftForm()
-    local index = GetShapeshiftForm(false)
-    if not index or index == 0 then
-        return 0
+    if shapeshiftDirty then
+        local index = GetShapeshiftForm(false)
+        if not index or index == 0 then
+            cachedShapeshiftForm = 0
+        else
+            local _, _, _, spellId = GetShapeshiftFormInfo(index)
+            cachedShapeshiftForm = DataToColor.S.playerAuraMap[spellId] or index
+        end
+        shapeshiftDirty = false
     end
+    return cachedShapeshiftForm
+end
 
-    local _, _, _, spellId = GetShapeshiftFormInfo(index)
-    local form = DataToColor.S.playerAuraMap[spellId]
-    if form then
-        return form
-    end
-    return index
+function DataToColor:InvalidateShapeshiftCache()
+    shapeshiftDirty = true
 end
 
 function DataToColor:GetInventoryBroken()
@@ -610,20 +703,26 @@ function DataToColor:GetInventoryBroken()
 end
 
 function DataToColor:UnitsTargetAsNumber(unit, unittarget)
-    if not (UnitName(unittarget)) then return 2 end                              -- target has no target
-    if DataToColor.C.CHARACTER_NAME == UnitName(unit) then return 0 end          -- targeting self
-    if UnitName(DataToColor.C.unitPet) == UnitName(unittarget) then return 4 end -- targetting my pet
-    if DataToColor.playerPetSummons[UnitGUID(unittarget)] then return 4 end
-    if DataToColor.C.CHARACTER_NAME == UnitName(unittarget) then return 1 end    -- targetting me
-    if UnitName(DataToColor.C.unitPet) == UnitName(unit) and UnitName(unittarget) then
-        return 5
+    local targetName = UnitName(unittarget)
+    if not targetName then return 2 end                                             -- target has no target
+
+    local unitName = UnitName(unit)
+    if DataToColor.C.CHARACTER_NAME == unitName then return 0 end                   -- targeting self
+
+    if petNameDirty then
+        cachedPetName = UnitName(DataToColor.C.unitPet)
+        petNameDirty = false
     end
-    if IsInGroup() and DataToColor:UnitTargetsPartyOrPet(unittarget) then return 6 end
+
+    if cachedPetName and cachedPetName == targetName then return 4 end              -- targetting my pet
+    if DataToColor.playerPetSummons[UnitGUID(unittarget)] then return 4 end
+    if DataToColor.C.CHARACTER_NAME == targetName then return 1 end                 -- targetting me
+    if cachedPetName and unitName == cachedPetName and targetName then return 5 end
+    if IsInGroup() and DataToColor:UnitTargetsPartyOrPet(targetName) then return 6 end
     return 3
 end
 
-function DataToColor:UnitTargetsPartyOrPet(unittarget)
-    local targetName = UnitName(unittarget)
+function DataToColor:UnitTargetsPartyOrPet(targetName)
     if not targetName then return false end
 
     for i = 1, 4 do

@@ -150,6 +150,10 @@ function DataToColor:RegisterEvents()
         DataToColor:RegisterEvent('UNIT_SPELLCAST_FAILED', 'SoM_OnCastFailed')
     end
 
+    -- Shapeshift form cache invalidation
+    DataToColor:SafeRegisterEvent('UPDATE_SHAPESHIFT_FORM', 'OnShapeshiftChanged')
+    DataToColor:SafeRegisterEvent('UPDATE_SHAPESHIFT_FORMS', 'OnShapeshiftChanged')
+
     ---------------------------------------------------------------------------
     -- BitCache events (centralized here to avoid AceEvent overwrites)
     ---------------------------------------------------------------------------
@@ -180,6 +184,14 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('MAIL_SHOW', 'OnMailShow_BitCache')
     DataToColor:RegisterEvent('MAIL_CLOSED', 'OnMailClosed_BitCache')
     DataToColor:RegisterEvent('BAG_OPEN', 'OnBagOpen_BitCache')
+
+    ---------------------------------------------------------------------------
+    -- Action cache events (invalidate isActionUseable / isCurrentAction)
+    ---------------------------------------------------------------------------
+    DataToColor:RegisterEvent('ACTIONBAR_UPDATE_USABLE', 'OnActionbarUsabilityChanged')
+    DataToColor:RegisterEvent('ACTIONBAR_UPDATE_COOLDOWN', 'OnActionbarUsabilityChanged')
+    DataToColor:RegisterEvent('SPELL_UPDATE_USABLE', 'OnActionbarUsabilityChanged')
+    DataToColor:RegisterEvent('UNIT_POWER_UPDATE', 'OnUnitPowerUpdate_ActionCache')
 
     -- Classic-only events
     if DataToColor:IsClassicPreCata() then
@@ -578,6 +590,7 @@ function DataToColor:OnUnitSpellCastSucceeded(...)
     DataToColor.lastCastEvent = CAST_SUCCESS
     DataToColor.uiErrorMessageTime = DataToColor.globalTime
     DataToColor.lastCastSpellId = spellId
+    DataToColor:InvalidateActionUseableCache()
 end
 
 function DataToColor:OnUnitSpellCastFailed(...)
@@ -711,6 +724,9 @@ function DataToColor:OnSpellsChanged(event)
     DataToColor:InitTalentQueue()
     DataToColor:InitSpellBookQueue()
     DataToColor:InitActionBarCostQueue()
+    DataToColor:PopulateSpellInRangeNames()
+    DataToColor:InvalidateCurrentActionCache()
+    DataToColor:InvalidateActionUseableCache()
 end
 
 function DataToColor:ActionbarSlotChanged(event, slot)
@@ -721,6 +737,8 @@ function DataToColor:ActionbarSlotChanged(event, slot)
         -- Check for texture change (works for both add and remove)
         DataToColor:CheckActionBarTextureChange(slot)
     end
+    DataToColor:InvalidateCurrentActionCache()
+    DataToColor:InvalidateActionUseableCache()
 end
 
 function DataToColor:CorpseInRangeEvent(event)
@@ -747,6 +765,7 @@ end
 function DataToColor:OnPetChanged(event, unit)
     if unit == DataToColor.C.unitPlayer then
         DataToColor.petGUID = UnitGUID(DataToColor.C.unitPet)
+        DataToColor:InvalidatePetNameCache()
     end
 
     -- Update BitCache pet state
@@ -771,6 +790,7 @@ function DataToColor:OnLeftCombat()
     if DataToColor.BitCache and DataToColor.BitCache.bits1 then
         DataToColor.BitCache.bits1.playerInCombat = false
     end
+    DataToColor:InvalidateActionUseableCache()
 end
 
 function DataToColor:AutoFollowBegin()
@@ -812,6 +832,10 @@ end
 
 function DataToColor:OnMessageParty(event, msg, author)
     DataToColor:PushChatMessage(DataToColor.TextCommand.ChatParty, author, msg)
+end
+
+function DataToColor:OnShapeshiftChanged(event)
+    DataToColor:InvalidateShapeshiftCache()
 end
 
 function DataToColor:OnPlayerSoftInteractChanged(event, old, new)
@@ -943,6 +967,7 @@ function DataToColor:OnEnteredCombat(event)
     if DataToColor.BitCache and DataToColor.BitCache.bits1 then
         DataToColor.BitCache.bits1.playerInCombat = true
     end
+    DataToColor:InvalidateActionUseableCache()
 end
 
 function DataToColor:OnUnitFlags_BitCache(event, unit)
@@ -1022,6 +1047,7 @@ function DataToColor:OnDurabilityChanged_BitCache(event)
     if DataToColor.BitCache and DataToColor.BitCache.updateEquipment then
         DataToColor.BitCache.updateEquipment()
     end
+    DataToColor:InvalidateDurabilityCache()
 end
 
 function DataToColor:OnTalentChanged_BitCache(event)
@@ -1034,6 +1060,7 @@ function DataToColor:OnSpellStateChanged_BitCache(event)
     if DataToColor.BitCache and DataToColor.BitCache.updateSpellState then
         DataToColor.BitCache.updateSpellState()
     end
+    DataToColor:InvalidateCurrentActionCache()
 end
 
 function DataToColor:OnMirrorTimer_BitCache(event)
@@ -1069,5 +1096,19 @@ end
 function DataToColor:OnBagOpen_BitCache(event, containerID)
     if DataToColor.BitCache and DataToColor.BitCache.bits3 then
         DataToColor.BitCache.bits3.anyBagOpen = true
+    end
+end
+
+-------------------------------------------------------------------------------
+-- Action Cache Event Handlers
+-------------------------------------------------------------------------------
+
+function DataToColor:OnActionbarUsabilityChanged(event)
+    DataToColor:InvalidateActionUseableCache()
+end
+
+function DataToColor:OnUnitPowerUpdate_ActionCache(event, unit)
+    if unit == DataToColor.C.unitPlayer then
+        DataToColor:InvalidateActionUseableCache()
     end
 end
