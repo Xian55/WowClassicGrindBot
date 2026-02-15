@@ -43,6 +43,10 @@ public sealed partial class Navigation : IDisposable
     private readonly float IndoorMinDistance = 1f;
     private readonly float OutDoorMinDistance = 3f;
 
+    private const float OUTDOOR_LOOK_AHEAD = 0.75f;    // seconds
+    private const float INDOOR_LOOK_AHEAD = 0.25f;     // seconds
+    private const float SIMPLIFY_LOOK_AHEAD = 0.25f;   // seconds
+
     private float AvgDistance;
     private float lastWorldDistance = float.MaxValue;
 
@@ -469,11 +473,20 @@ public sealed partial class Navigation : IDisposable
 
     private float ReachedDistance(float minDistance)
     {
-        return mountHandler.IsMounted()
-            ? MinDistanceMount
-            : bits.Indoors()
-                ? IndoorMinDistance
-                : minDistance;
+        float speed = playerReader.RunSpeed;
+        if (speed <= 0f)
+        {
+            // Fallback: addon data unavailable
+            return mountHandler.IsMounted()
+                ? MinDistanceMount
+                : bits.Indoors()
+                    ? IndoorMinDistance
+                    : minDistance;
+        }
+
+        float baseDistance = bits.Indoors() ? IndoorMinDistance : minDistance;
+        float lookAhead = bits.Indoors() ? INDOOR_LOOK_AHEAD : OUTDOOR_LOOK_AHEAD;
+        return Max(baseDistance, speed * lookAhead);
     }
 
     private void ReduceByDistance(Vector3 playerW, float minDistance)
@@ -498,7 +511,7 @@ public sealed partial class Navigation : IDisposable
                 stopMoving.Stop();
             }
 
-            playerDirection.SetDirection(heading, routeToNextWaypoint.Peek(), OutDoorMinDistance, token);
+            playerDirection.SetDirection(heading, routeToNextWaypoint.Peek(), ReachedDistance(OutDoorMinDistance), token);
         }
     }
 
@@ -534,8 +547,9 @@ public sealed partial class Navigation : IDisposable
             Vector3 playerW = playerReader.WorldPos;
             float distanceToRoute = playerW.WorldDistanceXYTo(routeToNextWaypoint.Peek());
             float distanceToPrevLoc = playerW.WorldDistanceXYTo(playerWorldPos);
-            if (distanceToRoute > 2 * MinDistanceMount &&
-                distanceToPrevLoc > 2 * MinDistanceMount)
+            float dynamicThreshold = 2 * ReachedDistance(OutDoorMinDistance);
+            if (distanceToRoute > dynamicThreshold &&
+                distanceToPrevLoc > dynamicThreshold)
             {
                 LogV1ClearRouteToWaypoint(logger, patherName, distanceToRoute);
                 routeToNextWaypoint.Clear();
@@ -553,10 +567,17 @@ public sealed partial class Navigation : IDisposable
         }
     }
 
+    private float SimplifyTolerance()
+    {
+        float speed = playerReader.RunSpeed;
+        float baseTolerance = OutDoorMinDistance / 2;
+        return speed <= 0f ? baseTolerance : Max(baseTolerance, speed * SIMPLIFY_LOOK_AHEAD);
+    }
+
     private void SimplyfyRouteToWaypoint()
     {
         const bool HighQuality = false;
-        Span<Vector3> reduced = PathSimplify.Simplify(routeToNextWaypoint.ToArray(), OutDoorMinDistance / 2, HighQuality);
+        Span<Vector3> reduced = PathSimplify.Simplify(routeToNextWaypoint.ToArray(), SimplifyTolerance(), HighQuality);
         if (debug)
             LogDebug($"{nameof(SimplyfyRouteToWaypoint)} {routeToNextWaypoint.Count} -> {reduced.Length} | HQ: {HighQuality}");
 
