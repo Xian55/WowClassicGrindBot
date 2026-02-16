@@ -79,14 +79,14 @@ public sealed partial class PathSettings
         }
         else
         {
-            // 1. Try zone name from filepath
+            // 1. Try zone name from filepath (includes directories)
             if (worldMapAreaDB.TryFindByAreaName(FileName, out WorldMapArea matchedArea))
             {
                 LogUIMapIdFromFilename(logger, FileName, matchedArea.AreaName, matchedArea.UIMapId);
                 uiMapId = matchedArea.UIMapId;
             }
-            // 2. Try race name from filepath → starting zone
-            else if (TryFindRaceZone(FileName, worldMapAreaDB, out int raceUIMapId))
+            // 2. Try race name from filename only (not directories) → starting zone
+            else if (TryFindRaceZone(System.IO.Path.GetFileNameWithoutExtension(FileName), worldMapAreaDB, out int raceUIMapId))
             {
                 LogUIMapIdAutoDetect(logger, FileName, raceUIMapId);
                 uiMapId = raceUIMapId;
@@ -99,7 +99,6 @@ public sealed partial class PathSettings
                 if (uiMapId <= 0)
                     return;
             }
-
         }
 
         OriginalMapPath = new Vector3[Path.Length];
