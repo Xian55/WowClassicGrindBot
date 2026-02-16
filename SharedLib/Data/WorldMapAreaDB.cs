@@ -13,6 +13,7 @@ public sealed class WorldMapAreaDB
 {
     private readonly FrozenDictionary<int, WorldMapArea> wmas;
     private readonly WorldMapArea[] areasByNameLengthDesc;
+    private readonly WorldMapArea[] subzonesByNameLengthDesc;
 
     public const int AreaIDOffset = 1000000;
 
@@ -30,6 +31,7 @@ public sealed class WorldMapAreaDB
 
         Dictionary<int, WorldMapArea> areahitbox = [];
         Dictionary<int, WorldMapArea> wmas = [];
+        List<WorldMapArea> subzones = [];
         for (int i = 0; i < span.Length; i++)
         {
             if (span[i].AreaID > AreaIDOffset)
@@ -38,7 +40,11 @@ public sealed class WorldMapAreaDB
             }
 
             if (span[i].UIMapId == 0)
+            {
+                if (span[i].ParentAreaId > 0 && span[i].AreaName.Length > 0)
+                    subzones.Add(span[i]);
                 continue;
+            }
             wmas.Add(span[i].UIMapId, span[i]);
         }
 
@@ -48,6 +54,9 @@ public sealed class WorldMapAreaDB
         areasByNameLengthDesc = [.. this.wmas.Values
             .Where(static w => w.AreaName.Length > 0)
             .OrderByDescending(static w => w.AreaName.Length)];
+
+        subzones.Sort(static (a, b) => b.AreaName.Length.CompareTo(a.AreaName.Length));
+        subzonesByNameLengthDesc = [.. subzones];
     }
 
     public int GetAreaId(int uiMap)
@@ -163,6 +172,23 @@ public sealed class WorldMapAreaDB
         }
 
         result = default;
+        return false;
+    }
+
+    public bool TryFindBySubzoneName(ReadOnlySpan<char> input, out WorldMapArea parentZone)
+    {
+        ReadOnlySpan<WorldMapArea> subzones = subzonesByNameLengthDesc;
+        for (int i = 0; i < subzones.Length; i++)
+        {
+            if (input.Contains(subzones[i].AreaName, StringComparison.OrdinalIgnoreCase))
+            {
+                parentZone = GetByAreaId(subzones[i].ParentAreaId);
+                if (parentZone.UIMapId > 0)
+                    return true;
+            }
+        }
+
+        parentZone = default;
         return false;
     }
 

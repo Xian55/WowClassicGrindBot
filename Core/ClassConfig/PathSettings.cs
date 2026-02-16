@@ -28,6 +28,8 @@ public sealed partial class PathSettings
         ? OverridePathFilename
         : PathFilename;
 
+    private const int MaxRaceStartingZoneLevel = 20;
+
     private static readonly (string Race, int AreaId)[] RaceStartingZones =
     [
         ("NightElf", 141),   // Teldrassil
@@ -85,13 +87,19 @@ public sealed partial class PathSettings
                 LogUIMapIdFromFilename(logger, FileName, matchedArea.AreaName, matchedArea.UIMapId);
                 uiMapId = matchedArea.UIMapId;
             }
-            // 2. Try race name from filename only (not directories) → starting zone
+            // 2. Try subzone name from filepath → resolve to parent zone
+            else if (worldMapAreaDB.TryFindBySubzoneName(FileName, out WorldMapArea parentZone))
+            {
+                LogUIMapIdFromSubzone(logger, FileName, parentZone.AreaName, parentZone.UIMapId);
+                uiMapId = parentZone.UIMapId;
+            }
+            // 3. Try race name from filename only (not directories) → starting zone
             else if (TryFindRaceZone(System.IO.Path.GetFileNameWithoutExtension(FileName), worldMapAreaDB, out int raceUIMapId))
             {
                 LogUIMapIdAutoDetect(logger, FileName, raceUIMapId);
                 uiMapId = raceUIMapId;
             }
-            // 3. Fallback to player's current zone
+            // 4. Fallback to player's current zone
             else
             {
                 uiMapId = playerReader.UIMapId.Value;
@@ -110,6 +118,12 @@ public sealed partial class PathSettings
 
     private static bool TryFindRaceZone(ReadOnlySpan<char> input, WorldMapAreaDB worldMapAreaDB, out int uiMapId)
     {
+        if (TryParseMinLevel(input, out int minLevel) && minLevel > MaxRaceStartingZoneLevel)
+        {
+            uiMapId = 0;
+            return false;
+        }
+
         for (int i = 0; i < RaceStartingZones.Length; i++)
         {
             (string race, int areaId) = RaceStartingZones[i];
@@ -125,6 +139,20 @@ public sealed partial class PathSettings
         }
 
         uiMapId = 0;
+        return false;
+    }
+
+    /// <summary>
+    /// Parses the minimum level from a filename starting with "NN-NN" pattern.
+    /// e.g. "37-42 Gorillas" → 37, "01-04_Durotar" → 1
+    /// </summary>
+    private static bool TryParseMinLevel(ReadOnlySpan<char> fileName, out int minLevel)
+    {
+        int dashIndex = fileName.IndexOf('-');
+        if (dashIndex > 0)
+            return int.TryParse(fileName[..dashIndex], out minLevel);
+
+        minLevel = 0;
         return false;
     }
 
@@ -219,6 +247,12 @@ public sealed partial class PathSettings
         Level = LogLevel.Information,
         Message = "[{fileName}] UIMapId auto-detect fallback {playerUIMapId}")]
     static partial void LogUIMapIdAutoDetect(ILogger logger, string fileName, int playerUIMapId);
+
+    [LoggerMessage(
+        EventId = 0021,
+        Level = LogLevel.Information,
+        Message = "[{fileName}] UIMapId {uiMapId} detected from subzone → parent zone '{areaName}'")]
+    static partial void LogUIMapIdFromSubzone(ILogger logger, string fileName, string areaName, int uiMapId);
 
     [LoggerMessage(
         EventId = 0022,
