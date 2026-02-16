@@ -504,6 +504,12 @@ function DataToColor:Reset()
 
     DataToColor.actionBarCooldownQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
 
+    DataToColor:InvalidateCurrentActionCache()
+    DataToColor:InvalidateActionUseableCache()
+    DataToColor:InvalidateDurabilityCache()
+    DataToColor:InvalidatePetNameCache()
+    DataToColor:InvalidateShapeshiftCache()
+
     DataToColor.playerBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
     DataToColor.playerDebuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
     DataToColor.targetBuffTime = DataToColor.struct:new(AURA_DURATION_ITERATION_FRAME_CHANGE_RATE)
@@ -727,6 +733,8 @@ function DataToColor:PopulateSpellBookInfo()
     end
 
     --DataToColor:Print(("Loaded %d spells"):format(numLoaded))
+
+    DataToColor:PopulateSpellInRangeNames()
 end
 
 function DataToColor:InitSpellBookQueue()
@@ -801,6 +809,24 @@ function DataToColor:CreateFrames()
         return 0
     end
 
+    -- Precomputed static value for cell 46 (race/class/version never change)
+    local raceClassVersionCell = DataToColor.C.CHARACTER_RACE_ID * 10000
+        + DataToColor.C.CHARACTER_CLASS_ID * 100
+        + DataToColor.ClientVersion
+
+    -- MiniMap settings cache (cells 16-17), recomputed every ~200 ticks
+    local miniMapCache1 = 0
+    local miniMapCache2 = 0
+    local miniMapCacheTick = -999
+
+    -- areSpellsInRange throttle (cell 40)
+    local spellsInRangeCache = 0
+    local spellsInRangeTick = -999
+
+    -- UnitsTargetAsNumber throttle (cell 59)
+    local unitsTargetCache = 0
+    local unitsTargetTick = -999
+
     local function updateFrames()
         if not SETUP_SEQUENCE and globalTick >= initPhase then
             -- Ensure globalTime is past the C# FullReset threshold (Value <= 3)
@@ -873,8 +899,13 @@ function DataToColor:CreateFrames()
                 Pixel(int, UnitPower(DataToColor.C.unitPlayer, PowerType.Mana), 15)
             end
 
-            Pixel(int, DataToColor:MiniMapSettings1(), 16)
-            Pixel(int, DataToColor:MiniMapSettings2(), 17)
+            if globalTick - miniMapCacheTick >= 200 then
+                miniMapCache1 = DataToColor:MiniMapSettings1()
+                miniMapCache2 = DataToColor:MiniMapSettings2()
+                miniMapCacheTick = globalTick
+            end
+            Pixel(int, miniMapCache1, 16)
+            Pixel(int, miniMapCache2, 17)
 
             if DataToColor.targetChanged then
                 DataToColor.targetBuffTime:forcedReset()
@@ -931,17 +962,21 @@ function DataToColor:CreateFrames()
             Pixel(int, itemId, 24)
             --DataToColor:Print("equipmentQueue ", equipmentSlot, " slot -> ", slot, " -> ", itemId)
 
-            Pixel(int, DataToColor:isCurrentAction(1, 24), 25)
-            Pixel(int, DataToColor:isCurrentAction(25, 48), 26)
-            Pixel(int, DataToColor:isCurrentAction(49, 72), 27)
-            Pixel(int, DataToColor:isCurrentAction(73, 96), 28)
-            Pixel(int, DataToColor:isCurrentAction(97, 120), 29)
+            Pixel(int, DataToColor:isCurrentActionCached(1), 25)
+            Pixel(int, DataToColor:isCurrentActionCached(2), 26)
+            Pixel(int, DataToColor:isCurrentActionCached(3), 27)
+            Pixel(int, DataToColor:isCurrentActionCached(4), 28)
+            Pixel(int, DataToColor:isCurrentActionCached(5), 29)
 
-            Pixel(int, DataToColor:isActionUseable(1, 24), 30)
-            Pixel(int, DataToColor:isActionUseable(25, 48), 31)
-            Pixel(int, DataToColor:isActionUseable(49, 72), 32)
-            Pixel(int, DataToColor:isActionUseable(73, 96), 33)
-            Pixel(int, DataToColor:isActionUseable(97, 120), 34)
+            -- Safety: periodic forced invalidation every ~1 second
+            if globalTick % 60 == 0 then
+                DataToColor:InvalidateActionUseableCache()
+            end
+            Pixel(int, DataToColor:isActionUseableCached(1), 30)
+            Pixel(int, DataToColor:isActionUseableCached(2), 31)
+            Pixel(int, DataToColor:isActionUseableCached(3), 32)
+            Pixel(int, DataToColor:isActionUseableCached(4), 33)
+            Pixel(int, DataToColor:isActionUseableCached(5), 34)
 
             local costMeta, costValue = DataToColor.actionBarCostQueue:getTimed(globalTick)
             if costMeta and costValue then
@@ -973,18 +1008,19 @@ function DataToColor:CreateFrames()
             Pixel(int, UnitHealthMax(DataToColor.C.unitPet), 38)
             Pixel(int, UnitHealth(DataToColor.C.unitPet), 39)
 
-            Pixel(int, DataToColor:areSpellsInRange(), 40)
+            if globalTick - spellsInRangeTick >= 5 then
+                spellsInRangeCache = DataToColor:areSpellsInRange()
+                spellsInRangeTick = globalTick
+            end
+            Pixel(int, spellsInRangeCache, 40)
             Pixel(int, DataToColor:getAuraMaskForClass(UnitBuff, DataToColor.C.unitPlayer, DataToColor.S.playerBuffs), 41)
             Pixel(int, DataToColor:getAuraMaskForClass(UnitDebuff, DataToColor.C.unitTarget, DataToColor.S.targetDebuffs), 42)
-
-            local targetLevel = UnitLevelSafe(DataToColor.C.unitTarget, playerLevel)
-            Pixel(int, targetLevel * 100 + DataToColor.C.unitClassification[UnitClassification(DataToColor.C.unitTarget)], 43)
 
             -- Amount of money in coppers
             Pixel(int, GetMoney() % 1000000, 44) -- Represents amount of money held (in copper)
             Pixel(int, floor(GetMoney() / 1000000), 45) -- Represents amount of money held (in gold) 
 
-            Pixel(int, DataToColor.C.CHARACTER_RACE_ID * 10000 + DataToColor.C.CHARACTER_CLASS_ID * 100 + DataToColor.ClientVersion, 46)
+            Pixel(int, raceClassVersionCell, 46)
             Pixel(int, DataToColor.uiErrorMessageTime, 47)
             Pixel(int, DataToColor:shapeshiftForm(), 48) -- Shapeshift id https://wowwiki.fandom.com/wiki/API_GetShapeshiftForm
             Pixel(int, DataToColor:getRange(), 49) -- Represents minRange-maxRange ex. 0-5 5-15
@@ -995,7 +1031,7 @@ function DataToColor:CreateFrames()
             DataToColor.uiErrorMessage = 0
 
             Pixel(int, DataToColor:CastingInfoSpellId(DataToColor.C.unitPlayer), 53)                                                                                                                                                                               -- SpellId being cast
-            Pixel(int, DataToColor:getAvgEquipmentDurability() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
+            Pixel(int, DataToColor:getAvgEquipmentDurabilityCached() * 100 + ((DataToColor.C.CHARACTER_CLASS_ID == 2 and UnitPower(DataToColor.C.unitPlayer, PowerType.HolyPower) or GetComboPoints(DataToColor.C.unitPlayer, DataToColor.C.unitTarget)) or 0), 54)                                                                                                                                                                                                                                                -- for paladin holy power or combo points
 
             local playerBuffCount = DataToColor:populateAuraTimer(UnitBuff, DataToColor.C.unitPlayer, DataToColor.playerBuffTime)
             local playerDebuffCount = DataToColor:populateAuraTimer(UnitDebuff, DataToColor.C.unitPlayer, DataToColor.playerDebuffTime)
@@ -1009,16 +1045,21 @@ function DataToColor:CreateFrames()
             Pixel(int, min(16, playerDebuffCount) * 1000000 + playerBuffCount * 10000 + targetDebuffCount * 100 + targetBuffCount, 55)
 
             if DataToColor.targetChanged then
+                local targetLevel = UnitLevelSafe(DataToColor.C.unitTarget, playerLevel)
+                Pixel(int, targetLevel * 100 + DataToColor.C.unitClassification[UnitClassification(DataToColor.C.unitTarget)], 43)
                 Pixel(int, DataToColor:NpcId(DataToColor.C.unitTarget), 56) -- target id
                 Pixel(int, DataToColor:getGuidFromUnit(DataToColor.C.unitTarget), 57)
             end
 
             Pixel(int, DataToColor:CastingInfoSpellId(DataToColor.C.unitTarget), 58) -- SpellId being cast by target
 
-            Pixel(int,
-                10 * DataToColor:UnitsTargetAsNumber(DataToColor.C.unitmouseover, DataToColor.C.unitmouseovertarget) +
-                DataToColor:UnitsTargetAsNumber(DataToColor.C.unitTarget, DataToColor.C.unitTargetTarget),
-                59)
+            if globalTick - unitsTargetTick >= 5 then
+                unitsTargetCache =
+                    10 * DataToColor:UnitsTargetAsNumber(DataToColor.C.unitmouseover, DataToColor.C.unitmouseovertarget) +
+                    DataToColor:UnitsTargetAsNumber(DataToColor.C.unitTarget, DataToColor.C.unitTargetTarget)
+                unitsTargetTick = globalTick
+            end
+            Pixel(int, unitsTargetCache, 59)
 
             Pixel(int, DataToColor.lastAutoShot, 60)
             Pixel(int, DataToColor.lastMainHandMeleeSwing, 61)
