@@ -30583,7 +30583,7 @@
     "MaxLevel": 35,
     "Rank": 0,
     "Faction": 55,
-    "NpcFlag": 642,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
@@ -54659,7 +54659,7 @@
     "MaxLevel": 25,
     "Rank": 0,
     "Faction": 68,
-    "NpcFlag": 524417,
+    "NpcFlag": 524289,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 7
