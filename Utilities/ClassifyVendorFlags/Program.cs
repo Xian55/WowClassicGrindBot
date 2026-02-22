@@ -10,7 +10,16 @@ using SharedLib;
 using SharedLib.Data;
 
 const int VendorSubtypeMask = (int)(NpcFlags.VendorAmmo | NpcFlags.VendorFood | NpcFlags.VendorPoison | NpcFlags.VendorReagent);
+const int VendorServiceMask = (int)NpcFlags.Vendor | VendorSubtypeMask | (int)NpcFlags.Repair;
 const int TrainerMask = (int)(NpcFlags.Trainer | NpcFlags.ClassTrainer | NpcFlags.ProfessionTrainer);
+
+// NPCs that require special conditions (quest items, phasing, etc.) to interact with.
+// Strip all vendor/repair flags so the bot never attempts to use them.
+HashSet<int> excludedVendorEntries =
+[
+    11278, // Magnus Frostwake — requires "Spectral Essence" from Scholomance quest chain
+    11287, // Baker Masterson — requires "Spectral Essence" from Scholomance quest chain
+];
 
 bool auditMode = args.Contains("--audit", StringComparer.OrdinalIgnoreCase);
 
@@ -359,8 +368,37 @@ int finalStripCount = StripIncorrectFlags(files);
 Console.WriteLine($"Final pass updated: {finalStripCount}");
 Console.WriteLine();
 
+// ── Phase Exclude: Strip vendor/repair flags from inaccessible NPCs ──
+Console.WriteLine("=== Phase Exclude: Strip vendor/repair flags from inaccessible NPCs ===");
+
+int excludeCount = 0;
+foreach ((string label, JArray creatures) in files)
+{
+    foreach (JObject creature in creatures)
+    {
+        int entry = creature.Value<int>("Entry");
+        if (!excludedVendorEntries.Contains(entry))
+            continue;
+
+        int npcFlag = creature.Value<int>("NpcFlag");
+        int stripped = npcFlag & VendorServiceMask;
+        if (stripped == 0)
+            continue;
+
+        int newFlag = npcFlag & ~VendorServiceMask;
+        string name = creature.Value<string>("Name") ?? "?";
+        Console.WriteLine($"  [{label}] [{entry}] {name}: {npcFlag} -> {newFlag} (-{(NpcFlags)(uint)stripped})");
+
+        creature["NpcFlag"] = newFlag;
+        excludeCount++;
+    }
+}
+
+Console.WriteLine($"Phase Exclude updated: {excludeCount}");
+Console.WriteLine();
+
 // ── Save ──
-int totalUpdated = remapCount + phaseDbCount + phase0Count + phase1Count + phase2Count + phase3Count + finalStripCount;
+int totalUpdated = remapCount + phaseDbCount + phase0Count + phase1Count + phase2Count + phase3Count + finalStripCount + excludeCount;
 Console.WriteLine($"Total updated: {totalUpdated}");
 
 if (totalUpdated > 0)

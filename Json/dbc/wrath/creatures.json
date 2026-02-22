@@ -97676,7 +97676,7 @@
     "MinLevel": 50,
     "MaxLevel": 50,
     "Rank": 0,
-    "NpcFlag": 4226,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 6
@@ -97793,7 +97793,7 @@
     "MinLevel": 37,
     "MaxLevel": 37,
     "Rank": 0,
-    "NpcFlag": 642,
+    "NpcFlag": 2,
     "SkinLoot": 0,
     "Family": 0,
     "Type": 6
