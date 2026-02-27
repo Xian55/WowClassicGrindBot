@@ -127,7 +127,6 @@
         "Name": "Repair",
         "Key": "R",
         "Requirement": "Durability% < 35",
-        "PathFilename": "NPC_Stonetalon.json",
         "Cost": 6
       },
       {
@@ -137,7 +136,6 @@
           "BagFull",
           "BagGreyItem"
         ],
-        "PathFilename": "NPC_Stonetalon.json",
         "Cost": 6
       }
     ]

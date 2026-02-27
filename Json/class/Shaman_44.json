@@ -2,7 +2,7 @@
   "ClassName": "Shaman",
   "Loot": true,
   "Skin": true,
-  "PathFilename": "_pack\\40-50\\Tanaris\\41-43.json",
+  "PathFilename": "_pack\\40-50\\The Hinterlands\\41-43 wolves.json",
   "PathThereAndBack": true,
   "PathReduceSteps": true,
   "NPCMaxLevels_Below": 7,

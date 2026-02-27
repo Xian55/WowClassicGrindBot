@@ -6,21 +6,25 @@
     "MIN_SPEED_SEAL": 3000,
     "MIN_TARGET_HP%": 20,
     "MIN_HP_BEFORE_HEAL%": 20,
-    "Debuff_POISON1": 136006,
-    "Debuff_POISON2": 136007,
-    "Debuff_POISON3": 136016,
-    "Debuff_POISON4": 136064,
-    "Debuff_POISON5": 136067,
-    "Debuff_POISON6": 136077,
-    "Debuff_POISON7": 136093,
-    "Debuff_POISON8": 134437,
-    "Debuff_POISON9": 132273,
-    "Debuff_POISON10": 132274,
-    "Debuff_POISON11": 132105,
-    "Debuff_DISEASE1": 136127,
-    "Debuff_DISEASE2": 136134,
-    "Debuff_DISEASE3": 134324,
-    "Debuff_DISEASE4": 135914
+    "Debuff_POISON": [
+      136006,
+      136007,
+      136016,
+      136064,
+      136067,
+      136077,
+      136093,
+      134437,
+      132273,
+      132274,
+      132105
+    ],
+    "Debuff_DISEASE": [
+      136127,
+      136134,
+      134324,
+      135914
+    ]
   },
   "Pull": {
     "Sequence": [
@@ -31,7 +35,7 @@
         "Requirements": [
           "!Seal of the Crusader",
           "!Judgement of the Crusader",
-          "CD_Judgement <= 1500"
+          "CD_Judgement <= GCD"
         ]
       },
       {
@@ -49,14 +53,40 @@
   "Combat": {
     "Sequence": [
       {
+        "Name": "Hammer of Justice",
+        "Key": "7",
+        "WhenUsable": true,
+        "Requirements": [
+          "Judgement of the Crusader && CD_Judgement <= GCD && TargetHealth% > 20 || TargetCastingSpell"
+        ]
+      },
+      {
+        "Name": "Flash of Light",
+        "Key": "5",
+        "HasCastBar": true,
+        "WhenUsable": true,
+        "Cooldown": 5000,
+        "Requirements": [
+          "Health% < 60",
+          "TargetHealth% > 20",
+          "CD == 0",
+          "MobCount < 2",
+          "SinceDamageTakenMs <= 50"
+        ]
+      },
+      {
         "Name": "AutoAttack",
         "Requirements": [
           "!Divine Protection",
-          "!Blessing of Protection"
+          "!Blessing of Protection",
+          "InMeleeRange"
         ]
       },
       {
         "Name": "Approach",
+        "Requirements": [
+          "!MeleeSwinging && !SoftTargetDead"
+        ],
         "Log": false
       }
     ]
@@ -79,7 +109,7 @@
         "InCombat": "i dont care",
         "WhenUsable": true,
         "Requirements": [
-          "Debuff_POISON1 > 1 || Debuff_POISON2 > 1 || Debuff_POISON3 > 1 || Debuff_POISON4 > 1 || Debuff_POISON5 > 1 || Debuff_POISON6 > 1 || Debuff_POISON7 > 1 || Debuff_POISON8 > 1 || Debuff_POISON9 > 1 || Debuff_POISON10 > 1 || Debuff_POISON11 > 1 || Debuff_DISEASE1 > 1 || Debuff_DISEASE2 > 1 || Debuff_DISEASE3 > 1 || Debuff_DISEASE4 > 1"
+          "Debuff_POISON > 1 || Debuff_DISEASE > 1"
         ]
       }
     ]
@@ -104,7 +134,6 @@
         "Name": "Repair",
         "Key": "C",
         "Requirement": "Durability% < 35",
-        "PathFilename": "23_Duskwood_Vendor.json",
         "Cost": 6
       },
       {
@@ -114,7 +143,6 @@
           "BagFull",
           "BagGreyItem"
         ],
-        "PathFilename": "23_Duskwood_Vendor.json",
         "Cost": 6
       }
     ]

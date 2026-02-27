@@ -2,6 +2,7 @@
   "ClassName": "Druid",
   "Loot": true,
   "KeyboardOnly": true,
+  "CrossZoneSearch": true,
   "PathFilename": "_pack\\20-30\\Duskwood\\21-22.json",
   "PathReduceSteps": true,
   "CheckTargetGivesExp": true,
@@ -277,8 +278,7 @@
         "Cost": 6,
         "Name": "Repair",
         "Key": "C",
-        "Requirement": "Durability% < 35",
-        "PathFilename": "23_Duskwood_Vendor.json"
+        "Requirement": "Durability% < 35"
       },
       {
         "Cost": 6,
@@ -287,8 +287,7 @@
         "Requirements": [
           "BagFull",
           "BagGreyItem"
-        ]//,
-        //"PathFilename": "23_Duskwood_Vendor.json"
+        ]
       }
     ]
   }

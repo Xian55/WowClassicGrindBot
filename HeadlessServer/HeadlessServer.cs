@@ -52,9 +52,9 @@ public sealed partial class HeadlessServer
         botController.ToggleBotStatus();
     }
 
-    public void RunLoadOnly(ParserResult<RunOptions> options)
+    public bool RunLoadOnly(ParserResult<RunOptions> options)
     {
-        botController.LoadClassProfile(options.Value.ClassConfig!);
+        return botController.LoadClassProfile(options.Value.ClassConfig!);
     }
 
     private void InitState()

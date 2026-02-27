@@ -109,14 +109,15 @@
         "Name": "Repair",
         "Key": "R",
         "Requirement": "Durability% < 35",
-        "PathFilename": "NPC_Cross.json",
         "Cost": 6
       },
       {
         "Name": "Sell",
         "Key": "T",
-        "Requirement": "BagCount>46",
-        "PathFilename": "NPC_Cross.json",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ],
         "Cost": 6
       }
     ]

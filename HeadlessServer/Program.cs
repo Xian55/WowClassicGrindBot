@@ -111,8 +111,8 @@ public sealed class Program
 
         if (options.Value.LoadOnly)
         {
-            headlessServer.RunLoadOnly(options);
-            Environment.Exit(0);
+            bool success = headlessServer.RunLoadOnly(options);
+            Environment.Exit(success ? 0 : 1);
         }
         else
         {

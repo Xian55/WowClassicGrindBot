@@ -703,7 +703,7 @@ The class configuration controls all aspects of bot behavior. Here's why each se
 | `"Blacklist"` | List of names or sub names which must be avoid engaging | true | `[""]` |
 | `"TargetMask"` | [UnitClassification](https://wowpedia.fandom.com/wiki/API_UnitClassification) types that allowed to engage with. | true | `"Normal, Trivial, Rare"` |
 | `"NpcSchoolImmunity"` | List of NpcIDs which have one or more [SchoolMask](#npcschoolimmunity) immunities | true | `""` |
-| `"IntVariables"` | List of user defined `integer` variables | true | `[]` |
+| `"IntVariables"` | List of user defined `integer` or `integer[]` variables | true | `[]` |
 | `"StringVariables"` | List of user defined `string` variables | true | `[]` |
 | --- | --- | --- | --- |
 | `"Pull"` | [KeyActions](#keyactions) to execute upon [Pull Goal](#pull-goal) | true | `{}` |
@@ -829,7 +829,9 @@ You can disable this behavior by setting `KeyboardOnly` to `true` in the [Class 
 
 ### IntVariables
 
-Gives the ability to the user to define global integer variables along the whole [Class Configuration](#12-class-configuration) scope. 
+Gives the ability to the user to define global integer variables along the whole [Class Configuration](#12-class-configuration) scope.
+
+Each value can be either a single integer or an **array of integers**. Array values are useful for aura prefixes (`Buff_`, `Debuff_`, `TDebuff_`, `TBuff_`, `FBuff_`) where you want to check if **any** of several icon IDs is active. The variable evaluates to the **maximum remaining time** across all IDs in the array, so `Debuff_POISON > 1` is true when any of the listed poisons is active.
 
 For example look at the Warlock profiles.
 ```json
@@ -848,6 +850,18 @@ For example look at the Warlock profiles.
     "MIN_COUNT_ARROW": 200,
     "AMMO_SLOT": 5
 }
+```
+
+**Array syntax** — group multiple icon IDs under a single variable:
+```json
+"IntVariables": {
+    "Debuff_POISON": [136006, 136007, 136016, 136064, 136067, 136077, 136093, 134437, 132273, 132274, 132105],
+    "Debuff_DISEASE": [136127, 136134, 134324, 135914]
+}
+```
+Then use a single requirement instead of chaining many `||` conditions:
+```json
+"Requirements": ["Debuff_POISON > 1 || Debuff_DISEASE > 1"]
 ```
 
 ### StringVariables
@@ -938,6 +952,35 @@ Let's look at the following example
 ```
 
 The previously mentioned example can be found under [Hunter_1.json](./Json/class/Hunter_1.json).
+
+#### Time-based Path Cycling
+
+You can cycle between grinding spots on a timer using `SessionMinutes % N` in path requirements. `SessionMinutes` tracks how long the current session has been running, and the modulo `%` operator divides time into repeating intervals.
+
+**Example: Alternate between two paths every 20 minutes (40-minute cycle)**
+
+```json
+"PathFilename": [
+{
+    "PathFilename": "spot_A.json",
+    "Requirements": [
+        "SessionMinutes % 40 < 20"
+    ]
+},
+{
+    "PathFilename": "spot_B.json",
+    "Requirements": [
+        "SessionMinutes % 40 >= 20"
+    ]
+}
+],
+```
+
+For 3+ paths, divide the cycle into ranges. For example, a 60-minute cycle with three 20-minute segments:
+
+- Path A: `"SessionMinutes % 60 < 20"`
+- Path B: `"SessionMinutes % 60 >= 20 && SessionMinutes % 60 < 40"`
+- Path C: `"SessionMinutes % 60 >= 40"`
 
 ### KeyActions
 
@@ -1876,12 +1919,10 @@ Formula: `[Negate keyword][requirement]`
 
 | Negate keyword |
 | --- |
-| `"not "` |
 | `"!"` |
 
 e.g.
 ```json
-"Requirement": "not Curse of Weakness"
 "Requirement": "!BagItem:Item_Soul_Shard:3"
 ```
 ---
@@ -1914,14 +1955,24 @@ Formula: `[Keyword] [Operator] [Numeric integer value]`
 
 **Note:** `[Numeric integer value]` always the _right-hand_ side expression value
 
-| Operator | Description | 
+| Operator | Description |
 | --- | --- |
 | `==` | Equals |
+| `!=` | Not Equals |
 | `<=` | Less then or Equals |
 | `>=` | Greater then or Equals |
 | `<` | Less then |
 | `>` | Greater then |
-| `%` | Modulo, `true` when the expression is Equals to `0` |
+
+Arithmetic operators can be used to build complex expressions:
+
+| Operator | Description |
+| --- | --- |
+| `+` | Addition |
+| `-` | Subtraction |
+| `*` | Multiplication |
+| `/` | Division |
+| `%` | Modulo (returns remainder). For divisibility check use `Deaths % 2 == 0` |
 
 | Keyword | Description |
 | --- | --- |
@@ -1949,6 +2000,7 @@ Formula: `[Keyword] [Operator] [Numeric integer value]`
 | `MaxRange` | Maximum distance(yard) between the player and the target |
 | `LastAutoShotMs` | Time since last detected AutoShot happened in milliseconds |
 | `LastMainHandMs` | Time since last detected Main Hand Melee swing happened in milliseconds |
+| `SinceDamageTakenMs` | Time in milliseconds since player health last decreased (damage taken) |
 | `MainHandSpeed` | Returns the player Main hand attack speed in milliseconds |
 | `MainHandSwing` | Returns the player predicted next main hand swing time |
 | `RangedSpeed` | Returns the player ranged weapon attack speed in milliseconds |
@@ -2010,13 +2062,16 @@ e.g. Single Requirement
 "Requirement": "MaxRange > 35"
 "Requirement": "LastAutoShotMs <= 500"
 "Requirement": "LastMainHandMs <= 500"
+"Requirement": "SinceDamageTakenMs < 5000"
 "Requirement": "CD_Judgement < GCD"                 // The remaining cooldown on Judgement is less then GCD(1500)
 "Requirement": "CD_Hammer of Justice > CD_Judgement" // The remaining cooldown on Hammer of Justice is greater then 8 seconds
 "Requirement": "Rage >= Cost_Heroic Strike"          // Create a condition like if player current rage is greater then or equal the cost of Heroic Strike
 "Requirement": "MainHandSpeed > 3500"   // Main hand attack speed is greater then 3.5 seconds
 "Requirement": "MainHandSwing > -400"   // 400 milliseconds before next predicted main swing happen
 "Requirement": "MainHandSwing > -400"   // 400 milliseconds before next predicted main swing happen
-"Requirement": "Dead && Deaths % 2"   // Player is currently dead and died for the second time in the current session
+"Requirement": "Dead && Deaths % 2"           // Player is currently dead and died for the second time in the current session
+"Requirement": "Deaths % 2 == 1"              // Player died odd number of times (explicit comparison)
+"Requirement": "Energy - Cost_Sinister_Strike >= 0"  // Enough energy remaining after cast
 ```
 
 e.g. List of Requirements
@@ -2025,6 +2080,19 @@ e.g. List of Requirements
     "TargetHealth% > DOT_MIN_HEALTH%",  // where DOT_MIN_HEALTH% is a user defined variable
     "!Immolate"
 ],
+```
+
+#### Complex Expressions
+
+Both sides of a comparison can be full arithmetic expressions mixing variables, constants, and operators. Parentheses control evaluation order, and standard math precedence applies (`*`/`/`/`%` bind tighter than `+`/`-`).
+
+e.g.
+```json
+"Requirement": "(Health% + Mana%) / 2 > 50"             // Average of health and mana above 50%
+"Requirement": "Energy - Cost_Sinister_Strike >= 0"      // Enough energy after spell cost
+"Requirement": "MainHandSwing > -SpellQueueWindow"       // Swing timer vs queue window
+"Requirement": "SessionMinutes % 40 < 20"                // First 20 min of every 40 min cycle
+"Requirement": "Kills % 5 == 0 && SessionMinutes > 10"   // Every 5th kill after 10 minutes
 ```
 
 e.g. for `CD`: It's a good idea to put `CD` in healing spells to take consideration of the spell interruption.
@@ -2331,28 +2399,22 @@ e.g.
 ---
 ### **Player Debuff remaining time requirements**
 
-First in the `IntVariables` have to mention the buff icon id such as `Debuff_{your fancy name}: {icon_id}`.
+First in the `IntVariables` have to mention the debuff icon id such as `Debuff_{your fancy name}: {icon_id}`.
 
 It is important, the addon keeps track of the **icon_id**! Not **spell_id**
 
-e.g.
+A single icon id:
 ```json
 "IntVariables": {
-    "Debuff_POISON1": 136006,
-    "Debuff_POISON2": 136007,
-    "Debuff_POISON3": 136016,
-    "Debuff_POISON4": 136064,
-    "Debuff_POISON5": 136067,
-    "Debuff_POISON6": 136077,
-    "Debuff_POISON7": 136093,
-    "Debuff_POISON8": 134437,
-    "Debuff_POISON9": 132273,
-    "Debuff_POISON10": 132274,
-    "Debuff_POISON11": 132105,
-    "Debuff_DISEASE1": 136127,
-    "Debuff_DISEASE2": 136134,
-    "Debuff_DISEASE3": 134324,
-    "Debuff_DISEASE4": 135914
+    "Debuff_Poision": 135368
+},
+```
+
+An **array of icon ids** — the variable returns the max remaining time across all listed icons, so the requirement is true when **any** of them is active:
+```json
+"IntVariables": {
+    "Debuff_POISON": [136006, 136007, 136016, 136064, 136067, 136077, 136093, 134437, 132273, 132274, 132105],
+    "Debuff_DISEASE": [136127, 136134, 134324, 135914]
 },
 ```
 
@@ -2364,9 +2426,9 @@ e.g.
     "Name": "Stoneform",
     "Key": "F11",
     "Requirements": [
-        "Debuff_POISON1 > 1 || Debuff_POISON2 > 1 || Debuff_POISON3 > 1 || Debuff_POISON4 > 1 || Debuff_POISON5 > 1 || Debuff_POISON6 > 1 || Debuff_POISON7 > 1 || Debuff_POISON8 > 1 || Debuff_POISON9 > 1 || Debuff_POISON10 > 1 || Debuff_POISON11 > 1 || Debuff_DISEASE1 > 1 || Debuff_DISEASE2 > 1 || Debuff_DISEASE3 > 1 || Debuff_DISEASE4 > 1"
+        "Debuff_POISON > 1 || Debuff_DISEASE > 1"
     ]
-}  
+}
 ```
 ---
 ### **Target Debuff remaining time requirements**

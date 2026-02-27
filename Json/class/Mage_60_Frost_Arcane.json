@@ -197,7 +197,7 @@
         "Requirements": [
           "Mana% < 50"
         ],
-        "Interrupt": "!Mana% == 100",
+        "Interrupt": "!(Mana% == 100)",
         "AfterCastWaitCastbar": true
       },
       {
