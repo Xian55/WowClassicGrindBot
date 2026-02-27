@@ -548,14 +548,16 @@ public sealed partial class BotController : IBotController, IDisposable
         return files;
     }
 
-    public void LoadClassProfile(string classFilename)
+    public bool LoadClassProfile(string classFilename)
     {
-        if (InitialiseFromFile(classFilename, SelectedPathFilename))
+        bool success = InitialiseFromFile(classFilename, SelectedPathFilename);
+        if (success)
         {
             SelectedClassFilename = classFilename;
         }
 
         ProfileLoaded?.Invoke();
+        return success;
     }
 
     public void LoadPathProfile(Dictionary<int, string> pathFilenames)

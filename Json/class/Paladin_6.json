@@ -10,7 +10,7 @@
         "Requirements": [
           "!Seal of the Crusader",
           "!Judgement of the Crusader",
-          "CD_Judgement <= 1500"
+          "CD_Judgement <= GCD"
         ]
       },
       {

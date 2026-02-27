@@ -1,6 +1,8 @@
 {
   "ClassName": "Rogue",
   "PathFilename": "10_Gnome.json",
+  "CheckTargetGivesExp": false,
+  "NPCMaxLevels_Below": 50,
   "CrossZoneSearch": true,
   "Wait": {
     "Sequence": [
@@ -14,10 +16,17 @@
   "Pull": {
     "Sequence": [
       {
-        "Name": "Shoot",
-        "Key": "9",
-        "AfterCastDelay": 1000,
-        "AfterCastWaitMeleeRange": false
+        "Name": "Throw",
+        "Key": "7",
+        "Item": true,
+        "WhenUsable": true,
+        "BeforeCastStop": true,                                   // enforcing stop movement before casting
+        "AfterCastWaitMeleeRange": true,
+        "Requirements": [
+          "AddVisible",                                   // Uses NpcNameFinder to detect danger up to you
+          "HasRangedWeapon && !Items Broken",
+          "!InMeleeRange && (SpellInRange:1)"          // Rogue Throw
+        ]
       }
     ]
   },

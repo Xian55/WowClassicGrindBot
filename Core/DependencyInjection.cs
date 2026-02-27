@@ -80,6 +80,46 @@ public static class DependencyInjection
         return s;
     }
 
+    public static IServiceCollection AddCoreLoadOnly(
+        this IServiceCollection s, string clientPath = "wrath")
+    {
+        s.AddSingleton<CancellationTokenSource>();
+        s.AddSingleton<ManualResetEventSlim>(x => new(false));
+
+        s.AddSingleton<DataConfig>(x => DataConfig.Load(clientPath));
+
+        const int frameCount = 120;
+        DataFrame[] frames = new DataFrame[frameCount];
+        for (int i = 0; i < frameCount; i++)
+            frames[i] = new(i, 0, 0);
+
+        s.AddSingleton(frames);
+        s.AddSingleton<IAddonDataProvider>(x => new NullAddonDataProvider(frameCount));
+
+        s.AddSingleton<IScreenImageProvider>(x => new NullScreenImageProvider());
+
+        s.AddSingleton<INpcResetEvent, NpcResetEvent>();
+        s.AddSingleton<CpuLineSegmentProvider>();
+        s.AddSingleton<INpcLineSegmentProvider>(x =>
+            x.GetRequiredService<CpuLineSegmentProvider>());
+        s.AddSingleton<NpcNameFinder>();
+
+        s.AddSingleton<WorldMapAreaDB>();
+        s.AddSingleton<CreatureDB>();
+        s.AddSingleton<FactionTemplateDB>();
+        s.AddSingleton<AreaDB>();
+        s.AddSingleton<SpellDB>();
+        s.AddSingleton<IconDB>();
+        s.AddSingleton<ItemDB>();
+        s.AddSingleton<TalentDB>();
+
+        s.AddAddonComponents();
+
+        s.AddSingleton<SessionStat>();
+
+        return s;
+    }
+
     public static IServiceCollection AddStartupIoC(
         this IServiceCollection s, IServiceProvider sp)
     {

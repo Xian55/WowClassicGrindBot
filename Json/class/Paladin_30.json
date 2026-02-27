@@ -1,6 +1,6 @@
 {
   "ClassName": "Paladin",
-  "PathFilename": "_p2\\25-30_hillsbrad.json",
+  "PathFilename": "_p2\\25-30_hillsbrad foothills.json",
   "UseMount": false,
   "Mount": { "Key": "N0"},
   "PathThereAndBack": false,
@@ -19,7 +19,7 @@
         "Requirements": [
           "!Seal of the Crusader",
           "!Judgement of the Crusader",
-          "CD_Judgement <= 1500"
+          "CD_Judgement <= GCD"
         ]
       },
       {

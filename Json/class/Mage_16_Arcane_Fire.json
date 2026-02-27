@@ -1,7 +1,7 @@
 {
   "ClassName": "Mage",
   "Loot": false,
-  "PathFilename": "16_LochModan.json",
+  "PathFilename": "16_Loch Modan.json",
   "PathThereAndBack": true,
   "PathReduceSteps": false,
   "IntVariables": {

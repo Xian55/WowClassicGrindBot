@@ -5,6 +5,7 @@ using SharedLib;
 
 using System;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Numerics;
 
 namespace Core;
@@ -256,6 +257,14 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public float RunSpeed => reader.GetFixed(111);
 
+    private int previousHealthPercent;
+    private long lastDamageTakenTimestamp;
+
+    public int SinceDamageTakenMs() =>
+        lastDamageTakenTimestamp == 0
+            ? int.MaxValue
+            : (int)Stopwatch.GetElapsedTime(lastDamageTakenTimestamp).TotalMilliseconds;
+
     public int SoftInteract_Id => reader.GetInt(102);
 
     public GuidType SoftInteract_Type => (GuidType)reader.GetInt(103);
@@ -290,6 +299,13 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
         if (UIError != UI_ERROR.NONE)
             LastUIError = UIError;
+
+        int currentHealth = HealthPercent();
+        if (currentHealth < previousHealthPercent && previousHealthPercent > 0)
+        {
+            lastDamageTakenTimestamp = Stopwatch.GetTimestamp();
+        }
+        previousHealthPercent = currentHealth;
     }
 
     public void Reset()

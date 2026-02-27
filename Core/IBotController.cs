@@ -31,7 +31,7 @@ public interface IBotController
 
     IEnumerable<string> PathFiles();
 
-    void LoadClassProfile(string classFilename);
+    bool LoadClassProfile(string classFilename);
 
     void LoadPathProfile(Dictionary<int, string> pathFilenames);
 

@@ -1468,16 +1468,21 @@ end
 -- Handles ranked spells like "Immolate(Rank 9)" by matching prefix
 function DataToColor:PS(name, slot)
     local bookType = "spell"
+    local best = nil
     for i = 1, 500 do
         local n = GetSpellBookItemName(i, bookType)
         if not n then break end
-        -- Match exact name or name with rank suffix (e.g., "Immolate" matches "Immolate(Rank 9)")
         if n == name or n:find("^" .. name .. "[%s%(]") then
-            PickupSpellBookItem(i, bookType)
-            PlaceAction(slot)
-            ClearCursor()
-            return true
+            best = i
+        elseif best then
+            break
         end
+    end
+    if best then
+        PickupSpellBookItem(best, bookType)
+        PlaceAction(slot)
+        ClearCursor()
+        return true
     end
     return false
 end

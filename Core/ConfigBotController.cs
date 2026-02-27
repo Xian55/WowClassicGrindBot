@@ -91,7 +91,7 @@ public sealed class ConfigBotController : IBotController, IDisposable
         throw new NotImplementedException();
     }
 
-    public void LoadClassProfile(string classFilename)
+    public bool LoadClassProfile(string classFilename)
     {
         ProfileLoaded?.Invoke();
         throw new NotImplementedException();

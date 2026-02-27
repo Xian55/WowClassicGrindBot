@@ -11,7 +11,7 @@
     "MIN_WATER%": 50,
     "MIN_MANA_SPELL%": 50
   },
-  "Mail": {
+  "MailConfig": {
     "Enabled": true,
     "MinimumGoldToKeep": 10000,
     "MinimumItemQuality": 0,

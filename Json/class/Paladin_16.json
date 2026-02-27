@@ -10,7 +10,7 @@
         "Requirements": [
           "!Seal of the Crusader",
           "!Judgement of the Crusader",
-          "CD_Judgement <= 1500"
+          "CD_Judgement <= GCD"
         ]
       },
       {
@@ -61,7 +61,7 @@
         "HasCastBar": true,
         "WhenUsable": true,
         "Requirements": [
-          "(Blessing of Protection || Divine Protection && Health% < 60) || (!Blessing of Protection && CD_Blessing of Protection > 0 && !Divine Protection && CD_Divine Protection > 0 && Health% < 50 && TargetHealth%>20 && LastMainHandMs <= 1000)"
+          "(Blessing of Protection || Divine Protection && Health% < 60) || (!Blessing of Protection && CD_Blessing of Protection > 0 && !Divine Protection && CD_Divine Protection > 0 && Health% < 50 && TargetHealth%>20 && SinceDamageTakenMs <= 50)"
         ]
       },
       {
@@ -97,11 +97,15 @@
         "Name": "AutoAttack",
         "Requirements": [
           "!Divine Protection",
-          "!Blessing of Protection"
+          "!Blessing of Protection",
+          "InMeleeRange"
         ]
       },
       {
         "Name": "Approach",
+        "Requirements": [
+          "!MeleeSwinging && !SoftTargetDead"
+        ],
         "Log": false
       }
     ]
