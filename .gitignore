@@ -31,8 +31,8 @@ bld/
 # Visual Studio Code
 .vscode/
 
-# Claude AI files
-.claude/
+# Claude local AI files
+.claude/*.local.*
 
 # Uncomment if you have tasks that create the project's static files in wwwroot
 #wwwroot/
