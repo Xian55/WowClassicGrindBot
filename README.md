@@ -1040,6 +1040,7 @@ Can specify conditions with [Requirement(s)](#requirement) in order to create a 
 | `"Charge"` | How many consequent key press should happen before setting Cooldown | `1` |
 | `"School"` | Indicate what type of [SchoolMask](#npcschoolimmunity) element the spell will do.  | `None` |
 | `"MacroText"` | You can specify a macro text or macro template which can hold variables. make sure the MacroText is no longer then 255 characters. | `""` |
+| `"BaseAction"` | Bypasses CastingHandler guard rails (GCD waiting, spell queue checks, cast verification). Use for actions that execute instantly without cast bars or cooldowns. See [BaseActions](#baseactionkeys). | `false` |
 | --- | --- | --- |
 | `"WhenUsable"` | Mapped to [IsUsableAction](https://wowwiki-archive.fandom.com/wiki/API_IsUsableAction) | `false` |
 | `"UseWhenTargetIsCasting"` | Checks for the target casting/channeling.<br>Accepted values:<br>* `null` -> ignore<br>* `false` -> when enemy not casting<br>* `true` -> when enemy casting | `null` |
@@ -1088,6 +1089,7 @@ Important, the `AfterCast` prefixed conditions are ordered as shown in the table
 | `Cooldown` | Prevents the bot from spamming the same ability. This is the bot's internal cooldown, not the game's. Set to match GCD (~400ms) for most abilities. |
 | `Form` | For Druids/Warriors - ensures you're in the correct shapeshift/stance before casting. Prevents "Can only use in Cat Form" errors. |
 | `School` | Used with [`NpcSchoolImmunity`](#npcschoolimmunity) to skip spells against immune targets (e.g., don't cast Fire spells on fire-immune mobs). |
+| `BaseAction` | Marks the action as a basic system action (jump, interact, target, move) that should execute immediately. Bypasses GCD waiting, spell queue checks, and cast verification — the bot won't wait to confirm success. Use for non-spell key presses that are expected to work 99.99% of the time. |
 | `BeforeCastStop` | Stops movement before casting. Essential for spells with cast bars that can't be cast while moving. |
 | `BeforeCastFaceTarget` | Turns to face the target. Useful for casters who might be kiting and need to turn around to cast. |
 | `AfterCastWaitSwing` | For abilities that reset swing timer (e.g., Heroic Strike). Waits for the swing to land before continuing. |
