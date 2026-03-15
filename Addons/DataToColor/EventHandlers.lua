@@ -159,9 +159,10 @@ function DataToColor:RegisterEvents()
     ---------------------------------------------------------------------------
     DataToColor:RegisterEvent('UNIT_TARGET', 'OnUnitTarget_BitCache')
     DataToColor:RegisterEvent('UPDATE_MOUSEOVER_UNIT', 'OnMouseoverChanged_BitCache')
-    DataToColor:RegisterEvent('PLAYER_FOCUS_CHANGED', 'OnFocusChanged_BitCache')
+    DataToColor:SafeRegisterEvent('PLAYER_FOCUS_CHANGED', 'OnFocusChanged_BitCache')
     DataToColor:RegisterEvent('PLAYER_REGEN_DISABLED', 'OnEnteredCombat')
     DataToColor:RegisterEvent('UNIT_FLAGS', 'OnUnitFlags_BitCache')
+    DataToColor:RegisterEvent('GROUP_ROSTER_UPDATE', 'OnGroupRosterUpdate_BitCache')
     DataToColor:RegisterEvent('PLAYER_DEAD', 'OnPlayerDead_BitCache')
     DataToColor:RegisterEvent('PLAYER_ALIVE', 'OnPlayerAlive_BitCache')
     DataToColor:RegisterEvent('PLAYER_UNGHOST', 'OnPlayerUnghost_BitCache')
@@ -937,7 +938,7 @@ function DataToColor:OnUnitTarget_BitCache(event, unit)
     if DataToColor.BitCache and DataToColor.BitCache.updateTargetTarget then
         if unit == "target" then
             DataToColor.BitCache.updateTargetTarget()
-        elseif unit == "focus" then
+        elseif unit == "focus" or unit == DataToColor.C.unitFocus then
             DataToColor.BitCache.updateFocus()
         elseif unit == "pet" then
             DataToColor.BitCache.updatePet()
@@ -974,10 +975,16 @@ function DataToColor:OnUnitFlags_BitCache(event, unit)
     if not DataToColor.BitCache or not DataToColor.BitCache.bits1 then return end
     if unit == "target" then
         DataToColor.BitCache.bits1.targetInCombat = UnitAffectingCombat(unit) or false
-    elseif unit == "focus" then
+    elseif unit == "focus" or unit == DataToColor.C.unitFocus then
         DataToColor.BitCache.bits2.focusInCombat = UnitAffectingCombat(unit) or false
-    elseif unit == "focustarget" then
+    elseif unit == "focustarget" or unit == DataToColor.C.unitFocusTarget then
         DataToColor.BitCache.bits2.focusTargetInCombat = UnitAffectingCombat(unit) or false
+    end
+end
+
+function DataToColor:OnGroupRosterUpdate_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.updateFocus then
+        DataToColor.BitCache.updateFocus()
     end
 end
 
