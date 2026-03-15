@@ -387,6 +387,12 @@ local function UpdatePolledValues()
     bits3Cache.chatInputActive = DataToColor:IsChatInputActive() or false
     UpdateMailFrameCache()
 
+    -- Focus target combat state - UNIT_FLAGS doesn't fire for derived units
+    -- like "focustarget" / "party1target", so we must poll
+    if bits2Cache.focusTargetExists then
+        bits2Cache.focusTargetInCombat = UnitAffectingCombat(DataToColor.C.unitFocusTarget) or false
+    end
+
     -- Spell states - must be polled because bot checks these immediately after
     -- sending key presses, faster than START/STOP_AUTOREPEAT_SPELL events fire
     UpdateSpellStateCache()

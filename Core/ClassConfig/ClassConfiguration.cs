@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 
 using Newtonsoft.Json;
 
+using SharedLib;
+
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
@@ -212,6 +214,12 @@ public sealed partial class ClassConfiguration
         }
 
         RequirementFactory factory = new(sp, this);
+
+        // Vanilla has no TARGETFOCUS binding — use TARGETPARTYMEMBER1 instead
+        if (playerReader.Version == ClientVersion.SoM)
+        {
+            TargetFocus.BindingID = BindingID.TARGETPARTYMEMBER1;
+        }
 
         var baseActionKeys = GetByType<KeyAction>();
         foreach ((string _, KeyAction keyAction) in baseActionKeys)
