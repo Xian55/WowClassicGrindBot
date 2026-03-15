@@ -63,15 +63,21 @@ public sealed class AssistFocusGoal : GoapGoal
     public override void OnEnter()
     {
         wait.Update();
-        input.PressTargetFocus();
-        wait.Update();
+        if (playerReader.TargetGuid != playerReader.FocusGuid)
+        {
+            input.PressTargetFocus();
+            wait.Update();
+        }
     }
 
     public override void OnExit()
     {
         wait.Update();
-        input.PressClearTarget();
-        wait.Update();
+        if (playerReader.TargetGuid == playerReader.FocusGuid)
+        {
+            input.PressClearTarget();
+            wait.Update();
+        }
     }
 
     public override void Update()
