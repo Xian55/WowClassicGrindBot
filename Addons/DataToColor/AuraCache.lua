@@ -33,7 +33,7 @@ local unitCache = {}
 local trackedUnits = {
     "player",
     "target",
-    "focus",
+    DataToColor.C.unitFocus,
     "pet",
     "mouseover",
     "softenemy",
@@ -270,7 +270,7 @@ local function OnTargetChanged()
 end
 
 local function OnFocusChanged()
-    RefreshUnitAuras("focus")
+    RefreshUnitAuras(DataToColor.C.unitFocus)
 end
 
 local function OnMouseoverChanged()
@@ -309,7 +309,7 @@ function DataToColor:RegisterAuraCacheEvents()
     -- Register unit change events
     -- NOTE: These events are registered in EventHandlers.lua to avoid AceEvent overwrites:
     -- - PLAYER_TARGET_CHANGED -> OnPlayerTargetChanged -> AuraCache.refresh("target")
-    -- - PLAYER_FOCUS_CHANGED -> OnFocusChanged_BitCache -> AuraCache.refresh("focus")
+    -- - PLAYER_FOCUS_CHANGED -> OnFocusChanged_BitCache -> AuraCache.refresh(DataToColor.C.unitFocus)
     -- - UPDATE_MOUSEOVER_UNIT -> OnMouseoverChanged_BitCache -> AuraCache.refresh("mouseover")
     -- - UNIT_PET -> OnPetChanged -> AuraCache.refresh("pet")
     -- - PLAYER_SOFT_INTERACT_CHANGED -> OnPlayerSoftInteractChanged -> AuraCache.refresh("softinteract")
