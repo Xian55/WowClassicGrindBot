@@ -960,7 +960,7 @@ function DataToColor:OnFocusChanged_BitCache(event)
         DataToColor.BitCache.updateFocus()
     end
     if DataToColor.AuraCache and DataToColor.AuraCache.refresh then
-        DataToColor.AuraCache.refresh("focus")
+        DataToColor.AuraCache.refresh(DataToColor.C.unitFocus)
     end
 end
 
