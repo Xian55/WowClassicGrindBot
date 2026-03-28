@@ -46,8 +46,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public float WorldPosZ { get; set; } // MapZ not exists. Alias for WorldLoc.Z
 
-    public float MapX => reader.GetFixed(1) * 10;
-    public float MapY => reader.GetFixed(2) * 10;
+    public float MapX => reader.GetFixed24(1);
+    public float MapY => reader.GetFixed24(2);
 
     public Vector3 TargetMapPos
     {
@@ -64,7 +64,7 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         }
     }
 
-    public float Direction => reader.GetFixed(3);
+    public float Direction => reader.GetFixed20(3);
 
     public float _Direction() => Direction;
 
@@ -75,8 +75,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     public RecordInt Level { get; } = new(5);
 
     public Vector3 CorpseMapPos => new(CorpseMapX, CorpseMapY, 0);
-    public float CorpseMapX => reader.GetFixed(6) * 10;
-    public float CorpseMapY => reader.GetFixed(7) * 10;
+    public float CorpseMapX => reader.GetFixed24(6);
+    public float CorpseMapY => reader.GetFixed24(7);
 
     public int HealthMax() => reader.GetInt(10);
     public int HealthCurrent() => reader.GetInt(11);
@@ -255,7 +255,7 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public int SoftInteract_Guid => reader.GetInt(101);
 
-    public float RunSpeed => reader.GetFixed(111);
+    public float RunSpeed => reader.GetFixed20(111);
 
     private int previousHealthPercent;
     private long lastDamageTakenTimestamp;

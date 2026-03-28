@@ -776,10 +776,14 @@ function DataToColor:CreateFrames()
         return band(rshift(i, 16), 255) / 255, band(rshift(i, 8), 255) / 255, band(i, 255) / 255, 1
     end
 
-    -- This function is able to pass numbers in range 0 to 9.99999 (6 digits)
-    -- converting them to a 6-digit integer.
-    local function float(self, f)
+    -- 20-bit fixed-point encoding for values in range 0 to 9.99999 (6 digits)
+    local function fixed20(self, f)
         return int(self, floor(f * 100000))
+    end
+
+    -- 24-bit fixed-point encoding for normalized 0-1 values
+    local function fixed24(self, p)
+        return int(self, floor(p * 16777215))
     end
 
     local function Pixel(func, value, slot)
@@ -841,17 +845,17 @@ function DataToColor:CreateFrames()
             Pixel(int, 2000001, NUMBER_OF_FRAMES - 1)
 
             local x, y = DataToColor:GetPosition()
-            Pixel(float, x * 10, 1)
-            Pixel(float, y * 10, 2)
+            Pixel(fixed24, x, 1)
+            Pixel(fixed24, y, 2)
 
-            Pixel(float, GetPlayerFacing() or 0, 3)
+            Pixel(fixed20, GetPlayerFacing() or 0, 3)
             Pixel(int, DataToColor.map or 0, 4) -- MapUIId
             local playerLevel = UnitLevel(DataToColor.C.unitPlayer)
             Pixel(int, playerLevel, 5)
 
             local cx, cy = DataToColor:GetCorpsePosition()
-            Pixel(float, cx * 10, 6)
-            Pixel(float, cy * 10, 7)
+            Pixel(fixed24, cx, 6)
+            Pixel(fixed24, cy, 7)
 
             -- Boolean variables
             -- Use event-driven cached versions (reduces API calls from ~46 to ~5 per frame)
@@ -1302,7 +1306,7 @@ function DataToColor:CreateFrames()
             Pixel(int, DataToColor.EnemySummonQueue:shift(globalTick) or 0, 110)
 
             local _, playerRunSpeed = GetUnitSpeed(DataToColor.C.unitPlayer)
-            Pixel(float, playerRunSpeed or 0, 111)
+            Pixel(fixed20, playerRunSpeed or 0, 111)
 
             UpdateGlobalTime()
             -- NUMBER_OF_FRAMES - 1 reserved for validation
