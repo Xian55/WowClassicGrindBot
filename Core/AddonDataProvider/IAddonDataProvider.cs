@@ -49,9 +49,14 @@ public interface IAddonDataProvider : IDisposable
         return Data[index];
     }
 
-    float GetFixed(int index)
+    float GetFixed20(int index)
     {
         return Data[index] / 100000f;
+    }
+
+    float GetFixed24(int index)
+    {
+        return Data[index] * 100f / 16777215f;
     }
 
     string GetString(int index)
