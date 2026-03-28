@@ -24,7 +24,7 @@ internal sealed class Test_NpcNameFinder : IDisposable
     private const bool saveImage = false;
     private const bool showOverlay = true;
 
-    private const bool LogEachUpdate = true;
+    private readonly bool LogEachUpdate;
     private const bool LogEachDetail = false;
 
     private const bool debugTargeting = false;
@@ -48,10 +48,11 @@ internal sealed class Test_NpcNameFinder : IDisposable
 
     public Test_NpcNameFinder(ILogger logger, WowProcess process,
         IWowScreen screen, ILoggerFactory loggerFactory, NpcNames types,
-        bool useGpu = false)
+        bool useGpu = false, bool logEachUpdate = true)
     {
         this.logger = logger;
         this.screen = screen;
+        LogEachUpdate = logEachUpdate;
 
         stringBuilder = new();
 

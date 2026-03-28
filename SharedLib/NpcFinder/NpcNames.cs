@@ -23,7 +23,7 @@ public static class NpcNames_Extension
         NpcNames.Neutral => nameof(NpcNames.Neutral),
         NpcNames.Corpse => nameof(NpcNames.Corpse),
         NpcNames.NamePlate => nameof(NpcNames.NamePlate),
-        _ => nameof(NpcNames.None),
+        _ => value.ToString(),
     };
 
     public static bool HasFlagF(this NpcNames value, NpcNames flag)
