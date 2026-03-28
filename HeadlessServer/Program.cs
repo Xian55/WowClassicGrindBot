@@ -2,6 +2,8 @@
 
 using Core;
 
+using Frontend;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -9,6 +11,8 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
+
+using SharedLib.Logging;
 
 namespace HeadlessServer;
 
@@ -35,17 +39,15 @@ public sealed class Program
 
         services.AddLogging(builder =>
         {
-            const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {#if Length(SourceContext) > 0}[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1),-17}] {#end}{@m}\n{@x}";
-            //const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {SourceContext}] {@m}\n{@x}";
-
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(configuration)
                 .Enrich.FromLogContext()
-                .WriteTo.File(new ExpressionTemplate(outputTemplate),
+                .Enrich.With<ShortSourceContextEnricher>()
+                .WriteTo.File(new ExpressionTemplate(LogOutputTemplates.Default),
                     path: "headless_out.log",
                     rollingInterval: RollingInterval.Day)
-                .WriteTo.Debug(new ExpressionTemplate(outputTemplate))
-                .WriteTo.Console(new ExpressionTemplate(outputTemplate, theme: TemplateTheme.Literate))
+                .WriteTo.Debug(new ExpressionTemplate(LogOutputTemplates.Default))
+                .WriteTo.Console(new ExpressionTemplate(LogOutputTemplates.Default, theme: TemplateTheme.Literate))
                 .CreateLogger();
 
             builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILogger>(logFactory.CreateLogger(string.Empty));

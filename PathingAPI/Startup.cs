@@ -18,8 +18,11 @@ using PPather;
 
 using Serilog;
 using Serilog.Events;
+using Serilog.Templates;
+using Serilog.Templates.Themes;
 
 using SharedLib;
+using SharedLib.Logging;
 using SharedLib.Converters;
 
 using System;
@@ -47,19 +50,19 @@ public sealed class Startup
             PathingAPILoggerSink sink = new();
             builder.Services.AddSingleton(sink);
 
-            const string outputTemplate = "[{Timestamp:HH:mm:ss:fff} {Level:u1}] {Message:lj}{NewLine}{Exception}";
-
             Log.Logger = new LoggerConfiguration()
                 //.MinimumLevel.Debug()
                 //.MinimumLevel.Verbose()
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
+                .Enrich.FromLogContext()
+                .Enrich.With<ShortSourceContextEnricher>()
                 .WriteTo.Sink(sink)
-                .WriteTo.File("out.log",
-                    rollingInterval: RollingInterval.Day,
-                    outputTemplate: outputTemplate)
-                .WriteTo.Debug(outputTemplate: outputTemplate)
-                .WriteTo.Console(outputTemplate: outputTemplate)
+                .WriteTo.File(new ExpressionTemplate(LogOutputTemplates.Default),
+                    "out.log",
+                    rollingInterval: RollingInterval.Day)
+                .WriteTo.Debug(new ExpressionTemplate(LogOutputTemplates.Default))
+                .WriteTo.Console(new ExpressionTemplate(LogOutputTemplates.Default, theme: TemplateTheme.Literate))
                 .CreateLogger();
 
             ILoggerFactory logFactory = LoggerFactory.Create(builder =>

@@ -13,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Serilog;
+
+using SharedLib.Logging;
 using Serilog.Templates;
 using Serilog.Templates.Themes;
 
@@ -86,18 +88,16 @@ public static class Program
             LoggerSink sink = new();
             builder.Services.AddSingleton(sink);
 
-            const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {#if Length(SourceContext) > 0}[{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1),-17}] {#end}{@m}\n{@x}";
-            //const string outputTemplate = "[{@t:HH:mm:ss:fff} {@l:u1}] {SourceContext}] {@m}\n{@x}";
-
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(configuration)
                 .Enrich.FromLogContext()
+                .Enrich.With<ShortSourceContextEnricher>()
                 .WriteTo.Sink(sink)
-                .WriteTo.File(new ExpressionTemplate(outputTemplate),
+                .WriteTo.File(new ExpressionTemplate(LogOutputTemplates.Default),
                     "out.log",
                     rollingInterval: RollingInterval.Day)
-                .WriteTo.Debug(new ExpressionTemplate(outputTemplate))
-                .WriteTo.Console(new ExpressionTemplate(outputTemplate, theme: TemplateTheme.Literate))
+                .WriteTo.Debug(new ExpressionTemplate(LogOutputTemplates.Default))
+                .WriteTo.Console(new ExpressionTemplate(LogOutputTemplates.Default, theme: TemplateTheme.Literate))
                 .CreateLogger();
 
             builder.Services.AddSingleton<Microsoft.Extensions.Logging.ILogger>(logFactory.CreateLogger(string.Empty));
