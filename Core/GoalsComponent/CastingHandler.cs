@@ -153,7 +153,8 @@ public sealed partial class CastingHandler
         if (!playerReader.IsCasting() && bits.Moving() && item.BeforeCastStop)
         {
             stopMoving.Stop();
-            wait.Update(token);
+            wait.Until(SPELL_QUEUE_HALF,
+                () => bits.NotMoving() || token.IsCancellationRequested);
         }
 
         int beforeAuraHash = playerReader.AuraCount.Hash;
@@ -187,6 +188,13 @@ public sealed partial class CastingHandler
             if (!DEBUG || (Log && item.Log))
                 LogInstantInput(logger, item.Name, pressMs,
                     playerReader.CastState, elapsedMs);
+
+            if (!CastInstantSuccessful(playerReader.CastEvent.Value) &&
+                playerReader.CastState is not UI_ERROR.NONE &&
+                beforeCastEventTime != playerReader.UIErrorTime.Value)
+            {
+                return CastResult.UIError;
+            }
 
             return CastResult.CurrentActionNotDetected;
         }
@@ -305,7 +313,8 @@ public sealed partial class CastingHandler
         if (!playerReader.IsCasting() && bits.Moving())
         {
             stopMoving.Stop();
-            wait.Update(token);
+            wait.Until(SPELL_QUEUE_HALF,
+                () => bits.NotMoving() || token.IsCancellationRequested);
         }
 
         bool beforeUsable = usableAction.Is(item);
@@ -526,7 +535,8 @@ public sealed partial class CastingHandler
             if (!playerReader.IsCasting() && bits.Moving() && (item.BeforeCastStop || item.HasCastBar))
             {
                 stopMoving.Stop();
-                wait.Update(token);
+                wait.Until(SPELL_QUEUE_HALF,
+                    () => bits.NotMoving() || token.IsCancellationRequested);
             }
             int delay = Random.Shared.Next(item.BeforeCastDelay, item.BeforeCastMaxDelay);
 

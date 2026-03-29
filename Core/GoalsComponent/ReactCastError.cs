@@ -221,10 +221,10 @@ public sealed partial class ReactCastError
 
                 break;
             case UI_ERROR.SPELL_FAILED_MOVING:
-                LogReactStopMoving(logger, value);
                 wait.While(bits.Falling);
                 stopMoving.Stop();
-                wait.Update();
+                float stopElapsedMs = wait.Until(CastingHandler.SPELL_QUEUE_HALF, bits.NotMoving);
+                LogReactStopMoving(logger, value, stopElapsedMs);
                 break;
             case UI_ERROR.ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS:
                 LogReactWaitTillCasting(logger, value);
@@ -309,8 +309,8 @@ public sealed partial class ReactCastError
     [LoggerMessage(EventId = 3010, Level = LogLevel.Information, Message = "React to {UiError} - Slow turn 180deg ({Reason})")]
     private static partial void LogReactSlowTurn(ILogger logger, UI_ERROR uiError, string reason);
 
-    [LoggerMessage(EventId = 3011, Level = LogLevel.Information, Message = "React to {UiError} -- Stop moving!")]
-    private static partial void LogReactStopMoving(ILogger logger, UI_ERROR uiError);
+    [LoggerMessage(EventId = 3011, Level = LogLevel.Information, Message = "React to {UiError} -- Stop moving! Took {StopElapsedMs}ms")]
+    private static partial void LogReactStopMoving(ILogger logger, UI_ERROR uiError, float stopElapsedMs);
 
     [LoggerMessage(EventId = 3012, Level = LogLevel.Information, Message = "React to {UiError} -- Wait till casting!")]
     private static partial void LogReactWaitTillCasting(ILogger logger, UI_ERROR uiError);

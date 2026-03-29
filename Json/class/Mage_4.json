@@ -9,6 +9,15 @@
     "MIN_MANA_FIREBALL%": 40,
     "Item_Conjure_Drink": 5350
   },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
   "Pull": {
     "Sequence": [
       {
