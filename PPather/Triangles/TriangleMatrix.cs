@@ -4,6 +4,8 @@
  *
  */
 
+#nullable enable
+
 using Microsoft.Extensions.Logging;
 
 using PPather.Triangles.Data;
@@ -82,7 +84,7 @@ public sealed class TriangleMatrix
                 }
             }
 
-            var localDict = LocalDict.Value;
+            Dictionary<int, List<int>> localDict = LocalDict.Value!;
             Vector3 box_halfsize = new(halfResoltion, halfResoltion, 1E6f);
 
             // Prepare batch of box centers
@@ -104,12 +106,12 @@ public sealed class TriangleMatrix
                     if (!TriangleBoxIntersect_SIMD(v0, v1, v2, boxCenters[j], box_halfsize))
                         continue;
 
-                    ref List<int> list = ref CollectionsMarshal.GetValueRefOrAddDefault(localDict, keys[j], out bool exists);
+                    ref List<int>? list = ref CollectionsMarshal.GetValueRefOrAddDefault(localDict, keys[j], out bool exists);
                     if (!exists)
                     {
                         localDict[keys[j]] = list = new List<int>(ACount);
                     }
-                    list.Add(index);
+                    list!.Add(index);
                 }
             }
         });
@@ -118,7 +120,7 @@ public sealed class TriangleMatrix
         {
             foreach (var kvp in localDict)
             {
-                ref List<int> list = ref CollectionsMarshal.GetValueRefOrAddDefault(m.Dict, kvp.Key, out bool exists);
+                ref List<int>? list = ref CollectionsMarshal.GetValueRefOrAddDefault(m.Dict, kvp.Key, out bool exists);
                 if (!exists)
                 {
                     list = kvp.Value;
@@ -126,7 +128,7 @@ public sealed class TriangleMatrix
                 }
                 else
                 {
-                    list.AddRange(kvp.Value);
+                    list!.AddRange(kvp.Value);
                 }
             }
         }
