@@ -13,17 +13,3 @@ public enum MailGossipState
     SendFailed,
     Finished
 }
-
-public static class MailGossipStateExtensions
-{
-    public static string ToStringF(this MailGossipState state) => state switch
-    {
-        MailGossipState.None => nameof(MailGossipState.None),
-        MailGossipState.Sending => nameof(MailGossipState.Sending),
-        MailGossipState.ItemAttached => nameof(MailGossipState.ItemAttached),
-        MailGossipState.SendSuccess => nameof(MailGossipState.SendSuccess),
-        MailGossipState.SendFailed => nameof(MailGossipState.SendFailed),
-        MailGossipState.Finished => nameof(MailGossipState.Finished),
-        _ => nameof(MailGossipState.None)
-    };
-}

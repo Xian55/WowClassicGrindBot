@@ -192,7 +192,7 @@ internal sealed class Program
             Thread.Sleep(1000);
 
             classifier.Classify(out CursorType cursorType, out _);
-            Log.Logger.Information($"{cursorType.ToStringF()}");
+            Log.Logger.Information($"{cursorType.ToString()}");
 
             i--;
         }
@@ -215,7 +215,7 @@ internal sealed class Program
             classifier.Classify(out CursorType cursorType, out double similarity);
 
             times[i] = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
-            Log.Logger.Information($"{cursorType.ToStringF()} {similarity} {times[i]:F6}ms");
+            Log.Logger.Information($"{cursorType.ToString()} {similarity} {times[i]:F6}ms");
             i++;
         }
 

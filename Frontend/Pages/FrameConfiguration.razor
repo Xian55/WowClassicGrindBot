@@ -185,7 +185,7 @@
     {
         if (frameConfigurator.TryResolveRaceAndClass(out UnitRace race, out UnitClass @class, out ClientVersion version))
         {
-            playerClass = $"{version.ToStringF()} {race.ToStringF()} {@class.ToStringF()}";
+            playerClass = $"{version.ToString()} {race.ToString()} {@class.ToString()}";
         }
         else
         {

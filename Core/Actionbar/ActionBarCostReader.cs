@@ -63,7 +63,7 @@ public sealed class ActionBarCostReader : IReader
         {
             if (DEBUG)
                 if (logger.IsEnabled(LogLevel.Information))
-                    logger.LogInformation("[{Index,3}][{Slot,3}][{CostIdx}] {Cost} {PowerType}", index, slotIdx + 1, costIdx, cost, ((PowerType)type).ToStringF());
+                    logger.LogInformation("[{Index,3}][{Slot,3}][{CostIdx}] {Cost} {PowerType}", index, slotIdx + 1, costIdx, cost, ((PowerType)type).ToString());
 
             Count++;
         }

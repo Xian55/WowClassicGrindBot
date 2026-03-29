@@ -106,7 +106,7 @@ public sealed partial class AddonConfigurator
         }
         catch (Exception e)
         {
-            logger.LogInformation("Install - Failed\n{Message}", e.Message);
+            LogInstallFailed(logger, e.Message);
         }
     }
 
@@ -341,6 +341,12 @@ public sealed partial class AddonConfigurator
         string? versionStr = line?.Split(begin)[1];
         return Version.TryParse(versionStr, out Version? version) ? version : null;
     }
+
+    [LoggerMessage(
+        EventId = 100,
+        Level = LogLevel.Information,
+        Message = "Install - Failed\n{Message}")]
+    static partial void LogInstallFailed(ILogger logger, string message);
 
     [GeneratedRegex(@"[^\u0000-\u007F]+")]
     private static partial Regex RegexTitle();

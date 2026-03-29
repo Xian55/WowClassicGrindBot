@@ -140,7 +140,8 @@ internal sealed class Test_NpcNameFinder : IDisposable
             stringBuilder.Append($"{updateDuration:F5}");
             stringBuilder.Append("ms");
 
-            logger.LogInformation(stringBuilder.ToString());
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation(stringBuilder.ToString());
         }
 
         if (saveImage)
@@ -163,7 +164,8 @@ internal sealed class Test_NpcNameFinder : IDisposable
                 i++;
             }
 
-            logger.LogInformation(stringBuilder.ToString());
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation(stringBuilder.ToString());
         }
 
         return (captureDuration, updateDuration);

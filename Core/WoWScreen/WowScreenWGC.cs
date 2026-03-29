@@ -43,7 +43,7 @@ namespace Core;
 /// Supports capturing WoW window even when it's behind other windows.
 /// Requires Windows 10 version 2004 (build 19041) or later for borderless capture.
 /// </summary>
-public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTextureProvider
+public sealed partial class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTextureProvider
 {
     private readonly ILogger<WowScreenWGC> logger;
     private readonly WowProcess process;
@@ -164,9 +164,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
         InitFrames(frames);
         InitializeCapture();
 
-        logger.LogInformation(
-            "WGC initialized - {ScreenRect} - ClientOffset: ({OffsetX}, {OffsetY}) - Borderless: {Borderless}",
-            screenRect, clientOffset.X, clientOffset.Y, GraphicsCaptureInterop.IsBorderlessSupported);
+        LogWgcInitialized(logger, screenRect, clientOffset.X, clientOffset.Y, GraphicsCaptureInterop.IsBorderlessSupported);
     }
 
     private void InitializeCapture()
@@ -312,8 +310,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
 
             if (successfulFrameCount == 1)
             {
-                logger.LogInformation("OnFrameArrived: First successful frame captured! Size: {Width}x{Height}, SurfacePtr: 0x{Ptr:X}",
-                    latestFrameSize.Width, latestFrameSize.Height, dxgiSurfacePtr);
+                LogFirstFrameCaptured(logger, latestFrameSize.Width, latestFrameSize.Height, dxgiSurfacePtr);
             }
         }
         catch (Exception ex)
@@ -389,7 +386,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
 
         addonImage = new(ContiguousJpegConfiguration, addonSize.Width, addonSize.Height);
 
-        logger.LogDebug("DataFrames {FrameCount} - Addon: {AddonSize}", frames.Length, addonSize);
+        LogDataFrames(logger, frames.Length, addonSize);
     }
 
     [SkipLocalsInit]
@@ -523,7 +520,7 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
                 2,
                 size);
 
-            logger.LogDebug("Frame pool recreated for size: {Width}x{Height}", screenRect.Width, screenRect.Height);
+            LogFramePoolRecreated(logger, screenRect.Width, screenRect.Height);
         }
         catch (Exception ex)
         {
@@ -616,4 +613,32 @@ public sealed class WowScreenWGC : IWowScreen, IAddonDataProvider, IGpuTexturePr
     {
         NativeMethods.GetWindowRect(process.MainWindowHandle, out rect);
     }
+
+    #region Logging
+
+    [LoggerMessage(
+        EventId = 3000,
+        Level = LogLevel.Information,
+        Message = "WGC initialized - {ScreenRect} - ClientOffset: ({OffsetX}, {OffsetY}) - Borderless: {Borderless}")]
+    static partial void LogWgcInitialized(ILogger logger, Rectangle screenRect, int offsetX, int offsetY, bool borderless);
+
+    [LoggerMessage(
+        EventId = 3001,
+        Level = LogLevel.Information,
+        Message = "OnFrameArrived: First successful frame captured! Size: {Width}x{Height}, SurfacePtr: 0x{Ptr:X}")]
+    static partial void LogFirstFrameCaptured(ILogger logger, int width, int height, IntPtr ptr);
+
+    [LoggerMessage(
+        EventId = 3002,
+        Level = LogLevel.Debug,
+        Message = "DataFrames {FrameCount} - Addon: {AddonSize}")]
+    static partial void LogDataFrames(ILogger logger, int frameCount, SixLabors.ImageSharp.Size addonSize);
+
+    [LoggerMessage(
+        EventId = 3003,
+        Level = LogLevel.Debug,
+        Message = "Frame pool recreated for size: {Width}x{Height}")]
+    static partial void LogFramePoolRecreated(ILogger logger, int width, int height);
+
+    #endregion
 }

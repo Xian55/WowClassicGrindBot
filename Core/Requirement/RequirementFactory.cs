@@ -496,7 +496,11 @@ public sealed partial class RequirementFactory
                     }
                 }
 
-                LogUserDefinedArrayValue(logger, nameof(RequirementFactory), key, string.Join(", ", values));
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    string joined = string.Join(", ", values);
+                    LogUserDefinedArrayValue(logger, nameof(RequirementFactory), key, joined);
+                }
             }
         }
 
@@ -750,7 +754,7 @@ public sealed partial class RequirementFactory
         {
             if (!classConfig.Form.Get(keyAction.FormValue, out KeyAction? form))
                 throw new ArgumentNullException(
-                    keyAction.FormValue.ToStringF(),
+                    keyAction.FormValue.ToString(),
                     $"Requires a {nameof(KeyAction)} " +
                     $"to be defined under {nameof(ClassConfiguration)}." +
                     $"{nameof(classConfig.Form)}.{nameof(KeyActions.Sequence)} with");
@@ -792,7 +796,7 @@ public sealed partial class RequirementFactory
                 {
                     ActionBarCost abc = costReader.Get(keyAction, index);
                     Func<int> func = PowerTypeDelegate(playerReader, abc.PowerType);
-                    return $"{abc.PowerType.ToStringF()} " +
+                    return $"{abc.PowerType.ToString()} " +
                         $"{func()} >= {abc.Cost}{(formCost() > 0 ? $"+{formCost()}" : "")}";
                 }
             }
@@ -811,7 +815,7 @@ public sealed partial class RequirementFactory
                 {
                     ActionBarCost abc = costReader.Get(keyAction, index);
                     Func<int> func = PowerTypeDelegate(playerReader, abc.PowerType);
-                    return $"{abc.PowerType.ToStringF()} {func()} >= {abc.Cost}";
+                    return $"{abc.PowerType.ToString()} {func()} >= {abc.Cost}";
                 }
             }
 
@@ -837,7 +841,7 @@ public sealed partial class RequirementFactory
         PowerType.HealthCost => playerReader.HealthCurrent,
         PowerType.HolyPower or
         PowerType.ComboPoints => playerReader.ComboPoints,
-        _ => throw new NotImplementedException($"{type.ToStringF()}"),
+        _ => throw new NotImplementedException($"{type.ToString()}"),
     };
 
     private void AddMinComboPoints(List<Requirement> list, KeyAction item,
@@ -905,7 +909,7 @@ public sealed partial class RequirementFactory
                 out SchoolMask immuneAgaints) ||
                 !immuneAgaints.HasValue(item.School);
 
-        string s() => item.School.ToStringF();
+        string s() => item.School.ToString();
         list.Add(new Requirement
         {
             HasRequirement = f,
@@ -939,7 +943,7 @@ public sealed partial class RequirementFactory
             !item.HasForm
             ? "Usable"
             : (playerReader.Form != item.FormValue && CanDoFormChange())
-            ? $"May Usable {item.FormValue.ToStringF()}"
+            ? $"May Usable {item.FormValue.ToString()}"
             : (playerReader.Form == item.FormValue && usableAction.Is(item))
             ? $"Usable in Form" : "Unusable";
 
@@ -1043,7 +1047,7 @@ public sealed partial class RequirementFactory
             Form form = Enum.Parse<Form>(requirement[(sep + 1)..], true);
 
             bool f() => playerReader.Form == form;
-            string s() => playerReader.Form.ToStringF();
+            string s() => playerReader.Form.ToString();
 
             return new Requirement
             {
@@ -1063,7 +1067,7 @@ public sealed partial class RequirementFactory
             UnitRace race = Enum.Parse<UnitRace>(requirement[(sep + 1)..], true);
 
             bool f() => playerReader.Race == race;
-            string s() => playerReader.Race.ToStringF();
+            string s() => playerReader.Race.ToString();
 
             return new Requirement
             {
@@ -1087,7 +1091,7 @@ public sealed partial class RequirementFactory
                 creatureDb.Entries.TryGetValue(playerReader.TargetId, out Creature c)
                 && c.Type == type;
 
-            string s() => type.ToStringF();
+            string s() => type.ToString();
 
             return new Requirement
             {
@@ -1111,7 +1115,7 @@ public sealed partial class RequirementFactory
                 creatureDb.Entries.TryGetValue(playerReader.MouseOverId, out Creature c)
                 && c.Type == type;
 
-            string s() => type.ToStringF();
+            string s() => type.ToString();
 
             return new Requirement
             {
@@ -1150,8 +1154,8 @@ public sealed partial class RequirementFactory
                 : equipmentReader.GetId((int)slot) == itemId;
 
             string s() => itemId == 0
-                ? $"Equipment {slot.ToStringF()}"
-                : $"Equipment {slot.ToStringF()}:{itemId}";
+                ? $"Equipment {slot.ToString()}"
+                : $"Equipment {slot.ToString()}:{itemId}";
 
             return new Requirement
             {

@@ -82,12 +82,20 @@ public sealed partial class MountHandler : IMountHandler
 
         if (HasValidTarget())
         {
-            LogIsMounted(logger, bits.Mounted());
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                bool mounted = bits.Mounted();
+                LogIsMounted(logger, mounted);
+            }
             return;
         }
 
         wait.Fixed(playerReader.NetworkLatency);
-        LogIsMounted(logger, bits.Mounted());
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            bool mounted = bits.Mounted();
+            LogIsMounted(logger, mounted);
+        }
     }
 
     public bool ShouldMount(Vector3 targetW)
@@ -107,7 +115,11 @@ public sealed partial class MountHandler : IMountHandler
         input.PressDismount();
         wait.Update();
 
-        LogIsMounted(logger, bits.Mounted());
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            bool mounted = bits.Mounted();
+            LogIsMounted(logger, mounted);
+        }
     }
 
     public bool IsMounted()

@@ -93,7 +93,11 @@ public sealed partial class HeadlessServer
             bag != bagReader.BagItems.Count ||
             keyBindings != keyBindingsReader.Count);
 
-        LogInitStateEnd(logger, (float)GetElapsedTime(startTime).TotalSeconds);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            float elapsed = (float)GetElapsedTime(startTime).TotalSeconds;
+            LogInitStateEnd(logger, elapsed);
+        }
     }
 
     #region Logging

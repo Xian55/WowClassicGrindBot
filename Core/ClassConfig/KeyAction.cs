@@ -207,7 +207,10 @@ public sealed partial class KeyAction
         else if (Slot == 0)
         {
             if (logger.IsEnabled(LogLevel.Information))
-                LogInputNonActionbar(logger, Name, Key, Modifier.ToPrefix(), ConsoleKey);
+            {
+                string prefix = Modifier.ToPrefix();
+                LogInputNonActionbar(logger, Name, Key, prefix, ConsoleKey);
+            }
         }
     }
 
@@ -234,8 +237,7 @@ public sealed partial class KeyAction
 
         if (HasForm)
         {
-            if (logger.IsEnabled(LogLevel.Information))
-                LogFormRequired(logger, Name, FormValue.ToStringF());
+            LogFormRequired(logger, Name, FormValue);
         }
 
         ConsoleKeyFormHash = ((int)FormValue * 1000) + (int)ConsoleKey;
@@ -359,7 +361,7 @@ public sealed partial class KeyAction
         EventId = 0002,
         Level = LogLevel.Information,
         Message = "[{name,-17}] Required Form: {form}")]
-    static partial void LogFormRequired(ILogger logger, string name, string form);
+    static partial void LogFormRequired(ILogger logger, string name, Form form);
 
     [LoggerMessage(
         EventId = 0003,

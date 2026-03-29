@@ -388,8 +388,7 @@ public sealed partial class Navigation : IDisposable
         float distance = (result.EndW - result.StartW).Length(); // assuming it's a Vector3 or similar
         bool isTriviallyClose = result.Path.Length == 0 && distance < TrivialDistanceThreshold;
 
-        if (logger.IsEnabled(LogLevel.Warning))
-            logger.LogWarning($"Pathfinder - Trivial: {isTriviallyClose} | {result.ElapsedMs}ms - {result.StartW.ToStringF()} -> {result.EndW.ToStringF()}");
+        LogPathfinderTrivial(logger, isTriviallyClose, result.ElapsedMs, result.StartW, result.EndW);
 
         if (result.Path.Length == 0 && !isTriviallyClose)
         {
@@ -467,8 +466,7 @@ public sealed partial class Navigation : IDisposable
             manualReset.Wait();
         }
 
-        if (logger.IsEnabled(LogLevel.Debug))
-            logger.LogDebug("Thread stopped!");
+        LogThreadStopped(logger);
     }
 
     private float ReachedDistance(float minDistance)
@@ -603,10 +601,23 @@ public sealed partial class Navigation : IDisposable
 
     private void LogDebug(string text)
     {
-        logger.LogDebug("D: {Text}", text);
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogDebug("D: {Text}", text);
     }
 
     #region Logging
+
+    [LoggerMessage(
+        EventId = 0046,
+        Level = LogLevel.Warning,
+        Message = "Pathfinder - Trivial: {isTriviallyClose} | {elapsedMs}ms - {startW} -> {endW}")]
+    static partial void LogPathfinderTrivial(ILogger logger, bool isTriviallyClose, double elapsedMs, Vector3 startW, Vector3 endW);
+
+    [LoggerMessage(
+        EventId = 0047,
+        Level = LogLevel.Debug,
+        Message = "Thread stopped!")]
+    static partial void LogThreadStopped(ILogger logger);
 
     [LoggerMessage(
         EventId = 0040,

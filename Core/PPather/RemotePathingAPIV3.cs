@@ -124,7 +124,7 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
                 worldTo.Z = area.LocTop / 2;
             }
 
-            if (debug)
+            if (debug && logger.IsEnabled(LogLevel.Debug))
                 logger.LogDebug("Finding map route from {MapFrom}({WorldFrom}) map {UiMap} to {MapTo}({WorldTo}) map {UiMap2}...", mapFrom, worldFrom, uiMap, mapTo, worldTo, uiMap);
 
             Vector3[] path = client.Send(
@@ -137,7 +137,7 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
 
             for (int i = 0; i < path.Length; i++)
             {
-                if (debug)
+                if (debug && logger.IsEnabled(LogLevel.Debug))
                     logger.LogDebug("new float[] {{ {X}f, {Y}f, {Z}f }},", path[i].X, path[i].Y, path[i].Z);
 
                 path[i] = areaDB.ToMap_FlipXY(path[i], area.MapID, uiMap);
@@ -172,7 +172,7 @@ public sealed class RemotePathingAPIV3 : IPPather, IDisposable
                 worldTo.Z = area.LocTop / 2;
             }
 
-            if (debug)
+            if (debug && logger.IsEnabled(LogLevel.Debug))
                 logger.LogDebug("Finding world route from {WorldFrom}({WorldFrom2}) map {UiMap} to {WorldTo}({WorldTo2}) map {UiMap2}...", worldFrom, worldFrom, uiMap, worldTo, worldTo, uiMap);
 
             Vector3[] path = client.Send(

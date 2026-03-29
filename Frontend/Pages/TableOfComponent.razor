@@ -94,7 +94,7 @@
                         ActionBarCost abc = arr[j];
                         if (!abc.Equals(ActionBarCostReader.DefaultCost))
                         {
-                            allCosts += (allCosts.Length != 0 ? " | " : "") + $"{abc.Cost} {abc.PowerType.ToStringF()}";
+                            allCosts += (allCosts.Length != 0 ? " | " : "") + $"{abc.Cost} {abc.PowerType.ToString()}";
                         }
                     }
 

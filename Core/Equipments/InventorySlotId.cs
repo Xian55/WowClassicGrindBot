@@ -27,35 +27,3 @@ public enum InventorySlotId
     Bag_2 = 22,
     Bag_3 = 23
 }
-
-public static class InventorySlotId_Extension
-{
-    public static string ToStringF(this InventorySlotId value) => value switch
-    {
-        InventorySlotId.Ammo => nameof(InventorySlotId.Ammo),
-        InventorySlotId.Head => nameof(InventorySlotId.Head),
-        InventorySlotId.Neck => nameof(InventorySlotId.Neck),
-        InventorySlotId.Shoulder => nameof(InventorySlotId.Shoulder),
-        InventorySlotId.Shirt => nameof(InventorySlotId.Shirt),
-        InventorySlotId.Chest => nameof(InventorySlotId.Chest),
-        InventorySlotId.Waist => nameof(InventorySlotId.Waist),
-        InventorySlotId.Legs => nameof(InventorySlotId.Legs),
-        InventorySlotId.Feet => nameof(InventorySlotId.Feet),
-        InventorySlotId.Wrists => nameof(InventorySlotId.Wrists),
-        InventorySlotId.Hands => nameof(InventorySlotId.Hands),
-        InventorySlotId.Finger_1 => nameof(InventorySlotId.Finger_1),
-        InventorySlotId.Finger_2 => nameof(InventorySlotId.Finger_2),
-        InventorySlotId.Trinket_1 => nameof(InventorySlotId.Trinket_1),
-        InventorySlotId.Trinket_2 => nameof(InventorySlotId.Trinket_2),
-        InventorySlotId.Back => nameof(InventorySlotId.Back),
-        InventorySlotId.Mainhand => nameof(InventorySlotId.Mainhand),
-        InventorySlotId.Offhand => nameof(InventorySlotId.Offhand),
-        InventorySlotId.Ranged => nameof(InventorySlotId.Ranged),
-        InventorySlotId.Tabard => nameof(InventorySlotId.Tabard),
-        InventorySlotId.Bag_0 => nameof(InventorySlotId.Bag_0),
-        InventorySlotId.Bag_1 => nameof(InventorySlotId.Bag_1),
-        InventorySlotId.Bag_2 => nameof(InventorySlotId.Bag_2),
-        InventorySlotId.Bag_3 => nameof(InventorySlotId.Bag_3),
-        _ => throw new System.NotImplementedException(),
-    };
-}

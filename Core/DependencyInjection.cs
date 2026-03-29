@@ -365,14 +365,18 @@ public static class DependencyInjection
             new ServiceProviderOptions { ValidateOnBuild = true });
 
         WowProcess process = sp.GetRequiredService<WowProcess>();
-        log.LogInformation("Pid: {Id}", process.Id);
-        log.LogInformation("Version: {FileVersion}", process.FileVersion);
+        if (log.IsEnabled(LogLevel.Information))
+        {
+            log.LogInformation("Pid: {Id}", process.Id);
+            log.LogInformation("Version: {FileVersion}", process.FileVersion);
+        }
 
         services.AddSingleton<Version>(x => process.FileVersion);
 
         AddonConfigurator configurator = sp.GetRequiredService<AddonConfigurator>();
         Version? installVersion = configurator.GetInstallVersion();
-        log.LogInformation("Addon version: {InstallVersion}", installVersion);
+        if (log.IsEnabled(LogLevel.Information))
+            log.LogInformation("Addon version: {InstallVersion}", installVersion);
 
         if (configurator.IsDefault() || installVersion == null)
         {
@@ -459,9 +463,10 @@ public static class DependencyInjection
                 scp.hostv3, scp.portv3, worldMapAreaDB);
             if (api.PingServer())
             {
-                logger.LogInformation(
-                    "Using {Type}({Name}) {Host}:{Port}",
-                    StartupConfigPathing.Types.RemoteV3, api.GetType().Name, scp.hostv3, scp.portv3);
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation(
+                        "Using {Type}({Name}) {Host}:{Port}",
+                        StartupConfigPathing.Types.RemoteV3, api.GetType().Name, scp.hostv3, scp.portv3);
                 return api;
             }
             api.Dispose();
@@ -482,9 +487,10 @@ public static class DependencyInjection
                         StartupConfigPathing.Types.RemoteV1);
                 }
 
-                logger.LogInformation(
-                    "Using {Type}({Name}) {Host}:{Port}",
-                    StartupConfigPathing.Types.RemoteV1, api.GetType().Name, scp.hostv1, scp.portv1);
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation(
+                        "Using {Type}({Name}) {Host}:{Port}",
+                        StartupConfigPathing.Types.RemoteV1, api.GetType().Name, scp.hostv1, scp.portv1);
                 return api;
             }
         }
@@ -498,9 +504,10 @@ public static class DependencyInjection
         var pathingLogger = loggerFactory.CreateLogger<LocalPathingApi>();
 
         LocalPathingApi localApi = new(pathingLogger, service);
-        logger.LogInformation(
-            "Using {Type}({Name})",
-            StartupConfigPathing.Types.Local, localApi.GetType().Name);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation(
+                "Using {Type}({Name})",
+                StartupConfigPathing.Types.Local, localApi.GetType().Name);
 
         return localApi;
     }
@@ -525,9 +532,10 @@ public static class DependencyInjection
         }
         else
         {
-            logger.LogInformation(
-                "Found PathViz {Type}({Name}) {Host}:{Port}",
-                StartupConfigPathing.Types.RemoteV1, api.GetType().Name, scp.hostv1, scp.portv1);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation(
+                    "Found PathViz {Type}({Name}) {Host}:{Port}",
+                    StartupConfigPathing.Types.RemoteV1, api.GetType().Name, scp.hostv1, scp.portv1);
         }
 
         return api ?? (IPathVizualizer)new NoPathVisualizer();

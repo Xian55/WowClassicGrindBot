@@ -60,7 +60,7 @@ public sealed class LocalPathingApi : IPPather
             return Array.Empty<Vector3>();
         }
 
-        if (debug)
+        if (debug && logger.IsEnabled(LogLevel.Debug))
             logger.LogDebug("Finding route from {MapFrom} map {UiMap} to {MapTo} took {ElapsedMs} ms.", mapFrom, uiMap, mapTo, Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds);
 
         if ((DateTime.UtcNow - lastSave).TotalMinutes >= 1)
@@ -93,7 +93,7 @@ public sealed class LocalPathingApi : IPPather
             return Array.Empty<Vector3>();
         }
 
-        if (debug)
+        if (debug && logger.IsEnabled(LogLevel.Debug))
             logger.LogDebug("Finding route from {WorldFrom} map {UiMap} to {WorldTo} took {ElapsedMs} ms.", worldFrom, uiMap, worldTo, Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds);
 
         if ((DateTime.UtcNow - lastSave).TotalMinutes >= 1)

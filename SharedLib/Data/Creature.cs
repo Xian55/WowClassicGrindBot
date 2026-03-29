@@ -40,25 +40,6 @@ public enum CreatureType
 
 public static class CreatureType_Extension
 {
-    public static string ToStringF(this CreatureType value) => value switch
-    {
-        CreatureType.None => nameof(CreatureType.None),
-        CreatureType.Beast => nameof(CreatureType.Beast),
-        CreatureType.Dragonkin => nameof(CreatureType.Dragonkin),
-        CreatureType.Demon => nameof(CreatureType.Demon),
-        CreatureType.Elemental => nameof(CreatureType.Elemental),
-        CreatureType.Giant => nameof(CreatureType.Giant),
-        CreatureType.Undead => nameof(CreatureType.Undead),
-        CreatureType.Humanoid => nameof(CreatureType.Humanoid),
-        CreatureType.Critter => nameof(CreatureType.Critter),
-        CreatureType.Mechanical => nameof(CreatureType.Mechanical),
-        CreatureType.NotSpecified => nameof(CreatureType.NotSpecified),
-        CreatureType.Totem => nameof(CreatureType.Totem),
-        CreatureType.NonCombatPet => nameof(CreatureType.NonCombatPet),
-        CreatureType.GasCloud => nameof(CreatureType.GasCloud),
-        _ => nameof(CreatureType.None)
-    };
-
     /// <summary>
     /// Check if creature type is valid for Cannibalize (Humanoid or Undead).
     /// </summary>

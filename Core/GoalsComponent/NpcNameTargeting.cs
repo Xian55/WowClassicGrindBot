@@ -139,9 +139,8 @@ public sealed partial class NpcNameTargeting : IDisposable
             input.InteractMouseOver(token);
             wait.Update();
 
-            if (logger.IsEnabled(LogLevel.Information))
-                LogFoundTarget(logger, cls.ToStringF(), mouseOverReader.MouseOverId,
-                    npc.Rect);
+            LogFoundTarget(logger, cls, mouseOverReader.MouseOverId,
+                npc.Rect);
 
             return true;
         }
@@ -198,8 +197,7 @@ public sealed partial class NpcNameTargeting : IDisposable
                 if (cursors.BinarySearch(cls, Comparer<CursorType>.Default) != -1)
                 {
                     input.InteractMouseOver(token);
-                    if (logger.IsEnabled(LogLevel.Information))
-                        LogFoundTarget(logger, cls.ToStringF(), mouseOverReader.MouseOverId, npc.Rect);
+                    LogFoundTarget(logger, cls, mouseOverReader.MouseOverId, npc.Rect);
                     return true;
                 }
 
@@ -221,7 +219,7 @@ public sealed partial class NpcNameTargeting : IDisposable
         EventId = 0161,
         Level = LogLevel.Information,
         Message = "NPC found: {cursorType} | {mouseOverId} | {rect}")]
-    static partial void LogFoundTarget(ILogger logger, string cursorType, int mouseOverId, Rectangle rect);
+    static partial void LogFoundTarget(ILogger logger, CursorType cursorType, int mouseOverId, Rectangle rect);
 
     #endregion
 }

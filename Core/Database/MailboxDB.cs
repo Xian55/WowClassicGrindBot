@@ -114,7 +114,8 @@ public sealed class MailboxDB
 
         if (!System.IO.File.Exists(path))
         {
-            logger.LogDebug("No mailbox data for map {mapId}", mapId);
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("No mailbox data for map {mapId}", mapId);
             mailboxLocations = [];
             return;
         }
@@ -126,7 +127,8 @@ public sealed class MailboxDB
 
             mailboxLocations = data ?? [];
 
-            logger.LogDebug("Loaded {count} mailbox locations for map {mapId}", mailboxLocations.Length, mapId);
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("Loaded {count} mailbox locations for map {mapId}", mailboxLocations.Length, mapId);
         }
         catch (Exception ex)
         {

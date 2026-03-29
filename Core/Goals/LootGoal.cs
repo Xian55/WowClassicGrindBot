@@ -438,7 +438,13 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
         float elapsedMs = wait.Until(MAX_TIME_TO_REACH_MELEE,
             NotMovingOrLootAvailable, TryPressSafeApproachOnCooldownIfNeeded);
 
-        LogReachedCorpse(logger, bits.Target(), bits.Moving(), playerReader.MinRangeZero(), elapsedMs);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            bool target = bits.Target();
+            bool moving = bits.Moving();
+            bool minRangeZero = playerReader.MinRangeZero();
+            LogReachedCorpse(logger, target, moving, minRangeZero, elapsedMs);
+        }
 
         return bits.Target() && playerReader.MinRangeZero();
     }

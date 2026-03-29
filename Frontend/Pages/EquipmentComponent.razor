@@ -38,14 +38,14 @@
             case InventorySlotId.Finger_2:
                 return "finger";
             case InventorySlotId.Back:
-                return InventorySlotId.Chest.ToStringF().ToLower();
+                return InventorySlotId.Chest.ToString().ToLower();
             case InventorySlotId.Bag_0:
             case InventorySlotId.Bag_1:
             case InventorySlotId.Bag_2:
             case InventorySlotId.Bag_3:
                 return "bag";
             default:
-                return i.ToStringF().ToLower();
+                return i.ToString().ToLower();
         }
     }
 }

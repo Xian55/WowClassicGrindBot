@@ -135,10 +135,12 @@ public sealed class IconDB
         aspectTextures = [.. aspectTextureSet];
         auraTextures = [.. auraTextureSet];
 
-        logger.LogDebug("IconDB: Built {aspectCount} aspect textures, {auraCount} aura textures",
-            aspectTextures.Length, auraTextures.Length);
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogDebug("IconDB: Built {aspectCount} aspect textures, {auraCount} aura textures",
+                aspectTextures.Length, auraTextures.Length);
 
-        logger.LogInformation("IconDB: Loaded {count} texture mappings", IconToSpells.Count);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("IconDB: Loaded {count} texture mappings", IconToSpells.Count);
 
         // Load icon names
         string iconNamesPath = Join(dataConfig.ExpDbc, IconNamesFile);
@@ -160,7 +162,8 @@ public sealed class IconDB
 
         IconNames = iconNamesBuilder.ToFrozenDictionary();
 
-        logger.LogInformation("IconDB: Loaded {count} icon names", IconNames.Count);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("IconDB: Loaded {count} icon names", IconNames.Count);
 
         // Set static reference for KeyReader spell name resolution
         KeyReader.IconDB = this;

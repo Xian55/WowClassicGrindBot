@@ -49,7 +49,11 @@ public sealed partial class CombatTracker : IDisposable
     {
         if (inCombat && !bits.Combat())
         {
-            LogLeftCombat(logger, Stopwatch.GetElapsedTime(Started).TotalSeconds);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                double elapsed = Stopwatch.GetElapsedTime(Started).TotalSeconds;
+                LogLeftCombat(logger, elapsed);
+            }
         }
         else if (!inCombat && bits.Combat())
         {
@@ -119,7 +123,8 @@ public sealed partial class CombatTracker : IDisposable
     {
         if (DEBUG)
         {
-            logger.LogDebug("{Text}", text);
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("{Text}", text);
         }
     }
 

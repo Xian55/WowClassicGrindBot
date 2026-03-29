@@ -119,7 +119,8 @@ public sealed class MdnsAdvertisingService : IHostedService, IDisposable
                         if (Uri.TryCreate(address, UriKind.Absolute, out var uri))
                         {
                             _port = uri.Port;
-                            _logger.LogDebug("mDNS: Detected server port {Port} from {Address}", _port, address);
+                            if (_logger.IsEnabled(LogLevel.Debug))
+                                _logger.LogDebug("mDNS: Detected server port {Port} from {Address}", _port, address);
                             break;
                         }
                     }

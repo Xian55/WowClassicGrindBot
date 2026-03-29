@@ -83,7 +83,7 @@
 
             if (!string.IsNullOrEmpty(classFilter))
             {
-                result = result.Where(c => c.PlayerClass.ToStringF().Contains(classFilter, StringComparison.CurrentCultureIgnoreCase));
+                result = result.Where(c => c.PlayerClass.ToString().Contains(classFilter, StringComparison.CurrentCultureIgnoreCase));
             }
 
             if (minLevelFilter > 0)

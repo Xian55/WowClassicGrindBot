@@ -46,7 +46,7 @@
     <select disabled="@IsDisabled" @bind="NpcType">
         @foreach (var type in Enum.GetValues<NpcFlags>())
         {
-            <option value="@type">@type.ToStringF()</option>
+            <option value="@type">@type.ToString()</option>
         }
     </select>
 

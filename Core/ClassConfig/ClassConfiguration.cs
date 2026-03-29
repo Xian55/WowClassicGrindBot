@@ -173,7 +173,7 @@ public sealed partial class ClassConfiguration
             {
                 MailConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<MailConfiguration>(
                     File.ReadAllText(mailPath)) ?? new MailConfiguration();
-                logger.LogInformation("Loaded mail config from {MailPath}", mailPath);
+                LogLoadedMailConfig(logger, mailPath);
             }
             else
             {
@@ -461,6 +461,12 @@ public sealed partial class ClassConfiguration
         Level = LogLevel.Information,
         Message = "[{prefix}] Init KeyActions")]
     static partial void LogInitKeyActions(ILogger logger, string prefix);
+
+    [LoggerMessage(
+        EventId = 0012,
+        Level = LogLevel.Information,
+        Message = "Loaded mail config from {MailPath}")]
+    static partial void LogLoadedMailConfig(ILogger logger, string mailPath);
 
 }
 

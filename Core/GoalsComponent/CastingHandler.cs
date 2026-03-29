@@ -179,16 +179,14 @@ public sealed partial class CastingHandler
             wait, playerReader, item, currentAction, token);
 
         if (DEBUG && Log && item.Log)
-            if (logger.IsEnabled(LogLevel.Information))
-                LogInstantInput(logger, item.Name, pressMs,
-                    playerReader.CastState.ToStringF(), elapsedMs);
+            LogInstantInput(logger, item.Name, pressMs,
+                playerReader.CastState, elapsedMs);
 
         if (elapsedMs < 0)
         {
             if (!DEBUG || (Log && item.Log))
-                if (logger.IsEnabled(LogLevel.Information))
-                    LogInstantInput(logger, item.Name, pressMs,
-                        playerReader.CastState.ToStringF(), elapsedMs);
+                LogInstantInput(logger, item.Name, pressMs,
+                    playerReader.CastState, elapsedMs);
 
             return CastResult.CurrentActionNotDetected;
         }
@@ -240,37 +238,47 @@ public sealed partial class CastingHandler
         }
 
         if (DEBUG && Log && item.Log)
+        {
             if (logger.IsEnabled(LogLevel.Information))
+            {
+                bool usable = usableAction.Is(item);
+                bool action = currentAction.Is(item);
                 LogInstantUsableChange(logger, item.Name,
-                    beforeUsable, usableAction.Is(item),
-                    beforeAction, currentAction.Is(item),
-                    beforeCastEventValue.ToStringF(),
-                    playerReader.CastState.ToStringF());
+                    beforeUsable, usable,
+                    beforeAction, action,
+                    beforeCastEventValue,
+                    playerReader.CastState);
+            }
+        }
 
         if (elapsedMs < 0)
         {
             if (!DEBUG || (Log && item.Log))
+            {
                 if (logger.IsEnabled(LogLevel.Information))
+                {
+                    bool usable = usableAction.Is(item);
+                    bool action = currentAction.Is(item);
                     LogInstantUsableChange(logger, item.Name,
-                        beforeUsable, usableAction.Is(item),
-                        beforeAction, currentAction.Is(item),
-                        beforeCastEventValue.ToStringF(),
-                        playerReader.CastState.ToStringF());
+                        beforeUsable, usable,
+                        beforeAction, action,
+                        beforeCastEventValue,
+                        playerReader.CastState);
+                }
+            }
 
             return CastResult.UIFeedbackNotDetected;
         }
 
         if (!CastInstantSuccessful(playerReader.CastEvent.Value))
         {
-            if (logger.IsEnabled(LogLevel.Warning))
-                LogInstantInputFailed(logger, item.Name, pressMs, playerReader.CastState.ToStringF(), elapsedMs);
+            LogInstantInputFailed(logger, item.Name, pressMs, playerReader.CastState, elapsedMs);
             return CastResult.UIError;
         }
         else if (!DEBUG && Log && item.Log)
         {
-            if (logger.IsEnabled(LogLevel.Information))
-                LogInstantInput(logger, item.Name, pressMs,
-                    playerReader.CastState.ToStringF(), elapsedMs);
+            LogInstantInput(logger, item.Name, pressMs,
+                playerReader.CastState, elapsedMs);
         }
 
         if (playerReader.CastState == UI_ERROR.CAST_SUCCESS)
@@ -345,12 +353,19 @@ public sealed partial class CastingHandler
             wait, playerReader, token);
 
         if (DEBUG && Log && item.Log)
+        {
             if (logger.IsEnabled(LogLevel.Information))
+            {
+                bool casting = playerReader.IsCasting();
+                bool channeling = bits.Channeling();
+                bool usable = usableAction.Is(item);
                 LogCastbarUsableChange(logger, item.Name,
-                    playerReader.IsCasting(), bits.Channeling(),
-                    playerReader.CastCount, beforeUsable, usableAction.Is(item),
-                    beforeCastEventValue.ToStringF(),
-                    playerReader.CastState.ToStringF());
+                    casting, channeling,
+                    playerReader.CastCount, beforeUsable, usable,
+                    beforeCastEventValue,
+                    playerReader.CastState);
+            }
+        }
 
         if (playerReader.CastState is < UI_ERROR.MAX_ERROR_RANGE and
             not UI_ERROR.NONE)
@@ -464,8 +479,7 @@ public sealed partial class CastingHandler
             if (!beforeUsable && !usableAction.Is(item))
             {
                 if (Log && item.Log)
-                    if (logger.IsEnabled(LogLevel.Warning))
-                        LogAfterFormSwitchNotUsable(logger, item.Name, beforeForm.ToStringF(), playerReader.Form.ToStringF());
+                    LogAfterFormSwitchNotUsable(logger, item.Name, beforeForm, playerReader.Form);
 
                 return false;
             }
@@ -479,7 +493,7 @@ public sealed partial class CastingHandler
             int waitTimeMs = playerReader.GCD.Value;
 
             float elapsedMs = wait.Until(waitTimeMs, token);
-            logger.LogInformation("Stop Shoot and wait {WaitTimeMs}ms | {ElapsedMs}ms", waitTimeMs, elapsedMs);
+            LogStopShootAndWait(logger, waitTimeMs, elapsedMs);
 
             if (elapsedMs >= 0)
             {
@@ -540,10 +554,15 @@ public sealed partial class CastingHandler
                 auraHash, wait, playerReader, combatLog, token);
 
             if (Log && item.Log)
+            {
                 if (logger.IsEnabled(LogLevel.Information))
+                {
+                    string auraCount = playerReader.AuraCount.ToString();
                     LogAfterCastWaitBuff(logger,
-                        item.Name, playerReader.AuraCount.ToString(),
-                        ((MissType)combatLog.TargetMissType.Value).ToStringF(), elapsedMs);
+                        item.Name, auraCount,
+                        (MissType)combatLog.TargetMissType.Value, elapsedMs);
+                }
+            }
 
             static float AfterCastWaitBuff(int totalTime, int auraHash, Wait wait,
                 PlayerReader playerReader, CombatLog combatLog, CancellationToken token)
@@ -560,9 +579,8 @@ public sealed partial class CastingHandler
                 item.Item ? 0 : playerReader.LastCastGCD);
 
             if (Log && item.Log)
-                if (logger.IsEnabled(LogLevel.Information))
-                    LogAfterCastAuraExpected(logger, item.Name,
-                        ((MissType)combatLog.TargetMissType.Value).ToStringF(), delay);
+                LogAfterCastAuraExpected(logger, item.Name,
+                    (MissType)combatLog.TargetMissType.Value, delay);
 
             item.SetClicked(delay);
         }
@@ -702,8 +720,7 @@ public sealed partial class CastingHandler
                     wait.Fixed(playerReader.NetworkLatency);
                 }
 
-                if (logger.IsEnabled(LogLevel.Error))
-                    LogFailedDueReason(logger, item.Name, result.ToStringF());
+                LogFailedDueReason(logger, item.Name, result);
                 return false;
             }
 
@@ -756,7 +773,13 @@ public sealed partial class CastingHandler
         float elapsedMs = wait.Until(duration, token);
 
         if (DEBUG && Log && item.Log)
-            LogGCD(logger, item.Name, usableAction.Is(item), duration, elapsedMs);
+        {
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                bool usable = usableAction.Is(item);
+                LogGCD(logger, item.Name, usable, duration, elapsedMs);
+            }
+        }
 
         return elapsedMs < 0;
     }
@@ -796,6 +819,12 @@ public sealed partial class CastingHandler
     #region Logging
 
     [LoggerMessage(
+        EventId = 0060,
+        Level = LogLevel.Information,
+        Message = "Stop Shoot and wait {WaitTimeMs}ms | {ElapsedMs}ms")]
+    static partial void LogStopShootAndWait(ILogger logger, int waitTimeMs, float elapsedMs);
+
+    [LoggerMessage(
         EventId = 0070,
         Level = LogLevel.Information,
         Message = "[{name,-17}] ... AfterCastWaitSwing")]
@@ -811,13 +840,13 @@ public sealed partial class CastingHandler
         EventId = 0072,
         Level = LogLevel.Information,
         Message = "[{name,-17}] instant input {pressTime}ms {castState} {inputElapsedMs}ms")]
-    static partial void LogInstantInput(ILogger logger, string name, int pressTime, string castState, float inputElapsedMs);
+    static partial void LogInstantInput(ILogger logger, string name, int pressTime, UI_ERROR castState, float inputElapsedMs);
 
     [LoggerMessage(
         EventId = 0073,
         Level = LogLevel.Warning,
         Message = "[{name,-17}] instant input {pressTime}ms {castState} {inputElapsedMs}ms")]
-    static partial void LogInstantInputFailed(ILogger logger, string name, int pressTime, string castState, float inputElapsedMs);
+    static partial void LogInstantInputFailed(ILogger logger, string name, int pressTime, UI_ERROR castState, float inputElapsedMs);
 
     [LoggerMessage(
         EventId = 0074,
@@ -829,7 +858,7 @@ public sealed partial class CastingHandler
     static partial void LogInstantUsableChange(ILogger logger, string name,
         bool beforeUsable, bool afterUsable,
         bool beforeCurrent, bool afterCurrent,
-        string beforeCastEvent, string afterCastEvent);
+        UI_ERROR beforeCastEvent, UI_ERROR afterCastEvent);
 
     [LoggerMessage(
         EventId = 0075,
@@ -847,7 +876,7 @@ public sealed partial class CastingHandler
         EventId = 0077,
         Level = LogLevel.Information,
         Message = "[{name,-17}] ... count: {castCount} | casting: {casting} | channeling: {channeling} | usable: {beforeUsable}->{afterUsable} | {beforeCastEvent}->{afterCastEvent}")]
-    static partial void LogCastbarUsableChange(ILogger logger, string name, bool casting, bool channeling, int castCount, bool beforeUsable, bool afterUsable, string beforeCastEvent, string afterCastEvent);
+    static partial void LogCastbarUsableChange(ILogger logger, string name, bool casting, bool channeling, int castCount, bool beforeUsable, bool afterUsable, UI_ERROR beforeCastEvent, UI_ERROR afterCastEvent);
 
     [LoggerMessage(
         EventId = 0078,
@@ -878,7 +907,7 @@ public sealed partial class CastingHandler
         EventId = 0082,
         Level = LogLevel.Warning,
         Message = "[{name,-17}] ... after {before}->{after} form switch still not usable!")]
-    static partial void LogAfterFormSwitchNotUsable(ILogger logger, string name, string before, string after);
+    static partial void LogAfterFormSwitchNotUsable(ILogger logger, string name, Form before, Form after);
 
     [LoggerMessage(
         EventId = 0083,
@@ -890,7 +919,7 @@ public sealed partial class CastingHandler
         EventId = 0084,
         Level = LogLevel.Information,
         Message = "[{name,-17}] ... AfterCastWaitBuff count: {auraCount} | miss: {missType} | {elapsedMs}ms")]
-    static partial void LogAfterCastWaitBuff(ILogger logger, string name, string auraCount, string missType, float elapsedMs);
+    static partial void LogAfterCastWaitBuff(ILogger logger, string name, string auraCount, MissType missType, float elapsedMs);
 
     [LoggerMessage(
         EventId = 0085,
@@ -932,7 +961,7 @@ public sealed partial class CastingHandler
         EventId = 0091,
         Level = LogLevel.Information,
         Message = "[{name,-17}] ... form {before}->{after} | {elapsedMs}ms")]
-    static partial void LogFormChanged(ILogger logger, string name, string before, string after, float elapsedMs);
+    static partial void LogFormChanged(ILogger logger, string name, Form before, Form after, float elapsedMs);
 
     [LoggerMessage(
         EventId = 0092,
@@ -950,7 +979,7 @@ public sealed partial class CastingHandler
         EventId = 0094,
         Level = LogLevel.Information,
         Message = "[{name,-17}] ... AfterCastAuraExpected miss: {miss} {delay}ms")]
-    static partial void LogAfterCastAuraExpected(ILogger logger, string name, string miss, int delay);
+    static partial void LogAfterCastAuraExpected(ILogger logger, string name, MissType miss, int delay);
 
     [LoggerMessage(
         EventId = 0095,
@@ -974,7 +1003,7 @@ public sealed partial class CastingHandler
         EventId = 0098,
         Level = LogLevel.Error,
         Message = "[{name,-17}] ... Cast failed due {reason}!")]
-    static partial void LogFailedDueReason(ILogger logger, string name, string reason);
+    static partial void LogFailedDueReason(ILogger logger, string name, CastResult reason);
 
     [LoggerMessage(
         EventId = 0099,

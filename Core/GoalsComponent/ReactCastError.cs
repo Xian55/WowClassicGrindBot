@@ -9,7 +9,7 @@ using static System.MathF;
 
 namespace Core;
 
-public sealed class ReactCastError
+public sealed partial class ReactCastError
 {
     private readonly ILogger<ReactCastError> logger;
     private readonly PlayerReader playerReader;
@@ -50,8 +50,7 @@ public sealed class ReactCastError
             case UI_ERROR.CAST_SENT:
                 UI_ERROR currentCastState = playerReader.CastState;
                 int maxTime = Math.Min(playerReader.DoubleNetworkLatency, playerReader.RemainCastMs);
-                if (logger.IsEnabled(LogLevel.Information))
-                    logger.LogInformation($"React to {value.ToStringF()} -- by waiting {maxTime}ms!");
+                LogReactCastSent(logger, value, maxTime);
 
                 wait.Until(maxTime,
                     () => currentCastState != playerReader.CastState);
@@ -66,7 +65,7 @@ public sealed class ReactCastError
             case UI_ERROR.SPELL_FAILED_NOT_READY:
             /*
             int waitTime = Math.Max(playerReader.GCD.Value, playerReader.RemainCastMs);
-            logger.LogInformation($"React to {value.ToStringF()} -- wait for GCD {waitTime}ms");
+            logger.LogInformation($"React to {value.ToString()} -- wait for GCD {waitTime}ms");
             if (waitTime > 0)
                 wait.Fixed(waitTime);
             break;
@@ -79,8 +78,7 @@ public sealed class ReactCastError
                 int debuffCount = playerReader.AuraCount.PlayerDebuff;
                 if (debuffCount != 0)
                 {
-                    if (logger.IsEnabled(LogLevel.Information))
-                        logger.LogInformation($"React to {value.ToStringF()} -- Wait till losing debuff!");
+                    LogReactWaitLoseDebuff(logger, value);
 
                     WaitDebuffChange(wait, debuffCount, playerReader);
                     static void WaitDebuffChange(Wait wait,
@@ -90,8 +88,7 @@ public sealed class ReactCastError
                 }
                 else
                 {
-                    if (logger.IsEnabled(LogLevel.Information))
-                        logger.LogInformation($"Didn't know how to react {value.ToStringF()} when PlayerDebuffCount: {debuffCount}");
+                    LogUnknownDebuffReaction(logger, value, debuffCount);
                 }
 
                 break;
@@ -102,8 +99,7 @@ public sealed class ReactCastError
 
                 if (playerReader.Class == UnitClass.Hunter && playerReader.IsInMeleeRange())
                 {
-                    if (logger.IsEnabled(LogLevel.Information))
-                        logger.LogInformation($"As a {UnitClass.Hunter.ToStringF()} didn't know how to react {value.ToStringF()}");
+                    LogHunterUnknownReaction(logger, UnitClass.Hunter, value);
                     return;
                 }
 
@@ -114,15 +110,13 @@ public sealed class ReactCastError
                     {
                         if (playerReader.InCloseMeleeRange())
                         {
-                            if (logger.IsEnabled(LogLevel.Information))
-                                logger.LogInformation($"React to {value.ToStringF()} -- ({minRange}) wait for close melee range.");
+                            LogReactWaitCloseMelee(logger, value, minRange);
                             wait.Update();
                             wait.Update();
                             return;
                         }
 
-                        if (logger.IsEnabled(LogLevel.Information))
-                            logger.LogInformation($"React to {value.ToStringF()} -- ({minRange}) Just wait for the target to get in range.");
+                        LogReactWaitTargetInRange(logger, value, minRange);
 
                         int duration = CastingHandler.GCD;
                         if (playerReader.MinRange() <= 5)
@@ -155,13 +149,15 @@ public sealed class ReactCastError
                             wait.Until(duration, () =>
                             minRange != playerReader.MinRange());
 
-                        if (logger.IsEnabled(LogLevel.Information))
-                            logger.LogInformation($"React to {value.ToStringF()} -- Approached target {minRange}->{playerReader.MinRange()}");
+                            if (logger.IsEnabled(LogLevel.Information))
+                            {
+                                int currentMinRange = playerReader.MinRange();
+                                LogReactApproachedTarget(logger, value, minRange, currentMinRange);
+                            }
                     }
                     else if (!playerReader.WithInPullRange())
                     {
-                        if (logger.IsEnabled(LogLevel.Information))
-                            logger.LogInformation($"React to {value.ToStringF()} -- Start moving forward as outside of pull range.");
+                        LogReactStartMovingForward(logger, value);
                         input.StartForward(true);
                     }
                     else
@@ -191,18 +187,12 @@ public sealed class ReactCastError
                     if (e > sampleTimeMs)
                     {
                         stopMoving.Stop();
-                        if (logger.IsEnabled(LogLevel.Information))
-                            logger.LogInformation(
-                                $"React to {value.ToStringF()} - " +
-                                $"Fast turn with Interact {e}ms");
+                        LogReactFastTurnInteract(logger, value, e);
                         turnedWithInteract = true;
                     }
                     else
                     {
-                        if (logger.IsEnabled(LogLevel.Warning))
-                            logger.LogWarning(
-                                $"Unable to react to {value.ToStringF()} - " +
-                                $"Fast turn with Interact {e}ms");
+                        LogUnableToReactFastTurn(logger, value, e);
 
                         // Check if we turned at all (even if slowly)
                         turnedWithInteract = beforeDir != playerReader.Direction;
@@ -223,9 +213,7 @@ public sealed class ReactCastError
                     string reason = bits.SoftInteract_CombatBlocker()
                         ? "invalid soft target"
                         : "interact failed";
-                    if (logger.IsEnabled(LogLevel.Information))
-                        logger.LogInformation(
-                            $"React to {value.ToStringF()} - Slow turn 180deg ({reason})");
+                    LogReactSlowTurn(logger, value, reason);
                 }
 
                 if (!wasAnyAuto)
@@ -233,22 +221,19 @@ public sealed class ReactCastError
 
                 break;
             case UI_ERROR.SPELL_FAILED_MOVING:
-                if (logger.IsEnabled(LogLevel.Information))
-                    logger.LogInformation($"React to {value.ToStringF()} -- Stop moving!");
+                LogReactStopMoving(logger, value);
                 wait.While(bits.Falling);
                 stopMoving.Stop();
                 wait.Update();
                 break;
             case UI_ERROR.ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS:
-                if (logger.IsEnabled(LogLevel.Information))
-                    logger.LogInformation($"React to {value.ToStringF()} -- Wait till casting!");
+                LogReactWaitTillCasting(logger, value);
                 wait.While(playerReader.IsCasting);
                 break;
             case UI_ERROR.ERR_BADATTACKPOS:
                 if (bits.Auto_Attack())
                 {
-                    if (logger.IsEnabled(LogLevel.Information))
-                        logger.LogInformation($"React to {value.ToStringF()} -- Interact!");
+                    LogReactInteract(logger, value);
                     input.PressInteract();
                     stopMoving.Stop();
                     wait.Update();
@@ -261,8 +246,7 @@ public sealed class ReactCastError
             case UI_ERROR.SPELL_FAILED_LINE_OF_SIGHT:
                 if (!bits.Combat())
                 {
-                    if (logger.IsEnabled(LogLevel.Information))
-                        logger.LogInformation($"React to {value.ToStringF()} -- Stop attack and clear target!");
+                    LogReactStopAttackClearTarget(logger, value);
                     input.PressStopAttack();
                     input.PressClearTarget();
                     wait.Update();
@@ -273,16 +257,14 @@ public sealed class ReactCastError
                 }
                 break;
             default:
-                if (logger.IsEnabled(LogLevel.Information))
-                    logger.LogInformation($"Didn't know how to React to {value.ToStringF()}");
+                LogUnknownReaction(logger, value);
                 break;
         }
     }
 
     private void WaitForCooldown(KeyAction item, UI_ERROR value)
     {
-        if (logger.IsEnabled(LogLevel.Information))
-            logger.LogInformation($"React to {value.ToStringF()} -- wait until its ready");
+        LogReactWaitUntilReady(logger, value);
         int waitTime = Math.Max(playerReader.GCD.Value, playerReader.RemainCastMs);
         bool before = usableAction.Is(item);
 
@@ -293,4 +275,55 @@ public sealed class ReactCastError
             before != usableAction.Is(item) || usableAction.Is(item));
 
     }
+
+    [LoggerMessage(EventId = 3000, Level = LogLevel.Information, Message = "React to {UiError} -- by waiting {MaxTime}ms!")]
+    private static partial void LogReactCastSent(ILogger logger, UI_ERROR uiError, int maxTime);
+
+    [LoggerMessage(EventId = 3001, Level = LogLevel.Information, Message = "React to {UiError} -- Wait till losing debuff!")]
+    private static partial void LogReactWaitLoseDebuff(ILogger logger, UI_ERROR uiError);
+
+    [LoggerMessage(EventId = 3002, Level = LogLevel.Information, Message = "Didn't know how to react {UiError} when PlayerDebuffCount: {DebuffCount}")]
+    private static partial void LogUnknownDebuffReaction(ILogger logger, UI_ERROR uiError, int debuffCount);
+
+    [LoggerMessage(EventId = 3003, Level = LogLevel.Information, Message = "As a {UnitClass} didn't know how to react {UiError}")]
+    private static partial void LogHunterUnknownReaction(ILogger logger, UnitClass unitClass, UI_ERROR uiError);
+
+    [LoggerMessage(EventId = 3004, Level = LogLevel.Information, Message = "React to {UiError} -- ({MinRange}) wait for close melee range.")]
+    private static partial void LogReactWaitCloseMelee(ILogger logger, UI_ERROR uiError, int minRange);
+
+    [LoggerMessage(EventId = 3005, Level = LogLevel.Information, Message = "React to {UiError} -- ({MinRange}) Just wait for the target to get in range.")]
+    private static partial void LogReactWaitTargetInRange(ILogger logger, UI_ERROR uiError, int minRange);
+
+    [LoggerMessage(EventId = 3006, Level = LogLevel.Information, Message = "React to {UiError} -- Approached target {OldMinRange}->{NewMinRange}")]
+    private static partial void LogReactApproachedTarget(ILogger logger, UI_ERROR uiError, int oldMinRange, int newMinRange);
+
+    [LoggerMessage(EventId = 3007, Level = LogLevel.Information, Message = "React to {UiError} -- Start moving forward as outside of pull range.")]
+    private static partial void LogReactStartMovingForward(ILogger logger, UI_ERROR uiError);
+
+    [LoggerMessage(EventId = 3008, Level = LogLevel.Information, Message = "React to {UiError} - Fast turn with Interact {ElapsedMs}ms")]
+    private static partial void LogReactFastTurnInteract(ILogger logger, UI_ERROR uiError, float elapsedMs);
+
+    [LoggerMessage(EventId = 3009, Level = LogLevel.Warning, Message = "Unable to react to {UiError} - Fast turn with Interact {ElapsedMs}ms")]
+    private static partial void LogUnableToReactFastTurn(ILogger logger, UI_ERROR uiError, float elapsedMs);
+
+    [LoggerMessage(EventId = 3010, Level = LogLevel.Information, Message = "React to {UiError} - Slow turn 180deg ({Reason})")]
+    private static partial void LogReactSlowTurn(ILogger logger, UI_ERROR uiError, string reason);
+
+    [LoggerMessage(EventId = 3011, Level = LogLevel.Information, Message = "React to {UiError} -- Stop moving!")]
+    private static partial void LogReactStopMoving(ILogger logger, UI_ERROR uiError);
+
+    [LoggerMessage(EventId = 3012, Level = LogLevel.Information, Message = "React to {UiError} -- Wait till casting!")]
+    private static partial void LogReactWaitTillCasting(ILogger logger, UI_ERROR uiError);
+
+    [LoggerMessage(EventId = 3013, Level = LogLevel.Information, Message = "React to {UiError} -- Interact!")]
+    private static partial void LogReactInteract(ILogger logger, UI_ERROR uiError);
+
+    [LoggerMessage(EventId = 3014, Level = LogLevel.Information, Message = "React to {UiError} -- Stop attack and clear target!")]
+    private static partial void LogReactStopAttackClearTarget(ILogger logger, UI_ERROR uiError);
+
+    [LoggerMessage(EventId = 3015, Level = LogLevel.Information, Message = "Didn't know how to React to {UiError}")]
+    private static partial void LogUnknownReaction(ILogger logger, UI_ERROR uiError);
+
+    [LoggerMessage(EventId = 3016, Level = LogLevel.Information, Message = "React to {UiError} -- wait until its ready")]
+    private static partial void LogReactWaitUntilReady(ILogger logger, UI_ERROR uiError);
 }

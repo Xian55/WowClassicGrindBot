@@ -139,7 +139,7 @@
         if (firstRender)
         {
             continent = PlayerReader.WorldMapArea.Continent;
-            expansion = PlayerReader.Version.ToStringF().ToLower();
+            expansion = PlayerReader.Version.ToString().ToLower();
 
             await jsRuntime.InvokeVoidAsync("init",
                 expansion ?? "som",

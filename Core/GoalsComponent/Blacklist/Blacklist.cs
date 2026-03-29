@@ -90,7 +90,7 @@ public sealed partial class Blacklist<T> : IBlacklist where T : IBlacklistSource
                     LogEvade(logger, typeof(T),
                         source.UnitId,
                         source.UnitGuid, source.UnitName,
-                        playerReader.TargetClassification.ToStringF());
+                        playerReader.TargetClassification.ToString());
 
                 lastGuid = source.UnitGuid;
             }
@@ -128,7 +128,7 @@ public sealed partial class Blacklist<T> : IBlacklist where T : IBlacklistSource
                 if (logger.IsEnabled(LogLevel.Warning))
                     LogClassification(logger, typeof(T), source.UnitId,
                         source.UnitGuid, source.UnitName,
-                        source.UnitClassification.ToStringF());
+                        source.UnitClassification.ToString());
 
                 lastGuid = source.UnitGuid;
             }

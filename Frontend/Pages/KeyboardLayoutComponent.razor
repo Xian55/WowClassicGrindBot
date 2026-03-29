@@ -93,7 +93,7 @@ else
                             @foreach (var issue in GetValidationIssues())
                             {
                                 <tr>
-                                    <td>@issue.BindingId.ToStringF()</td>
+                                    <td>@issue.BindingId.ToString()</td>
                                     <td><span class="badge bg-warning">Not bound in-game</span></td>
                                 </tr>
                             }
@@ -618,7 +618,7 @@ else
                             {
                                 <tr>
                                     <td>
-                                        <span class="@GetBindingIdClass(bindingId)">@bindingId.ToStringF()</span>
+                                        <span class="@GetBindingIdClass(bindingId)">@bindingId.ToString()</span>
                                     </td>
                                     <td>
                                         @if (hasKey1)
@@ -1167,7 +1167,7 @@ else
         // Cost info
         var cost = actionBarCostReader.Get(action);
         if (cost.Cost > 0)
-            parts.Add($"{cost.Cost} {cost.PowerType.ToStringF()}");
+            parts.Add($"{cost.Cost} {cost.PowerType.ToString()}");
 
         // Cooldown info
         int cdMs = actionBarCooldownReader.Get(action);
@@ -1190,7 +1190,7 @@ else
         // Show what's bound to this key in-game
         if (actualBindings.TryGetValue(key, out var primary))
         {
-            parts.Add($"Binding: {primary.ToStringF()}");
+            parts.Add($"Binding: {primary.ToString()}");
         }
 
         // Show slot info
@@ -1527,7 +1527,7 @@ else
             BindingID.STRAFERIGHT => "StrfR",
             BindingID.TURNLEFT => "TurnL",
             BindingID.TURNRIGHT => "TurnR",
-            _ => bindingId.ToStringF()
+            _ => bindingId.ToString()
         };
     }
 
@@ -1542,16 +1542,16 @@ else
             if (keyBindingsReader.Bindings.Values.FirstOrDefault(b => b.Key == key) is var binding && binding.Key != ConsoleKey.NoName)
             {
                 var modPrefix = binding.Modifier != ModifierKey.None ? $"{binding.Modifier.ToPrefix()}" : "";
-                parts.Add($"In-Game: {modPrefix}{primary.ToStringF()}");
+                parts.Add($"In-Game: {modPrefix}{primary.ToString()}");
             }
             else
             {
-                parts.Add($"In-Game: {primary.ToStringF()}");
+                parts.Add($"In-Game: {primary.ToString()}");
             }
         }
         if (actualSecondaryBindings.TryGetValue(key, out var secondary))
         {
-            parts.Add($"Secondary: {secondary.ToStringF()}");
+            parts.Add($"Secondary: {secondary.ToString()}");
         }
 
         // If this key is in our defaults but not bound, note that
@@ -1560,7 +1560,7 @@ else
             if (!keyBindingsReader.TryGetBinding(expectedBindingId, out _, out _) &&
                 !keyBindingsReader.TryGetSecondaryBinding(expectedBindingId, out _, out _))
             {
-                parts.Add($"Default: {expectedBindingId.ToStringF()} (NOT BOUND)");
+                parts.Add($"Default: {expectedBindingId.ToString()} (NOT BOUND)");
             }
         }
 

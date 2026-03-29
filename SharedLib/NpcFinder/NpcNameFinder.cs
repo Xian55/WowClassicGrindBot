@@ -145,8 +145,7 @@ public sealed partial class NpcNameFinder
         CalculateHeightMultipiler();
         ConfigureProvider();
 
-        if (logger.IsEnabled(LogLevel.Information))
-            LogTypeChanged(logger, type.ToStringF(), searchMode.ToStringF());
+        LogTypeChanged(logger, type, searchMode);
 
         if (nameType == NpcNames.None)
             resetEvent.ChangeReset();
@@ -359,7 +358,7 @@ public sealed partial class NpcNameFinder
         EventId = 2000,
         Level = LogLevel.Information,
         Message = "[NpcNameFinder] type = {type} | mode = {mode}")]
-    static partial void LogTypeChanged(ILogger logger, string type, string mode);
+    static partial void LogTypeChanged(ILogger logger, NpcNames type, SearchMode mode);
 
     #endregion
 }

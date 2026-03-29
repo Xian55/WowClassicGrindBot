@@ -62,8 +62,9 @@ public sealed class RemotePathingAPI : IPPather, IPathVizualizer, IDisposable
             new(JsonSerializer.Serialize(lineArgs, options),
             Encoding.UTF8, "application/json");
 
-        logger.LogDebug("Drawing lines '{MapIds}'...",
-            string.Join(", ", lineArgs.Select(l => l.MapId)));
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogDebug("Drawing lines '{MapIds}'...",
+                string.Join(", ", lineArgs.Select(l => l.MapId)));
 
         await client.PostAsync("Drawlines", content);
     }

@@ -592,7 +592,7 @@ public static class KeyReader
         if (!ConsoleKeyToWoWKey.TryGetValue(keyAction.ConsoleKey, out string? wowKey))
             return null;
 
-        string bindingId = keyAction.BindingID.ToStringF();
+        string bindingId = keyAction.BindingID.ToString();
         return $"SetBinding(\"{wowKey}\", \"{bindingId}\")";
     }
 

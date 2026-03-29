@@ -56,11 +56,14 @@ public sealed class Program
 
         ILogger<Program> log = logFactory.CreateLogger<Program>();
 
-        log.LogInformation($"Hosting environment: {environmentName ?? "Production"}");
+        if (log.IsEnabled(LogLevel.Information))
+        {
+            log.LogInformation($"Hosting environment: {environmentName ?? "Production"}");
 
-        log.LogInformation(
-            $"{Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName} " +
-            $"{DateTimeOffset.Now}");
+            log.LogInformation(
+                $"{Thread.CurrentThread.CurrentCulture.TwoLetterISOLanguageName} " +
+                $"{DateTimeOffset.Now}");
+        }
 
         ParserResult<RunOptions> options =
             Parser.Default.ParseArguments<RunOptions>(args).WithNotParsed(errors =>

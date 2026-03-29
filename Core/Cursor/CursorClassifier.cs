@@ -100,6 +100,6 @@ public sealed class CursorClassifier : IDisposable
         }
 
         classification = (CursorType)index;
-        Debug.WriteLine($"[CursorClassifier.Classify] {cursorHash} - {classification.ToStringF()} - {similarity}");
+        Debug.WriteLine($"[CursorClassifier.Classify] {cursorHash} - {classification.ToString()} - {similarity}");
     }
 }

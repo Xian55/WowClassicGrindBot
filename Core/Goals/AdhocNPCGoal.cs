@@ -143,8 +143,8 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         {
             string[] strings = flag switch
             {
-                NpcFlags.Vendor => [flag.ToStringF(), "Sell"],
-                _ => [flag.ToStringF()]
+                NpcFlags.Vendor => [flag.ToString(), "Sell"],
+                _ => [flag.ToString()]
             };
 
             return new KeyValuePair<NpcFlags, SearchValues<string>>(flag, SearchValues.Create(strings, StringComparison.OrdinalIgnoreCase));
@@ -302,8 +302,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         Vector3 worldPos = searchResult[searchIndex].WorldPosition;
         key.Path = [worldPos];
 
-        if (logger.IsEnabled(LogLevel.Information))
-            LogFoundCloesestNPCByType(logger, npc.Name, npcFlag.ToStringF(), worldPos);
+        LogFoundCloesestNPCByType(logger, npc.Name, npcFlag, worldPos);
     }
 
     private void Navigation_OnNoPathFound()
@@ -375,7 +374,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
             if (!hasTarget)
             {
-                LogWarn($"No target found by cursor({CursorType.Vendor.ToStringF()}, {CursorType.Repair.ToStringF()}, {CursorType.Innkeeper.ToStringF()})!");
+                LogWarn($"No target found by cursor({CursorType.Vendor.ToString()}, {CursorType.Repair.ToString()}, {CursorType.Innkeeper.ToString()})!");
             }
         }
 
@@ -499,12 +498,12 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             {
                 if (gossipReader.Gossips.TryGetValue(Gossip.Vendor, out int orderNum))
                 {
-                    Log($"Picked {orderNum}th for {Gossip.Vendor.ToStringF()}");
+                    Log($"Picked {orderNum}th for {Gossip.Vendor.ToString()}");
                     execGameCommand.Run($"/run SelectGossipOption({orderNum})--");
                 }
                 else
                 {
-                    LogWarn($"Target({playerReader.TargetId}) has no {Gossip.Vendor.ToStringF()} option!");
+                    LogWarn($"Target({playerReader.TargetId}) has no {Gossip.Vendor.ToString()} option!");
                     return MerchantResult.TryNextNPC;
                 }
             }
@@ -593,8 +592,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
                 return false;
             }
 
-            if (logger.IsEnabled(LogLevel.Information))
-                LogFoundPotentialNPCByType(logger, searchCount, npcFlag.ToStringF());
+            LogFoundPotentialNPCByType(logger, searchCount, npcFlag);
             searchIndex = 0;
         }
         else
@@ -645,13 +643,13 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         EventId = 0300,
         Level = LogLevel.Information,
         Message = "Closest NPC found {type} {name} at {pos}")]
-    static partial void LogFoundCloesestNPCByType(ILogger logger, string name, string type, Vector3 pos);
+    static partial void LogFoundCloesestNPCByType(ILogger logger, string name, NpcFlags type, Vector3 pos);
 
     [LoggerMessage(
         EventId = 0301,
         Level = LogLevel.Information,
         Message = "Found {count} potential {type} NPC.")]
-    static partial void LogFoundPotentialNPCByType(ILogger logger, int count, string type);
+    static partial void LogFoundPotentialNPCByType(ILogger logger, int count, NpcFlags type);
 
 
     #endregion

@@ -88,12 +88,13 @@ public sealed partial class ConfigurableInput
 
         keyAction.SetClicked();
 
-        if (Log && keyAction.Log)
+        if (Log && keyAction.Log && logger.IsEnabled(LogLevel.Trace))
         {
+            string prefix = keyAction.Modifier.ToPrefix();
             if (keyAction.BaseAction)
-                LogBaseActionPressRandom(logger, keyAction.Name, keyAction.ConsoleKey, keyAction.Modifier.ToPrefix(), elapsedMs);
+                LogBaseActionPressRandom(logger, keyAction.Name, keyAction.ConsoleKey, prefix, elapsedMs);
             else
-                LogKeyActionPressRandom(logger, keyAction.Name, keyAction.ConsoleKey, keyAction.Modifier.ToPrefix(), elapsedMs);
+                LogKeyActionPressRandom(logger, keyAction.Name, keyAction.ConsoleKey, prefix, elapsedMs);
         }
 
         return elapsedMs;

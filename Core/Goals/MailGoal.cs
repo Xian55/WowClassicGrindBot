@@ -195,7 +195,7 @@ public sealed partial class MailGoal : GoapGoal, IGoapEventListener, IRouteProvi
         MailGossipState current = gossipReader.GetMailState();
         if (current != lastMailGossipState)
         {
-            LogMailStateTransition(logger, lastMailGossipState.ToStringF(), current.ToStringF());
+            LogMailStateTransition(logger, lastMailGossipState, current);
             lastMailGossipState = current;
         }
     }
@@ -491,7 +491,7 @@ public sealed partial class MailGoal : GoapGoal, IGoapEventListener, IRouteProvi
         EventId = 0401,
         Level = LogLevel.Information,
         Message = "[Gossip] {PreviousState} -> {CurrentState}")]
-    static partial void LogMailStateTransition(ILogger logger, string previousState, string currentState);
+    static partial void LogMailStateTransition(ILogger logger, MailGossipState previousState, MailGossipState currentState);
 
     #endregion
 }

@@ -204,7 +204,11 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
 
             e = wait.Until(MAX_TIME_TO_DETECT_CAST, CastStartedOrFailed, interact ? Empty : WhileNotCastingInteract);
 
-            LogCastStartedOrInterrupted(logger, e >= 0, playerReader.IsCasting(), e);
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                bool casting = playerReader.IsCasting();
+                LogCastStartedOrInterrupted(logger, e >= 0, casting, e);
+            }
             if (playerReader.LastUIError == UI_ERROR.ERR_REQUIRES_S)
             {
                 LogWarning("Missing Spell/Item/Skill Requirement!");
@@ -219,7 +223,10 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
 
                 wait.Fixed(delay);
                 if (logger.IsEnabled(LogLevel.Information))
-                    LogCastingState(logger, delay, playerReader.CastState.ToStringF(), playerReader.LastUIError.ToStringF(), playerReader.IsCasting());
+                {
+                    bool casting = playerReader.IsCasting();
+                    LogCastingState(logger, delay, playerReader.CastState, playerReader.LastUIError, casting);
+                }
                 attempts++;
 
                 ClearTargetIfExists();
@@ -255,8 +262,7 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
                     return;
                 }
 
-                if (logger.IsEnabled(LogLevel.Warning))
-                    LogWarnGatherFailed(logger, playerReader.CastState.ToStringF(), attempts);
+                LogWarnGatherFailed(logger, playerReader.CastState, attempts);
                 wait.Fixed(Loot.LOOTFRAME_AUTOLOOT_DELAY_MS);
 
                 attempts++;
@@ -468,7 +474,7 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
         EventId = 0145,
         Level = LogLevel.Information,
         Message = "Wait {delay}ms and try again: {castState} | {uiError} | casting: {casting}")]
-    static partial void LogCastingState(ILogger logger, int delay, string castState, string uiError, bool casting);
+    static partial void LogCastingState(ILogger logger, int delay, UI_ERROR castState, UI_ERROR uiError, bool casting);
 
     [LoggerMessage(
         EventId = 0146,
@@ -480,7 +486,7 @@ public sealed partial class SkinningGoal : GoapGoal, IGoapEventListener, IDispos
         EventId = 0147,
         Level = LogLevel.Warning,
         Message = "Gathering Failed! {castState} attempts: {attempts}")]
-    static partial void LogWarnGatherFailed(ILogger logger, string castState, int attempts);
+    static partial void LogWarnGatherFailed(ILogger logger, UI_ERROR castState, int attempts);
 
     [LoggerMessage(
         EventId = 0148,

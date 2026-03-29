@@ -66,7 +66,10 @@ public sealed partial class KeyBindingsReader : IReader
                     KeyReader.GameBindings[bindingId] = newBinding;
                     changed = true;
                     if (logger.IsEnabled(LogLevel.Trace))
-                        LogBindingReceived(logger, bindingId.ToStringF(), decoded.Value.mod1.ToPrefix(), decoded.Value.key1);
+                    {
+                        string prefix = decoded.Value.mod1.ToPrefix();
+                        LogBindingReceived(logger, bindingId, prefix, decoded.Value.key1);
+                    }
                 }
             }
             else if (bindings.Remove(bindingId))
@@ -74,8 +77,7 @@ public sealed partial class KeyBindingsReader : IReader
                 // Key was unbound
                 KeyReader.GameBindings.Remove(bindingId);
                 changed = true;
-                if (logger.IsEnabled(LogLevel.Trace))
-                    LogBindingRemoved(logger, bindingId.ToStringF());
+                LogBindingRemoved(logger, bindingId);
             }
 
             if (decoded.Value.key2 != ConsoleKey.NoName)
@@ -90,7 +92,10 @@ public sealed partial class KeyBindingsReader : IReader
                     KeyReader.GameBindingsSecondary[bindingId] = newBinding;
                     changed = true;
                     if (logger.IsEnabled(LogLevel.Trace))
-                        LogSecondaryBindingReceived(logger, bindingId.ToStringF(), decoded.Value.mod2.ToPrefix(), decoded.Value.key2);
+                    {
+                        string prefix = decoded.Value.mod2.ToPrefix();
+                        LogSecondaryBindingReceived(logger, bindingId, prefix, decoded.Value.key2);
+                    }
                 }
             }
             else if (secondaryBindings.Remove(bindingId))
@@ -219,7 +224,7 @@ public sealed partial class KeyBindingsReader : IReader
         EventId = 1,
         Level = LogLevel.Trace,
         Message = "Binding received: {bindingId} -> {modifierPrefix}{key}")]
-    static partial void LogBindingReceived(ILogger logger, string bindingId, string modifierPrefix, ConsoleKey key);
+    static partial void LogBindingReceived(ILogger logger, BindingID bindingId, string modifierPrefix, ConsoleKey key);
 
     [LoggerMessage(
         EventId = 2,
@@ -231,13 +236,13 @@ public sealed partial class KeyBindingsReader : IReader
         EventId = 3,
         Level = LogLevel.Trace,
         Message = "Secondary binding received: {bindingId} -> {modifierPrefix}{key}")]
-    static partial void LogSecondaryBindingReceived(ILogger logger, string bindingId, string modifierPrefix, ConsoleKey key);
+    static partial void LogSecondaryBindingReceived(ILogger logger, BindingID bindingId, string modifierPrefix, ConsoleKey key);
 
     [LoggerMessage(
         EventId = 4,
         Level = LogLevel.Trace,
         Message = "Binding removed: {bindingId}")]
-    static partial void LogBindingRemoved(ILogger logger, string bindingId);
+    static partial void LogBindingRemoved(ILogger logger, BindingID bindingId);
 
     #endregion
 }
