@@ -206,10 +206,18 @@ end
 
 -- Populates the binding queue with current in-game bindings (initial load)
 function DataToColor:InitBindingQueue()
+    local count = 0
     for bindingId, index in pairs(BindingIndex) do
         local encoded = EncodeBinding(bindingId)
         bindingCache[bindingId] = encoded
+        if encoded > 0 then
+            count = count + 1
+        end
+    end
 
+    DataToColor.bindingQueue:push(DataToColor.QUEUE_COUNT_MARKER + count)
+    for bindingId, _ in pairs(bindingCache) do
+        local encoded = bindingCache[bindingId]
         if encoded > 0 then
             DataToColor.bindingQueue:push(encoded)
         end

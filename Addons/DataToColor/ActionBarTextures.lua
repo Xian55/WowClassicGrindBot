@@ -89,13 +89,21 @@ end
 
 -- Populates the texture queue with current action bar textures (initial load)
 function DataToColor:InitActionBarTextureQueue()
+    local count = 0
     for index, slot in pairs(IndexToSlot) do
         local encoded = EncodeTexture(slot)
         local textureId = encoded % TEXTURE_MULTIPLIER
         textureCache[slot] = textureId
-
         if textureId > 0 then
-            DataToColor.actionBarTextureQueue:push(encoded)
+            count = count + 1
+        end
+    end
+
+    DataToColor.actionBarTextureQueue:push(DataToColor.QUEUE_COUNT_MARKER + count)
+    for index, slot in pairs(IndexToSlot) do
+        local textureId = textureCache[slot] or 0
+        if textureId > 0 then
+            DataToColor.actionBarTextureQueue:push(EncodeTexture(slot))
         end
     end
 end

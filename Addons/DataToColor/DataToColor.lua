@@ -179,6 +179,13 @@ DataToColor.DATA_CONFIG = {
 local FRAME_CHANGE_RATE = 5
 local initPhase = 2 * FRAME_CHANGE_RATE
 
+-- Queue count header marker (must match AddonTicks.QUEUE_COUNT_MARKER in C#)
+-- First item in a queue batch encodes QUEUE_COUNT_MARKER + expectedCount
+-- Must be above max possible queue data value (texture max = 16,149,999)
+-- Exposed on DataToColor table for access from other addon files
+local QUEUE_COUNT_MARKER = 16777000
+DataToColor.QUEUE_COUNT_MARKER = QUEUE_COUNT_MARKER
+
 -- How often item frames change
 local ITEM_ITERATION_FRAME_CHANGE_RATE = FRAME_CHANGE_RATE
 -- How often the actionbar frames change
@@ -738,6 +745,11 @@ function DataToColor:PopulateSpellBookInfo()
 end
 
 function DataToColor:InitSpellBookQueue()
+    local count = 0
+    for _ in pairs(DataToColor.S.playerSpellBookIdHighest) do
+        count = count + 1
+    end
+    DataToColor.spellBookQueue:push(QUEUE_COUNT_MARKER + count)
     for _, id in pairs(DataToColor.S.playerSpellBookIdHighest) do
         DataToColor.spellBookQueue:push(id)
     end

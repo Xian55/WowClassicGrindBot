@@ -15,8 +15,14 @@ public sealed class SpellBookReader : IReader
     private readonly HashSet<string> spellNames = new(StringComparer.OrdinalIgnoreCase);
     private int[] spellIdsSnapshot = [];
 
+    private int expectedCount = -1;
+    private int receivedCount;
+
     public SpellDB SpellDB { get; }
     public int Count => spells.Count;
+    public int ExpectedCount => expectedCount;
+    public int ReceivedCount => receivedCount;
+    public bool IsInitialized => expectedCount >= 0 && receivedCount >= expectedCount;
     public int Hash { get; private set; }
     public int[] SpellIds => spellIdsSnapshot;
 
@@ -33,14 +39,23 @@ public sealed class SpellBookReader : IReader
         int spellId = reader.GetInt(cSpellId);
         if (spellId == 0) return;
 
-        if (spells.Add(spellId))
+        if (spellId >= AddonTicks.QUEUE_COUNT_MARKER)
         {
-            Hash++;
-            spellIdsSnapshot = [.. spells];
-            if (TryGetValue(spellId, out Spell spell))
-            {
-                spellNames.Add(spell.Name);
-            }
+            expectedCount = spellId - AddonTicks.QUEUE_COUNT_MARKER;
+            receivedCount = 0;
+            return;
+        }
+
+        receivedCount++;
+
+        if (!spells.Add(spellId))
+            return;
+
+        Hash++;
+        spellIdsSnapshot = [.. spells];
+        if (TryGetValue(spellId, out Spell spell))
+        {
+            spellNames.Add(spell.Name);
         }
     }
 
@@ -49,6 +64,8 @@ public sealed class SpellBookReader : IReader
         spells.Clear();
         spellNames.Clear();
         spellIdsSnapshot = [];
+        expectedCount = -1;
+        receivedCount = 0;
         Hash++;
     }
 
