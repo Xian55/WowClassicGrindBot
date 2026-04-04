@@ -42,6 +42,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
     private const int MAX_TIME_TO_REACH_MELEE = 10000;
     private const int TIMEOUT = 5000;
+    private const int MAX_SELL_NOTHING_RETRIES = 2;
 
     private readonly FrozenDictionary<NpcFlags, SearchValues<string>> npcSearchPatterns;
 
@@ -72,6 +73,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
     private NpcSearchResult[] searchResult = [];
     private int searchCount;
     private int searchIndex;
+    private int sellNothingCount;
 
     #region IRouteProvider
 
@@ -519,10 +521,19 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             e = wait.Until(TIMEOUT, gossipReader.MerchantWindowSelling);
             if (e < 0)
             {
+                sellNothingCount++;
+                if (sellNothingCount >= MAX_SELL_NOTHING_RETRIES)
+                {
+                    LogWarn($"Merchant sell nothing {sellNothingCount} times! Skip to next NPC.");
+                    sellNothingCount = 0;
+                    return MerchantResult.TryNextNPC;
+                }
+
                 Log($"Merchant sell nothing! {e}ms");
                 goto exit;
             }
 
+            sellNothingCount = 0;
             Log($"Merchant sell grey items started after {e}ms");
 
             e = wait.Until(TIMEOUT, gossipReader.MerchantWindowSellingFinished);
