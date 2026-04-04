@@ -1,4 +1,4 @@
-﻿using Core.GOAP;
+using Core.GOAP;
 
 namespace Core.Goals;
 
@@ -9,16 +9,18 @@ public sealed class TargetPetTargetGoal : GoapGoal
     private readonly ConfigurableInput input;
     private readonly PlayerReader playerReader;
     private readonly AddonBits bits;
+    private readonly CombatLog combatLog;
     private readonly Wait wait;
 
     public TargetPetTargetGoal(ConfigurableInput input,
         PlayerReader playerReader, AddonBits bits,
-        Wait wait)
+        CombatLog combatLog, Wait wait)
         : base(nameof(TargetPetTargetGoal))
     {
         this.input = input;
         this.playerReader = playerReader;
         this.bits = bits;
+        this.combatLog = combatLog;
         this.wait = wait;
 
         AddPrecondition(GoapKey.targetisalive, false);
@@ -26,10 +28,6 @@ public sealed class TargetPetTargetGoal : GoapGoal
         if (input.KeyboardOnly)
         {
             AddPrecondition(GoapKey.consumablecorpsenearby, false);
-        }
-        else
-        {
-            AddPrecondition(GoapKey.damagetakenordone, true);
         }
 
         AddPrecondition(GoapKey.pethastarget, true);
@@ -39,12 +37,16 @@ public sealed class TargetPetTargetGoal : GoapGoal
 
     public override bool CanRun()
     {
-        return playerReader.PetAlive() && bits.Pet_Defensive() && bits.PetTarget_Alive();
+        return playerReader.PetAlive() &&
+            bits.Pet_Defensive() &&
+            bits.PetTarget_Alive() &&
+            !combatLog.RecentlyDead.Contains(playerReader.PetTargetGuid);
     }
 
     public override void Update()
     {
         input.PressTargetPet();
+        wait.Update();
         input.PressTargetOfTarget();
         wait.Update();
 

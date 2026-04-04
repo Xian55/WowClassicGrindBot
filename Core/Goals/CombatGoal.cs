@@ -135,6 +135,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
 
         if (classConfig.AutoPetAttack &&
             bits.Pet() &&
+            bits.Target_Alive() &&
             (!playerReader.PetTarget() || playerReader.PetTargetGuid != playerReader.TargetGuid) &&
             !input.PetAttack.OnCooldown())
         {
@@ -202,6 +203,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             ResetCooldowns();
 
             input.PressTargetPet();
+            wait.Update();
             input.PressTargetOfTarget();
             wait.Update();
 

@@ -21,6 +21,7 @@ public sealed class CombatLog : IReader
     public HashSet<int> EnemySummons { get; } = [];
 
     public HashSet<int> ToPull { get; } = [];
+    public HashSet<int> RecentlyDead { get; } = [];
 
     public int DamageTakenCount() => DamageTaken.Count;
     public int DamageDoneCount() => DamageDone.Count;
@@ -59,6 +60,7 @@ public sealed class CombatLog : IReader
         DamageDone.Clear();
         DamageTaken.Clear();
         EnemySummons.Clear();
+        RecentlyDead.Clear();
 
         DamageDoneGuid.Reset();
         DamageTakenGuid.Reset();
@@ -115,6 +117,7 @@ public sealed class CombatLog : IReader
             DamageDone.Remove(deadGuid);
             DamageTaken.Remove(deadGuid);
             ToPull.Remove(deadGuid);
+            RecentlyDead.Add(deadGuid);
 
             if (deadGuid == PLAYER_DEATH_EVENT)
             {
@@ -133,6 +136,7 @@ public sealed class CombatLog : IReader
             DamageDone.Clear();
             EnemySummons.Clear();
             ToPull.Clear();
+            RecentlyDead.Clear();
         }
 
         wasInCombat = combat;
