@@ -502,8 +502,12 @@ end
 
 -- Auto-setup bindings if needed (called deferred after login)
 function DataToColor:AutoSetupBindingsIfNeeded()
-  -- Skip if in combat - user can run /dcactions manually later
+  -- Defer if in combat - retry automatically when combat ends
   if InCombatLockdown and InCombatLockdown() then
+    DataToColor:Print("Bindings deferred - in combat. Will retry after combat ends.")
+    BindPadCore.WaitForEvent("PLAYER_REGEN_ENABLED", function()
+      DataToColor:AutoSetupBindingsIfNeeded()
+    end)
     return
   end
 
