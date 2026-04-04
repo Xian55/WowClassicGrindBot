@@ -2405,11 +2405,13 @@ If a particular npc is required then this requirement can be used.
 
 Formula: `npcID:[intVariableKey/Numeric integer value]`
 
+When the variable is an array (e.g. `[6195, 6196, 6197]`), returns true if the target matches ANY NPC ID in the array.
+
 e.g.
 
 * `"Requirement": "!npcID:6195"` - target is not [6195](https://tbc.wowhead.com/npc=6195)
 * `"Requirement": "npcID:6195"` - target is [6195](https://tbc.wowhead.com/npc=6195)
-* `"Requirement": "npcID:MyAwesomeIntVariable"`
+* `"Requirement": "npcID:MyAwesomeIntVariable"` - single or array IntVariable
 
 ---
 ### **Bag requirements**
@@ -2420,6 +2422,8 @@ Useful to determine when to create warlock Healthstone or soul shards.
 
 Formula: `BagItem:[intVariableKey/itemid]:[count/IntVariablesKey]`
 
+When the variable is an array (e.g. `[5512, 5511, 5509]`), the item counts across all IDs are summed and compared to the required count. This is useful for items with multiple ranks like Healthstones.
+
 e.g.
 
 * `"Requirement": "BagItem:5175"` - Must have a [Earth Totem](https://tbc.wowhead.com/item=5175) in bag
@@ -2427,6 +2431,7 @@ e.g.
 * `"Requirement": "!BagItem:19007:1"` - Must not have a [Lesser Healthstone](https://tbc.wowhead.com/item=19007) in bag
 * `"Requirement": "!BagItem:6265:3"` - Must not have [3x Soulshard](https://tbc.wowhead.com/item=6265) in bag
 * `"Requirement": "!BagItem:MyAwesomeIntVariable:69"`
+* `"Requirement": "BagItem:ITEM_HEALTHSTONE_ALL:1"` - Using array IntVariable, true if ANY item in the array is in bag
 
 ---
 ### **Form requirements**
@@ -2617,6 +2622,7 @@ It has the following formulas:
 
 * `Spell:[name]`. The `name` only works with the English client name.
 * `Spell:[id]`
+* `Spell:[IntVariablesKey]` - Resolves to a single spell ID or an array of IDs. When the variable is an array (e.g. `[100, 6178, 11578]`), returns true if ANY spell in the array is known.
 
 e.g.
 
@@ -2624,6 +2630,7 @@ e.g.
 * `"Requirement": "Spell:Demon Skin"` - Must have known the given `name`
 * `"Requirement": "!Spell:702"` - Must not have known the given [`id=702`](https://tbc.wowhead.com/item=702)
 * `"Requirement": "!Spell:Curse of Weakness"` - Must not have known the given `name`
+* `"Requirement": "Spell:SPELL_CHARGE"` - Using IntVariable (single or array)
 
 ---
 ### **Talent requirements**
@@ -2651,7 +2658,8 @@ It is important, the addon keeps track of the **icon_id**! Not **spell_id**
 e.g.
 ```json
 "IntVariables": {
-    "Buff_Horn of Winter": 134228
+    "Buff_Horn of Winter": 134228,
+    "Item_Healthstone_All": [19005, 19004, 5512, 19006, 19007, 5511, 19009, 5509, 19008, 5510, 19011, 19010, 19012, 9421, 19013],
 },
 ```
 

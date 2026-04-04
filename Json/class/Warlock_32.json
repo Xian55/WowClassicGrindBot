@@ -1,0 +1,256 @@
+{
+  "ClassName": "Warlock",
+  "Loot": true,
+  "UseMount": false,
+  "Mount": {
+    "Key": "N1"
+  },
+  "NPCMaxLevels_Below": 7,
+  "NPCMaxLevels_Above": 3,
+  "Blacklist": [
+    "Mo'grosh Ogre",
+    "Mo'grosh Brute",
+    "Mo'grosh Enforcer",
+    "Mo'grosh Shaman",
+    "Mo'grosh Mystic",
+    "Gradok",
+    "Haren Swifthoof",
+    "Thragomm",
+    "Mosshide Gnoll",
+    "Mosshide Mongrel",
+    "Mosshide Fenrunner",
+    "Mosshide Brute",
+    "Mosshide Trapper",
+    "Mosshide Alpha"
+  ],
+  "PathFilename": "\\_pack\\30-40\\Arathi Highlands\\32-33 Quiet.json",
+  "PathThereAndBack": false,
+  "PathReduceSteps": true,
+  "AutoPetAttack": true,
+  "IntVariables": {
+    "Item_Soul_Shard": 6265,
+    "Items_Healthstone": [19005, 19004, 5512, 19006, 19007, 5511, 19009, 5509, 19008, 5510, 19011, 19010, 19012, 9421, 19013],
+    "MIN_SOUL_SHARDS": 2,
+    "DOT_MIN_HEALTH%": 40,
+    "LIFE_TAP_HP%": 70,
+    "LIFE_TAP_MANA%": 50,
+    "WAND_MANA%": 30,
+    "DRAIN_SOUL_HP%": 15,
+    "DRAIN_LIFE_HP%": 65,
+    "HEALTHSTONE_HP%": 40
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        // let the pet pull
+        "Name": "Approach",
+        "Requirements": [
+          "Has Pet",
+          "MinRange > 15"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Use Healthstone",
+        "Key": "F7",
+        "Requirements": [
+          "Health% < HEALTHSTONE_HP%",
+          "BagItem:Items_Healthstone"
+        ],
+        "Cooldown": 120000,
+        "InCombat": "true"
+      },
+      {
+        "Name": "Drain Life",
+        "Key": "3",
+        "HasCastBar": true,
+        "InCombat": "true",
+        "Requirements": [
+          "Health% < DRAIN_LIFE_HP%",
+          "TargetHealth% > 65"
+        ]
+      },
+      {
+        "Name": "Drain Soul",
+        "Key": "8",
+        "HasCastBar": true,
+        "Requirements": [
+          "TargetHealth% < DRAIN_SOUL_HP%",
+          "!BagItem:Item_Soul_Shard:MIN_SOUL_SHARDS",
+          "TargetYieldXP"
+        ],
+        "AfterCastWaitCastbar": true
+      },
+      {
+        "Name": "Immolate",
+        "Key": "1",
+        "HasCastBar": true,
+        "AfterCastAuraExpected": true,
+        "ResetOnNewTarget": true,
+        "Cooldown": 2000,
+        "Requirements": [
+          "!Immolate",
+          "TargetHealth% > DOT_MIN_HEALTH%",
+          "Mana% > 30"
+        ]
+      },
+      {
+        "Name": "Curse of Agony",
+        "Key": "5",
+        "AfterCastAuraExpected": true,
+        "ResetOnNewTarget": true,
+        "Cooldown": 2000,
+        "Requirements": [
+          "!Curse of Agony",
+          "TargetHealth% > DOT_MIN_HEALTH%",
+          "Mana% > 30"
+        ]
+      },
+      {
+        "Name": "Corruption",
+        "Key": "4",
+        "AfterCastAuraExpected": true,
+        "ResetOnNewTarget": true,
+        "Cooldown": 2000,
+        "Requirements": [
+          "!Corruption",
+          "TargetHealth% > DOT_MIN_HEALTH%",
+          "Mana% > 30"
+        ]
+      },
+      {
+        "Name": "Siphon Life",
+        "Key": "F4",
+        "AfterCastAuraExpected": true,
+        "ResetOnNewTarget": true,
+        "Cooldown": 2000,
+        "Requirements": [
+          "!Siphon Life",
+          "TargetHealth% > DOT_MIN_HEALTH%",
+          "Mana% > 30"
+        ]
+      },
+      {
+        "Name": "Shadow Bolt",
+        "Key": "2",
+        "HasCastBar": true,
+        "ResetOnNewTarget": true,
+        "Requirements": [
+          "(Talent:Nightfall && Shadow Trance) || (!TargetsMe && Mana% > WAND_MANA% && TargetHealth% > 70)"
+        ]
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting",
+          "SpellInRange:1"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "!Casting",
+          "!HasRangedWeapon"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Casting",
+          "!Shooting",
+          "AutoAttacking"
+        ]
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < 50"
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < 40"
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Demon Skin",
+        "Key": "F2",
+        "Requirement": "!Demon Skin"
+      },
+      {
+        "Name": "Summon Succubus",
+        "Key": "7",
+        "HasCastBar": true,
+        "Requirements": [
+          "!Has Pet",
+          "BagItem:Item_Soul_Shard"
+        ],
+        "AfterCastWaitCastbar": true
+      },
+      {
+        "Name": "Health Funnel",
+        "Key": "F6",
+        "HasCastBar": true,
+        "Requirements": [
+          "PetHealth% < 35",
+          "Health% > 50",
+          "Has Pet"
+        ],
+        "AfterCastWaitCastbar": true
+      },
+      {
+        "Name": "Life Tap",
+        "Key": "6",
+        "Charge": 2,
+        "Requirements": [
+          "Health% > LIFE_TAP_HP%",
+          "Mana% < LIFE_TAP_MANA%"
+        ]
+      },
+      {
+        "Name": "Create Healthstone",
+        "Key": "9",
+        "HasCastBar": true,
+        "Requirements": [
+          "BagItem:Item_Soul_Shard",
+          "!BagItem:Items_Healthstone"
+        ],
+        "AfterCastWaitCastbar": true,
+        "AfterCastWaitBag": true
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Name": "Repair",
+        "Key": "C",
+        "Requirement": "Durability% < 35",
+        "UseMount": true
+      },
+      {
+        "Name": "Sell",
+        "Key": "C",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ],
+        "UseMount": true,
+        "Cost": 6
+      }
+    ]
+  }
+}
