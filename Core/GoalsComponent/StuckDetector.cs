@@ -1,4 +1,4 @@
-﻿using Core.Goals;
+using Core.Goals;
 
 using Microsoft.Extensions.Logging;
 
@@ -11,16 +11,11 @@ using System.Threading;
 
 using static System.Diagnostics.Stopwatch;
 
-#pragma warning disable 162
-
 namespace Core;
 
-public sealed class StuckDetector
+public sealed partial class StuckDetector
 {
-    private const bool debug = false;
-
-    private const float MIN_RANGE_DIFF = 2f;
-    private const float MIN_DISTANCE = 0.2f;
+    private const float MIN_RANGE_DIFF = 1f;
     private const float MAX_RANGE = 999999;
     private const double UNSTUCK_AFTER_MS = 2000;
     private const double ACTION_STUCK_TIME = 3000;
@@ -38,9 +33,12 @@ public sealed class StuckDetector
     private float prevDistance = MAX_RANGE;
     private long startTime;
     private long attemptTime;
+    private int attemptCount;
 
     public double ActionDurationMs => GetElapsedTime(startTime).TotalMilliseconds;
     private double UnstuckMs => GetElapsedTime(attemptTime).TotalMilliseconds;
+
+    public bool IsMoving => bits.Moving();
 
     public StuckDetector(ILogger<StuckDetector> logger, ConfigurableInput input,
         AddonBits bits, PlayerReader playerReader, PlayerDirection playerDirection,
@@ -72,6 +70,7 @@ public sealed class StuckDetector
         startTime = GetTimestamp();
 
         prevDistance = MAX_RANGE;
+        attemptCount = 0;
     }
 
     public void Update(CancellationToken token = default)
@@ -79,64 +78,94 @@ public sealed class StuckDetector
         if (bits.Falling())
             return;
 
-        if (debug && logger.IsEnabled(LogLevel.Debug))
-            logger.LogDebug("Stuck for {ActionDurationMs}ms, last tried to unstick {UnstuckMs}ms ago.", ActionDurationMs, UnstuckMs);
-
-        if (UnstuckMs > UNSTUCK_AFTER_MS)
-        {
-            stopMoving.Stop();
-
-            // Turn
-            int turnDuration = Random.Shared.Next(350);
-            if (logger.IsEnabled(LogLevel.Information))
-                logger.LogInformation("Unstuck by turning for {TurnDuration}ms", turnDuration);
-            input.TurnRandomDir(turnDuration, token);
-
-            // Move
-            ConsoleKey moveKey = Random.Shared.Next(100) >= 25 ? input.ForwardKey : input.BackwardKey;
-            int moveDuration = Random.Shared.Next(750) + 1000;
-            if (logger.IsEnabled(LogLevel.Information))
-                logger.LogInformation("Unstuck by moving for {MoveDuration}ms", moveDuration);
-            input.PressFixed(moveKey, moveDuration, token);
-
-            input.PressJump();
-
-            Vector3 targetM = WorldMapAreaDB.ToMap_FlipXY(worldTarget, playerReader.WorldMapArea);
-            float heading = DirectionCalculator.CalculateMapHeading(playerReader.MapPos, targetM);
-            playerDirection.SetDirection(heading, targetM, PlayerDirection.DefaultIgnoreDistance, token);
-
-            attemptTime = GetTimestamp();
-        }
-        else
+        if (UnstuckMs < UNSTUCK_AFTER_MS)
         {
             if (!bits.Flying())
-                input.PressJump();
+                input.PressJump(token);
+
+            return;
         }
+
+        attemptCount++;
+        attemptTime = GetTimestamp();
+
+        if (attemptCount == 1)
+        {
+            LogUnstuckJump(logger, attemptCount);
+
+            if (!bits.Flying())
+                input.PressJump(token);
+
+            return;
+        }
+
+        if (attemptCount == 2)
+        {
+            LogUnstuckNudge(logger, attemptCount);
+
+            if (!bits.Flying())
+                input.PressJump(token);
+
+            int nudgeDuration = Random.Shared.Next(200) + 200;
+            input.PressFixed(input.ForwardKey, nudgeDuration, token);
+
+            return;
+        }
+
+        // Aggressive: stop, turn, move forward, jump, reorient
+        stopMoving.Stop();
+
+        int turnDuration = Random.Shared.Next(150) + 100;
+        LogUnstuckTurn(logger, attemptCount, turnDuration);
+        input.TurnRandomDir(turnDuration, token);
+
+        int moveDuration = Random.Shared.Next(500) + 500;
+        input.PressFixed(input.ForwardKey, moveDuration, token);
+
+        if (!bits.Flying())
+            input.PressJump(token);
+
+        Vector3 targetM = WorldMapAreaDB.ToMap_FlipXY(worldTarget, playerReader.WorldMapArea);
+        float heading = DirectionCalculator.CalculateMapHeading(playerReader.MapPos, targetM);
+        playerDirection.SetDirection(heading, targetM, PlayerDirection.DefaultIgnoreDistance, token);
     }
 
     public bool IsGettingCloser()
     {
         float distance = playerReader.WorldPos.WorldDistanceXYTo(worldTarget);
-        if (distance <= prevDistance - MIN_RANGE_DIFF)
+        if (distance < prevDistance - MIN_RANGE_DIFF)
         {
             Reset();
             prevDistance = distance;
             return true;
         }
 
-        return ActionDurationMs < ACTION_STUCK_TIME;
-    }
-
-    public bool IsMoving()
-    {
-        float distance = playerReader.WorldPos.WorldDistanceXYTo(worldTarget);
-        if (MathF.Abs(distance - prevDistance) > MIN_DISTANCE)
-        {
-            Reset();
-            prevDistance = distance;
+        // Grace period only if client confirms movement
+        if (ActionDurationMs < ACTION_STUCK_TIME && bits.Moving())
             return true;
-        }
 
-        return ActionDurationMs < ACTION_STUCK_TIME;
+        return false;
     }
+
+    #region Logging
+
+    [LoggerMessage(
+        EventId = 0050,
+        Level = LogLevel.Information,
+        Message = "Unstuck attempt {Attempt}: jump")]
+    static partial void LogUnstuckJump(ILogger logger, int attempt);
+
+    [LoggerMessage(
+        EventId = 0051,
+        Level = LogLevel.Information,
+        Message = "Unstuck attempt {Attempt}: jump + nudge forward")]
+    static partial void LogUnstuckNudge(ILogger logger, int attempt);
+
+    [LoggerMessage(
+        EventId = 0052,
+        Level = LogLevel.Information,
+        Message = "Unstuck attempt {Attempt}: turning {TurnDuration}ms")]
+    static partial void LogUnstuckTurn(ILogger logger, int attempt, int turnDuration);
+
+    #endregion
 }

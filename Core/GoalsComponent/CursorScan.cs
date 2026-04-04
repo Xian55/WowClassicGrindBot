@@ -50,13 +50,10 @@ public sealed partial class CursorScan : IDisposable
     {
         classifier.Classify(out CursorType current, out _);
 
-        for (int i = 0; i < targetCursors.Length; i++)
+        if (targetCursors.Contains(current))
         {
-            if (current == targetCursors[i])
-            {
-                foundCursor = current;
-                return true;
-            }
+            foundCursor = current;
+            return true;
         }
 
         foundCursor = CursorType.None;

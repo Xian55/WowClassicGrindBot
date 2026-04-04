@@ -74,17 +74,11 @@ public sealed partial class ConfigurableInput
 
     public int PressRandom(KeyAction keyAction, CancellationToken token = default)
     {
-        int elapsedMs;
+        int elapsedMs = keyAction.HasModifier
+            ? input.PressRandomWithModifier(keyAction.ConsoleKey, keyAction.Modifier, keyAction.PressDuration, token)
+            : input.PressRandom(keyAction.ConsoleKey, keyAction.PressDuration, token);
 
         // Use modifier-aware pressing if the keyAction has a modifier
-        if (keyAction.HasModifier)
-        {
-            elapsedMs = input.PressRandomWithModifier(keyAction.ConsoleKey, keyAction.Modifier, keyAction.PressDuration, token);
-        }
-        else
-        {
-            elapsedMs = input.PressRandom(keyAction.ConsoleKey, keyAction.PressDuration, token);
-        }
 
         keyAction.SetClicked();
 

@@ -108,14 +108,12 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             mountHandler.Dismount();
         }
 
-        if (Keys.Length != 0 && !input.StopAttack.OnCooldown())
+        if (Keys.Length != 0 && !input.StopAttack.OnCooldown() && !playerReader.IsInMeleeRange())
         {
-            Log("Stop auto interact!");
             input.PressStopAttack();
-            wait.Update();
-            stopMoving.StopForward();
-            wait.Update(playerReader.DoubleNetworkLatency);
-            wait.Update();
+            stopMoving.Stop();
+            float stopElapsedMs = wait.Until(CastingHandler.SPELL_QUEUE_HALF, bits.NotMoving);
+            Log($"Stop auto interact {stopElapsedMs}ms!");
         }
 
         if (requiresNpcNameFinder)
@@ -239,7 +237,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             wait.Update();
         }
 
-        if (!stuckDetector.IsMoving())
+        if (!stuckDetector.IsMoving)
             stuckDetector.Update();
     }
 
