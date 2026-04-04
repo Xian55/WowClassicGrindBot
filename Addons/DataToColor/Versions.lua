@@ -259,6 +259,27 @@ DataToColor.ContainerIDToInventoryID = ContainerIDToInventoryID or C_Container.C
 DataToColor.GetGossipOptions = GetGossipOptions or C_GossipInfo.GetOptions
 
 --------------------------------------------------------------------------------
+-- TALENT POINTS API COMPATIBILITY
+-- Legacy Cataclysm 4.3.4 lacks UnitCharacterPoints
+-- Polyfill uses GetUnspentTalentPoints which exists in that client
+--------------------------------------------------------------------------------
+
+if not UnitCharacterPoints then
+    UnitCharacterPoints = function(unit)
+        if not UnitExists(unit) then
+            return 0
+        end
+        if UnitIsUnit(unit, "pet") then
+            return GetUnspentTalentPoints(false, true)
+        elseif UnitIsUnit(unit, "player") then
+            return GetUnspentTalentPoints(false)
+        else
+            return 0
+        end
+    end
+end
+
+--------------------------------------------------------------------------------
 -- FRIEND LIST API COMPATIBILITY
 -- Legacy/older clients use GetNumFriends/GetFriendInfo
 -- Newer clients use C_FriendList namespace

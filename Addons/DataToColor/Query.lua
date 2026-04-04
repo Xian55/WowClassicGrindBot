@@ -72,18 +72,7 @@ local UnitIsDead = UnitIsDead
 local UnitIsPlayer = UnitIsPlayer
 local UnitName = UnitName
 local UnitIsDeadOrGhost = UnitIsDeadOrGhost
-local UnitCharacterPoints = UnitCharacterPoints or function(unit)
-  if not UnitExists(unit) then
-    return 0
-  end
-  if UnitIsUnit(unit, "pet") then
-    return GetUnspentTalentPoints(false, true)
-  elseif UnitIsUnit(unit, "player") then
-    return GetUnspentTalentPoints(false)
-  else
-    return 0
-  end
-end
+local UnitCharacterPoints = UnitCharacterPoints
 local UnitPlayerControlled = UnitPlayerControlled
 local GetShapeshiftForm = GetShapeshiftForm
 local GetShapeshiftFormInfo = GetShapeshiftFormInfo
