@@ -284,10 +284,11 @@ public sealed partial class GoapAgent : IDisposable
             (B(dmgTaken || dmgDone) << (int)GoapKey.damagetakenordone) |
             (B(hasTarget && !b.Target_Dead()) << (int)GoapKey.targetisalive) |
 
-            (B((hasTarget &&
+            (B(((hasTarget &&
             playerReader.TargetHealthPercent() < 30) ||
             playerReader.TargetTarget is UnitsTarget.Me or
-                UnitsTarget.Pet or UnitsTarget.PartyOrPet) << (int)GoapKey.targettargetsus) |
+                UnitsTarget.Pet or UnitsTarget.PartyOrPet) &&
+                !combatLog.ToPull.Contains(playerReader.TargetGuid)) << (int)GoapKey.targettargetsus) |
 
             (B(playerCombat) << (int)GoapKey.incombat) |
             (B(playerReader.PetTarget() && !b.PetTarget_Dead()) << (int)GoapKey.pethastarget) |

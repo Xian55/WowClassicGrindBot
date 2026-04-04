@@ -206,10 +206,18 @@ end
 
 -- Populates the binding queue with current in-game bindings (initial load)
 function DataToColor:InitBindingQueue()
+    local count = 0
     for bindingId, index in pairs(BindingIndex) do
         local encoded = EncodeBinding(bindingId)
         bindingCache[bindingId] = encoded
+        if encoded > 0 then
+            count = count + 1
+        end
+    end
 
+    DataToColor.bindingQueue:push(DataToColor.QUEUE_COUNT_MARKER + count)
+    for bindingId, _ in pairs(bindingCache) do
+        local encoded = bindingCache[bindingId]
         if encoded > 0 then
             DataToColor.bindingQueue:push(encoded)
         end
@@ -502,8 +510,12 @@ end
 
 -- Auto-setup bindings if needed (called deferred after login)
 function DataToColor:AutoSetupBindingsIfNeeded()
-  -- Skip if in combat - user can run /dcactions manually later
+  -- Defer if in combat - retry automatically when combat ends
   if InCombatLockdown and InCombatLockdown() then
+    DataToColor:Print("Bindings deferred - in combat. Will retry after combat ends.")
+    BindPadCore.WaitForEvent("PLAYER_REGEN_ENABLED", function()
+      DataToColor:AutoSetupBindingsIfNeeded()
+    end)
     return
   end
 

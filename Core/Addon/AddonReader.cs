@@ -1,6 +1,7 @@
 using Core.Database;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 using SharedLib;
 
@@ -12,8 +13,9 @@ using static System.Diagnostics.Stopwatch;
 
 namespace Core;
 
-public sealed class AddonReader : IAddonReader
+public sealed partial class AddonReader : IAddonReader
 {
+    private readonly ILogger<AddonReader> logger;
     private readonly IAddonDataProvider reader;
 
     private readonly PlayerReader playerReader;
@@ -23,6 +25,13 @@ public sealed class AddonReader : IAddonReader
     private readonly TextReader textReader;
 
     private readonly ImmutableArray<IReader> readers;
+
+    private readonly SpellBookReader spellBookReader;
+    private readonly KeyBindingsReader keyBindingsReader;
+    private readonly ActionBarTextureReader textureReader;
+
+    private bool awaitingReinitialization;
+    private long reinitStartTime;
 
     public event Action? AddonDataChanged;
 
@@ -40,19 +49,27 @@ public sealed class AddonReader : IAddonReader
 
     public double AvgUpdateLatency { private set; get; }
 
-    public AddonReader(IAddonDataProvider reader,
+    public AddonReader(ILogger<AddonReader> logger,
+        IAddonDataProvider reader,
         PlayerReader playerReader, ManualResetEventSlim resetEvent,
         CreatureDB creatureDb,
         CombatLog combatLog,
         TextReader textReader,
+        SpellBookReader spellBookReader,
+        KeyBindingsReader keyBindingsReader,
+        ActionBarTextureReader textureReader,
         DataFrame[] frames,
         IServiceProvider sp)
     {
+        this.logger = logger;
         this.reader = reader;
         this.creatureDb = creatureDb;
         this.combatLog = combatLog;
         this.textReader = textReader;
         this.playerReader = playerReader;
+        this.spellBookReader = spellBookReader;
+        this.keyBindingsReader = keyBindingsReader;
+        this.textureReader = textureReader;
         DataReady = resetEvent;
 
         GlobalTime = new(frames.Length - 2);
@@ -106,6 +123,25 @@ public sealed class AddonReader : IAddonReader
                 : string.Empty;
         }
 
+        // After FullReset, wait for queue-based readers to reinitialize
+        // before signaling DataReady. This pauses the GOAP agent until
+        // spell book, bindings, and textures have been repopulated.
+        if (awaitingReinitialization)
+        {
+            if (spellBookReader.IsInitialized &&
+                keyBindingsReader.IsInitialized &&
+                textureReader.IsInitialized)
+            {
+                awaitingReinitialization = false;
+                float elapsed = (float)GetElapsedTime(reinitStartTime).TotalSeconds;
+                LogReinitComplete(logger, elapsed);
+            }
+            else
+            {
+                return;
+            }
+        }
+
         DataReady.Set();
     }
 
@@ -122,6 +158,10 @@ public sealed class AddonReader : IAddonReader
             span[i].Reset();
         }
 
+        awaitingReinitialization = true;
+        reinitStartTime = GetTimestamp();
+        LogFullReset(logger);
+
         SessionReset();
     }
 
@@ -129,4 +169,16 @@ public sealed class AddonReader : IAddonReader
     {
         AddonDataChanged?.Invoke();
     }
+
+    [LoggerMessage(
+        EventId = 100,
+        Level = LogLevel.Information,
+        Message = "FullReset: pausing bot until readers reinitialize")]
+    static partial void LogFullReset(ILogger logger);
+
+    [LoggerMessage(
+        EventId = 101,
+        Level = LogLevel.Information,
+        Message = "Readers reinitialized after {elapsedSec:F1}s, resuming bot")]
+    static partial void LogReinitComplete(ILogger logger, float elapsedSec);
 }

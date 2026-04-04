@@ -15,10 +15,13 @@ public sealed partial class KeyBindingsReader : IReader
     private readonly Dictionary<BindingID, (ConsoleKey Key, ModifierKey Modifier)> bindings = [];
     private readonly Dictionary<BindingID, (ConsoleKey Key, ModifierKey Modifier)> secondaryBindings = [];
 
-    private bool initialized;
+    private int expectedCount = -1;
+    private int receivedCount;
 
     public int Count => bindings.Count;
-    public bool IsInitialized => initialized;
+    public int ExpectedCount => expectedCount;
+    public int ReceivedCount => receivedCount;
+    public bool IsInitialized => expectedCount >= 0 && receivedCount >= expectedCount;
 
     public IReadOnlyDictionary<BindingID, (ConsoleKey Key, ModifierKey Modifier)> Bindings => bindings;
     public IReadOnlyDictionary<BindingID, (ConsoleKey Key, ModifierKey Modifier)> SecondaryBindings => secondaryBindings;
@@ -36,78 +39,74 @@ public sealed partial class KeyBindingsReader : IReader
     public void Update(IAddonDataProvider reader)
     {
         int encodedValue = reader.GetInt(BINDING_SLOT);
-        if (encodedValue == 0)
+        if (encodedValue == 0) return;
+
+        if (encodedValue >= AddonTicks.QUEUE_COUNT_MARKER)
         {
-            // Queue exhausted, mark as initialized if we received any bindings
-            if (bindings.Count > 0 && !initialized)
-            {
-                initialized = true;
-                LogBindingsInitialized(logger, bindings.Count);
-            }
+            expectedCount = encodedValue - AddonTicks.QUEUE_COUNT_MARKER;
+            receivedCount = 0;
             return;
         }
 
+        receivedCount++;
+
         var decoded = KeyReader.DecodeBinding(encodedValue);
-        if (decoded.HasValue)
+        if (!decoded.HasValue)
+            return;
+
+        bool changed = false;
+        var bindingId = decoded.Value.bindingId;
+
+        if (decoded.Value.key1 != ConsoleKey.NoName)
         {
-            bool changed = false;
-            var bindingId = decoded.Value.bindingId;
-
-            if (decoded.Value.key1 != ConsoleKey.NoName)
+            var newBinding = (decoded.Value.key1, decoded.Value.mod1);
+            if (!bindings.TryGetValue(bindingId, out var existingBinding) ||
+                existingBinding.Key != newBinding.key1 ||
+                existingBinding.Modifier != newBinding.mod1)
             {
-                var newBinding = (decoded.Value.key1, decoded.Value.mod1);
-                // Check if this is a new or changed binding
-                if (!bindings.TryGetValue(bindingId, out var existingBinding) ||
-                    existingBinding.Key != newBinding.key1 ||
-                    existingBinding.Modifier != newBinding.mod1)
+                bindings[bindingId] = newBinding;
+                KeyReader.GameBindings[bindingId] = newBinding;
+                changed = true;
+                if (logger.IsEnabled(LogLevel.Trace))
                 {
-                    bindings[bindingId] = newBinding;
-                    // Sync to KeyReader.GameBindings for key resolution
-                    KeyReader.GameBindings[bindingId] = newBinding;
-                    changed = true;
-                    if (logger.IsEnabled(LogLevel.Trace))
-                    {
-                        string prefix = decoded.Value.mod1.ToPrefix();
-                        LogBindingReceived(logger, bindingId, prefix, decoded.Value.key1);
-                    }
+                    string prefix = decoded.Value.mod1.ToPrefix();
+                    LogBindingReceived(logger, bindingId, prefix, decoded.Value.key1);
                 }
             }
-            else if (bindings.Remove(bindingId))
-            {
-                // Key was unbound
-                KeyReader.GameBindings.Remove(bindingId);
-                changed = true;
-                LogBindingRemoved(logger, bindingId);
-            }
+        }
+        else if (bindings.Remove(bindingId))
+        {
+            KeyReader.GameBindings.Remove(bindingId);
+            changed = true;
+            LogBindingRemoved(logger, bindingId);
+        }
 
-            if (decoded.Value.key2 != ConsoleKey.NoName)
+        if (decoded.Value.key2 != ConsoleKey.NoName)
+        {
+            var newBinding = (decoded.Value.key2, decoded.Value.mod2);
+            if (!secondaryBindings.TryGetValue(bindingId, out var existingBinding) ||
+                existingBinding.Key != newBinding.key2 ||
+                existingBinding.Modifier != newBinding.mod2)
             {
-                var newBinding = (decoded.Value.key2, decoded.Value.mod2);
-                if (!secondaryBindings.TryGetValue(bindingId, out var existingBinding) ||
-                    existingBinding.Key != newBinding.key2 ||
-                    existingBinding.Modifier != newBinding.mod2)
+                secondaryBindings[bindingId] = newBinding;
+                KeyReader.GameBindingsSecondary[bindingId] = newBinding;
+                changed = true;
+                if (logger.IsEnabled(LogLevel.Trace))
                 {
-                    secondaryBindings[bindingId] = newBinding;
-                    // Sync to KeyReader.GameBindingsSecondary
-                    KeyReader.GameBindingsSecondary[bindingId] = newBinding;
-                    changed = true;
-                    if (logger.IsEnabled(LogLevel.Trace))
-                    {
-                        string prefix = decoded.Value.mod2.ToPrefix();
-                        LogSecondaryBindingReceived(logger, bindingId, prefix, decoded.Value.key2);
-                    }
+                    string prefix = decoded.Value.mod2.ToPrefix();
+                    LogSecondaryBindingReceived(logger, bindingId, prefix, decoded.Value.key2);
                 }
             }
-            else if (secondaryBindings.Remove(bindingId))
-            {
-                KeyReader.GameBindingsSecondary.Remove(bindingId);
-                changed = true;
-            }
+        }
+        else if (secondaryBindings.Remove(bindingId))
+        {
+            KeyReader.GameBindingsSecondary.Remove(bindingId);
+            changed = true;
+        }
 
-            if (changed)
-            {
-                BindingChanged?.Invoke(bindingId);
-            }
+        if (changed)
+        {
+            BindingChanged?.Invoke(bindingId);
         }
     }
 
@@ -117,7 +116,8 @@ public sealed partial class KeyBindingsReader : IReader
         secondaryBindings.Clear();
         KeyReader.GameBindings.Clear();
         KeyReader.GameBindingsSecondary.Clear();
-        initialized = false;
+        expectedCount = -1;
+        receivedCount = 0;
     }
 
     /// <summary>

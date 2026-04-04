@@ -12,10 +12,13 @@ public sealed partial class ActionBarTextureReader : IReader
     private readonly ILogger<ActionBarTextureReader> logger;
     private readonly Dictionary<int, int> slotTextures = [];
 
-    private bool initialized;
+    private int expectedCount = -1;
+    private int receivedCount;
 
     public int Count => slotTextures.Count;
-    public bool IsInitialized => initialized;
+    public int ExpectedCount => expectedCount;
+    public int ReceivedCount => receivedCount;
+    public bool IsInitialized => expectedCount >= 0 && receivedCount >= expectedCount;
 
     public IReadOnlyDictionary<int, int> SlotTextures => slotTextures;
 
@@ -37,50 +40,51 @@ public sealed partial class ActionBarTextureReader : IReader
     public void Update(IAddonDataProvider reader)
     {
         int encodedValue = reader.GetInt(TEXTURE_SLOT);
-        if (encodedValue == 0)
+        if (encodedValue == 0) return;
+
+        if (encodedValue >= AddonTicks.QUEUE_COUNT_MARKER)
         {
-            // Queue exhausted, mark as initialized if we received any textures
-            if (slotTextures.Count > 0 && !initialized)
-            {
-                initialized = true;
-                LogTexturesInitialized(logger, slotTextures.Count);
-            }
+            expectedCount = encodedValue - AddonTicks.QUEUE_COUNT_MARKER;
+            receivedCount = 0;
             return;
         }
 
+        receivedCount++;
+
         var decoded = DecodeTexture(encodedValue);
-        if (decoded.HasValue)
+        if (!decoded.HasValue)
+            return;
+
+        int slot = decoded.Value.slot;
+        int textureId = decoded.Value.textureId;
+
+        bool changed = false;
+        if (!slotTextures.TryGetValue(slot, out var existingTexture) || existingTexture != textureId)
         {
-            int slot = decoded.Value.slot;
-            int textureId = decoded.Value.textureId;
-
-            bool changed = false;
-            if (!slotTextures.TryGetValue(slot, out var existingTexture) || existingTexture != textureId)
+            changed = true;
+            if (textureId > 0)
             {
-                changed = true;
-                if (textureId > 0)
-                {
-                    slotTextures[slot] = textureId;
-                    LogTextureReceived(logger, slot, textureId);
-                }
-                else
-                {
-                    slotTextures.Remove(slot);
-                    LogTextureCleared(logger, slot);
-                }
+                slotTextures[slot] = textureId;
+                LogTextureReceived(logger, slot, textureId);
             }
-
-            if (changed)
+            else
             {
-                TextureChanged?.Invoke(slot, textureId);
+                slotTextures.Remove(slot);
+                LogTextureCleared(logger, slot);
             }
+        }
+
+        if (changed)
+        {
+            TextureChanged?.Invoke(slot, textureId);
         }
     }
 
     public void Reset()
     {
         slotTextures.Clear();
-        initialized = false;
+        expectedCount = -1;
+        receivedCount = 0;
     }
 
     /// <summary>

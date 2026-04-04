@@ -44,6 +44,7 @@ public sealed partial class RequirementFactory
     private readonly FrozenDictionary<int, SchoolMask> npcSchoolImmunity;
 
     private readonly Dictionary<string, Func<int>> intVariables;
+    private Dictionary<string, int[]> intArrayVariables = [];
 
     private readonly FrozenDictionary<string, Func<bool>> boolVariables;
 
@@ -421,6 +422,8 @@ public sealed partial class RequirementFactory
         AuraTimeReader<ITargetBuffTimeReader> targetBuffTimeReader,
         AuraTimeReader<IFocusBuffTimeReader> focusBuffTimeReader)
     {
+        intArrayVariables = intKeyValues;
+
         foreach ((string key, int[] values) in intKeyValues)
         {
             if (values.Length == 1)
@@ -1167,14 +1170,38 @@ public sealed partial class RequirementFactory
 
     private Requirement CreateSpell(ReadOnlySpan<char> requirement)
     {
-        return create(requirement, spellBookReader, intVariables);
-        static Requirement create(ReadOnlySpan<char> requirement, SpellBookReader spellBookReader, Dictionary<string, Func<int>> intVariables)
-        {
-            // 'Spell:_NAME_OR_ID_'
-            int sep = requirement.IndexOf(SEP1);
-            string name = requirement[(sep + 1)..].Trim().ToString();
+        // 'Spell:_NAME_OR_INTVARIABLE_OR_ID_'
+        int sep = requirement.IndexOf(SEP1);
+        string name = requirement[(sep + 1)..].Trim().ToString();
 
-            // variable
+        // Array variable: true if ANY spell in the array is known
+        if (intArrayVariables.TryGetValue(name, out int[]? ids) && ids.Length > 1)
+        {
+            int[] captured = ids;
+
+            bool f()
+            {
+                for (int i = 0; i < captured.Length; i++)
+                {
+                    if (spellBookReader.Has(captured[i]))
+                        return true;
+                }
+                return false;
+            }
+
+            string s() => $"Spell {name}[{captured.Length}]";
+
+            return new Requirement
+            {
+                HasRequirement = f,
+                LogMessage = s
+            };
+        }
+
+        // Single value: variable, literal ID, or spell name
+        return createSingle(name, spellBookReader, intVariables);
+        static Requirement createSingle(string name, SpellBookReader spellBookReader, Dictionary<string, Func<int>> intVariables)
+        {
             var spanLookup = intVariables.GetAlternateLookup<ReadOnlySpan<char>>();
             if (spanLookup.TryGetValue(name, out Func<int>? idFunc))
             {
@@ -1269,13 +1296,40 @@ public sealed partial class RequirementFactory
 
     private Requirement CreateNpcId(ReadOnlySpan<char> requirement)
     {
-        return create(requirement, playerReader, intVariables, creatureDb);
-        static Requirement create(ReadOnlySpan<char> requirement, PlayerReader playerReader,
+        // 'npcID:_ID_OR_INTVARIABLE_RANGE_'
+        int sep = requirement.IndexOf(SEP1);
+        string name_or_id = requirement[(sep + 1)..].Trim().ToString();
+
+        // Array variable: true if target matches ANY NPC ID in the array
+        if (intArrayVariables.TryGetValue(name_or_id, out int[]? ids) && ids.Length > 1)
+        {
+            int[] captured = ids;
+
+            bool f()
+            {
+                int targetId = playerReader.TargetId;
+                for (int i = 0; i < captured.Length; i++)
+                {
+                    if (targetId == captured[i])
+                        return true;
+                }
+                return false;
+            }
+
+            string s() => $"TargetID {name_or_id}[{captured.Length}]";
+
+            return new Requirement
+            {
+                HasRequirement = f,
+                LogMessage = s
+            };
+        }
+
+        // Single value case
+        return createSingle(name_or_id, playerReader, intVariables, creatureDb);
+        static Requirement createSingle(string name_or_id, PlayerReader playerReader,
             Dictionary<string, Func<int>> intVariables, CreatureDB creatureDb)
         {
-            // 'npcID:_ID_OR_INTVARIABLE_'
-            int sep = requirement.IndexOf(SEP1);
-            ReadOnlySpan<char> name_or_id = requirement[(sep + 1)..];
             int npcId = GetIntValueOrVariable(intVariables, name_or_id);
             string npcName = string.Empty;
 
@@ -1297,27 +1351,53 @@ public sealed partial class RequirementFactory
 
     private Requirement CreateBagItem(ReadOnlySpan<char> requirement)
     {
-        return create(requirement, bagReader, intVariables, itemDb);
-        static Requirement create(ReadOnlySpan<char> requirement, BagReader bagReader,
+        // 'BagItem:_ID_OR_INTVARIABLE_RANGE_?:_COUNT_OR_INTVARIABLE_'
+        int firstSep = requirement.IndexOf(SEP1);
+        int lastSep = requirement.LastIndexOf(SEP1);
+
+        int count = 1;
+        if (firstSep != lastSep)
+        {
+            var count_or_variable = requirement[(lastSep + 1)..];
+            count = GetIntValueOrVariable(intVariables, count_or_variable);
+        }
+        else
+        {
+            lastSep = requirement.Length;
+        }
+
+        string name_or_id = requirement[(firstSep + 1)..lastSep].Trim().ToString();
+
+        // Array variable: sum item counts across all IDs
+        if (intArrayVariables.TryGetValue(name_or_id, out int[]? ids) && ids.Length > 1)
+        {
+            int[] captured = ids;
+            int capturedCount = count;
+
+            bool f()
+            {
+                int total = 0;
+                for (int i = 0; i < captured.Length; i++)
+                    total += bagReader.ItemCount(captured[i]);
+                return total >= capturedCount;
+            }
+
+            string s() => capturedCount == 1
+                ? $"in bag {name_or_id}[{captured.Length}]"
+                : $"{name_or_id}[{captured.Length}] count >= {capturedCount}";
+
+            return new Requirement
+            {
+                HasRequirement = f,
+                LogMessage = s
+            };
+        }
+
+        // Single value case
+        return createSingle(name_or_id, count, bagReader, intVariables, itemDb);
+        static Requirement createSingle(string name_or_id, int count, BagReader bagReader,
             Dictionary<string, Func<int>> intVariables, ItemDB itemDb)
         {
-            // 'BagItem:_ID_OR_INTVARIABLE_?:_COUNT_OR_INTVARIABLE_'
-            int firstSep = requirement.IndexOf(SEP1);
-            int lastSep = requirement.LastIndexOf(SEP1);
-
-            int count = 1;
-            if (firstSep != lastSep)
-            {
-                var count_or_variable = requirement[(lastSep + 1)..];
-                count = GetIntValueOrVariable(intVariables, count_or_variable);
-            }
-            else
-            {
-                lastSep = requirement.Length;
-            }
-
-            ReadOnlySpan<char> name_or_id = requirement[(firstSep + 1)..lastSep];
-
             int itemId = GetIntValueOrVariable(intVariables, name_or_id);
 
             string itemName = string.Empty;
