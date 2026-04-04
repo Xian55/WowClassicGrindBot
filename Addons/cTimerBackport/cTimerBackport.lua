@@ -21,13 +21,7 @@ local TimerProto = {}
 TimerProto.__index = TimerProto
 
 function TimerProto:Cancel()
-    for i = 1, #timers do
-        if timers[i] == self then
-            timers[i] = timers[#timers]
-            timers[#timers] = nil
-            break
-        end
-    end
+    self.cancelled = true
 end
 
 -------------------------------------------------------------
@@ -38,36 +32,47 @@ frame:SetScript("OnUpdate", function(_, elapsed)
     local i = 1
     while i <= count do
         local t = timers[i]
-        t.remaining = t.remaining - elapsed
+        -- timer may have been removed by a Cancel call during a prior callback
+        if not t then
+            timers[i] = timers[count]
+            timers[count] = nil
+            count = count - 1
+        elseif t.cancelled then
+            timers[i] = timers[count]
+            timers[count] = nil
+            count = count - 1
+        else
+            t.remaining = t.remaining - elapsed
 
-        if t.remaining <= 0 then
-            -- run callback
-            t.callback(t.arg)
+            if t.remaining <= 0 then
+                -- run callback
+                t.callback(t.arg)
 
-            if t.repeating then
-                if t.iterations then
-                    t.iterations = t.iterations - 1
-                    if t.iterations <= 0 then
-                        timers[i] = timers[count]
-                        timers[count] = nil
-                        count = count - 1
+                if t.repeating then
+                    if t.iterations then
+                        t.iterations = t.iterations - 1
+                        if t.iterations <= 0 then
+                            timers[i] = timers[count]
+                            timers[count] = nil
+                            count = count - 1
+                        else
+                            t.remaining = t.duration
+                            i = i + 1
+                        end
                     else
+                        -- infinite repeating
                         t.remaining = t.duration
                         i = i + 1
                     end
                 else
-                    -- infinite repeating
-                    t.remaining = t.duration
-                    i = i + 1
+                    -- one-shot, remove
+                    timers[i] = timers[count]
+                    timers[count] = nil
+                    count = count - 1
                 end
             else
-                -- one-shot, remove
-                timers[i] = timers[count]
-                timers[count] = nil
-                count = count - 1
+                i = i + 1
             end
-        else
-            i = i + 1
         end
     end
 end)

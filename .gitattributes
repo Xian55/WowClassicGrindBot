@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Legacy Cataclysm 4.3.4 generated/backport files - collapse in GitHub diffs
+Addons/DataToColor/Legacy/LegacyTextureToFileID.lua linguist-generated
+Addons/DataToColor/Legacy/WorldMapAreaIDToUiMapID.lua linguist-generated
