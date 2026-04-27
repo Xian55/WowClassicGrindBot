@@ -11,14 +11,25 @@
   "PathFilename": "_pack\\60-70\\Terokkar Forest\\62-64.json",
   "IntVariables": {
     "Item_Soul_Shard": 6265,
-    "Item_Healthstone": 22103, //22105
+    "Items_Healthstone": [19005, 19004, 5512, 19006, 19007, 5511, 19009, 5509, 19008, 5510, 19011, 19010, 19012, 9421, 19013],
     "DOT_MIN_HEALTH%": 35,
     "DRAIN_MIN_HP%": 70,
+    "DRAIN_STOP_HP%": 90,
+    "FUNNEL_STOP_PET_HP%": 90,
     "TAP_MIN_MANA%": 65,
     "MIN_TARGET_HP_CD%": 75,
     "MIN_FOOD_DRINK%": 30,
     "USE_TRINKET_1": 0,
     "USE_TRINKET_2": 0
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
   },
   "Pull": {
     "Sequence": [
@@ -38,7 +49,7 @@
         "Key": "7",
         "Requirements": [
           "Health% < 35",
-          "BagItem:Item_Healthstone"
+          "BagItem:Items_Healthstone"
         ],
         "Cooldown": 120000,
         "InCombat": "true"
@@ -76,7 +87,7 @@
       {
         "Name": "Drain Soul",
         "Key": "F2",
-        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
         "Requirements": [
           "TargetHealth% < 25",
           "!BagItem:Item_Soul_Shard:3",
@@ -96,14 +107,16 @@
       {
         "Name": "Immolate",
         "Key": "1",
-        "HasCastBar": true,
         "WhenUsable": true,
+        "AfterCastWaitCastbar": true,
         "AfterCastAuraExpected": true,
         "Requirements": [
           "TargetHealth% > DOT_MIN_HEALTH%",
           "!Immolate",
           "!TargetsMe || Sacrifice"
-        ]
+        ],
+        "Interrupt": "TargetHealth% < DOT_MIN_HEALTH% || !TargetAlive",
+        "CancelOnInterrupt": true
       },
       {
         "Name": "Amplify Curse",
@@ -138,19 +151,20 @@
       {
         "Name": "Incinerate",
         "Key": "F4",
-        "HasCastBar": true,
-        //"Cooldown": 6000,
+        "AfterCastWaitCastbar": true,
         "Requirements": [
           "!TargetsMe || Sacrifice",
           "Immolate",
           "Health% > DRAIN_MIN_HP%",
           "TargetHealth% > 40"
-        ]
+        ],
+        "Interrupt": "TargetHealth% < DOT_MIN_HEALTH% || !TargetAlive || !Immolate",
+        "CancelOnInterrupt": true
       },
       {
         "Name": "Shadow Bolt",
         "Key": "2",
-        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
         "Cooldown": 6000,
         "WhenUsable": true,
         "Requirements": [
@@ -158,33 +172,39 @@
           "!Immolate",
           "Health% > DRAIN_MIN_HP%",
           "TargetHealth% > 40"
-        ]
+        ],
+        "Interrupt": "TargetHealth% < DOT_MIN_HEALTH% || !TargetAlive || Shadow Trance",
+        "CancelOnInterrupt": true
       },
       {
         "Name": "Health Funnel",
         "Key": "F1",
-        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
         //"WhenUsable": true,
         "Requirements": [
           "Has Pet",
           "Health% > MIN_FOOD_DRINK%",
           "PetHealth% <= DOT_MIN_HEALTH%",
           "CD_Fel Domination > 0"
-        ]
+        ],
+        "Interrupt": "PetHealth% > FUNNEL_STOP_PET_HP% || Health% < MIN_FOOD_DRINK% || !Has Pet",
+        "CancelOnInterrupt": true
       },
       {
         "Name": "Drain Life",
         "Key": "N3",
-        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
         "Requirements": [
           "Health% < DRAIN_MIN_HP%"
-        ]
+        ],
+        "Interrupt": "Health% > DRAIN_STOP_HP% || !TargetAlive",
+        "CancelOnInterrupt": true
       },
       {
         "Name": "Shoot",
         "Key": "3",
-        "Item": true,
-        "PressDuration": 51,
+        //"Item": true,
+        //"PressDuration": 51,
         "WhenUsable": true,
         "Requirements": [
           "HasRangedWeapon",
@@ -237,7 +257,7 @@
         "Name": "Summon Felguard",
         "Key": "6",
         "Cost": 3.2,
-        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
         "InCombat": "true",
         "Requirements": [
           "!Has Pet",
@@ -250,7 +270,6 @@
       {
         "Name": "Summon Felguard",
         "Key": "6",
-        "HasCastBar": true,
         "Requirements": [
           "!Has Pet",
           "!Mounted",
@@ -283,12 +302,11 @@
       {
         "Name": "heal",
         "Key": "7",
-        "HasCastBar": true,
         "AfterCastWaitCastbar": true,
         "AfterCastWaitBag": true,
         "Requirements": [
           "BagItem:Item_Soul_Shard",
-          "!BagItem:Item_Healthstone"
+          "!BagItem:Items_Healthstone"
         ]
       }
     ]

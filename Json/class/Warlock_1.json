@@ -4,6 +4,10 @@
   "PathFilename": "1_Gnome.json",
   "PathThereAndBack": true,
   "PathReduceSteps": false,
+  "IntVariables": {
+    "MIN_WATER%": 20,
+    "MIN_MANA_SHADOWBOLT%": 40
+  },
   "Wait": {
     "Sequence": [
       {
@@ -18,7 +22,8 @@
       {
         "Name": "Shadow Bolt",
         "Key": "2",
-        "HasCastBar": true
+        "HasCastBar": true,
+        "Requirement": "Mana% > MIN_MANA_SHADOWBOLT%"
       }
     ]
   },
@@ -27,11 +32,16 @@
       {
         "Name": "Shadow Bolt",
         "HasCastBar": true,
-        "Key": "2"
+        "Key": "2",
+        "Requirements": [
+          "TargetHealth% > 20",
+          "Mana% > MIN_MANA_SHADOWBOLT%"
+        ]
       },
       {
         "Name": "AutoAttack",
         "Requirements": [
+          "InMeleeRange",
           "!Casting"
         ]
       },
@@ -39,7 +49,8 @@
         "Name": "Approach",
         "Requirements": [
           "!Casting",
-          "AutoAttacking"
+          "AutoAttacking && !MeleeSwinging",
+          "!SoftTargetDead"
         ]
       }
     ]
@@ -54,12 +65,12 @@
       {
         "Name": "Food",
         "Key": "=",
-        "Requirement": "Health% < 50"
+        "Requirement": "Health% < MIN_WATER%"
       },
       {
         "Name": "Drink",
         "Key": "-",
-        "Requirement": "Mana% < 50"
+        "Requirement": "Mana% < MIN_WATER%"
       }
     ]
   },
@@ -69,7 +80,7 @@
         "Name": "Repair",
         "Key": "C",
         "Requirement": "Durability% < 35",
-        "PathFilename": "1_Gnome_Vendor.json",
+        //"PathFilename": "1_Gnome_Vendor.json",
         "Cost": 6
       },
       {
@@ -79,7 +90,7 @@
           "BagFull",
           "BagGreyItem"
         ],
-        "PathFilename": "1_Gnome_Vendor.json",
+        //"PathFilename": "1_Gnome_Vendor.json",
         "Cost": 6
       }
     ]
