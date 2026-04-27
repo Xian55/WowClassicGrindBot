@@ -69,19 +69,26 @@ DataToColor.C.CHARACTER_RACE_MAP = {
     ["Worgen"] = 22
 }
 
--- Character's name
-DataToColor.C.CHARACTER_NAME = UnitName(DataToColor.C.unitPlayer)
-DataToColor.C.CHARACTER_GUID = UnitGUID(DataToColor.C.unitPlayer)
-DataToColor.C.CHARACTER_CLASS_LOWER, DataToColor.C.CHARACTER_CLASS, DataToColor.C.CHARACTER_CLASS_ID = UnitClass(DataToColor.C.unitPlayer)
-DataToColor.C.CHARACTER_RACE, _, DataToColor.C.CHARACTER_RACE_ID = UnitRace(DataToColor.C.unitPlayer)
+-- Character info — wrapped so it can be re-detected from OnEnteringWorld.
+-- On cold-start (addon loaded before PLAYER_ENTERING_WORLD) UnitClass("player")
+-- returns nil and any class-conditional table built from these constants ends
+-- up empty (e.g. S.spellInRangeTarget is empty -> Pull/Combat range always false).
+function DataToColor:DetectPlayerCharacter()
+    DataToColor.C.CHARACTER_NAME = UnitName(DataToColor.C.unitPlayer)
+    DataToColor.C.CHARACTER_GUID = UnitGUID(DataToColor.C.unitPlayer)
+    DataToColor.C.CHARACTER_CLASS_LOWER, DataToColor.C.CHARACTER_CLASS, DataToColor.C.CHARACTER_CLASS_ID = UnitClass(DataToColor.C.unitPlayer)
+    DataToColor.C.CHARACTER_RACE, _, DataToColor.C.CHARACTER_RACE_ID = UnitRace(DataToColor.C.unitPlayer)
 
-if DataToColor.C.CHARACTER_RACE_ID == nil then
-    DataToColor.C.CHARACTER_RACE_ID = DataToColor.C.CHARACTER_RACE_MAP[DataToColor.C.CHARACTER_RACE]
+    if DataToColor.C.CHARACTER_RACE_ID == nil then
+        DataToColor.C.CHARACTER_RACE_ID = DataToColor.C.CHARACTER_RACE_MAP[DataToColor.C.CHARACTER_RACE]
+    end
+
+    if DataToColor.C.CHARACTER_CLASS_ID == nil then
+        DataToColor.C.CHARACTER_CLASS_ID = DataToColor.C.CHARACTER_CLASS_MAP[DataToColor.C.CHARACTER_CLASS_LOWER]
+    end
 end
 
-if DataToColor.C.CHARACTER_CLASS_ID == nil then
-    DataToColor.C.CHARACTER_CLASS_ID = DataToColor.C.CHARACTER_CLASS_MAP[DataToColor.C.CHARACTER_CLASS_LOWER]
-end
+DataToColor:DetectPlayerCharacter()
 
 -- Spells
 DataToColor.C.Spell.AutoShotId = 75

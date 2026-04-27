@@ -396,6 +396,71 @@ function DataToColor:populateActionbarCost(slot)
     end
 end
 
+-- Item-flag offset added to the cast-time component when the slot represents
+-- an item-like action (true items, macros wrapping items, auto-repeat
+-- shoot/wand/auto-shot). Lets the bot derive KeyAction.Item from the addon
+-- without a manual JSON setting. Cast time is clamped to 49999ms so the
+-- offset bit stays unambiguous.
+local CASTTIME_MAX = 49999
+local ITEM_FLAG_OFFSET = 50000
+
+function DataToColor:populateActionbarCastTime(slot)
+    local actionType, id = GetActionInfo(slot)
+    local castTime = 0
+    local isItem = false
+
+    if actionType == "spell" then
+        if id then
+            local _, _, _, ct = GetSpellInfo(id)
+            castTime = ct or 0
+        end
+
+    elseif actionType == "item" then
+        -- Hearthstone (10s), Bandage (8s channeled), trinkets etc.
+        -- GetItemSpell(itemId) -> spellName, spellId of the item's Use: effect
+        isItem = true
+        if id then
+            local _, spellId = GetItemSpell(id)
+            if spellId then
+                local _, _, _, ct = GetSpellInfo(spellId)
+                castTime = ct or 0
+            end
+        end
+
+    elseif actionType == "macro" then
+        local macroSpell = GetMacroSpell(id)
+        if macroSpell then
+            local _, _, _, ct = GetSpellInfo(macroSpell)
+            castTime = ct or 0
+        else
+            local macroItemName = GetMacroItem(id)
+            if macroItemName then
+                isItem = true
+                local _, spellId = GetItemSpell(macroItemName)
+                if spellId then
+                    local _, _, _, ct = GetSpellInfo(spellId)
+                    castTime = ct or 0
+                end
+            end
+        end
+    end
+
+    -- Auto-repeat actions (Auto Shot for Hunter, Shoot for Wand) behave like
+    -- items in the bot's casting flow even though they're technically spells.
+    if not isItem and IsAutoRepeatAction and IsAutoRepeatAction(slot) then
+        isItem = true
+    end
+
+    if castTime > CASTTIME_MAX then
+        castTime = CASTTIME_MAX
+    end
+    if isItem then
+        castTime = castTime + ITEM_FLAG_OFFSET
+    end
+
+    DataToColor.actionBarCastTimeQueue:set(slot, castTime)
+end
+
 function DataToColor:equipSlotItemId(slot)
     return GetInventoryItemID(DataToColor.C.unitPlayer, slot) or 0
 end

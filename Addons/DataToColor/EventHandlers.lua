@@ -37,6 +37,22 @@ local CAST_SENT = 999997
 local CAST_START = 999998
 local CAST_SUCCESS = 999999
 
+-- Short codes for the per-spell cast event queue (cell 113).
+-- Errors 1..18 from errorList map directly to the same UI_ERROR.* values
+-- on the bot side; sentinels above 250 are remapped by the bot back to the
+-- 999997/8/9 constants. Layout: encoded = spellId + eventCode * 65536.
+local EVENT_CODE_CAST_SENT = 251
+local EVENT_CODE_CAST_START = 252
+local EVENT_CODE_CAST_SUCCESS = 253
+
+local function PushCastEvent(spellId, eventCode)
+    if not DataToColor.castEventQueue then return end
+    spellId = (spellId or 0) % 65536
+    eventCode = (eventCode or 0) % 256
+    if eventCode == 0 then return end
+    DataToColor.castEventQueue:push(spellId + eventCode * 65536)
+end
+
 local MERCHANT_SHOW_V = 9999999
 local MERCHANT_CLOSED_V = 9999998
 
@@ -372,7 +388,7 @@ function DataToColor:OnCombatEvent(...)
     local _, subEvent, _, sourceGUID, sourceName, sourceFlags, _, destGUID, destName, destFlags, _, spellId, spellName, _ = ...
     --print(...)
 
-    if playerDamageTakenEvents[subEvent] and
+    if (playerDamageTakenEvents[subEvent] or playerDamageMiss[subEvent]) and
         band(destFlags, COMBATLOG_OBJECT_TYPE_PLAYER_OR_PET) and
         strlen(sourceGUID) > 0 and
         (destGUID == DataToColor.playerGUID or
@@ -438,6 +454,7 @@ function DataToColor:OnCombatEvent(...)
                 DataToColor.lastCastEvent = errorListMessages[failedMessage] or 0
                 DataToColor.uiErrorMessage = DataToColor.lastCastEvent
                 DataToColor.uiErrorMessageTime = DataToColor.globalTime
+                PushCastEvent(spellId, DataToColor.lastCastEvent)
                 --DataToColor:Print(subEvent, " ", lastCastEvent, " -> ", DataToColor.lastCastEvent, " ", failedMessage, " ", spellId)
             else
                 DataToColor.lastCastEvent = CAST_SUCCESS
@@ -557,6 +574,7 @@ function DataToColor:OnCombatEvent(...)
             DataToColor.lastLoot = DataToColor.C.Loot.Corpse
             DataToColor.sessionKillCount = DataToColor.sessionKillCount + 1
             --DataToColor:Print(subEvent, " ", destGUID, " ", DataToColor:getGuidFromUUID(destGUID))
+            DataToColor.eligibleKillCredit[destGUID] = nil
         elseif destGUID == DataToColor.playerGUID then
             DataToColor.CombatCreatureDiedQueue:push(16777215)
             --DataToColor:Print(subEvent, " player Death ", destGUID, " 16777215")
@@ -580,6 +598,7 @@ function DataToColor:OnUnitSpellCastSent(...)
     DataToColor.lastCastEvent = CAST_SENT
     DataToColor.uiErrorMessageTime = DataToColor.globalTime
     DataToColor.lastCastSpellId = spellId
+    PushCastEvent(spellId, EVENT_CODE_CAST_SENT)
 end
 
 function DataToColor:OnUnitSpellCastSucceeded(...)
@@ -591,6 +610,7 @@ function DataToColor:OnUnitSpellCastSucceeded(...)
     DataToColor.lastCastEvent = CAST_SUCCESS
     DataToColor.uiErrorMessageTime = DataToColor.globalTime
     DataToColor.lastCastSpellId = spellId
+    PushCastEvent(spellId, EVENT_CODE_CAST_SUCCESS)
     DataToColor:InvalidateActionUseableCache()
 end
 
@@ -603,6 +623,7 @@ function DataToColor:OnUnitSpellCastFailed(...)
     DataToColor.lastCastEvent = DataToColor.uiErrorMessage
     DataToColor.uiErrorMessageTime = DataToColor.globalTime
     DataToColor.lastCastSpellId = spellId
+    PushCastEvent(spellId, DataToColor.uiErrorMessage)
 end
 
 function DataToColor:OnUnitSpellCastChannelStart(event, unit, castGUID, spellID)
@@ -623,6 +644,7 @@ end
 function DataToColor:SoM_OnCastStart(event, unitTarget, castGuid, spellId)
     if unitTarget ~= DataToColor.C.unitPlayer then return end
     som_spellId = spellId or 0
+    PushCastEvent(spellId, EVENT_CODE_CAST_START)
 end
 
 function DataToColor:SoM_OnCastFailed(event, unitTarget, castGuid, spellId)
@@ -722,10 +744,17 @@ end
 ]]--
 
 function DataToColor:OnSpellsChanged(event)
+    -- Rebuild the spellbook map first so anything below (range cache,
+    -- cast-time queue) resolves spell IDs/textures against fresh data.
+    -- Without this the icon->id map can be stale if the addon loaded
+    -- before SPELLS_CHANGED has fully synced — symptom: Warlock spell
+    -- range bit never sets, both Pull and Combat goals fail until /reload.
+    -- PopulateSpellBookInfo also calls PopulateSpellInRangeNames at the end.
+    DataToColor:PopulateSpellBookInfo()
     DataToColor:InitTalentQueue()
     DataToColor:InitSpellBookQueue()
     DataToColor:InitActionBarCostQueue()
-    DataToColor:PopulateSpellInRangeNames()
+    DataToColor:InitActionBarCastTimeQueue()
     DataToColor:InvalidateCurrentActionCache()
     DataToColor:InvalidateActionUseableCache()
 end
@@ -735,6 +764,8 @@ function DataToColor:ActionbarSlotChanged(event, slot)
         if HasAction(slot) then
             DataToColor:populateActionbarCost(slot)
         end
+        -- Always publish cast time (0 when slot is empty) so the bot clears stale state on removal.
+        DataToColor:populateActionbarCastTime(slot)
         -- Check for texture change (works for both add and remove)
         DataToColor:CheckActionBarTextureChange(slot)
     end
@@ -785,8 +816,6 @@ function DataToColor:OnZoneChanged(event)
 end
 
 function DataToColor:OnLeftCombat()
-    DataToColor.eligibleKillCredit = {}
-
     -- Update BitCache combat state (player left combat)
     if DataToColor.BitCache and DataToColor.BitCache.bits1 then
         DataToColor.BitCache.bits1.playerInCombat = false
