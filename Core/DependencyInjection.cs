@@ -60,6 +60,8 @@ public static class DependencyInjection
 
         s.ForwardSingleton<ActionBarCostReader, IReader>();
         s.ForwardSingleton<ActionBarCooldownReader, IReader>();
+        s.ForwardSingleton<ActionBarCastTimeReader, IReader>();
+        s.ForwardSingleton<CastEventReader, IReader>();
 
         s.ForwardSingleton<ActionBarBits<ICurrentAction>, IReader>(
             x => new(25, 26, 27, 28, 29));
@@ -186,6 +188,8 @@ public static class DependencyInjection
 
         s.ForwardSingleton<ActionBarCostReader>(sp);
         s.ForwardSingleton<ActionBarCooldownReader>(sp);
+        s.ForwardSingleton<ActionBarCastTimeReader>(sp);
+        s.ForwardSingleton<CastEventReader>(sp);
 
         s.ForwardSingleton<ActionBarBits<ICurrentAction>>(sp);
         s.ForwardSingleton<ActionBarBits<IUsableAction>>(sp);
