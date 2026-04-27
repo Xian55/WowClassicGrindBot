@@ -5,7 +5,7 @@
 -- Trigger between emitting game data and frame location data
 local SETUP_SEQUENCE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 114
+local NUMBER_OF_FRAMES = 117
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
@@ -253,6 +253,14 @@ DataToColor.talentQueue = DataToColor.TimedQueue:new(TALENT_ITERATION_FRAME_CHAN
 
 DataToColor.actionBarCostQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
 DataToColor.actionBarCooldownQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
+DataToColor.actionBarCastTimeQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
+
+-- Per-spell cast event log: FIFO of encoded (spellId, eventCode) pairs.
+-- Drained one per tick into cell 113 (encoded) + cell 114 (monotonic seq).
+-- Lets the bot read cast events keyed by spellId instead of the global
+-- lastCastEvent cell which is overwrite-prone when events fire close together.
+DataToColor.castEventQueue = DataToColor.TimedQueue:new(FRAME_CHANGE_RATE, 0)
+DataToColor.castEventSeq = 0
 
 DataToColor.eligibleKillCredit = {}
 
@@ -422,6 +430,13 @@ function DataToColor:OnEnteringWorld()
     DataToColor:Print("Welcome. Using " .. version)
     DataToColor:InitializeErrorLists()
 
+    -- Re-detect the player's class/race now that PLAYER_ENTERING_WORLD has fired.
+    -- The addon-load-time read in Constants.lua may have happened before
+    -- UnitClass("player") returned valid data on a cold start, leaving every
+    -- class-conditional table (e.g. S.spellInRangeTarget) empty until /reload.
+    DataToColor:DetectPlayerCharacter()
+    DataToColor:InitStorage()
+
     DataToColor:PopulateSpellBookInfo()
 
     DataToColor:InitUpdateQueues()
@@ -510,6 +525,10 @@ function DataToColor:Reset()
     bagCache = {}
 
     DataToColor.actionBarCooldownQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
+    DataToColor.actionBarCastTimeQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
+
+    DataToColor.castEventQueue = DataToColor.TimedQueue:new(FRAME_CHANGE_RATE, 0)
+    DataToColor.castEventSeq = 0
 
     DataToColor:InvalidateCurrentActionCache()
     DataToColor:InvalidateActionUseableCache()
@@ -569,6 +588,8 @@ function DataToColor:FushState()
     DataToColor:Reset()
     DataToColor:ClearAllQueues()
 
+    DataToColor:InitStorage()
+
     DataToColor:PopulateSpellBookInfo()
     DataToColor:InitUpdateQueues()
 
@@ -592,6 +613,7 @@ function DataToColor:InitUpdateQueues()
     DataToColor:InitInventoryQueue(0)
 
     DataToColor:InitActionBarCostQueue()
+    DataToColor:InitActionBarCastTimeQueue()
     DataToColor:InitSpellBookQueue()
     DataToColor:InitTalentQueue()
     DataToColor:InitBindingQueue()
@@ -658,6 +680,14 @@ function DataToColor:InitActionBarCostQueue()
     for slot = 1, DataToColor.C.MAX_ACTIONBAR_SLOT do
         if HasAction(slot) then
             DataToColor:populateActionbarCost(slot)
+        end
+    end
+end
+
+function DataToColor:InitActionBarCastTimeQueue()
+    for slot = 1, DataToColor.C.MAX_ACTIONBAR_SLOT do
+        if HasAction(slot) then
+            DataToColor:populateActionbarCastTime(slot)
         end
     end
 end
@@ -1020,6 +1050,30 @@ function DataToColor:CreateFrames()
             else
                 Pixel(int, 0, 37)
             end
+
+            local castSlot, castTimeMs = DataToColor.actionBarCastTimeQueue:getTimed(globalTick)
+            if castSlot then
+                DataToColor.actionBarCastTimeQueue:removeWhenExpired(castSlot, globalTick)
+                Pixel(int, castSlot * 100000 + (castTimeMs or 0), 112)
+                --DataToColor:Print("castTime: ", castSlot, " ", castTimeMs)
+            else
+                Pixel(int, 0, 112)
+            end
+
+            -- Per-spell cast event log: drain one entry per tick.
+            -- The seq counter ticks up every time a NEW item is shifted, so
+            -- the bot can detect repeats (same encoded value pushed twice)
+            -- by watching the seq cell instead of just the value cell.
+            local beforeShiftTick = DataToColor.castEventQueue.lastChangedTick
+            local nextEvent = DataToColor.castEventQueue:shift(globalTick)
+            if nextEvent and nextEvent ~= 0 and DataToColor.castEventQueue.lastChangedTick ~= beforeShiftTick then
+                DataToColor.castEventSeq = DataToColor.castEventSeq + 1
+                if DataToColor.castEventSeq > 16777215 then
+                    DataToColor.castEventSeq = 1
+                end
+            end
+            Pixel(int, nextEvent or 0, 113)
+            Pixel(int, DataToColor.castEventSeq, 114)
 
             Pixel(int, UnitHealthMax(DataToColor.C.unitPet), 38)
             Pixel(int, UnitHealth(DataToColor.C.unitPet), 39)

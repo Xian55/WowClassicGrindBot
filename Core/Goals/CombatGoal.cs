@@ -25,6 +25,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
     private readonly CastingHandler castingHandler;
     private readonly IMountHandler mountHandler;
     private readonly CombatLog combatLog;
+    private readonly ActionBarCastTimeReader castTimeReader;
 
     private float lastDirection;
     private float lastMinDistance;
@@ -34,7 +35,8 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
         Wait wait, PlayerReader playerReader, StopMoving stopMoving, AddonBits bits,
         ClassConfiguration classConfiguration, ClassConfiguration classConfig,
         CastingHandler castingHandler, CombatLog combatLog,
-        IMountHandler mountHandler)
+        IMountHandler mountHandler,
+        ActionBarCastTimeReader castTimeReader)
         : base(nameof(CombatGoal))
     {
         this.logger = logger;
@@ -49,6 +51,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
         this.castingHandler = castingHandler;
         this.mountHandler = mountHandler;
         this.classConfig = classConfig;
+        this.castTimeReader = castTimeReader;
 
         AddPrecondition(GoapKey.incombat, true);
         AddPrecondition(GoapKey.hastarget, true);
@@ -148,6 +151,17 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             KeyAction keyAction = span[i];
 
             if (castingHandler.SpellInQueue() && !keyAction.BaseAction)
+            {
+                continue;
+            }
+
+            // Items / auto-repeat actions (Shoot, Auto Shot, trinkets,
+            // on-use items) cannot be queued against an in-progress spell
+            // cast — pressing them now triggers ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS.
+            // Cast-time spells DO benefit from SQW so they are not gated here.
+            if (playerReader.IsCasting() &&
+                !keyAction.BaseAction &&
+                castTimeReader.IsItem(keyAction))
             {
                 continue;
             }

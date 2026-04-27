@@ -3,16 +3,104 @@
 @using SharedLib
 
 @inject SpellBookReader spellBookReader
+@inject ActionBarCastTimeReader castTimeReader
+@inject ActionBarTextureReader textureReader
 @inject IconDB iconDB
 @inject WApi api
 @inject IAddonReader addonReader
 
 @implements IDisposable
 
+@* ===================== Action Bar (per-slot, includes items) ===================== *@
 <div class="card mt-1">
     <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Action Bar (@populatedCount populated of @totalSlots slots)</span>
+        <div>
+            <span class="badge bg-secondary me-1">@instantCount Instant</span>
+            <span class="badge bg-info me-1">@castbarCount Cast Bar</span>
+            <InitButton />
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (populatedCount == 0)
+        {
+            <div class="p-3 text-muted">
+                No action bar slots populated yet. Make sure the addon is running and a class profile is loaded.
+                <br />
+                <small>Cast times come from the addon via <code>GetSpellInfo</code>/<code>GetItemSpell</code> and reflect talents
+                (e.g. 5/5 Improved Corruption flips Corruption to instant).</small>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover mb-0">
+                    <thead class="sticky-top bg-dark">
+                        <tr>
+                            <th style="width: 60px;">Slot</th>
+                            <th style="width: 40px;"></th>
+                            <th>Spell / Item / Macro</th>
+                            <th style="width: 120px;">Cast Time</th>
+                            <th style="width: 100px;">Routing</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (SlotEntry entry in slotEntries)
+                        {
+                            <tr>
+                                <td class="align-middle text-muted">@entry.Slot</td>
+                                <td class="align-middle">
+                                    @if (!string.IsNullOrEmpty(entry.IconUrl))
+                                    {
+                                        <img src="@entry.IconUrl" alt=""
+                                             style="width: 24px; height: 24px; border-radius: 4px;" />
+                                    }
+                                    else
+                                    {
+                                        <div style="width: 24px; height: 24px; background: #333; border-radius: 4px;"></div>
+                                    }
+                                </td>
+                                <td class="align-middle">
+                                    @entry.Name
+                                    @if (entry.TextureId > 0)
+                                    {
+                                        <span class="text-muted ms-2" style="font-size: 0.75rem;">tex:@entry.TextureId</span>
+                                    }
+                                </td>
+                                <td class="align-middle">
+                                    @if (entry.CastTimeMs == 0)
+                                    {
+                                        <span class="text-muted">— instant</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@(entry.CastTimeMs)ms</span>
+                                        <span class="text-muted ms-1">(@((entry.CastTimeMs / 1000f).ToString("0.0"))s)</span>
+                                    }
+                                </td>
+                                <td class="align-middle">
+                                    @if (entry.CastTimeMs > 0)
+                                    {
+                                        <span class="badge bg-info">CastCastbar</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">CastInstant</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@* ===================== Spell Book (all known spells) ===================== *@
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <span>Spellbook (@spellBookReader.Count spells)</span>
-        <InitButton />
     </div>
     <div class="card-body p-0">
         @if (spellBookReader.Count == 0)
@@ -29,12 +117,13 @@
                         <tr>
                             <th style="width: 40px;"></th>
                             <th>Spell Name</th>
+                            <th style="width: 120px;">Cast Time</th>
                             <th style="width: 80px;">Level</th>
                             <th style="width: 80px;">Spell ID</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var spellEntry in GetSortedSpells())
+                        @foreach (var spellEntry in cachedSpells)
                         {
                             <tr>
                                 <td class="align-middle">
@@ -57,6 +146,21 @@
                                         @spellEntry.Spell.Name
                                     </a>
                                 </td>
+                                <td class="align-middle">
+                                    @if (spellEntry.CastTimeMs is int ct && ct > 0)
+                                    {
+                                        <span>@(ct)ms</span>
+                                        <span class="text-muted ms-1">(@((ct / 1000f).ToString("0.0"))s)</span>
+                                    }
+                                    else if (spellEntry.CastTimeMs == 0)
+                                    {
+                                        <span class="text-muted">— instant</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted" title="Spell is not bound to an action bar slot — cast time unknown">—</span>
+                                    }
+                                </td>
                                 <td class="align-middle text-muted">@spellEntry.Spell.Level</td>
                                 <td class="align-middle text-muted">@spellEntry.Spell.Id</td>
                             </tr>
@@ -69,59 +173,184 @@
 </div>
 
 @code {
-    private record SpellDisplayEntry(Spell Spell, string? IconUrl);
+    private const int totalSlots = ActionBar.CELL_COUNT * ActionBar.BIT_PER_CELL;
+
+    // ---------- Action bar ----------
+    private record SlotEntry(int Slot, int TextureId, int CastTimeMs, string Name, string? IconUrl);
+
+    private List<SlotEntry> slotEntries = [];
+    private int populatedCount;
+    private int instantCount;
+    private int castbarCount;
+
+    // ---------- Spellbook ----------
+    private record SpellDisplayEntry(Spell Spell, string? IconUrl, int? CastTimeMs);
 
     private List<SpellDisplayEntry> cachedSpells = [];
-    private int lastHash;
+    private int lastSpellbookHash;
 
     protected override void OnInitialized()
     {
         addonReader.AddonDataChanged += OnAddonDataChanged;
+        textureReader.TextureChanged += OnTextureChanged;
+
+        RebuildActionBar();
+        RebuildSpellbook();
     }
 
     public void Dispose()
     {
         addonReader.AddonDataChanged -= OnAddonDataChanged;
+        textureReader.TextureChanged -= OnTextureChanged;
     }
 
     private void OnAddonDataChanged()
     {
-        // Only update UI if spellbook hash changed
-        if (lastHash != spellBookReader.Hash)
+        InvokeAsync(() =>
         {
-            base.InvokeAsync(StateHasChanged);
-        }
+            int beforePopulated = populatedCount;
+            int beforeCastbar = castbarCount;
+            int beforeSpellHash = lastSpellbookHash;
+
+            RebuildActionBar();
+            RebuildSpellbook();
+
+            if (beforePopulated != populatedCount
+                || beforeCastbar != castbarCount
+                || beforeSpellHash != lastSpellbookHash)
+            {
+                StateHasChanged();
+            }
+        });
     }
 
-    private List<SpellDisplayEntry> GetSortedSpells()
+    private void OnTextureChanged(int slot, int textureId)
     {
-        // Return cached list if hash hasn't changed
-        if (lastHash == spellBookReader.Hash && cachedSpells.Count > 0)
+        InvokeAsync(() =>
         {
-            return cachedSpells;
+            RebuildActionBar();
+            // Spellbook cast-time enrichment depends on texture mapping too.
+            RebuildSpellbook();
+            StateHasChanged();
+        });
+    }
+
+    // -------------------------------------------------------------
+    //  Action bar: one row per populated slot. Items work because
+    //  the addon already publishes per-slot cast time regardless of
+    //  whether the slot is a spell, item, or macro.
+    // -------------------------------------------------------------
+    private void RebuildActionBar()
+    {
+        var entries = new List<SlotEntry>(totalSlots);
+        int populated = 0;
+        int instant = 0;
+        int castbar = 0;
+
+        for (int slot = 1; slot <= totalSlots; slot++)
+        {
+            textureReader.TryGetTexture(slot, out int textureId);
+            int castTimeMs = castTimeReader.GetBySlotIndex(slot - 1);
+
+            if (textureId == 0 && castTimeMs == 0)
+                continue;
+
+            populated++;
+            if (castTimeMs > 0) castbar++;
+            else instant++;
+
+            string name = ResolveSlotName(textureId);
+            string? iconUrl = textureId > 0 ? iconDB.GetIconUrl(textureId, 18) : null;
+
+            entries.Add(new SlotEntry(slot, textureId, castTimeMs, name, iconUrl));
         }
 
-        lastHash = spellBookReader.Hash;
+        slotEntries = entries;
+        populatedCount = populated;
+        instantCount = instant;
+        castbarCount = castbar;
+    }
 
-        // Iterate over stable snapshot array
+    private string ResolveSlotName(int textureId)
+    {
+        if (textureId == 0)
+            return "(empty)";
+
+        string[] names = iconDB.GetSpellNamesForDisplay(textureId);
+        if (names.Length == 0)
+            return "(unknown texture — likely an item)";
+
+        return names.Length switch
+        {
+            1 => names[0],
+            _ => string.Join(" / ", names.Take(3))
+        };
+    }
+
+    // -------------------------------------------------------------
+    //  Spellbook: enrich each spell with cast time when it can be
+    //  located on the action bar. Spells unbound to any action slot
+    //  show "—" (cast time unknown).
+    // -------------------------------------------------------------
+    private void RebuildSpellbook()
+    {
+        // Skip rebuild if spellbook hasn't changed AND action bar hasn't changed
+        // either — cast time enrichment would yield same values. But action bar
+        // changes are rare relative to addonDataChanged ticks, so just rebuild.
+        lastSpellbookHash = spellBookReader.Hash;
+
+        // Build a spell-id → cast-time lookup by scanning action bar slots once.
+        Dictionary<int, int>? spellCastTimeBySpellId = BuildSpellCastTimeLookup();
+
         int[] spellIds = spellBookReader.SpellIds;
         var entries = new List<SpellDisplayEntry>(spellIds.Length);
         foreach (int spellId in spellIds)
         {
-            if (spellBookReader.TryGetValue(spellId, out Spell spell))
-            {
-                string? iconUrl = iconDB.GetIconUrlForSpell(spellId, 36);
-                entries.Add(new SpellDisplayEntry(spell, iconUrl));
-            }
+            if (!spellBookReader.TryGetValue(spellId, out Spell spell))
+                continue;
+
+            string? iconUrl = iconDB.GetIconUrlForSpell(spellId, 18);
+            int? castTime = spellCastTimeBySpellId is not null
+                && spellCastTimeBySpellId.TryGetValue(spellId, out int ct)
+                ? ct
+                : null;
+
+            entries.Add(new SpellDisplayEntry(spell, iconUrl, castTime));
         }
 
-        // Sort by name, then by level (for ranked spells)
         cachedSpells = entries
             .OrderBy(e => GetBaseSpellName(e.Spell.Name))
             .ThenBy(e => e.Spell.Level)
             .ToList();
+    }
 
-        return cachedSpells;
+    // For each populated slot with a known texture, find spellbook spells that
+    // share that texture and attribute the slot's cast time to them. Multiple
+    // ranks share one texture, so all ranks get the same cast time — which is
+    // correct for ranked spells in vanilla.
+    private Dictionary<int, int>? BuildSpellCastTimeLookup()
+    {
+        Dictionary<int, int>? lookup = null;
+
+        for (int slot = 1; slot <= totalSlots; slot++)
+        {
+            if (!textureReader.TryGetTexture(slot, out int textureId) || textureId == 0)
+                continue;
+
+            int castTimeMs = castTimeReader.GetBySlotIndex(slot - 1);
+
+            ReadOnlySpan<int> sharedSpellIds = iconDB.GetSpellIds(textureId);
+            if (sharedSpellIds.Length == 0)
+                continue;
+
+            lookup ??= [];
+            foreach (int sid in sharedSpellIds)
+            {
+                lookup[sid] = castTimeMs;
+            }
+        }
+
+        return lookup;
     }
 
     private static string GetBaseSpellName(string name)
