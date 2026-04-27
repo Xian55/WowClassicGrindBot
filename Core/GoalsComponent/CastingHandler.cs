@@ -41,6 +41,8 @@ public sealed partial class CastingHandler
 
     private readonly ActionBarBits<IUsableAction> usableAction;
     private readonly ActionBarBits<ICurrentAction> currentAction;
+    private readonly ActionBarCastTimeReader castTimeReader;
+    private readonly CastEventReader castEventReader;
 
     private readonly ClassConfiguration classConfig;
     private readonly FormKeyActions forms;
@@ -52,17 +54,24 @@ public sealed partial class CastingHandler
 
     public bool SpellInQueue()
     {
+        // Returns true while a non-base press would be wasted; CombatGoal
+        // uses this to skip non-base actions during the wait.
+        //
+        // Semantics line up with WoW's spell-queue window:
+        //   - During cast: skip while RemainCast > SQW; inside the last SQW
+        //     ms of the cast, return false so the next press queues.
+        //   - During GCD: skip while GCD > SQW; inside the last SQW ms of
+        //     the GCD, return false so the next press queues against the
+        //     end-of-GCD boundary (the SpellQueueWindow CVar window).
+        // The GCD branch used to gate on HalfSQW which both wasted press
+        // attempts before SQW opened and skipped the SQW window itself —
+        // the inversion here enables actual GCD-tail queueing.
         if (playerReader.IsCasting())
         {
             return playerReader.RemainCastMs > playerReader.SpellQueueTimeMs;
         }
-        else if (playerReader.GCD.Value != 0 &&
-            playerReader.GCD.Value < playerReader.HalfSpellQueueTimeMs)
-        {
-            return true;
-        }
 
-        return false;
+        return playerReader.GCD.Value > playerReader.SpellQueueTimeMs;
     }
 
     public static int _GCD() => GCD;
@@ -74,6 +83,8 @@ public sealed partial class CastingHandler
         AddonBits bits,
         ActionBarBits<IUsableAction> usableAction,
         ActionBarBits<ICurrentAction> currentAction,
+        ActionBarCastTimeReader castTimeReader,
+        CastEventReader castEventReader,
         Wait wait,
         AddonReader addonReader,
         PlayerReader playerReader,
@@ -96,6 +107,8 @@ public sealed partial class CastingHandler
 
         this.usableAction = usableAction;
         this.currentAction = currentAction;
+        this.castTimeReader = castTimeReader;
+        this.castEventReader = castEventReader;
 
         this.classConfig = classConfig;
         Log = classConfig.Log;
@@ -145,6 +158,21 @@ public sealed partial class CastingHandler
         bool Interrupt() =>
             currentAction.Is(item) ||
             playerReader.CastState == UI_ERROR.CAST_SENT ||
+            token.IsCancellationRequested;
+    }
+
+    private static void WaitForItemCastResolution(Wait wait,
+        AddonBits bits, PlayerReader playerReader,
+        CancellationToken token)
+    {
+        bool wasAnyAuto = bits.Any_AutoAttack();
+        int afterSentUIErrorTime = playerReader.UIErrorTime.Value;
+
+        wait.Until(playerReader.DoubleNetworkLatency, Resolved);
+
+        bool Resolved() =>
+            bits.Any_AutoAttack() != wasAnyAuto ||
+            afterSentUIErrorTime != playerReader.UIErrorTime.Value ||
             token.IsCancellationRequested;
     }
 
@@ -294,8 +322,55 @@ public sealed partial class CastingHandler
             item.SpellId = playerReader.CastSpellId.Value;
         }
 
+        bool isItem = castTimeReader.IsItem(item);
+
+        // For items (especially auto-repeat actions like Shoot / Auto Shot),
+        // CAST_SENT confirms the keypress was registered but the action may
+        // still fail at the server (e.g. ERR_BADATTACKFACING, OUT_OF_RANGE).
+        // Wait a short follow-up window for either the auto-attack bit to
+        // toggle (success) or a UNIT_SPELLCAST_FAILED to overwrite CastEvent
+        // with the error code (failure -> outer retry path runs react.Do).
+        if (isItem)
+        {
+            WaitForItemCastResolution(wait, bits, playerReader, token);
+
+            // Per-spell event lookup — the global CastEvent cell would leak
+            // events from other spells (pet cast, auto-shoot tick, etc.) and
+            // either cause false-positive failures or hide real ones (a
+            // BADATTACKFACING immediately overwritten by a later success).
+            // CastEventReader maintains a per-spellId log so we read exactly
+            // this item's most recent event. TryConsume clears the entry so
+            // a stale event from a previous attempt can't fire twice.
+            //
+            // Fallback: when item.SpellId is 0 (never cast yet, or item
+            // without a known spell ID), fall back to the global cell with
+            // the cross-spell guard.
+            if (item.SpellId != 0)
+            {
+                if (castEventReader.TryConsume(item.SpellId, out UI_ERROR ev) &&
+                    !CastInstantSuccessful((int)ev))
+                {
+                    LogInstantInputFailed(logger, item.Name, pressMs, ev, 0);
+                    return CastResult.UIError;
+                }
+            }
+            else
+            {
+                UI_ERROR latest = (UI_ERROR)playerReader.CastEvent.Value;
+                int latestSpellId = playerReader.CastSpellId.Value;
+                bool eventIsOursOrUnknown =
+                    latestSpellId == 0 || latestSpellId == item.SpellId;
+
+                if (eventIsOursOrUnknown && !CastInstantSuccessful((int)latest))
+                {
+                    LogInstantInputFailed(logger, item.Name, pressMs, latest, 0);
+                    return CastResult.UIError;
+                }
+            }
+        }
+
         item.SetClicked();
-        if (item.Item)
+        if (isItem)
         {
             playerReader.ResetLastCastGCD();
             wait.Update(token);
@@ -391,7 +466,8 @@ public sealed partial class CastingHandler
         {
             if (playerReader.IsCasting() || bits.Channeling())
             {
-                int remainMs = playerReader.RemainCastMs - playerReader.SpellQueueTimeMs;
+                int expected = castTimeReader.Get(item);
+                int remainMs = Max(0, Max(playerReader.RemainCastMs, expected) - playerReader.SpellQueueTimeMs);
                 if (Log && item.Log)
                     LogVisibleAfterCastWaitCastbar(logger, item.Name, remainMs);
 
@@ -408,7 +484,8 @@ public sealed partial class CastingHandler
             {
                 beforeCastEventValue = playerReader.CastState;
 
-                int remainMs = playerReader.RemainCastMs - playerReader.SpellQueueTimeMs;
+                int expected = castTimeReader.Get(item);
+                int remainMs = Max(0, Max(playerReader.RemainCastMs, expected) - playerReader.SpellQueueTimeMs);
                 if (Log && item.Log)
                     LogHiddenAfterCastWaitCastbar(logger, item.Name, remainMs);
 
@@ -532,7 +609,7 @@ public sealed partial class CastingHandler
 
         if (item.BeforeCastDelay > 0)
         {
-            if (!playerReader.IsCasting() && bits.Moving() && (item.BeforeCastStop || item.HasCastBar))
+            if (!playerReader.IsCasting() && bits.Moving() && (item.BeforeCastStop || castTimeReader.HasCastBar(item)))
             {
                 stopMoving.Stop();
                 wait.Until(SPELL_QUEUE_HALF,
@@ -586,7 +663,7 @@ public sealed partial class CastingHandler
         {
             int delay = playerReader.SpellQueueTimeMs +
                 Max(playerReader.RemainCastMs,
-                item.Item ? 0 : playerReader.LastCastGCD);
+                castTimeReader.IsItem(item) ? 0 : playerReader.LastCastGCD);
 
             if (Log && item.Log)
                 LogAfterCastAuraExpected(logger, item.Name,
@@ -703,8 +780,10 @@ public sealed partial class CastingHandler
     {
         CancellationToken token = CancellationToken.None;
 
+        bool hasCastBar = castTimeReader.HasCastBar(item);
+
         if (item.PressDuration > InputDuration.DefaultPress ||
-            item.HasCastBar)
+            hasCastBar)
             token = interruptWatchdog.Set(interrupt);
 
         if (!PreparedForCast(item, token))
@@ -713,7 +792,7 @@ public sealed partial class CastingHandler
         int auraHash = playerReader.AuraCount.Hash;
 
         Func<KeyAction, CancellationToken, CastResult> castStrategy =
-            item.HasCastBar
+            hasCastBar
             ? CastCastbar
             : CastInstant;
 

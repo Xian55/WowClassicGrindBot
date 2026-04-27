@@ -1273,7 +1273,7 @@ Can specify conditions with [Requirement(s)](#requirement) in order to create a 
 | `"Modifier"` | Modifier key to hold while pressing the key. Values: `"None"`, `"Shift"`, `"Ctrl"`, `"Alt"`. Alternative to using prefix in `Key`. **Note**: Combined modifiers (e.g., `Shift-Alt`) are not supported - only single modifiers. | `"None"` |
 | `"Cost"` | [Adhoc Goals](#adhoc-goals) or [NPC Goal](#npc-goals) only, priority | `18` |
 | `"PathFilename"` | [NPC Goal](#npc-goals) only, this is a short path to get close to the NPC to avoid walls etc. | `""` |
-| `"HasCastBar"` | After key press cast bar is expected?<br>By default sets `BeforeCastStop`=`true` | `false` |
+| `"HasCastBar"` | **Auto-detected** from the spell's effective cast time (`GetSpellInfo`), so it reflects talents like 5/5 Improved Corruption that flip a cast to instant. JSON setting is accepted but ignored. | _derived_ |
 | `"InCombat"` | Should combat matter when attempt to cast?<br>Accepted values:<br>* `"any value for doesn't matter"`<br>* `"true"`<br>* `"false"` | `false` |
 | `"Item"` | Like on use Trinket, `Food`, `Drink`.<br>The following spells counts as Item, `Throw`, `Auto Shot`, `Shoot` | `false` |
 | `"PressDuration"` | How many minimum milliseconds to hold the key press down | `50` |
@@ -1326,7 +1326,7 @@ Important, the `AfterCast` prefixed conditions are ordered as shown in the table
 
 | Property Group | Purpose |
 | --- | --- |
-| `HasCastBar` | Tells the bot to wait for the cast to complete before taking the next action. Without this, the bot might interrupt your cast by pressing another key. |
+| `HasCastBar` | _Auto-detected_ from the spell's effective cast time via `GetSpellInfo` — the bot waits for the cast bar without you needing to declare it in JSON. Talent-aware: a spell that becomes instant via talents (e.g., 5/5 Improved Corruption) is automatically routed through the instant path. The JSON field is accepted for back-compat but ignored. |
 | `WhenUsable` | Only attempts to cast when the game reports the ability is usable (enough mana/rage/energy, not on cooldown). Prevents wasting key presses. |
 | `Cooldown` | Prevents the bot from spamming the same ability. This is the bot's internal cooldown, not the game's. Set to match GCD (~400ms) for most abilities. |
 | `Form` | For Druids/Warriors - ensures you're in the correct shapeshift/stance before casting. Prevents "Can only use in Cat Form" errors. |
@@ -1340,12 +1340,11 @@ Important, the `AfterCast` prefixed conditions are ordered as shown in the table
 | [`Requirement(s)`](#requirement) | Conditions that must be true to use this ability. Core of the combat rotation logic. |
 | [`Interrupt(s)`](#interrupt-requirement) | Conditions that will interrupt a channeled spell or cancel casting. Useful for react to incoming damage. |
 
-e.g. - bare minimum for a spell which has castbar.
+e.g. - bare minimum for a spell which has castbar. `HasCastBar` is auto-detected from the spell's cast time, so you no longer need to set it explicitly. The JSON field is accepted for back-compat:
 ```json
 {
     "Name": "Frostbolt",
     "Key": "1",
-    "HasCastBar": true,   //<-- Must be indicated the spell has a castbar
 }
 ```
 
