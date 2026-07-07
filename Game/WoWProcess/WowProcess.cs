@@ -17,7 +17,10 @@ public sealed class WowProcess
         "WowClassic",
         "WowClassicT",
         "Wow-64",
-        "WowClassicB"
+        "WowClassicB",
+        // Windows on ARM64 (e.g. WoW running natively inside a Win11 ARM64 VM
+        // on Apple Silicon). Match is OrdinalIgnoreCase, so casing is irrelevant.
+        "WowClassic-arm64"
     ];
 
     private readonly Thread thread;

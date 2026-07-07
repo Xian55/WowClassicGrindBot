@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace StormDll;
@@ -13,7 +14,11 @@ public sealed class ArchiveSet
     public ArchiveSet(ILogger logger, string[] files)
     {
         this.logger = logger;
-        archives = new Archive[files.Length];
+
+        // Only keep successfully opened archives. A failed open used to leave a
+        // null slot that later NRE'd in GetStream/Exists. Now it is skipped and
+        // logged, so a bad/mismatched native StormLib surfaces a clear message.
+        List<Archive> opened = new(files.Length);
 
         for (int i = 0; i < files.Length; i++)
         {
@@ -25,14 +30,22 @@ public sealed class ArchiveSet
 
             if (open && a.IsOpen())
             {
-                archives[i] = a;
+                opened.Add(a);
 
                 if (logger.IsEnabled(LogLevel.Trace))
                     logger.LogTrace("Archive[{Index}] open {File}", i, files[i]);
             }
-            else if (logger.IsEnabled(LogLevel.Trace))
-                logger.LogTrace("Archive[{Index}] openfail {File}", i, files[i]);
+            else
+                logger.LogWarning("Archive failed to open: {File}", files[i]);
         }
+
+        archives = opened.ToArray();
+
+        if (archives.Length == 0)
+            logger.LogError(
+                "No MPQ archive could be opened from {Count} file(s). " +
+                "The native StormLib may be missing or built for the wrong " +
+                "architecture/charset - pathing will not work.", files.Length);
     }
 
     public MpqFileStream GetStream(ReadOnlySpan<char> fileName)

@@ -456,12 +456,24 @@ public sealed partial class Navigation : IDisposable
             manualReset.Reset();
             if (pathRequests.TryPeek(out PathRequest pathRequest))
             {
-                Vector3[] path = pather.FindWorldRoute(pathRequest.MapId, pathRequest.StartIndoors, pathRequest.StartW, pathRequest.EndW);
-                if (active)
+                try
                 {
-                    pathResults.Enqueue(new PathResult(pathRequest, path, pathRequest.Callback));
+                    Vector3[] path = pather.FindWorldRoute(pathRequest.MapId, pathRequest.StartIndoors, pathRequest.StartW, pathRequest.EndW);
+                    if (active)
+                    {
+                        pathResults.Enqueue(new PathResult(pathRequest, path, pathRequest.Callback));
+                    }
+                    pathRequests.Dequeue();
                 }
-                pathRequests.Dequeue();
+                catch (Exception ex) when (ex is BadImageFormatException or DllNotFoundException or PlatformNotSupportedException)
+                {
+                    // Native StormLib (MPQ reader) failed to load - almost always a
+                    // missing or architecture-mismatched MPQ\StormLib_<arch>.dll.
+                    // Stop the thread instead of taking the whole process down.
+                    LogNativePathingLoadFailed(logger, ex);
+                    pathRequests.Dequeue();
+                    break;
+                }
             }
             manualReset.Wait();
         }
@@ -618,6 +630,14 @@ public sealed partial class Navigation : IDisposable
         Level = LogLevel.Debug,
         Message = "Thread stopped!")]
     static partial void LogThreadStopped(ILogger logger);
+
+    [LoggerMessage(
+        EventId = 0048,
+        Level = LogLevel.Error,
+        Message = "Local pathing disabled: failed to load native StormLib. " +
+            "Ensure MPQ/StormLib_<arch>.dll exists and matches the process architecture " +
+            "(x64/x86/arm64).")]
+    static partial void LogNativePathingLoadFailed(ILogger logger, Exception ex);
 
     [LoggerMessage(
         EventId = 0040,
