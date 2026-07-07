@@ -215,7 +215,7 @@ A `ClientVersion` enum drives version-specific behavior across the entire stack:
 <summary><strong>External Service Communication</strong> — Three interop paradigms</summary>
 
 - **REST API** — `PathingAPI` runs as a standalone ASP.NET Core service with Swagger documentation and rate-limited route calculation endpoints
-- **Native DLL Interop** — Modern `[LibraryImport]` with `[assembly: DisableRuntimeMarshalling]` for Windows API calls (input simulation, DWM-aware window management, keyboard layout translation) and StormLib MPQ archive access with platform-specific (x86/x64) selection
+- **Native DLL Interop** — Modern `[LibraryImport]` with `[assembly: DisableRuntimeMarshalling]` for Windows API calls (input simulation, DWM-aware window management, keyboard layout translation) and StormLib MPQ archive access with architecture-aware (x86/x64/arm64) `NativeLibrary.SetDllImportResolver` selection
 - **SignalR + MessagePack** — Binary protocol with LZ4 compression for real-time pathfinding visualization, reducing bandwidth ~70% vs JSON
 </details>
 
@@ -469,7 +469,7 @@ Put the contents of the repo into a folder, e.g., `C:\WowClassicGrindBot`. I am 
 Copy these files under the **\Json\MPQ** folder (e.g., `C:\WowClassicGrindBot\Json\MPQ`)
 
 Technical details about **V1:**
-- Precompiled x86 and x64 [Stormlib](https://github.com/ladislav-zezula/StormLib)
+- Precompiled x86, x64 and arm64 [Stormlib](https://github.com/ladislav-zezula/StormLib)
 - Source code accessible, written in **C#**
 - Uses `*.mpq` files as source
 - Extracts the geometry on demand during runtime
@@ -576,6 +576,7 @@ More info [506](https://github.com/Xian55/WowClassicGrindBot/pull/506)
 * Windows 10 and above
 * [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 * `AnyCPU`, `x86` and `x64` build supported.
+* Windows on ARM64 (e.g. a Win11 ARM64 VM on Apple Silicon) is supported natively — see [Windows on ARM64](#windows-on-arm64-apple-silicon).
 
 ## Build the Solution
 
@@ -593,6 +594,30 @@ dotnet build -c Release
 or look at the `BlazorServer\build.bat`, or look at the `HeadlessServer\build.bat` files.
 
 ![Build](images/build.png)
+
+## Windows on ARM64 (Apple Silicon)
+
+The bot runs inside a **Windows 11 ARM64** guest (for example a Parallels/VMware VM on an Apple Silicon Mac). A default `AnyCPU` build runs as a **native ARM64** process, so the correct native `StormLib` is selected automatically at runtime (`x64` / `x86` / `arm64`) by `NativeLibrary.SetDllImportResolver`.
+
+**Native ARM64 (recommended):**
+1. Build (or obtain from a trusted source) `StormLib.dll` for ARM64 from the official [StormLib](https://github.com/ladislav-zezula/StormLib) source and place it as `PPather\MPQ\StormLib_arm64.dll`:
+   ```
+   git clone https://github.com/ladislav-zezula/StormLib
+   cmake -S StormLib -B build -A ARM64 -DBUILD_SHARED_LIBS=ON
+   cmake --build build --config Release
+   ```
+   Verify it is an ARM64 binary (`dumpbin /headers StormLib_arm64.dll` → `machine (AA64)`).
+2. Build/run as usual (`dotnet run --project BlazorServer -c Release`). The bot drives a natively ARM64 WoW client (`WowClassic-arm64.exe`) — it reads the screen and sends input, so guest/client architecture do not need to match.
+
+**x64 emulation fallback** (if you cannot build the ARM64 `StormLib` yet):
+* Install the **x64** .NET 10 Desktop + ASP.NET Core runtimes (they run under the built-in x64 emulation).
+* Run x64 explicitly so the existing `StormLib_x64.dll` is used:
+  ```
+  dotnet run --project BlazorServer -c Release --arch x64
+  ```
+* Do **not** hard-code `<PlatformTarget>x64</PlatformTarget>` in the `.csproj` — that would override the native ARM64 path for everyone.
+
+> ⚠️ Do not run prebuilt `StormLib`/DLL patches attached to forum/issue posts by unknown accounts — build the native binary yourself from the official source above.
 
 # Configuration
 
