@@ -15,13 +15,9 @@ internal sealed class Archive
 
     private readonly FrozenSet<string> fileList;
 
-    private static readonly bool Is64Bit = Environment.Is64BitProcess;
-
     public Archive(string file, out bool open, uint prio, OpenArchive flags)
     {
-        open = Is64Bit
-            ? StormDllx64.SFileOpenArchive(file, prio, flags, out handle)
-            : StormDllx86.SFileOpenArchive(file, prio, flags, out handle);
+        open = StormDll.SFileOpenArchive(file, prio, flags, out handle);
 
         if (!open)
             return;
@@ -100,9 +96,7 @@ internal sealed class Archive
 
     public bool SFileCloseArchive()
     {
-        return Is64Bit
-            ? StormDllx64.SFileCloseArchive(handle)
-            : StormDllx86.SFileCloseArchive(handle);
+        return StormDll.SFileCloseArchive(handle);
     }
 
     [Obsolete("Use GetStream instead.")]
@@ -122,23 +116,17 @@ internal sealed class Archive
 
     public static bool SFileReadFile(IntPtr fileHandle, Span<byte> buffer, long toRead, out long read)
     {
-        return Is64Bit
-            ? StormDllx64.SFileReadFile(fileHandle, buffer, toRead, out read)
-            : StormDllx86.SFileReadFile(fileHandle, buffer, toRead, out read);
+        return StormDll.SFileReadFile(fileHandle, buffer, toRead, out read);
     }
 
     public static bool SFileCloseFile(IntPtr fileHandle)
     {
-        return Is64Bit
-            ? StormDllx64.SFileCloseFile(fileHandle)
-            : StormDllx86.SFileCloseFile(fileHandle);
+        return StormDll.SFileCloseFile(fileHandle);
     }
 
     public static long SFileGetFileSize(IntPtr fileHandle, out long fileSizeHigh)
     {
-        return Is64Bit
-            ? StormDllx64.SFileGetFileSize(fileHandle, out fileSizeHigh)
-            : StormDllx86.SFileGetFileSize(fileHandle, out fileSizeHigh);
+        return StormDll.SFileGetFileSize(fileHandle, out fileSizeHigh);
     }
 
     public static uint SFileSetFilePointer(IntPtr fileHandle,
@@ -146,9 +134,7 @@ internal sealed class Archive
         ref uint plFilePosHigh,
         SeekOrigin origin)
     {
-        return Is64Bit
-            ? StormDllx64.SFileSetFilePointer(fileHandle, filePos, ref plFilePosHigh, origin)
-            : StormDllx86.SFileSetFilePointer(fileHandle, filePos, ref plFilePosHigh, origin);
+        return StormDll.SFileSetFilePointer(fileHandle, filePos, ref plFilePosHigh, origin);
     }
 
     public static bool SFileOpenFileEx(
@@ -162,8 +148,6 @@ internal sealed class Archive
         Encoding.UTF8.GetBytes(fileName, utf8Bytes);
         utf8Bytes[^1] = 0;
 
-        return Is64Bit
-            ? StormDllx64.SFileOpenFileEx(archiveHandle, utf8Bytes, searchScope, out fileHandle)
-            : StormDllx86.SFileOpenFileEx(archiveHandle, utf8Bytes, searchScope, out fileHandle);
+        return StormDll.SFileOpenFileEx(archiveHandle, utf8Bytes, searchScope, out fileHandle);
     }
 }
