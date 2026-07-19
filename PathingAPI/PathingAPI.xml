@@ -133,6 +133,14 @@
             </summary>
             <returns></returns>
         </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.Capabilities">
+            <summary>
+            Describes this server's pathfinding capabilities so remote clients can
+            adapt (e.g. smoothed paths are cheap to re-request instead of patching
+            partial routes client-side). Absent on older servers - treat 404 as
+            all-capabilities-false.
+            </summary>
+        </member>
         <member name="M:PathingAPI.Controllers.PPatherController.DrawPath(PPather.DrawWorldPathRequest)">
             <summary>
             Draws a path based on continentID and world coordinates.

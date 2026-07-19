@@ -280,6 +280,21 @@ public sealed class PPatherController : ControllerBase
         return new JsonResult(service.MPQSelfTest());
     }
 
+    /// <summary>
+    /// Describes this server's pathfinding capabilities so remote clients can
+    /// adapt (e.g. smoothed paths are cheap to re-request instead of patching
+    /// partial routes client-side). Absent on older servers - treat 404 as
+    /// all-capabilities-false.
+    /// </summary>
+    [HttpGet("Capabilities")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public JsonResult Capabilities()
+    {
+        return new JsonResult(new CapabilitiesResponse(false));
+    }
+
+    public sealed record CapabilitiesResponse(bool PathsAreSmoothed);
+
     [HttpPost("DrawPathTest")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [RateLimit]
