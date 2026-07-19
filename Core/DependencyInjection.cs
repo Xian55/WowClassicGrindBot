@@ -505,6 +505,8 @@ public static class DependencyInjection
         }
 
         var service = sp.GetRequiredService<PPatherService>();
+        service.Engine = scp.EngineType;
+
         var pathingLogger = loggerFactory.CreateLogger<LocalPathingApi>();
 
         LocalPathingApi localApi = new(pathingLogger, service);

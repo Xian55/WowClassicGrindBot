@@ -4,6 +4,8 @@ using PPather;
 using PPather.Data;
 using PPather.Graph;
 
+using SharedLib;
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,6 +18,8 @@ namespace Core;
 
 public sealed class LocalPathingApi : IPPather
 {
+    public bool PathsAreSmoothed => service.Engine == PathingEngine.Navmesh;
+
     private const bool debug = false;
 
     private const SearchStrategy searchStrategy = SearchStrategy.A_Star_With_Model_Avoidance;

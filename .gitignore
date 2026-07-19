@@ -307,3 +307,5 @@ PathingAPI/data_config.json
 
 # BenchmarkDotNet artifacts
 **/BenchmarkDotNet.Artifacts/
+# Runtime-baked navmesh tile cache
+Json/PathInfo/navmesh/

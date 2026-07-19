@@ -175,3 +175,12 @@ Wrath expansion:
 ```
 
 Expansion values: `SoM`, `TBC`, `Wrath`, `Cata`, `Mop`, `Retail`
+
+### navmesh - Navmesh Coordinate Checks
+
+Pure math validation of the wow<->rc coordinate mapping and Detour tile
+indexing (no game data required):
+
+```powershell
+.\run.ps1 navmesh
+```

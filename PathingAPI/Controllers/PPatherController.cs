@@ -8,6 +8,7 @@ using PPather.Data;
 using PPather.Graph;
 using PPather.Navmesh;
 
+using SharedLib;
 using SharedLib.Data;
 
 using System;
@@ -291,10 +292,59 @@ public sealed class PPatherController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public JsonResult Capabilities()
     {
-        return new JsonResult(new CapabilitiesResponse(false));
+        return new JsonResult(new CapabilitiesResponse(
+            service.Engine == PathingEngine.Navmesh));
     }
 
     public sealed record CapabilitiesResponse(bool PathsAreSmoothed);
+
+    /// <summary>Returns the active in-process pathfinding engine.</summary>
+    [HttpGet("Engine")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public JsonResult GetEngine()
+    {
+        return new JsonResult(service.Engine.ToString());
+    }
+
+    /// <summary>
+    /// Switches the in-process pathfinding engine at runtime (benchmark A/B
+    /// without a server restart) and resets pathfinder state.
+    /// </summary>
+    /// <param name="engine" example="Navmesh">SpotAStar | Navmesh</param>
+    [HttpPost("Engine")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [RateLimit]
+    public IActionResult SetEngine(string engine)
+    {
+        if (!Enum.TryParse(engine, ignoreCase: true, out PathingEngine parsed))
+        {
+            return BadRequest($"Unknown engine '{engine}'");
+        }
+
+        service.Reset();
+        service.Engine = parsed;
+        return new JsonResult(parsed.ToString());
+    }
+
+    /// <summary>Timing breakdown of the most recent navmesh query.</summary>
+    [HttpGet("Stats")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public JsonResult Stats()
+    {
+        NavmeshPathfinder.NavmeshStats stats =
+            service.NavmeshPathfinder?.LastStats ?? default;
+
+        return new JsonResult(new StatsResponse(
+            service.Engine.ToString(),
+            stats.EnsureMs, stats.ResolveMs, stats.FindMs, stats.SmoothMs,
+            stats.TilesBaked, stats.PolyPathLength, stats.PointCount));
+    }
+
+    public sealed record StatsResponse(
+        string Engine,
+        double EnsureMs, double ResolveMs, double FindMs, double SmoothMs,
+        int TilesBaked, int PolyPathLength, int PointCount);
 
     /// <summary>
     /// Debug/diagnostic: bakes one DotRecast navmesh tile at the given world

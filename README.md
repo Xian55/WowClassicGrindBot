@@ -667,6 +667,7 @@ run.bat --Reader:Type=WGC --Pathing:Mode=Local --Reader:UseGpu=true
 | `Reader` | `Type` | string | `DXGI` | `DXGI`, `WGC` | Screen reader type. `WGC` = Windows Graphics Capture (supports background window) |
 | `Reader` | `UseGpu` | bool | `false` | `true`, `false` | Use GPU acceleration for screen reading |
 | `Pathing` | `Mode` | string | `RemoteV3` | `Local`, `RemoteV1`, `RemoteV3` | Pathfinding mode |
+| `Pathing` | `Engine` | string | `SpotAStar` | `SpotAStar`, `Navmesh` | In-process engine for `Local` mode (and PathingAPI). `Navmesh` (experimental) bakes a DotRecast navmesh at runtime from your MPQ files and answers queries from it; tiles are cached under `Json/PathInfo/navmesh/` |
 | `Pathing` | `hostv1` | string | `localhost` | hostname/IP | RemoteV1 pathing server host |
 | `Pathing` | `portv1` | int | `5001` | port number | RemoteV1 pathing server port |
 | `Pathing` | `hostv3` | string | `127.0.0.1` | hostname/IP | RemoteV3 pathing server host |
