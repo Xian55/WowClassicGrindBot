@@ -318,6 +318,54 @@ window.addEventListener('DOMContentLoaded', function () {
         requestRender();
     });
 
+    connection.on("addNavmeshTile", (name, flatPositions, groundIndices, liquidIndices) => {
+        if (scene == null) return;
+
+        removeMesh(name + "_g");
+        removeMesh(name + "_w");
+
+        if (flatPositions.length === 0)
+            return;
+
+        // flatPositions is [wowX, wowY, wowZ, ...]; same axis mapping as the
+        // other handlers: babylon(x, y, z) = wow(x, z, y) / div.
+        const count = flatPositions.length / 3;
+        const positions = new Float32Array(flatPositions.length);
+        for (let i = 0; i < count; i++) {
+            const index = i * 3;
+            positions[index] = flatPositions[index] / div;
+            positions[index + 1] = flatPositions[index + 2] / div;
+            positions[index + 2] = flatPositions[index + 1] / div;
+        }
+
+        const buildLayer = (suffix, indices, r, g, b, alpha) => {
+            if (indices.length === 0)
+                return;
+
+            const mesh = new BABYLON.Mesh(name + suffix, scene);
+            const normals = new Float32Array(positions.length);
+            BABYLON.VertexData.ComputeNormals(positions, indices, normals);
+
+            const vertexData = new BABYLON.VertexData();
+            vertexData.positions = positions;
+            vertexData.indices = indices;
+            vertexData.normals = normals;
+            vertexData.applyToMesh(mesh);
+
+            const mat = new BABYLON.StandardMaterial(name + suffix + "_mat", scene);
+            mat.emissiveColor = new BABYLON.Color3(r, g, b);
+            mat.disableLighting = true;
+            mat.alpha = alpha;
+            mat.backFaceCulling = false;
+            mesh.material = mat;
+        };
+
+        buildLayer("_g", groundIndices, 0.15, 0.9, 0.3, 0.35);
+        buildLayer("_w", liquidIndices, 0.15, 0.4, 0.95, 0.4);
+
+        requestRender();
+    });
+
     connection.on("drawBoundBox", (min, max, color, name) => {
         if (scene == null) return;
 

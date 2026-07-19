@@ -26,6 +26,12 @@ public sealed class PPatherService
     public event Action<Path> OnPathCreated;
     public event Action<ChunkEventArgs> OnChunkAdded;
 
+    /// <summary>Baked navmesh tile landed in the mesh. May fire on a baker thread.</summary>
+    public event Action<int, int, DotRecast.Detour.DtMeshData> OnNavmeshTileAdded;
+
+    /// <summary>Navmesh tile evicted (LRU).</summary>
+    public event Action<int, int> OnNavmeshTileRemoved;
+
     public Action<LinesEventArgs> OnLinesAdded;
     public Action<SphereEventArgs> OnSphereAdded;
 
@@ -214,6 +220,10 @@ public sealed class PPatherService
         string cacheDir = System.IO.Path.Join(dataConfig.PathInfo, "navmesh", continent, hash);
 
         navmeshPathfinder = new NavmeshPathfinder(logger, TriangleWorld, cacheDir);
+        navmeshPathfinder.Tiles.NotifyTileAdded =
+            (x, z, data) => OnNavmeshTileAdded?.Invoke(x, z, data);
+        navmeshPathfinder.Tiles.NotifyTileRemoved =
+            (x, z) => OnNavmeshTileRemoved?.Invoke(x, z);
         navmeshMapId = search.MapId;
 
         logger.LogInformation("Navmesh engine ready for {Continent} - tile cache: {CacheDir}", continent, cacheDir);
