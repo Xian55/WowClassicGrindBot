@@ -1,0 +1,11 @@
+<Project>
+
+  <!-- Firewall: stops NuGet's upward search at this level so the DotRecast
+       submodule keeps its own multi-targeting and package versions instead of
+       inheriting the repo root Directory.Packages.props (which pins a global
+       windows TargetFramework and central package versions). -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+</Project>

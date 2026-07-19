@@ -1,0 +1,3 @@
+[submodule "external/DotRecast"]
+	path = external/DotRecast
+	url = https://github.com/Xian55/DotRecast.git

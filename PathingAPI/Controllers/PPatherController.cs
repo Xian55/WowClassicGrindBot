@@ -6,6 +6,7 @@ using PathingAPI.RateLimit;
 using PPather;
 using PPather.Data;
 using PPather.Graph;
+using PPather.Navmesh;
 
 using SharedLib.Data;
 
@@ -294,6 +295,51 @@ public sealed class PPatherController : ControllerBase
     }
 
     public sealed record CapabilitiesResponse(bool PathsAreSmoothed);
+
+    /// <summary>
+    /// Debug/diagnostic: bakes one DotRecast navmesh tile at the given world
+    /// position and reports geometry extraction + bake statistics. This is the
+    /// go/no-go probe for the navmesh engine's on-demand baking latency; it
+    /// does not persist or register the tile anywhere yet.
+    /// </summary>
+    /// <param name="x" example="-8898">world X</param>
+    /// <param name="y" example="-117">world Y</param>
+    /// <param name="mapid" example="0">ContientID ["Azeroth=0", "Kalimdor=1", "Outland/Expansion01=530", "Northrend=571"]</param>
+    [HttpGet("BakeTile")]
+    [ProducesResponseType(typeof(BakeTileResponse), StatusCodes.Status200OK, "application/json")]
+    [RateLimit]
+    public JsonResult BakeTile(float x, float y, float mapid)
+    {
+        // Ensures the continent (Search/PathGraph/triangle world) is initialised.
+        service.SetLocations(new(x, y, 0, mapid), new(x, y, 0, mapid));
+
+        NavmeshCoords.GetTileIndex(x, y, out int tileX, out int tileZ);
+
+        long extractStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        TileGeometry geom = TileGeometryExtractor.Extract(service.TriangleWorld, tileX, tileZ);
+        double extractMs = System.Diagnostics.Stopwatch.GetElapsedTime(extractStart).TotalMilliseconds;
+
+        long bakeStart = System.Diagnostics.Stopwatch.GetTimestamp();
+        DotRecast.Detour.DtMeshData data = NavmeshTileBuilder.Bake(geom, tileX, tileZ);
+        double bakeMs = System.Diagnostics.Stopwatch.GetElapsedTime(bakeStart).TotalMilliseconds;
+
+        return new JsonResult(new BakeTileResponse(
+            data != null,
+            tileX, tileZ,
+            geom.GroundTriangleCount, geom.LiquidTriangleCount,
+            geom.FailedChunkLoads,
+            data?.header.polyCount ?? 0,
+            data?.header.vertCount ?? 0,
+            extractMs, bakeMs));
+    }
+
+    public sealed record BakeTileResponse(
+        bool Success,
+        int TileX, int TileZ,
+        int GroundTriangles, int LiquidTriangles,
+        int FailedChunkLoads,
+        int PolyCount, int VertCount,
+        double ExtractMs, double BakeMs);
 
     [HttpPost("DrawPathTest")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]

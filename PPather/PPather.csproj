@@ -9,6 +9,13 @@
     <ProjectReference Include="..\SharedLib\SharedLib.csproj" />
   </ItemGroup>
 
+  <!-- DotRecast from the pinned submodule (Xian55/DotRecast @ wow-mods). -->
+  <ItemGroup>
+    <ProjectReference Include="..\external\DotRecast\src\DotRecast.Core\DotRecast.Core.csproj" />
+    <ProjectReference Include="..\external\DotRecast\src\DotRecast.Recast\DotRecast.Recast.csproj" />
+    <ProjectReference Include="..\external\DotRecast\src\DotRecast.Detour\DotRecast.Detour.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="MPQ\StormLib_x64.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

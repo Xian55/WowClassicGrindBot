@@ -67,7 +67,10 @@ public sealed class TriangleCollection
 
         triangles.Clear();
         vertecies.Clear();
-        matrix.Clear();
+        // Lazily created by GetTriangleMatrix - chunks that were only ever
+        // read as raw triangle soup (e.g. navmesh tile extraction) never
+        // materialize it.
+        matrix?.Clear();
     }
 
     public TriangleMatrix GetTriangleMatrix()
