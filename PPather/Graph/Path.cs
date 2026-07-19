@@ -40,6 +40,11 @@ public sealed class Path
         }
     }
 
+    public Path(List<Vector3> points)
+    {
+        locations = points;
+    }
+
     public void Add(Vector3 l)
     {
         locations.Add(l);

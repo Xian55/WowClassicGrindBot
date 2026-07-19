@@ -43,6 +43,7 @@ internal sealed class Program
         ["minimap"] = Test_MinimapNodeFinder,
         ["find-target"] = Test_FindTargetByCursor,
         ["pather"] = Test_PPather,
+        ["navmesh"] = Test_NavmeshCoords,
     };
 
     public static void Main(string[] args)
@@ -86,6 +87,14 @@ internal sealed class Program
                     remaining.Add(args[a]);
                     break;
             }
+        }
+
+        // Suites that need neither a running WoW process nor screen capture.
+        if (remaining.Count > 0 && remaining[0].Equals("navmesh", StringComparison.OrdinalIgnoreCase))
+        {
+            Test_NavmeshCoords(remaining.GetRange(1, remaining.Count - 1).ToArray());
+            Log.CloseAndFlush();
+            return;
         }
 
         // its expected to have at least 2 DataFrame
@@ -316,6 +325,83 @@ internal sealed class Program
     {
         string expansion = args.Length > 0 ? args[0] : "SoM";
         PPatherV2.PPatherV2 pPather = new(logger, DataConfig.Load(expansion));
+    }
+
+    private static void Test_NavmeshCoords(string[] args)
+    {
+        // Pure math checks - no game data required. Sign conventions in the
+        // wow<->rc mapping are the likeliest navmesh bug source, so landmarks
+        // and a full-grid index sweep are asserted here.
+        (string name, System.Numerics.Vector3 wow)[] landmarks =
+        [
+            ("Stormwind gate", new(-9170.7f, 361.9f, 92.6f)),
+            ("Orgrimmar bank", new(1631.5f, -4375.0f, 30.9f)),
+            ("Goldshire", new(-9464.0f, 62.0f, 56.0f)),
+            ("Booty Bay", new(-14297.0f, 530.0f, 8.0f)),
+            ("Everlook", new(6721.0f, -4657.0f, 721.0f)),
+        ];
+
+        int failures = 0;
+
+        foreach ((string name, System.Numerics.Vector3 wow) in landmarks)
+        {
+            System.Numerics.Vector3 roundTrip =
+                PPather.Navmesh.NavmeshCoords.ToWow(PPather.Navmesh.NavmeshCoords.ToRc(wow));
+
+            if (roundTrip != wow)
+            {
+                logger.LogError("{Name}: round-trip mismatch {Wow} -> {RoundTrip}", name, wow, roundTrip);
+                failures++;
+            }
+
+            PPather.Navmesh.NavmeshCoords.GetTileIndex(wow.X, wow.Y, out int tx, out int tz);
+            PPather.Navmesh.NavmeshCoords.GetTileWowBounds(tx, tz,
+                out float minX, out float minY, out float maxX, out float maxY);
+
+            if (wow.X < minX || wow.X >= maxX || wow.Y < minY || wow.Y >= maxY)
+            {
+                logger.LogError("{Name}: tile ({TileX},{TileZ}) bounds [{MinX},{MinY}]..[{MaxX},{MaxY}] exclude {Wow}",
+                    name, tx, tz, minX, minY, maxX, maxY, wow);
+                failures++;
+            }
+
+            if (!PPather.Navmesh.NavmeshCoords.IsValidTile(tx, tz))
+            {
+                logger.LogError("{Name}: tile ({TileX},{TileZ}) out of range", name, tx, tz);
+                failures++;
+            }
+        }
+
+        // Full-grid inversion sweep: index -> bounds center -> same index.
+        for (int tx = 0; tx < PPather.Navmesh.NavmeshSettings.TilesPerSide; tx += 5)
+        {
+            for (int tz = 0; tz < PPather.Navmesh.NavmeshSettings.TilesPerSide; tz += 5)
+            {
+                PPather.Navmesh.NavmeshCoords.GetTileWowBounds(tx, tz,
+                    out float minX, out float minY, out float maxX, out float maxY);
+
+                float cx = (minX + maxX) * 0.5f;
+                float cy = (minY + maxY) * 0.5f;
+
+                PPather.Navmesh.NavmeshCoords.GetTileIndex(cx, cy, out int rtx, out int rtz);
+                if (rtx != tx || rtz != tz)
+                {
+                    logger.LogError("Tile inversion mismatch: ({TileX},{TileZ}) -> center ({CenterX},{CenterY}) -> ({RTileX},{RTileZ})",
+                        tx, tz, cx, cy, rtx, rtz);
+                    failures++;
+                }
+            }
+        }
+
+        if (failures == 0)
+        {
+            logger.LogInformation("NavmeshCoords: all landmark round-trips, tile bounds and {Count} grid inversions OK",
+                (PPather.Navmesh.NavmeshSettings.TilesPerSide / 5) * (PPather.Navmesh.NavmeshSettings.TilesPerSide / 5));
+        }
+        else
+        {
+            logger.LogError("NavmeshCoords: {Failures} failures", failures);
+        }
     }
 
     private static double Percentile(double[] sorted, double p)

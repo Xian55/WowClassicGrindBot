@@ -135,6 +135,13 @@ public sealed class Startup
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
     {
+        // "Pathing:Engine" selects the in-process engine (SpotAStar | Navmesh).
+        if (System.Enum.TryParse(configuration.GetSection(StartupConfigPathing.Position)["Engine"],
+            out PathingEngine engine))
+        {
+            app.ApplicationServices.GetRequiredService<PPatherService>().Engine = engine;
+        }
+
         // Enable middleware to serve generated Swagger as a JSON endpoint.
         app.UseSwagger();
 

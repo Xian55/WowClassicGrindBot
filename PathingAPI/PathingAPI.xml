@@ -141,6 +141,19 @@
             all-capabilities-false.
             </summary>
         </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.GetEngine">
+            <summary>Returns the active in-process pathfinding engine.</summary>
+        </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.SetEngine(System.String)">
+            <summary>
+            Switches the in-process pathfinding engine at runtime (benchmark A/B
+            without a server restart) and resets pathfinder state.
+            </summary>
+            <param name="engine" example="Navmesh">SpotAStar | Navmesh</param>
+        </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.Stats">
+            <summary>Timing breakdown of the most recent navmesh query.</summary>
+        </member>
         <member name="M:PathingAPI.Controllers.PPatherController.BakeTile(System.Single,System.Single,System.Single)">
             <summary>
             Debug/diagnostic: bakes one DotRecast navmesh tile at the given world

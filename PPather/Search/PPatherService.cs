@@ -2,6 +2,7 @@
 
 using PPather.Data;
 using PPather.Graph;
+using PPather.Navmesh;
 
 using SharedLib;
 using SharedLib.Data;
@@ -30,6 +31,18 @@ public sealed class PPatherService
 
     private Search search { get; set; }
 
+    private NavmeshPathfinder navmeshPathfinder;
+    private float navmeshMapId = -1;
+    private bool? lastStartIndoors;
+
+    /// <summary>
+    /// Selects the in-process engine. Runtime-settable so the benchmark can
+    /// A/B both engines without a server restart.
+    /// </summary>
+    public PathingEngine Engine { get; set; } = PathingEngine.SpotAStar;
+
+    public NavmeshPathfinder NavmeshPathfinder => navmeshPathfinder;
+
     public bool Initialised => search != null;
 
     public bool IsSearching { get; set; }
@@ -55,6 +68,10 @@ public sealed class PPatherService
 
     public void Reset()
     {
+        navmeshPathfinder?.Dispose();
+        navmeshPathfinder = null;
+        navmeshMapId = -1;
+
         if (search == null)
             return;
 
@@ -144,6 +161,8 @@ public sealed class PPatherService
 
         Initialise(wma.MapID);
 
+        lastStartIndoors = startIndoors;
+
         return search.CreateWorldLocation(x, y, z, wma.MapID, startIndoors);
     }
 
@@ -162,10 +181,42 @@ public sealed class PPatherService
     {
         SearchBegin?.Invoke();
         IsSearching = true;
-        var path = search.DoSearch(searchType);
+
+        Path path = Engine == PathingEngine.Navmesh
+            ? NavmeshSearch()
+            : search.DoSearch(searchType);
+
         IsSearching = false;
         OnPathCreated?.Invoke(path);
         return path;
+    }
+
+    private Path NavmeshSearch()
+    {
+        EnsureNavmeshPathfinder();
+
+        return navmeshPathfinder.FindPath(
+            search.From.AsVector3(), search.Target.AsVector3(), lastStartIndoors);
+    }
+
+    private void EnsureNavmeshPathfinder()
+    {
+        if (navmeshPathfinder != null && navmeshMapId == search.MapId)
+        {
+            return;
+        }
+
+        navmeshPathfinder?.Dispose();
+
+        string continent = ContinentDB.IdToName[search.MapId];
+        string hash = NavmeshSettings.ComputeSettingsHash(dataConfig.Exp,
+            typeof(NavmeshPathfinder).Assembly.GetName().Version?.ToString() ?? "0");
+        string cacheDir = System.IO.Path.Join(dataConfig.PathInfo, "navmesh", continent, hash);
+
+        navmeshPathfinder = new NavmeshPathfinder(logger, TriangleWorld, cacheDir);
+        navmeshMapId = search.MapId;
+
+        logger.LogInformation("Navmesh engine ready for {Continent} - tile cache: {CacheDir}", continent, cacheDir);
     }
 
     public void Save()
