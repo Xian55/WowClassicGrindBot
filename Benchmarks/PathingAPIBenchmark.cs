@@ -81,14 +81,17 @@ public class PathingAPIBenchmark
         new("Z Honor hold issue no result", "api/PPather/WorldRoute2?x1=-732.031&y1=2448.2805&z1=58.940506&x2=-755.79004&y2=2491.16&z2=0&uimap=1944"),
         new("Duskwood issue", "api/PPather/MapRoute?uimap1=1431&x1=43.097&y1=18.38&uimap2=1431&x2=45.34&y2=16.438"),
 
-        // Building navigation tests
-        //new("Loch Modan building Yanni Stoutheart", "api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=48.6"),
-        //new("Loch Modan building innkeeper", "api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=35.5&y2=48.5"),
-        //new("Loch Modan building Vidra Heartstove", "api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=49.1"),
-        //new("Dun morogh building Grundel Harkin", "api/PPather/MapRoute?uimap1=1426&x1=28.7&y1=70.1&uimap2=1426&x2=28.8&y2=67.9"),
-        //new("Dun morogh building Grundel Harkin reverse", "api/PPather/MapRoute?uimap1=1426&x1=28.8&y1=67.9&uimap2=1426&x2=28.7&y2=70.1"),
+        // Building navigation tests (indoor corpus - multi-floor Z resolution)
+        new("Loch Modan building Yanni Stoutheart", "api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=48.6"),
+        new("Loch Modan building innkeeper", "api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=35.5&y2=48.5"),
+        new("Loch Modan building Vidra Heartstove", "api/PPather/MapRoute?uimap1=1432&x1=35.2&y1=46.9&uimap2=1432&x2=34.8&y2=49.1"),
+        new("Dun morogh building Grundel Harkin", "api/PPather/MapRoute?uimap1=1426&x1=28.7&y1=70.1&uimap2=1426&x2=28.8&y2=67.9"),
+        new("Dun morogh building Grundel Harkin reverse", "api/PPather/MapRoute?uimap1=1426&x1=28.8&y1=67.9&uimap2=1426&x2=28.7&y2=70.1"),
         new("Dun morogh Coldridge pass - unable to find", "api/PPather/MapRoute?uimap1=1426&x1=33.90&y1=71.86&uimap2=1426&x2=38.94&y2=61.0"),
         new("Dun morogh Coldridge pass", "api/PPather/MapRoute?uimap1=1426&x1=33.76&y1=71.91&uimap2=1426&x2=39.0&y2=61.13"),
+
+        // Cross-zone long haul
+        new("Cross-zone Elwynn to Redridge", "api/PPather/WorldRoute?x1=-9170.5&y1=355.4&z1=81.05&x2=-9230.0&y2=-2211.0&z2=0&mapid=0"),
 
         // Other zones
         new("Hinterlands 1 water issue", "api/PPather/MapRoute?uimap1=1425&x1=82.2771&y1=48.698803&uimap2=1425&x2=81.65922&y2=49.87935"),
@@ -109,7 +112,7 @@ public class PathingAPIBenchmark
 
     private readonly record struct PathPoint(float X, float Y, float Z);
 
-    private sealed class BenchmarkResult
+    public sealed class BenchmarkResult
     {
         public string TestName { get; set; } = string.Empty;
         public double ColdMs { get; set; } = -1;
@@ -132,7 +135,42 @@ public class PathingAPIBenchmark
         public double WarmMedianMs => HasWarm ? Median(WarmMs.OrderBy(x => x).ToList()) : -1;
     }
 
-    public static async Task RunBenchmark(string baseUrl, int iterations = 3,
+    /// <summary>
+    /// Runs the suite against each engine in turn (switching via
+    /// POST api/PPather/Engine) and writes per-engine reports plus a
+    /// side-by-side comparison markdown.
+    /// </summary>
+    public static async Task RunEngineComparison(string baseUrl, int iterations,
+        string[] engines, ILogger? logger = null, string outputDir = "benchmark_results")
+    {
+        logger ??= Log.Logger;
+
+        using HttpClient client = new();
+        List<(string engine, List<BenchmarkResult> results)> runs = [];
+
+        foreach (string engine in engines)
+        {
+            HttpResponseMessage response = await client.PostAsync(
+                $"{baseUrl}/api/PPather/Engine?engine={engine}", null);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.Error(string.Format("Engine switch to {0} failed: HTTP {1} - aborting comparison",
+                    engine, response.StatusCode));
+                return;
+            }
+
+            logger.Information(string.Format("\n===== Engine: {0} =====\n", engine));
+            List<BenchmarkResult> results = await RunBenchmark(baseUrl, iterations,
+                resetBetweenRuns: true, logger, label: engine, outputDir);
+            runs.Add((engine, results));
+        }
+
+        string path = WriteComparisonReport(outputDir, baseUrl, iterations, runs);
+        logger.Information(string.Format("\nComparison written: {0}", path));
+    }
+
+    public static async Task<List<BenchmarkResult>> RunBenchmark(string baseUrl, int iterations = 3,
         bool resetBetweenRuns = true, ILogger? logger = null,
         string label = "spot-astar", string outputDir = "benchmark_results")
     {
@@ -313,6 +351,103 @@ public class PathingAPIBenchmark
         logger.Information(string.Format("\nReport written: {0}", reportPath));
 
         logger.Information("\nBenchmark complete!");
+
+        return results;
+    }
+
+    private static string WriteComparisonReport(string outputDir, string baseUrl,
+        int iterations, List<(string engine, List<BenchmarkResult> results)> runs)
+    {
+        Directory.CreateDirectory(outputDir);
+
+        string fileName = string.Create(CultureInfo.InvariantCulture,
+            $"comparison_{DateTime.Now:yyyyMMdd_HHmmss}.md");
+        string path = Path.Combine(outputDir, fileName);
+
+        StringBuilder sb = new();
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
+            $"# Engine comparison - {string.Join(" vs ", runs.Select(r => r.engine))}"));
+        sb.AppendLine();
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
+            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} | {baseUrl} | {iterations} iterations (1 cold + {iterations - 1} warm)"));
+        sb.AppendLine();
+        sb.AppendLine("Cold = first query after server Reset. For SpotAStar that pays MPQ");
+        sb.AppendLine("chunk loading; for Navmesh it pays disk tile loads (or bakes on a");
+        sb.AppendLine("first-ever visit - a once-per-tile-per-lifetime cost).");
+        sb.AppendLine();
+
+        sb.AppendLine("## Overall");
+        sb.AppendLine();
+        sb.AppendLine("| Engine | OK | Reached | Cold Med | Cold P95 | Warm Med | Warm P95 | Avg Len yd | Avg Corners |");
+        sb.AppendLine("|---|---|---|---|---|---|---|---|---|");
+
+        foreach ((string engine, List<BenchmarkResult> results) in runs)
+        {
+            List<BenchmarkResult> ok = results.Where(r => r.Success).ToList();
+            List<double> cold = ok.Where(r => r.ColdMs >= 0).Select(r => r.ColdMs).OrderBy(t => t).ToList();
+            List<double> warm = ok.SelectMany(r => r.WarmMs).OrderBy(t => t).ToList();
+            List<BenchmarkResult> withPath = ok.Where(r => r.PointCount > 0).ToList();
+
+            int reached = results.Count(r => r.Reached == true);
+            int reachable = results.Count(r => r.Reached != null);
+
+            sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
+                $"| {engine} | {ok.Count}/{results.Count} | {reached}/{reachable} | {MedianOrDash(cold)} | {PercentileOrDash(cold, 95)} | {MedianOrDash(warm)} | {PercentileOrDash(warm, 95)} | {(withPath.Count > 0 ? withPath.Average(r => r.PathLengthYd) : 0):F0} | {(withPath.Count > 0 ? withPath.Average(r => r.CornerCount) : 0):F0} |"));
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## Per-route");
+        sb.AppendLine();
+
+        sb.Append("| Route |");
+        foreach ((string engine, _) in runs)
+        {
+            sb.Append(string.Create(CultureInfo.InvariantCulture,
+                $" {engine} Cold | {engine} Warm | {engine} Pts | {engine} Len | {engine} Crn | {engine} Reached |"));
+        }
+        sb.AppendLine();
+
+        sb.Append("|---|");
+        foreach ((string _, _) in runs)
+        {
+            sb.Append("---|---|---|---|---|---|");
+        }
+        sb.AppendLine();
+
+        int routeCount = runs[0].results.Count;
+        for (int i = 0; i < routeCount; i++)
+        {
+            sb.Append(string.Create(CultureInfo.InvariantCulture, $"| {runs[0].results[i].TestName} |"));
+
+            foreach ((string _, List<BenchmarkResult> results) in runs)
+            {
+                BenchmarkResult r = results[i];
+                if (r.Success)
+                {
+                    sb.Append(string.Create(CultureInfo.InvariantCulture,
+                        $" {r.ColdMs:F0} | {(r.HasWarm ? r.WarmAvgMs : double.NaN):F1} | {r.PointCount} | {r.PathLengthYd:F0} | {r.CornerCount} | {FormatReached(r.Reached)} |"));
+                }
+                else
+                {
+                    sb.Append(" FAIL | - | - | - | - | - |");
+                }
+            }
+
+            sb.AppendLine();
+        }
+
+        File.WriteAllText(path, sb.ToString());
+        return path;
+
+        static string MedianOrDash(List<double> sorted)
+        {
+            return sorted.Count == 0 ? "-" : string.Create(CultureInfo.InvariantCulture, $"{Median(sorted):F1}ms");
+        }
+
+        static string PercentileOrDash(List<double> sorted, int p)
+        {
+            return sorted.Count == 0 ? "-" : string.Create(CultureInfo.InvariantCulture, $"{Percentile(sorted, p):F1}ms");
+        }
     }
 
     private static void LogStats(ILogger logger, List<double> sortedTimes)

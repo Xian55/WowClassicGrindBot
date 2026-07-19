@@ -220,12 +220,14 @@ public sealed class NavmeshPathfinder : IDisposable
     }
 
     /// <summary>
-    /// CPOP validation: re-projects every smoothed point onto the mesh so the
-    /// spline cannot cut through walls or float off the surface.
+    /// CPOP validation: re-projects smoothed interior points onto the mesh so
+    /// the spline cannot cut through walls or float off the surface. Endpoints
+    /// are excluded - they come straight from the resolver (already on-poly)
+    /// and re-projection can drift them past the consumer's arrival radius.
     /// </summary>
     private void ValidateOnMesh(List<Vector3> rcPoints)
     {
-        for (int i = 0; i < rcPoints.Count; i++)
+        for (int i = 1; i < rcPoints.Count - 1; i++)
         {
             DtStatus status = query.FindNearestPoly(rcPoints[i], ValidateExtents, filter,
                 out long refs, out Vector3 nearest, out _);
