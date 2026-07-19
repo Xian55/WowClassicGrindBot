@@ -141,6 +141,17 @@
             all-capabilities-false.
             </summary>
         </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.BakeTile(System.Single,System.Single,System.Single)">
+            <summary>
+            Debug/diagnostic: bakes one DotRecast navmesh tile at the given world
+            position and reports geometry extraction + bake statistics. This is the
+            go/no-go probe for the navmesh engine's on-demand baking latency; it
+            does not persist or register the tile anywhere yet.
+            </summary>
+            <param name="x" example="-8898">world X</param>
+            <param name="y" example="-117">world Y</param>
+            <param name="mapid" example="0">ContientID ["Azeroth=0", "Kalimdor=1", "Outland/Expansion01=530", "Northrend=571"]</param>
+        </member>
         <member name="M:PathingAPI.Controllers.PPatherController.DrawPath(PPather.DrawWorldPathRequest)">
             <summary>
             Draws a path based on continentID and world coordinates.
