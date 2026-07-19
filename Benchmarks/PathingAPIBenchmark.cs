@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+
 using Serilog;
 
 namespace Benchmarks;
@@ -12,15 +16,27 @@ namespace Benchmarks;
 /// <summary>
 /// End-to-end benchmark suite for PathingAPI endpoints.
 /// Tests real pathfinding operations and measures:
-/// - Total elapsed time per request
-/// - Memory usage patterns
+/// - Cold (first query after server Reset, includes chunk loading) vs warm elapsed time
+/// - Path quality: total length, corner count, sharpest corner, endpoint reached
 /// - Consistency across multiple runs
 ///
-/// Usage: dotnet run --project Benchmarks -- --pather-benchmark [BaseUrl] [Iterations]
-/// Example: dotnet run --project Benchmarks -- --pather-benchmark http://localhost:5000 5
+/// Usage: dotnet run --project Benchmarks -- --pather-benchmark [BaseUrl] [Iterations] [Label]
+/// Example: dotnet run --project Benchmarks -- --pather-benchmark http://localhost:5001 4 spot-astar
 /// </summary>
 public class PathingAPIBenchmark
 {
+    // Cold measurement = iteration 0 right after a server Reset.
+    // Reset clears the explored graph so the first query pays MPQ chunk loading.
+    private const string ResetEndpoint = "api/PPather/Reset";
+
+    // Matches PathGraph.MaximumAllowedRangeFromTarget - a path whose last point
+    // is farther than this from the requested target did not actually arrive
+    // (e.g. ProgressTimeout returned the closest reached spot).
+    private const float ReachedDistance = 5f;
+
+    // Heading change (degrees, XY plane) above which a waypoint counts as a corner.
+    private const float CornerAngleDeg = 25f;
+
     private static readonly List<PathTest> TestRoutes =
     [
         // Elwynn Forest routes
@@ -91,85 +107,93 @@ public class PathingAPIBenchmark
 
     private sealed record PathTest(string Name, string Endpoint);
 
-    private class BenchmarkResult
+    private readonly record struct PathPoint(float X, float Y, float Z);
+
+    private sealed class BenchmarkResult
     {
-        public string TestName { get; set; }
-        public double[] ElapsedMs { get; set; }
+        public string TestName { get; set; } = string.Empty;
+        public double ColdMs { get; set; } = -1;
+        public double[] WarmMs { get; set; } = [];
         public bool Success { get; set; }
-        public string ErrorMessage { get; set; }
+        public string? ErrorMessage { get; set; }
         public int PointCount { get; set; }
+        public double PathLengthYd { get; set; }
+        public int CornerCount { get; set; }
+        public double MaxCornerDeg { get; set; }
 
-        public double MinMs => Success ? ElapsedMs.Min() : -1;
-        public double MaxMs => Success ? ElapsedMs.Max() : -1;
-        public double AvgMs => Success ? ElapsedMs.Average() : -1;
-        public double MedianMs => Success ? Median(ElapsedMs) : -1;
+        // true/false = endpoint check performed (world-coord routes);
+        // null = not applicable (map-coord routes have no world-space target).
+        public bool? Reached { get; set; }
 
-        private static double Median(double[] values)
-        {
-            var sorted = values.OrderBy(x => x).ToArray();
-            return sorted.Length % 2 == 0
-                ? (sorted[sorted.Length / 2 - 1] + sorted[sorted.Length / 2]) / 2
-                : sorted[sorted.Length / 2];
-        }
+        public bool HasWarm => Success && WarmMs.Length > 0;
+        public double WarmMinMs => HasWarm ? WarmMs.Min() : -1;
+        public double WarmMaxMs => HasWarm ? WarmMs.Max() : -1;
+        public double WarmAvgMs => HasWarm ? WarmMs.Average() : -1;
+        public double WarmMedianMs => HasWarm ? Median(WarmMs.OrderBy(x => x).ToList()) : -1;
     }
 
-    public static async Task RunBenchmark(string baseUrl, int iterations = 3, bool resetBetweenRuns = true, ILogger? logger = null)
+    public static async Task RunBenchmark(string baseUrl, int iterations = 3,
+        bool resetBetweenRuns = true, ILogger? logger = null,
+        string label = "spot-astar", string outputDir = "benchmark_results")
     {
         logger ??= Log.Logger;
 
         int nameWidth = TestRoutes.Max(t => t.Name.Length) + 2;
-        int separatorWidth = nameWidth + 52; // 4 time columns × 11 chars each + Pts column 8 chars
+        int separatorWidth = nameWidth + 96;
 
-        string progressOkFmt = $"[{{0:D2}}/{{1:D2}}] {{2,-{nameWidth}}} ... OK Min: {{3,8:F1}}ms | Avg: {{4,8:F1}}ms | Median: {{5,8:F1}}ms | Max: {{6,8:F1}}ms | Pts: {{7,5}}";
+        string progressOkFmt = $"[{{0:D2}}/{{1:D2}}] {{2,-{nameWidth}}} ... OK Cold: {{3,8:F1}}ms | Warm Avg: {{4,8:F1}}ms | Pts: {{5,5}} | Len: {{6,7:F1}}yd | Crn: {{7,3}} | {{8}}";
         string progressFailFmt = $"[{{0:D2}}/{{1:D2}}] {{2,-{nameWidth}}} ... FAIL {{3}}";
-        string tableHeaderFmt = $"{{0,-{nameWidth}}} | {{1,8}} | {{2,8}} | {{3,8}} | {{4,8}} | {{5,5}}";
-        string tableRowFmt = $"{{0,-{nameWidth}}} | {{1,8:F1}}ms | {{2,8:F1}}ms | {{3,8:F1}}ms | {{4,8:F1}}ms | {{5,5}}";
+        string tableHeaderFmt = $"{{0,-{nameWidth}}} | {{1,8}} | {{2,8}} | {{3,8}} | {{4,8}} | {{5,8}} | {{6,5}} | {{7,8}} | {{8,4}} | {{9,7}} | {{10,7}}";
+        string tableRowFmt = $"{{0,-{nameWidth}}} | {{1,8:F1}} | {{2,8:F1}} | {{3,8:F1}} | {{4,8:F1}} | {{5,8:F1}} | {{6,5}} | {{7,8:F1}} | {{8,4}} | {{9,7:F1}} | {{10,7}}";
 
         logger.Information("=== PathingAPI End-to-End Benchmark Suite ===\n");
         logger.Information(string.Format("Base URL: {0}", baseUrl));
+        logger.Information(string.Format("Label: {0}", label));
         logger.Information(string.Format("Test Routes: {0}", TestRoutes.Count));
-        logger.Information(string.Format("Iterations per route: {0}", iterations));
-        logger.Information(string.Format("Reset between runs: {0}", resetBetweenRuns));
+        logger.Information(string.Format("Iterations per route: {0} (1 cold + {1} warm)", iterations, Math.Max(0, iterations - 1)));
+        logger.Information(string.Format("Reset before each route: {0}", resetBetweenRuns));
         logger.Information("");
 
         using HttpClient client = new();
         List<BenchmarkResult> results = [];
+        bool resetAvailable = true;
 
         long begin = Stopwatch.GetTimestamp();
 
-        // Run benchmarks
         for (int i = 0; i < TestRoutes.Count; i++)
         {
             PathTest test = TestRoutes[i];
 
             BenchmarkResult result = new()
             {
-                TestName = test.Name,
-                ElapsedMs = new double[iterations]
+                TestName = test.Name
             };
 
             try
             {
+                // Reset BEFORE the first iteration: iteration 0 then measures a
+                // cold query (fresh graph, pays chunk loading), the rest are warm.
+                if (resetBetweenRuns && resetAvailable)
+                {
+                    HttpResponseMessage resetResponse = await client.PostAsync($"{baseUrl}/{ResetEndpoint}", null);
+                    if (!resetResponse.IsSuccessStatusCode)
+                    {
+                        resetAvailable = false;
+                        logger.Warning(string.Format(
+                            "Reset endpoint {0} returned {1} - cold timings will include prior state!",
+                            ResetEndpoint, resetResponse.StatusCode));
+                    }
+                }
+
+                List<double> warm = new(Math.Max(0, iterations - 1));
+
                 for (int iter = 0; iter < iterations; iter++)
                 {
-                    if (resetBetweenRuns && iter > 0)
-                    {
-                        // Call reset endpoint between iterations
-                        try
-                        {
-                            await client.PostAsync($"{baseUrl}/api/Reset", null);
-                        }
-                        catch
-                        {
-                            // Reset might not exist, continue anyway
-                        }
-                    }
-
                     long startTime = Stopwatch.GetTimestamp();
 
                     HttpResponseMessage response = await client.GetAsync($"{baseUrl}/{test.Endpoint}");
 
-                    result.ElapsedMs[iter] = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+                    double elapsedMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -180,14 +204,25 @@ public class PathingAPIBenchmark
 
                     if (iter == 0)
                     {
-                        using JsonDocument doc = JsonDocument.Parse(
+                        result.ColdMs = elapsedMs;
+
+                        PathPoint[] points = ParsePoints(
                             await response.Content.ReadAsStreamAsync());
-                        result.PointCount = doc.RootElement.GetArrayLength();
+
+                        result.PointCount = points.Length;
+                        AnalyzePath(points, test.Endpoint, result);
+                    }
+                    else
+                    {
+                        warm.Add(elapsedMs);
                     }
                 }
 
                 if (result.ErrorMessage == null)
+                {
                     result.Success = true;
+                    result.WarmMs = [.. warm];
+                }
             }
             catch (Exception ex)
             {
@@ -198,7 +233,10 @@ public class PathingAPIBenchmark
             if (result.Success)
             {
                 logger.Information(string.Format(progressOkFmt,
-                    i + 1, TestRoutes.Count, test.Name, result.MinMs, result.AvgMs, result.MedianMs, result.MaxMs, result.PointCount));
+                    i + 1, TestRoutes.Count, test.Name, result.ColdMs,
+                    result.HasWarm ? result.WarmAvgMs : double.NaN,
+                    result.PointCount, result.PathLengthYd, result.CornerCount,
+                    FormatReached(result.Reached)));
             }
             else
             {
@@ -209,15 +247,18 @@ public class PathingAPIBenchmark
             results.Add(result);
         }
 
+        double totalSeconds = Stopwatch.GetElapsedTime(begin).TotalSeconds;
+
         logger.Information("");
         logger.Information("=== Summary ===\n");
-        logger.Information(string.Format("Total elapsed time: {0:F2}s", Stopwatch.GetElapsedTime(begin).TotalSeconds));
+        logger.Information(string.Format("Total elapsed time: {0:F2}s", totalSeconds));
 
-        // Statistics
         List<BenchmarkResult> successfulResults = results.Where(r => r.Success).ToList();
         List<BenchmarkResult> failedResults = results.Where(r => !r.Success).ToList();
+        List<BenchmarkResult> notReached = successfulResults.Where(r => r.Reached == false).ToList();
 
         logger.Information(string.Format("Successful tests: {0}/{1}", successfulResults.Count, results.Count));
+
         if (failedResults.Count > 0)
         {
             logger.Information(string.Format("Failed tests: {0}", failedResults.Count));
@@ -227,32 +268,301 @@ public class PathingAPIBenchmark
             }
         }
 
-        if (successfulResults.Count > 0)
+        if (notReached.Count > 0)
+        {
+            logger.Information(string.Format("Endpoint NOT reached (HTTP OK but last point > {0}yd from target): {1}", ReachedDistance, notReached.Count));
+            foreach (BenchmarkResult miss in notReached)
+            {
+                logger.Information(string.Format("  - {0}: {1} points", miss.TestName, miss.PointCount));
+            }
+        }
+
+        List<double> coldTimes = successfulResults.Where(r => r.ColdMs >= 0).Select(r => r.ColdMs).OrderBy(t => t).ToList();
+        List<double> warmTimes = successfulResults.SelectMany(r => r.WarmMs).OrderBy(t => t).ToList();
+
+        if (coldTimes.Count > 0)
         {
             logger.Information("");
-            List<double> allTimes = successfulResults.SelectMany(r => r.ElapsedMs).OrderBy(t => t).ToList();
-            logger.Information(string.Format("Overall Statistics (all {0} measurements):", allTimes.Count));
-            logger.Information(string.Format("  Min:    {0}ms", allTimes.Min()));
-            logger.Information(string.Format("  Max:    {0}ms", allTimes.Max()));
-            logger.Information(string.Format("  Avg:    {0:F1}ms", allTimes.Average()));
-            logger.Information(string.Format("  Median: {0}ms", Median(allTimes)));
-            logger.Information(string.Format("  P95:    {0}ms", Percentile(allTimes, 95)));
-            logger.Information(string.Format("  P99:    {0}ms", Percentile(allTimes, 99)));
+            logger.Information(string.Format("Cold Statistics ({0} measurements - first query after Reset, includes chunk load):", coldTimes.Count));
+            LogStats(logger, coldTimes);
         }
 
-        // Detailed results table
+        if (warmTimes.Count > 0)
+        {
+            logger.Information("");
+            logger.Information(string.Format("Warm Statistics ({0} measurements):", warmTimes.Count));
+            LogStats(logger, warmTimes);
+        }
+
         logger.Information("\n=== Detailed Results ===\n");
         logger.Information(string.Format(tableHeaderFmt,
-            "Test Name", "Min", "Avg", "Median", "Max", "Pts"));
+            "Test Name", "Cold", "WarmMin", "WarmAvg", "WarmMed", "WarmMax", "Pts", "LenYd", "Crn", "MaxCrn", "Reached"));
         logger.Information(new string('-', separatorWidth));
 
-        foreach (BenchmarkResult result in successfulResults.OrderBy(r => r.AvgMs))
+        foreach (BenchmarkResult result in successfulResults.OrderBy(r => r.HasWarm ? r.WarmAvgMs : r.ColdMs))
         {
             logger.Information(string.Format(tableRowFmt,
-                result.TestName, result.MinMs, result.AvgMs, result.MedianMs, result.MaxMs, result.PointCount));
+                result.TestName, result.ColdMs, result.WarmMinMs, result.WarmAvgMs,
+                result.WarmMedianMs, result.WarmMaxMs, result.PointCount,
+                result.PathLengthYd, result.CornerCount, result.MaxCornerDeg,
+                FormatReached(result.Reached)));
         }
 
+        string reportPath = WriteMarkdownReport(outputDir, label, baseUrl, iterations,
+            resetBetweenRuns && resetAvailable, totalSeconds, results, coldTimes, warmTimes, notReached);
+        logger.Information(string.Format("\nReport written: {0}", reportPath));
+
         logger.Information("\nBenchmark complete!");
+    }
+
+    private static void LogStats(ILogger logger, List<double> sortedTimes)
+    {
+        logger.Information(string.Format("  Min:    {0:F1}ms", sortedTimes[0]));
+        logger.Information(string.Format("  Max:    {0:F1}ms", sortedTimes[^1]));
+        logger.Information(string.Format("  Avg:    {0:F1}ms", sortedTimes.Average()));
+        logger.Information(string.Format("  Median: {0:F1}ms", Median(sortedTimes)));
+        logger.Information(string.Format("  P95:    {0:F1}ms", Percentile(sortedTimes, 95)));
+        logger.Information(string.Format("  P99:    {0:F1}ms", Percentile(sortedTimes, 99)));
+    }
+
+    private static string FormatReached(bool? reached)
+    {
+        return reached switch
+        {
+            true => "yes",
+            false => "NO",
+            null => "n/a",
+        };
+    }
+
+    /// <summary>
+    /// Parses a JSON array of {"x":..,"y":..,"z":..} objects
+    /// (see <c>SharedLib.Converters.Vector3Converter</c>; upper-case variant tolerated).
+    /// </summary>
+    private static PathPoint[] ParsePoints(Stream stream)
+    {
+        using JsonDocument doc = JsonDocument.Parse(stream);
+
+        if (doc.RootElement.ValueKind != JsonValueKind.Array)
+            return [];
+
+        int count = doc.RootElement.GetArrayLength();
+        PathPoint[] points = new PathPoint[count];
+
+        int i = 0;
+        foreach (JsonElement element in doc.RootElement.EnumerateArray())
+        {
+            points[i++] = new PathPoint(
+                GetFloat(element, "x", "X"),
+                GetFloat(element, "y", "Y"),
+                GetFloat(element, "z", "Z"));
+        }
+
+        return points;
+
+        static float GetFloat(JsonElement element, string lower, string upper)
+        {
+            if (element.TryGetProperty(lower, out JsonElement value) ||
+                element.TryGetProperty(upper, out value))
+            {
+                return value.GetSingle();
+            }
+            return 0f;
+        }
+    }
+
+    /// <summary>
+    /// Computes path length, corner metrics and - for world-coordinate routes -
+    /// whether the path actually arrives at the requested target.
+    /// </summary>
+    private static void AnalyzePath(PathPoint[] points, string endpoint, BenchmarkResult result)
+    {
+        double length = 0;
+        int corners = 0;
+        double maxCornerDeg = 0;
+
+        for (int i = 1; i < points.Length; i++)
+        {
+            float dx = points[i].X - points[i - 1].X;
+            float dy = points[i].Y - points[i - 1].Y;
+            float dz = points[i].Z - points[i - 1].Z;
+            length += Math.Sqrt((dx * dx) + (dy * dy) + (dz * dz));
+        }
+
+        // Corner detection on the XY plane - Z is height-guessed and noisy.
+        double prevHeading = double.NaN;
+        for (int i = 1; i < points.Length; i++)
+        {
+            float dx = points[i].X - points[i - 1].X;
+            float dy = points[i].Y - points[i - 1].Y;
+
+            if ((dx * dx) + (dy * dy) < 0.0001f)
+                continue;
+
+            double heading = Math.Atan2(dy, dx);
+
+            if (!double.IsNaN(prevHeading))
+            {
+                double deltaDeg = Math.Abs(NormalizeAngle(heading - prevHeading)) * (180.0 / Math.PI);
+                if (deltaDeg > CornerAngleDeg)
+                    corners++;
+                if (deltaDeg > maxCornerDeg)
+                    maxCornerDeg = deltaDeg;
+            }
+
+            prevHeading = heading;
+        }
+
+        result.PathLengthYd = length;
+        result.CornerCount = corners;
+        result.MaxCornerDeg = maxCornerDeg;
+        result.Reached = ComputeReached(points, endpoint);
+    }
+
+    private static double NormalizeAngle(double radians)
+    {
+        while (radians > Math.PI) radians -= 2 * Math.PI;
+        while (radians < -Math.PI) radians += 2 * Math.PI;
+        return radians;
+    }
+
+    /// <summary>
+    /// World-coordinate routes (WorldRoute/WorldRoute2) carry the target as x2/y2
+    /// query parameters - compare against the last path point (XY plane, Z is guessed).
+    /// Map-coordinate routes have no world-space target: returns null (not applicable).
+    /// </summary>
+    private static bool? ComputeReached(PathPoint[] points, string endpoint)
+    {
+        if (!endpoint.Contains("WorldRoute"))
+            return null;
+
+        if (!TryGetQueryFloat(endpoint, "x2", out float targetX) ||
+            !TryGetQueryFloat(endpoint, "y2", out float targetY))
+        {
+            return null;
+        }
+
+        if (points.Length == 0)
+            return false;
+
+        PathPoint last = points[^1];
+        float dx = last.X - targetX;
+        float dy = last.Y - targetY;
+        return ((dx * dx) + (dy * dy)) <= (ReachedDistance * ReachedDistance);
+    }
+
+    private static bool TryGetQueryFloat(string endpoint, string name, out float value)
+    {
+        value = 0f;
+
+        int queryStart = endpoint.IndexOf('?');
+        if (queryStart < 0)
+            return false;
+
+        foreach (string pair in endpoint[(queryStart + 1)..].Split('&'))
+        {
+            int eq = pair.IndexOf('=');
+            if (eq <= 0)
+                continue;
+
+            if (pair.AsSpan(0, eq).Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                return float.TryParse(pair.AsSpan(eq + 1), NumberStyles.Float,
+                    CultureInfo.InvariantCulture, out value);
+            }
+        }
+
+        return false;
+    }
+
+    private static string WriteMarkdownReport(string outputDir, string label,
+        string baseUrl, int iterations, bool coldValid, double totalSeconds,
+        List<BenchmarkResult> results, List<double> coldTimes, List<double> warmTimes,
+        List<BenchmarkResult> notReached)
+    {
+        Directory.CreateDirectory(outputDir);
+
+        string fileName = string.Create(CultureInfo.InvariantCulture,
+            $"pathing_{Sanitize(label)}_{DateTime.Now:yyyyMMdd_HHmmss}.md");
+        string path = Path.Combine(outputDir, fileName);
+
+        StringBuilder sb = new();
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"# PathingAPI Benchmark - {label}"));
+        sb.AppendLine();
+        sb.AppendLine("| Setting | Value |");
+        sb.AppendLine("|---|---|");
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"| Date | {DateTime.Now:yyyy-MM-dd HH:mm:ss} |"));
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"| Base URL | {baseUrl} |"));
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"| Routes | {results.Count} |"));
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"| Iterations | {iterations} (1 cold + {Math.Max(0, iterations - 1)} warm) |"));
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"| Cold timings valid | {coldValid} |"));
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"| Total duration | {totalSeconds:F1}s |"));
+        sb.AppendLine();
+
+        AppendStatsSection(sb, "Cold (first query after Reset, includes chunk load)", coldTimes);
+        AppendStatsSection(sb, "Warm", warmTimes);
+
+        List<BenchmarkResult> failed = results.Where(r => !r.Success).ToList();
+        if (failed.Count > 0)
+        {
+            sb.AppendLine("## Failed");
+            sb.AppendLine();
+            foreach (BenchmarkResult f in failed)
+                sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"- {f.TestName}: {f.ErrorMessage}"));
+            sb.AppendLine();
+        }
+
+        if (notReached.Count > 0)
+        {
+            sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"## Endpoint not reached (last point > {ReachedDistance}yd from target)"));
+            sb.AppendLine();
+            foreach (BenchmarkResult miss in notReached)
+                sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"- {miss.TestName}: {miss.PointCount} points"));
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("## Per-route results");
+        sb.AppendLine();
+        sb.AppendLine("| Route | Cold ms | Warm Min | Warm Avg | Warm Med | Warm Max | Pts | Len yd | Corners | Max Crn deg | Reached |");
+        sb.AppendLine("|---|---|---|---|---|---|---|---|---|---|---|");
+
+        foreach (BenchmarkResult r in results)
+        {
+            if (r.Success)
+            {
+                sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
+                    $"| {r.TestName} | {r.ColdMs:F1} | {r.WarmMinMs:F1} | {r.WarmAvgMs:F1} | {r.WarmMedianMs:F1} | {r.WarmMaxMs:F1} | {r.PointCount} | {r.PathLengthYd:F1} | {r.CornerCount} | {r.MaxCornerDeg:F1} | {FormatReached(r.Reached)} |"));
+            }
+            else
+            {
+                sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
+                    $"| {r.TestName} | FAIL | - | - | - | - | - | - | - | - | {r.ErrorMessage} |"));
+            }
+        }
+
+        File.WriteAllText(path, sb.ToString());
+        return path;
+    }
+
+    private static void AppendStatsSection(StringBuilder sb, string title, List<double> sortedTimes)
+    {
+        if (sortedTimes.Count == 0)
+            return;
+
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture, $"## {title}"));
+        sb.AppendLine();
+        sb.AppendLine("| Min | Max | Avg | Median | P95 | P99 | Samples |");
+        sb.AppendLine("|---|---|---|---|---|---|---|");
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
+            $"| {sortedTimes[0]:F1}ms | {sortedTimes[^1]:F1}ms | {sortedTimes.Average():F1}ms | {Median(sortedTimes):F1}ms | {Percentile(sortedTimes, 95):F1}ms | {Percentile(sortedTimes, 99):F1}ms | {sortedTimes.Count} |"));
+        sb.AppendLine();
+    }
+
+    private static string Sanitize(string label)
+    {
+        foreach (char c in Path.GetInvalidFileNameChars())
+            label = label.Replace(c, '-');
+        return label.Replace(' ', '-').ToLowerInvariant();
     }
 
     private static double Median(List<double> values)
