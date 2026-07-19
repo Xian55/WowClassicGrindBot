@@ -201,8 +201,25 @@ public sealed class PPatherService
     {
         EnsureNavmeshPathfinder();
 
-        return navmeshPathfinder.FindPath(
-            search.From.AsVector3(), search.Target.AsVector3(), lastStartIndoors);
+        Vector3 from = search.From.AsVector3();
+        Vector3 to = search.Target.AsVector3();
+
+        // Callers that bypass ToWorldZ (raw WorldRoute) pass z=0. The navmesh
+        // column scan alone would pick the highest poly - which can be a tree
+        // canopy or roof. Seed the height with the spot-geometry surface
+        // heuristics (canopy/terrain preference) first; the resolver then only
+        // needs its small vertical extents.
+        if (from.Z == 0)
+        {
+            from = search.CreateWorldLocation(from.X, from.Y, 0, (int)search.MapId, lastStartIndoors).AsVector3();
+        }
+
+        if (to.Z == 0)
+        {
+            to = search.CreateWorldLocation(to.X, to.Y, 0, (int)search.MapId, null).AsVector3();
+        }
+
+        return navmeshPathfinder.FindPath(from, to, lastStartIndoors);
     }
 
     private void EnsureNavmeshPathfinder()
