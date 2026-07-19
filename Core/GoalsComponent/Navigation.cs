@@ -248,7 +248,7 @@ public sealed partial class Navigation : IDisposable
     {
         ResetStuckParameters();
 
-        if (pather.GetType() != typeof(RemotePathingAPIV3) && routeToNextWaypoint.Count > 0)
+        if (!pather.PathsAreSmoothed && routeToNextWaypoint.Count > 0)
         {
             V1_AttemptToKeepRouteToWaypoint();
         }
@@ -268,7 +268,7 @@ public sealed partial class Navigation : IDisposable
     {
         active = false;
 
-        if (pather.GetType() == typeof(RemotePathingAPIV3))
+        if (pather.PathsAreSmoothed)
             routeToNextWaypoint.Clear();
 
         ResetStuckParameters();

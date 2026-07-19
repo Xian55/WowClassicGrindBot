@@ -22,6 +22,8 @@ namespace Core;
 
 public sealed class RemotePathingAPIV3 : IPPather, IDisposable
 {
+    public bool PathsAreSmoothed => true;
+
     private const bool debug = false;
     private const int watchdogPollMs = 500;
 
