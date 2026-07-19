@@ -242,7 +242,9 @@ window.addEventListener('DOMContentLoaded', function () {
 
         if (arrays.length === 0) return;
 
-        const height = 0 //getHeight(color);
+        // Small lift so paths projected exactly onto a surface (navmesh CPOP
+        // output) do not z-fight with it.
+        const height = 0.3 / div;
 
         const vectors = [];
         for (i = 0; i < arrays.length; i++) {
@@ -357,6 +359,9 @@ window.addEventListener('DOMContentLoaded', function () {
             mat.disableLighting = true;
             mat.alpha = alpha;
             mat.backFaceCulling = false;
+            // Push the overlay back in the depth buffer so co-planar path
+            // lines (CPOP-projected onto this very surface) stay visible.
+            mat.zOffset = 4;
             mesh.material = mat;
         };
 
