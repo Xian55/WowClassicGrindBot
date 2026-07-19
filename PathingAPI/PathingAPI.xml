@@ -209,5 +209,13 @@
         <member name="M:PathingAPI.Pages.Index.MR(System.Int32,System.Double,System.Double,System.Int32,System.Double,System.Double)">
             <summary>MapRoute: uiMap coordinates</summary>
         </member>
+        <member name="M:PathingAPI.Pages.Watch.SendNavmeshTile(System.Int32,System.Int32,DotRecast.Detour.DtMeshData,System.Threading.CancellationToken)">
+            <summary>
+            Converts a Detour tile into a renderable triangle soup: fan-triangulate
+            each polygon and split indices by area (ground vs liquid). Vertices are
+            converted rc -> wow ({z, x, y}) - the js side applies the same axis
+            mapping as every other mesh.
+            </summary>
+        </member>
     </members>
 </doc>

@@ -39,6 +39,8 @@ public sealed class NavmeshPathfinder : IDisposable
 
     public NavmeshStats LastStats;
 
+    public NavmeshTileCache Tiles => tiles;
+
     public struct NavmeshStats
     {
         public double EnsureMs;
@@ -124,6 +126,7 @@ public sealed class NavmeshPathfinder : IDisposable
     {
         long[] polyBuffer = ArrayPool<long>.Shared.Rent(MaxPolyPath);
         DtStraightPath[] straightBuffer = ArrayPool<DtStraightPath>.Shared.Rent(MaxStraightPath);
+        long budgetStart = Stopwatch.GetTimestamp();
         try
         {
             List<Vector3> points = [];
@@ -133,6 +136,27 @@ public sealed class NavmeshPathfinder : IDisposable
 
             for (int leg = 0; leg < MaxContinuations; leg++)
             {
+                // The initial corridor ensure follows the straight from->to
+                // line; the real poly route can curve off it. Each leg re-
+                // ensures tiles along the remaining segment from the current
+                // frontier, spending whatever is left of the corridor budget.
+                if (leg > 0)
+                {
+                    TimeSpan remaining = NavmeshTileCache.CorridorWaitBudget
+                        - Stopwatch.GetElapsedTime(budgetStart);
+
+                    tiles.Lock.ExitReadLock();
+                    try
+                    {
+                        tiles.EnsureTilesForSegment(
+                            NavmeshCoords.ToWow(curStart), NavmeshCoords.ToWow(rcEnd), remaining);
+                    }
+                    finally
+                    {
+                        tiles.Lock.EnterReadLock();
+                    }
+                }
+
                 Span<long> polys = polyBuffer.AsSpan(0, MaxPolyPath);
 
                 DtStatus status = query.FindPath(curStartRef, endRef, curStart, rcEnd,

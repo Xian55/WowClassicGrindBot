@@ -55,6 +55,9 @@
             <button @onclick="ToggleWireFrame">
                 <span style="@(WireFrameEnabled ? "color: green;" : "")">Wire</span>
             </button>
+            <button @onclick="() => NavmeshLayerEnabled = !NavmeshLayerEnabled">
+                <span style="@(NavmeshLayerEnabled ? "color: green;" : "")">Navmesh</span>
+            </button>
             <button @onclick="CycleGeometryMode">
                 <span style="@(CurrentGeometryMode != GeometryMode.Off ? "color: " + GetGeometryModeColor() + ";" : "")">
                     @GetGeometryModeText()
@@ -119,6 +122,11 @@
 
     private ConcurrentQueue<ChunkEventArgs> chunkEventArgs = new();
 
+    private ConcurrentQueue<(int x, int z, DotRecast.Detour.DtMeshData data)> navmeshTileAdds = new();
+    private ConcurrentQueue<(int x, int z)> navmeshTileRemovals = new();
+
+    private bool NavmeshLayerEnabled { get; set; } = true;
+
     private GeometryMode CurrentGeometryMode { get; set; } = GeometryMode.All;
 
     private bool DrawTestPoints { get; set; } = false;
@@ -153,6 +161,8 @@
 
         pPatherService.OnChunkAdded += OnChunkAdded;
         pPatherService.OnPathCreated += OnDrawFinalPath;
+        pPatherService.OnNavmeshTileAdded += OnNavmeshTileAdded;
+        pPatherService.OnNavmeshTileRemoved += OnNavmeshTileRemoved;
 
         pPatherService.OnLinesAdded += OnDrawLines;
         pPatherService.OnSphereAdded += OnDrawSphere;
@@ -168,6 +178,8 @@
         pPatherService.SearchBegin -= OnSearchBegin;
         pPatherService.OnChunkAdded -= OnChunkAdded;
         pPatherService.OnPathCreated -= OnDrawFinalPath;
+        pPatherService.OnNavmeshTileAdded -= OnNavmeshTileAdded;
+        pPatherService.OnNavmeshTileRemoved -= OnNavmeshTileRemoved;
         pPatherService.OnLinesAdded -= OnDrawLines;
         pPatherService.OnSphereAdded -= OnDrawSphere;
 
@@ -340,6 +352,8 @@
             }
 #pragma warning restore CS0162
 
+            await DrawNavmeshTiles(token);
+
             if (lastPeek != pPatherService.PeekLocation)
             {
                 lastPeek = pPatherService.PeekLocation;
@@ -386,6 +400,7 @@
             }
 
             await DrawGeometry(Token);
+            await DrawNavmeshTiles(Token);
 
             if (DrawTestPoints && BabylonJs)
             {
@@ -441,6 +456,81 @@
     {
         chunkEventArgs.Enqueue(e);
         //_ = DequeueChunkEvent(e);
+    }
+
+    private void OnNavmeshTileAdded(int x, int z, DotRecast.Detour.DtMeshData data)
+    {
+        navmeshTileAdds.Enqueue((x, z, data));
+    }
+
+    private void OnNavmeshTileRemoved(int x, int z)
+    {
+        navmeshTileRemovals.Enqueue((x, z));
+    }
+
+    private async Task DrawNavmeshTiles(CancellationToken token)
+    {
+        if (!BabylonJs) { return; }
+
+        while (!token.IsCancellationRequested &&
+            navmeshTileRemovals.TryDequeue(out (int x, int z) removed))
+        {
+            string name = NavmeshTileName(removed.x, removed.z);
+            await hubContext.Clients.All.SendAsync("removeMesh", name + "_g", token);
+            await hubContext.Clients.All.SendAsync("removeMesh", name + "_w", token);
+        }
+
+        while (NavmeshLayerEnabled &&
+            !token.IsCancellationRequested &&
+            navmeshTileAdds.TryDequeue(out (int x, int z, DotRecast.Detour.DtMeshData data) e))
+        {
+            await SendNavmeshTile(e.x, e.z, e.data, token);
+        }
+    }
+
+    private static string NavmeshTileName(int x, int z) => $"navmesh_{x}_{z}";
+
+    /// <summary>
+    /// Converts a Detour tile into a renderable triangle soup: fan-triangulate
+    /// each polygon and split indices by area (ground vs liquid). Vertices are
+    /// converted rc -> wow ({z, x, y}) - the js side applies the same axis
+    /// mapping as every other mesh.
+    /// </summary>
+    private async Task SendNavmeshTile(int x, int z, DotRecast.Detour.DtMeshData data, CancellationToken token)
+    {
+        int vertCount = data.header.vertCount;
+        float[] positions = new float[vertCount * 3];
+
+        for (int i = 0; i < vertCount; i++)
+        {
+            // rc (x=wowY, y=wowZ, z=wowX) -> wow (x, y, z)
+            positions[(i * 3) + 0] = data.verts[(i * 3) + 2];
+            positions[(i * 3) + 1] = data.verts[(i * 3) + 0];
+            positions[(i * 3) + 2] = data.verts[(i * 3) + 1];
+        }
+
+        List<int> groundIndices = [];
+        List<int> liquidIndices = [];
+
+        for (int p = 0; p < data.header.polyCount; p++)
+        {
+            DotRecast.Detour.DtPoly poly = data.polys[p];
+
+            List<int> target = poly.GetArea() == PPather.Navmesh.NavmeshSettings.AreaWater
+                ? liquidIndices
+                : groundIndices;
+
+            for (int v = 2; v < poly.vertCount; v++)
+            {
+                target.Add(poly.verts[0]);
+                target.Add(poly.verts[v - 1]);
+                target.Add(poly.verts[v]);
+            }
+        }
+
+        await hubContext.Clients.All.SendAsync("addNavmeshTile",
+            NavmeshTileName(x, z), positions,
+            groundIndices.ToArray(), liquidIndices.ToArray(), token);
     }
 
     private async ValueTask DequeueChunkEvent(ChunkEventArgs e, CancellationToken token)
