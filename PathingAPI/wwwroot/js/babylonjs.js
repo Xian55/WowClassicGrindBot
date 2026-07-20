@@ -140,7 +140,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
         height /= 10;
 
-        const v = new BABYLON.Vector3.FromArray(array);
+        const v = BABYLON.Vector3.FromArray(array);
 
         const points = [
             new BABYLON.Vector3(v.x / div, v.z / div, v.y / div),
@@ -172,7 +172,7 @@ window.addEventListener('DOMContentLoaded', function () {
 
         const vectors = []
         for (let i = arrays.length - 1; i >= 0; i--) {
-            const v = new BABYLON.Vector3.FromArray(arrays[i]);
+            const v = BABYLON.Vector3.FromArray(arrays[i]);
             v.y = v.y + height;
             vectors.push(new BABYLON.Vector3(v.x / div, v.z / div, v.y / div));
         }
@@ -242,11 +242,13 @@ window.addEventListener('DOMContentLoaded', function () {
 
         if (arrays.length === 0) return;
 
-        const height = 0 //getHeight(color);
+        // Small lift so paths projected exactly onto a surface (navmesh CPOP
+        // output) do not z-fight with it.
+        const height = 0.3 / div;
 
         const vectors = [];
         for (i = 0; i < arrays.length; i++) {
-            const t = new BABYLON.Vector3.FromArray(arrays[i]);
+            const t = BABYLON.Vector3.FromArray(arrays[i]);
             const v = new BABYLON.Vector3(t.x / div, (t.z / div) + height, t.y / div)
             vectors.push(v);
         }
@@ -261,8 +263,8 @@ window.addEventListener('DOMContentLoaded', function () {
         lines.edgesColor = new BABYLON.Color4(c.r, c.g, c.b, 1);
         lines.color = c;
 
-        const start = new BABYLON.Vector3.FromArray(arrays[0]);
-        const end = new BABYLON.Vector3.FromArray(arrays[arrays.length - 1]);
+        const start = BABYLON.Vector3.FromArray(arrays[0]);
+        const end = BABYLON.Vector3.FromArray(arrays[arrays.length - 1]);
         setCamera(start, end, 20);
         requestRender();
     })
@@ -273,8 +275,8 @@ window.addEventListener('DOMContentLoaded', function () {
         if (loadedPositions.length === 0)
             return;
 
-        const start = new BABYLON.Vector3.FromArray(loadedPositions[0]);
-        const end = new BABYLON.Vector3.FromArray(loadedPositions[loadedPositions.length - 1]);
+        const start = BABYLON.Vector3.FromArray(loadedPositions[0]);
+        const end = BABYLON.Vector3.FromArray(loadedPositions[loadedPositions.length - 1]);
 
         setCamera(start, end, 20);
 
@@ -283,7 +285,7 @@ window.addEventListener('DOMContentLoaded', function () {
         const baseX = -4, baseZ = -4, scale = 4;
 
         for (let i = 0; i < loadedPositions.length; i++) {
-            const p = new BABYLON.Vector3.FromArray(loadedPositions[i]);
+            const p = BABYLON.Vector3.FromArray(loadedPositions[i]);
             const index = i * 3;
             positions[index] = p.x / div;
             positions[index + 1] = p.z / div;
@@ -357,6 +359,9 @@ window.addEventListener('DOMContentLoaded', function () {
             mat.disableLighting = true;
             mat.alpha = alpha;
             mat.backFaceCulling = false;
+            // Push the overlay back in the depth buffer so co-planar path
+            // lines (CPOP-projected onto this very surface) stay visible.
+            mat.zOffset = 4;
             mesh.material = mat;
         };
 
@@ -371,8 +376,8 @@ window.addEventListener('DOMContentLoaded', function () {
 
         removeMesh(name);
 
-        const v1 = new BABYLON.Vector3.FromArray(min);
-        const v2 = new BABYLON.Vector3.FromArray(max);
+        const v1 = BABYLON.Vector3.FromArray(min);
+        const v2 = BABYLON.Vector3.FromArray(max);
 
         const v11 = new BABYLON.Vector3(v1.x / div, v1.z / div, v1.y / div);
         const v22 = new BABYLON.Vector3(v2.x / div, v2.z / div, v2.y / div);

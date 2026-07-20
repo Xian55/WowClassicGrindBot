@@ -183,8 +183,11 @@
         pPatherService.OnLinesAdded -= OnDrawLines;
         pPatherService.OnSphereAdded -= OnDrawSphere;
 
-        await Reset();
-
+        // Do NOT Reset() here: it broadcasts "clear" to every connected
+        // client, so a disposing (stale) circuit wipes the canvas that a
+        // freshly opened page just drew on. Clearing is a user action
+        // (Reset button), not a lifecycle side effect.
+        searchCts?.Cancel();
         searchCts?.Dispose();
 
         base.Dispose();
