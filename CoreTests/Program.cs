@@ -93,6 +93,14 @@ internal sealed class Program
         if (remaining.Count > 0 && remaining[0].Equals("navmesh", StringComparison.OrdinalIgnoreCase))
         {
             Test_NavmeshCoords(remaining.GetRange(1, remaining.Count - 1).ToArray());
+            Test_CostZones(remaining.GetRange(1, remaining.Count - 1).ToArray());
+            Log.CloseAndFlush();
+            return;
+        }
+
+        if (remaining.Count > 0 && remaining[0].Equals("spline-sim", StringComparison.OrdinalIgnoreCase))
+        {
+            SplineSim.SplineSim.Run(logger);
             Log.CloseAndFlush();
             return;
         }
@@ -327,6 +335,208 @@ internal sealed class Program
         PPatherV2.PPatherV2 pPather = new(logger, DataConfig.Load(expansion));
     }
 
+    /// <summary>
+    /// The zone files are hand-editable and hot-reloaded by a file watcher, so
+    /// the loader has to reject bad data rather than apply it. Each case here is
+    /// something that reaches production code as a hang or a NaN cost, not just
+    /// a wrong route.
+    /// </summary>
+    private static int Test_CostZoneValidation(Microsoft.Extensions.Logging.ILogger logger)
+    {
+        int failures = 0;
+        string root = System.IO.Path.Join(System.IO.Path.GetTempPath(), "costzone_validation_" + Guid.NewGuid().ToString("N"));
+        string continent = "Azeroth";
+        string dir = System.IO.Path.Join(root, continent);
+        System.IO.Directory.CreateDirectory(dir);
+
+        void Case(string name, string json, bool expectAccepted)
+        {
+            string file = System.IO.Path.Join(dir, "1.json");
+            System.IO.File.WriteAllText(file, json);
+
+            bool accepted = PPather.Navmesh.CostZoneLoader.TryLoad(
+                logger, root, continent, out PPather.Navmesh.CostZones _);
+
+            if (accepted != expectAccepted)
+            {
+                logger.LogError("CostZoneValidation: '{Case}' expected accepted={Expected}, got {Actual}",
+                    name, expectAccepted, accepted);
+                failures++;
+            }
+        }
+
+        try
+        {
+            Case("well-formed road",
+                """{"Roads":[{"Name":"a","Width":2,"Points":[{"X":100,"Y":100},{"X":200,"Y":200}]}]}""", true);
+
+            // Truncated mid-write - exactly what the watcher can catch.
+            Case("truncated json",
+                """{"Roads":[{"Name":"a","Width":2,"Points":[{"X":100,""", false);
+
+            Case("NaN coordinate",
+                """{"Roads":[{"Name":"a","Width":2,"Points":[{"X":"NaN","Y":100}]}]}""", false);
+
+            Case("zero width",
+                """{"Roads":[{"Name":"a","Width":0,"Points":[{"X":100,"Y":100}]}]}""", false);
+
+            Case("no points",
+                """{"Roads":[{"Name":"a","Width":2,"Points":[]}]}""", false);
+
+            Case("out-of-world coordinate",
+                """{"Roads":[{"Name":"a","Width":2,"Points":[{"X":1e9,"Y":100}]}]}""", false);
+
+            // Would rasterize ~10^15 chunks and hang the reload thread.
+            System.IO.File.WriteAllText(System.IO.Path.Join(dir, "1.json"), """{"Roads":[]}""");
+            string dangerDir = System.IO.Path.Join(dir, PPather.Navmesh.CostZoneLoader.DangerZoneFolder);
+            System.IO.Directory.CreateDirectory(dangerDir);
+
+            void DangerCase(string name, string json, bool expectAccepted)
+            {
+                System.IO.File.WriteAllText(System.IO.Path.Join(dangerDir, "1.json"), json);
+                bool accepted = PPather.Navmesh.CostZoneLoader.TryLoad(
+                    logger, root, continent, out PPather.Navmesh.CostZones _);
+                if (accepted != expectAccepted)
+                {
+                    logger.LogError("CostZoneValidation: '{Case}' expected accepted={Expected}, got {Actual}",
+                        name, expectAccepted, accepted);
+                    failures++;
+                }
+            }
+
+            DangerCase("well-formed circle",
+                """{"Circles":[{"Name":"c","CenterX":100,"CenterY":100,"Radius":50,"Penalty":40}],"Rectangles":[]}""", true);
+
+            DangerCase("giant radius",
+                """{"Circles":[{"Name":"c","CenterX":100,"CenterY":100,"Radius":1e9,"Penalty":40}],"Rectangles":[]}""", false);
+
+            DangerCase("NaN penalty",
+                """{"Circles":[{"Name":"c","CenterX":100,"CenterY":100,"Radius":50,"Penalty":"NaN"}],"Rectangles":[]}""", false);
+
+            DangerCase("inverted rectangle",
+                """{"Circles":[],"Rectangles":[{"Name":"r","MinX":500,"MinY":500,"MaxX":100,"MaxY":100,"Penalty":40}]}""", false);
+        }
+        finally
+        {
+            try { System.IO.Directory.Delete(root, recursive: true); } catch { /* temp dir */ }
+        }
+
+        if (failures == 0)
+        {
+            logger.LogInformation("CostZoneValidation: malformed zone files rejected, valid ones accepted");
+        }
+
+        return failures;
+    }
+
+    private static void Test_CostZones(string[] args)
+    {
+        // Pure rasterization checks - no game data, no navmesh required.
+        int failures = 0;
+
+        // A straight road with width 2 (2 * 33.33yd half-width).
+        PPather.Graph.RoadSegment road = new("test-road", 2,
+        [
+            new System.Numerics.Vector2(-9800f, 800f),
+            new System.Numerics.Vector2(-9800f, 400f),
+        ]);
+
+        PPather.Graph.RoadData roadData = new() { Roads = [road] };
+        PPather.Navmesh.CostZones zones =
+            PPather.Navmesh.CostZones.Build([roadData], []);
+
+        if (zones.CostChunkCount == 0)
+        {
+            logger.LogError("CostZones: road rasterized to no chunks");
+            failures++;
+        }
+
+        // A road must be cheaper than open ground, but nothing may ever be
+        // cheaper than 1.0: Detour's A* heuristic assumes that, and pricing
+        // below it truncates long routes.
+        float onRoad = zones.CostFactor(-9800f, 600f);
+        float offRoad = zones.CostFactor(-9800f + 5000f, 600f);
+
+        if (onRoad >= offRoad)
+        {
+            logger.LogError("CostZones: road {OnRoad} should be cheaper than open ground {OffRoad}",
+                onRoad, offRoad);
+            failures++;
+        }
+
+        if (onRoad < 1f)
+        {
+            logger.LogError("CostZones: no chunk may cost below 1, road got {Factor}", onRoad);
+            failures++;
+        }
+
+        // Avoid mode prices up but stays passable.
+        PPather.Graph.DangerZoneData avoidData = new()
+        {
+            Circles =
+            [
+                new PPather.Graph.CircleDangerZone("camp", 1000f, 1000f, 100f, 500f)
+                {
+                    Mode = PPather.Graph.DangerZoneMode.Avoid
+                }
+            ]
+        };
+
+        PPather.Navmesh.CostZones avoid = PPather.Navmesh.CostZones.Build([], [avoidData]);
+        if (avoid.CostFactor(1000f, 1000f) <= 1f)
+        {
+            logger.LogError("CostZones: avoid zone should cost more than 1");
+            failures++;
+        }
+
+        if (avoid.IsBlocked(1000f, 1000f))
+        {
+            logger.LogError("CostZones: avoid zone must stay passable");
+            failures++;
+        }
+
+        // Block mode is impassable inside and neutral outside.
+        PPather.Graph.DangerZoneData blockData = new()
+        {
+            Rectangles =
+            [
+                new PPather.Graph.RectangleDangerZone("wall", 2000f, 2000f, 2200f, 2200f, 0f)
+                {
+                    Mode = PPather.Graph.DangerZoneMode.Block
+                }
+            ]
+        };
+
+        PPather.Navmesh.CostZones block = PPather.Navmesh.CostZones.Build([], [blockData]);
+        if (!block.IsBlocked(2100f, 2100f))
+        {
+            logger.LogError("CostZones: block zone interior should be blocked");
+            failures++;
+        }
+
+        if (block.IsBlocked(5000f, 5000f))
+        {
+            logger.LogError("CostZones: outside a block zone must stay open");
+            failures++;
+        }
+
+        failures += Test_CostZoneValidation(logger);
+
+        if (failures == 0)
+        {
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "CostZones: road/avoid/block rasterization OK ({Chunks} priced chunks, {Blocked} blocked)",
+                    zones.CostChunkCount, block.BlockedChunkCount);
+            }
+        }
+        else
+        {
+            logger.LogError("CostZones: {Failures} failures", failures);
+        }
+    }
+
     private static void Test_NavmeshCoords(string[] args)
     {
         // Pure math checks - no game data required. Sign conventions in the
@@ -395,8 +605,11 @@ internal sealed class Program
 
         if (failures == 0)
         {
-            logger.LogInformation("NavmeshCoords: all landmark round-trips, tile bounds and {Count} grid inversions OK",
-                (PPather.Navmesh.NavmeshSettings.TilesPerSide / 5) * (PPather.Navmesh.NavmeshSettings.TilesPerSide / 5));
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation("NavmeshCoords: all landmark round-trips, tile bounds and {Count} grid inversions OK",
+                    (PPather.Navmesh.NavmeshSettings.TilesPerSide / 5) * (PPather.Navmesh.NavmeshSettings.TilesPerSide / 5));
+            }
         }
         else
         {

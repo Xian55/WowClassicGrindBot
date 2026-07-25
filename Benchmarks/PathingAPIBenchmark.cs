@@ -47,6 +47,11 @@ public class PathingAPIBenchmark
         // Redridge Mountains
         new("Redridge Grave to North", "api/PPather/MapRoute?uimap1=1433&x1=30&y1=60&uimap2=1433&x2=54.3&y2=43.1"),
 
+        // Stormwind - the walkable route loops around the canals, so it bulges
+        // far outside the straight from->to corridor. Truncated 254yd short
+        // until the pathfinder learned to widen the loaded band on a stall.
+        new("Stormwind city to trainer", "api/PPather/WorldRoute?x1=-8915.693&y1=-132.94092&z1=102.475426&x2=-8688.56&y2=325.76&z2=109.52&mapid=0"),
+
         // Alterac Mountains
         new("Alterac Mountains Horde grave", "api/PPather/WorldRoute?x1=-17.51&y1=-986.82&z1=55.83&x2=305.33337&y2=-364.6667&z2=168.28902&mapid=0"),
 
@@ -141,7 +146,7 @@ public class PathingAPIBenchmark
     /// side-by-side comparison markdown.
     /// </summary>
     public static async Task RunEngineComparison(string baseUrl, int iterations,
-        string[] engines, ILogger? logger = null, string outputDir = "benchmark_results")
+        string[] engines, ILogger? logger = null, string outputDir = "local/benchmark_results")
     {
         logger ??= Log.Logger;
 
@@ -172,7 +177,7 @@ public class PathingAPIBenchmark
 
     public static async Task<List<BenchmarkResult>> RunBenchmark(string baseUrl, int iterations = 3,
         bool resetBetweenRuns = true, ILogger? logger = null,
-        string label = "spot-astar", string outputDir = "benchmark_results")
+        string label = "spot-astar", string outputDir = "local/benchmark_results")
     {
         logger ??= Log.Logger;
 
