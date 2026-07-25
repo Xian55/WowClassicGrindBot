@@ -83,6 +83,15 @@ public sealed class Program
 
         services.AddStartupConfigFactories();
 
+        // Navmesh / follower tunables bind from the same configuration the host
+        // already built (json + env + command line).
+        services.Configure<SharedLib.NavmeshBakeOptions>(
+            configuration.GetSection(SharedLib.NavmeshBakeOptions.Position));
+        services.Configure<SharedLib.NavmeshQueryOptions>(
+            configuration.GetSection(SharedLib.NavmeshQueryOptions.Position));
+        services.Configure<SharedLib.SplineFollowerOptions>(
+            configuration.GetSection(SharedLib.SplineFollowerOptions.Position));
+
         if (!FrameConfig.Exists() || !AddonConfig.Exists())
         {
             log.LogError($"Unable to run {nameof(HeadlessServer)} as crucial configuration files were missing!");

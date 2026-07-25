@@ -69,9 +69,25 @@ public sealed class TriangleMatrix
             int endy = m.LocalToGrid(maxy);
 
             const int BatchSize = 8;
+            // A single large triangle (dungeon-scale WMO wall) can span thousands
+            // of 8yd cells, so the size is geometry-driven and must not be
+            // stack-allocated unconditionally - this runs on Parallel.For workers.
+            const int MaxStackCells = 1024;
             int cellCount = (endx - startx + 1) * (endy - starty + 1);
-            Span<float> gridXs = stackalloc float[cellCount];
-            Span<float> gridYs = stackalloc float[cellCount];
+
+            float[] gridXsRented = null!;
+            float[] gridYsRented = null!;
+
+            Span<float> gridXsStack = cellCount <= MaxStackCells ? stackalloc float[MaxStackCells] : default;
+            Span<float> gridYsStack = cellCount <= MaxStackCells ? stackalloc float[MaxStackCells] : default;
+
+            Span<float> gridXs = cellCount <= MaxStackCells
+                ? gridXsStack[..cellCount]
+                : (gridXsRented = ArrayPool<float>.Shared.Rent(cellCount)).AsSpan(0, cellCount);
+
+            Span<float> gridYs = cellCount <= MaxStackCells
+                ? gridYsStack[..cellCount]
+                : (gridYsRented = ArrayPool<float>.Shared.Rent(cellCount)).AsSpan(0, cellCount);
 
             int idx = 0;
             for (int x = startx; x <= endx; x++)
@@ -113,6 +129,16 @@ public sealed class TriangleMatrix
                     }
                     list!.Add(index);
                 }
+            }
+
+            if (gridXsRented != null)
+            {
+                ArrayPool<float>.Shared.Return(gridXsRented);
+            }
+
+            if (gridYsRented != null)
+            {
+                ArrayPool<float>.Shared.Return(gridYsRented);
             }
         });
 

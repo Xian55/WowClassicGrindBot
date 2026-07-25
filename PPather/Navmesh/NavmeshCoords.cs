@@ -55,7 +55,9 @@ public static class NavmeshCoords
 
     public static bool IsValidTile(int dtTileX, int dtTileZ)
     {
-        return dtTileX is >= 0 and < NavmeshSettings.TilesPerSide &&
-               dtTileZ is >= 0 and < NavmeshSettings.TilesPerSide;
+        // Plain comparisons: TilesPerSide is derived from the tile size at
+        // startup, so it is not a compile-time constant and cannot be a pattern.
+        return dtTileX >= 0 && dtTileX < NavmeshSettings.TilesPerSide &&
+               dtTileZ >= 0 && dtTileZ < NavmeshSettings.TilesPerSide;
     }
 }

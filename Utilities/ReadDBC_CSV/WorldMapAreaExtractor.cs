@@ -11,6 +11,7 @@ namespace ReadDBC_CSV;
 internal sealed class WorldMapAreaExtractor : IExtractor
 {
     private readonly string path;
+    private readonly string subzonesPath;
 
     public string[] FileRequirement { get; } =
     [
@@ -20,9 +21,13 @@ internal sealed class WorldMapAreaExtractor : IExtractor
         "areatable.csv"
     ];
 
-    public WorldMapAreaExtractor(string path)
+    // subzonesPath: Json/subzones/<version>, holding per-continent area world
+    // bounds (<mapId>.json) baked by PPather --bake-area. Folding them in lets
+    // an overlapping-zone click be resolved by area id rather than a spatial guess.
+    public WorldMapAreaExtractor(string path, string subzonesPath)
     {
         this.path = path;
+        this.subzonesPath = subzonesPath;
     }
 
     public void Run()
@@ -35,8 +40,8 @@ internal sealed class WorldMapAreaExtractor : IExtractor
         string uimapassignmentFile = Path.Join(path, FileRequirement[1]);
         ExtractBoundaries(uimapassignmentFile, wmas);
 
-        // Extend Subzones
-        ExtendWithSubZones(path, wmas);
+        // Extend Subzones (from Json/subzones/<version>, baked by PPather)
+        ExtendWithSubZones(subzonesPath, wmas);
 
         // ParentAreaId - ExplorationLevel
         string areaTableFile = Path.Join(path, FileRequirement[3]);
@@ -206,6 +211,12 @@ internal sealed class WorldMapAreaExtractor : IExtractor
 
     private static void ExtendWithSubZones(string rootPath, List<WorldMapArea> wmas)
     {
+        if (!Directory.Exists(rootPath))
+        {
+            Console.WriteLine($"Subzones: {rootPath} not found - skipping subzone bounds. Bake them with PPather --bake-area.");
+            return;
+        }
+
         var filesWithNumberOnlyInName = Directory.GetFiles(rootPath, "*.json", SearchOption.AllDirectories)
             .Where(x => Path.GetFileNameWithoutExtension(x).All(char.IsDigit));
 

@@ -56,8 +56,11 @@ public sealed class TriangleCollection
     public TriangleCollection(ILogger logger)
     {
         this.logger = logger;
-        vertecies = new(2 ^ 16); // terrain mesh
-        triangles = new(128);
+        // `2 ^ 16` is XOR in C#, so this asked for capacity 18 rather than the
+        // intended 65536 and then regrew ~12 times (copying the whole vertex
+        // buffer, repeatedly into the LOH) on every chunk load.
+        vertecies = new(1 << 16); // terrain mesh
+        triangles = new(1 << 16);
     }
 
     public void Clear()
@@ -189,7 +192,9 @@ public sealed class TriangleCollection
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void VerticesSet(int index, float x, float y, float z)
     {
-        vertecies.Insert(index, new(x, y, z));
+        // index is always VertexCount, i.e. an append; Add has an inlineable
+        // fast path where Insert does not.
+        vertecies.Add(new(x, y, z));
     }
 
     [SkipLocalsInit]
@@ -205,6 +210,6 @@ public sealed class TriangleCollection
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void TrianglesSet(int index, int v0, int v1, int v2, TriangleType flags)
     {
-        triangles.Insert(index, new(v0, v1, v2, flags));
+        triangles.Add(new(v0, v1, v2, flags));
     }
 }

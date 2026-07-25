@@ -29,6 +29,15 @@ public sealed class RemotePathingAPI : IPPather, IPathVizualizer, IDisposable
     public HttpClient Client => client;
     public JsonSerializerOptions Options => options;
 
+    private bool pathsAreSmoothed;
+    /// <summary>Reflects the remote server's engine (Navmesh =&gt; smoothed dense
+    /// paths, so the spline follower can engage). Fetched via GET Capabilities;
+    /// stays false until <see cref="QueryCapabilities"/> runs, or if the server
+    /// is older and returns 404.</summary>
+    public bool PathsAreSmoothed => pathsAreSmoothed;
+
+    private sealed record CapabilitiesResponse(bool PathsAreSmoothed);
+
     public RemotePathingAPI(ILogger<RemotePathingAPI> logger,
         string host, int port)
     {
@@ -155,6 +164,39 @@ public sealed class RemotePathingAPI : IPPather, IPathVizualizer, IDisposable
         catch (Exception ex)
         {
             logger.LogError(ex.Message);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Asks the server whether it produces smoothed (navmesh) paths, so the
+    /// client's <see cref="PathsAreSmoothed"/> matches the remote engine and the
+    /// spline follower can engage over RemoteV1. A 404 (older server) or any
+    /// error resolves to false. Call once after <see cref="PingServer"/>.
+    /// </summary>
+    public bool QueryCapabilities()
+    {
+        try
+        {
+            using HttpResponseMessage res =
+                client.GetAsync("Capabilities").GetAwaiter().GetResult();
+
+            if (!res.IsSuccessStatusCode)
+            {
+                pathsAreSmoothed = false;
+                return false;
+            }
+
+            string json = res.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            CapabilitiesResponse? caps =
+                JsonSerializer.Deserialize<CapabilitiesResponse>(json, options);
+            pathsAreSmoothed = caps?.PathsAreSmoothed ?? false;
+            return pathsAreSmoothed;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning("Capabilities query failed ({Msg}); assuming unsmoothed.", ex.Message);
+            pathsAreSmoothed = false;
             return false;
         }
     }

@@ -1,4 +1,4 @@
-/*
+﻿/*
   This file is part of ppather.
 
     PPather is free software: you can redistribute it and/or modify
@@ -21,8 +21,14 @@
 using Microsoft.Extensions.Logging;
 
 using PPather;
+using PPather.Navmesh;
+
+using SharedLib;
+using SharedLib.Data;
 
 using System;
+using System.Collections.Generic;
+using System.Buffers;
 using System.IO;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -71,6 +77,28 @@ public sealed class MPQTriangleSupplier
         archive.Close();
         modelmanager.Clear();
         wmomanager.Clear();
+    }
+
+    /// <summary>
+    /// Whether the continent has an ADT covering this world position, per the
+    /// WDT MAIN chunk. Most of the 64x64 grid is open ocean with no ADT at all,
+    /// so a bulk bake only needs to visit the ones that exist.
+    ///
+    /// Takes a world position rather than grid indices on purpose: this file
+    /// derives chunk_x from world Y and chunk_y from world X, the opposite of
+    /// ChunkedTriangleCollection's grid, and going through the same conversion
+    /// GetChunkData uses keeps the two conventions from being mixed up.
+    /// </summary>
+    public bool HasAdtAt(float worldX, float worldY)
+    {
+        GetChunkCoordIndex(worldX, worldY, out int chunk_x, out int chunk_y);
+
+        if (chunk_x < 0 || chunk_y < 0 || chunk_x >= WDT.SIZE || chunk_y >= WDT.SIZE)
+        {
+            return false;
+        }
+
+        return wdt.maps[(chunk_y * WDT.SIZE) + chunk_x];
     }
 
     public static string[] GetArchiveNames(DataConfig dataConfig)
@@ -357,7 +385,18 @@ public sealed class MPQTriangleSupplier
             maxVertices = Math.Max(maxVertices, (int)g.nVertices);
         }
 
-        Span<int> vertices = stackalloc int[maxVertices];
+        // maxVertices comes from the WMO itself; a large group would blow the
+        // stack, so only small ones use it.
+        const int MaxStackVertices = 4096;
+        int[] verticesRented = null;
+        Span<int> verticesStack = maxVertices <= MaxStackVertices ? stackalloc int[MaxStackVertices] : default;
+        Span<int> vertices = maxVertices <= MaxStackVertices
+            ? verticesStack[..maxVertices]
+            : (verticesRented = ArrayPool<int>.Shared.Rent(maxVertices)).AsSpan(0, maxVertices);
+
+        (float sinX, float cosX) = SinCos(dir_x / 360.0f * Tau);
+        (float sinZ, float cosZ) = SinCos(dir_z / 360.0f * Tau);
+        (float sinY, float cosY) = SinCos(dir_y / 360.0f * Tau);
 
         for (int gi = 0; gi < wmo.groups.Length; gi++)
         {
@@ -379,9 +418,9 @@ public sealed class MPQTriangleSupplier
                 float y = g.vertices[off + 2];
                 float z = g.vertices[off + 1];
 
-                Rotate(z, y, dir_x, out z, out y);
-                Rotate(x, y, dir_z, out x, out y);
-                Rotate(x, z, dir_y, out x, out z);
+                RotateBy(z, y, cosX, sinX, out z, out y);
+                RotateBy(x, y, cosZ, sinZ, out x, out y);
+                RotateBy(x, z, cosY, sinY, out x, out z);
 
                 float xx = x + dx;
                 float yy = y + dy;
@@ -419,6 +458,11 @@ public sealed class MPQTriangleSupplier
 
                 tc.AddTriangle(i0, i1, i2, TriangleType.Object);
             }
+        }
+
+        if (verticesRented != null)
+        {
+            ArrayPool<int>.Shared.Return(verticesRented);
         }
 
         /*
@@ -539,6 +583,10 @@ public sealed class MPQTriangleSupplier
 
         Span<int> vertices = stackalloc int[nBoundingVertices];
 
+        (float sinX, float cosX) = SinCos(dir_x / 360.0f * Tau);
+        (float sinZ, float cosZ) = SinCos(dir_z / 360.0f * Tau);
+        (float sinY, float cosY) = SinCos(dir_y / 360.0f * Tau);
+
         for (int i = 0; i < nBoundingVertices; i++)
         {
             int off = i * 3;
@@ -546,9 +594,9 @@ public sealed class MPQTriangleSupplier
             float y = m.boundingVertices[off + 2];
             float z = m.boundingVertices[off + 1];
 
-            Rotate(z, y, dir_x, out z, out y);
-            Rotate(x, y, dir_z, out x, out y);
-            Rotate(x, z, dir_y, out x, out z);
+            RotateBy(z, y, cosX, sinX, out z, out y);
+            RotateBy(x, y, cosZ, sinZ, out x, out y);
+            RotateBy(x, z, cosY, sinY, out x, out z);
 
             x *= mi.scale;
             y *= mi.scale;
@@ -597,6 +645,10 @@ public sealed class MPQTriangleSupplier
         float minX = float.MaxValue, minY = float.MaxValue, minZ = float.MaxValue;
         float maxX = float.MinValue, maxY = float.MinValue, maxZ = float.MinValue;
 
+        (float sinX, float cosX) = SinCos(dir_x / 360.0f * Tau);
+        (float sinZ, float cosZ) = SinCos(dir_z / 360.0f * Tau);
+        (float sinY, float cosY) = SinCos(dir_y / 360.0f * Tau);
+
         for (int i = 0; i < m.boundingVertices.Length / 3; i++)
         {
             int off = i * 3;
@@ -604,9 +656,9 @@ public sealed class MPQTriangleSupplier
             float y = m.boundingVertices[off + 2];
             float z = m.boundingVertices[off + 1];
 
-            Rotate(z, y, dir_x, out z, out y);
-            Rotate(x, y, dir_z, out x, out y);
-            Rotate(x, z, dir_y, out x, out z);
+            RotateBy(z, y, cosX, sinX, out z, out y);
+            RotateBy(x, y, cosZ, sinZ, out x, out y);
+            RotateBy(x, z, cosY, sinY, out x, out z);
 
             x *= mi.scale;
             y *= mi.scale;
@@ -751,6 +803,17 @@ public sealed class MPQTriangleSupplier
         }
     }
 
+    /// Rotate with the angle's sine/cosine already computed - the three
+    /// rotations applied per vertex all reuse their instance's angles, so the
+    /// transcendentals belong outside the vertex loop.
+    [SkipLocalsInit]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void RotateBy(float x, float y, float cos, float sin, out float nx, out float ny)
+    {
+        nx = (cos * x) - (sin * y);
+        ny = (sin * x) + (cos * y);
+    }
+
     [SkipLocalsInit]
     public static void Rotate(float x, float y, float angle, out float nx, out float ny)
     {
@@ -797,5 +860,185 @@ public sealed class MPQTriangleSupplier
         }
 
         return (areaId, z);
+    }
+
+    /// <summary>Highest plausible WoW area id; anything above is a misread cell.</summary>
+    private const uint MaxValidAreaId = ushort.MaxValue;
+
+    /// <summary>
+    /// One ADT-terrain pass over the whole continent (no geometry / WMO load)
+    /// producing both:
+    ///  - an <see cref="AreaGrid"/> (per-MCNK area id, for the runtime x,y->areaId
+    ///    query), and
+    ///  - per-area world X/Y bounds as <see cref="SubZoneArea"/>[], so overlapping
+    ///    zones can be disambiguated by the clicked area id instead of a spatial
+    ///    guess.
+    ///
+    /// Misread cells (a handful of malformed ADTs report a float-pattern area id
+    /// past <see cref="MaxValidAreaId"/>) are dropped. Each subzone box is the
+    /// largest *contiguous* cluster of its cells, so an id with a stray outlier
+    /// cell keeps a tight box (its label centre stays on the terrain) instead of
+    /// spanning the continent. Z is left 0 - <see cref="SubZoneArea.Contains"/>
+    /// ignores it. One-time and needs the game files; both artifacts read back
+    /// without them.
+    /// </summary>
+    public (AreaGrid grid, SubZoneArea[] subZones) BuildAreaData()
+    {
+        const int side = WDT.SIZE * MapTile.SIZE; // 1024 cells per axis
+        const float cs = ChunkReader.CHUNKSIZE;
+        const float zp = ChunkReader.ZEROPOINT;
+
+        ushort[] full = new ushort[side * side];
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+
+        // areaId -> encoded cells (gy * side + gx)
+        Dictionary<int, List<int>> cellsByArea = [];
+
+        Span<uint> area = stackalloc uint[MapTile.SIZE * MapTile.SIZE];
+        string name = ContinentDB.IdToName[mapId];
+
+        for (int cy = 0; cy < WDT.SIZE; cy++)
+        {
+            for (int cx = 0; cx < WDT.SIZE; cx++)
+            {
+                int index = (cy * WDT.SIZE) + cx;
+                if (!wdt.maps[index])
+                    continue;
+
+                ReadOnlySpan<char> filename = $"World\\Maps\\{name}\\{name}_{cx}_{cy}.adt";
+
+                area.Clear();
+                try
+                {
+                    ReadAreaIds(archive, filename, area);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning("AreaData: skipped {Filename}: {Message}", filename.ToString(), ex.Message);
+                    continue;
+                }
+
+                for (int ly = 0; ly < MapTile.SIZE; ly++)
+                {
+                    for (int lx = 0; lx < MapTile.SIZE; lx++)
+                    {
+                        uint a = area[(ly * MapTile.SIZE) + lx];
+                        if (a == 0 || a > MaxValidAreaId)
+                            continue;
+
+                        int gx = (cx * MapTile.SIZE) + lx;
+                        int gy = (cy * MapTile.SIZE) + ly;
+                        full[(gy * side) + gx] = (ushort)a;
+
+                        if (gx < minX) minX = gx;
+                        if (gy < minY) minY = gy;
+                        if (gx > maxX) maxX = gx;
+                        if (gy > maxY) maxY = gy;
+
+                        int aid = (int)a;
+                        if (!cellsByArea.TryGetValue(aid, out List<int> list))
+                        {
+                            list = [];
+                            cellsByArea[aid] = list;
+                        }
+                        list.Add((gy * side) + gx);
+                    }
+                }
+            }
+        }
+
+        List<SubZoneArea> subs = new(cellsByArea.Count);
+        foreach ((int aid, List<int> cells) in cellsByArea)
+        {
+            (int cMinGx, int cMinGy, int cMaxGx, int cMaxGy) = LargestClusterBounds(cells, side);
+
+            // Inverse of GetChunkCoord1/GetChunkIndex: gx spans world-Y, gy world-X.
+            float wYmax = zp - (cMinGx * cs);
+            float wYmin = zp - ((cMaxGx + 1) * cs);
+            float wXmax = zp - (cMinGy * cs);
+            float wXmin = zp - ((cMaxGy + 1) * cs);
+
+            subs.Add(new SubZoneArea
+            {
+                Id = aid,
+                Min = new Vector3(wXmin, wYmin, 0f),
+                Max = new Vector3(wXmax, wYmax, 0f),
+            });
+        }
+
+        SubZoneArea[] subZones = [.. subs];
+
+        if (minX > maxX)
+        {
+            // No area ids anywhere - hand back a valid all-zero 1x1 grid rather
+            // than crash the caller.
+            return (new AreaGrid(0, 0, 1, 1, new ushort[1]), subZones);
+        }
+
+        int width = maxX - minX + 1;
+        int height = maxY - minY + 1;
+        ushort[] cropped = new ushort[width * height];
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                cropped[(y * width) + x] = full[((minY + y) * side) + (minX + x)];
+            }
+        }
+
+        return (new AreaGrid(minX, minY, width, height, cropped), subZones);
+    }
+
+    /// <summary>
+    /// Grid-index bounds of the largest 4-connected cluster of cells (encoded
+    /// gy*side+gx), so a scattered/outlier cell for the same area id does not
+    /// blow the box up to span the continent.
+    /// </summary>
+    private static (int minGx, int minGy, int maxGx, int maxGy) LargestClusterBounds(List<int> cells, int side)
+    {
+        HashSet<int> set = [.. cells];
+        HashSet<int> visited = new(cells.Count);
+        Stack<int> stack = new();
+
+        int bestCount = -1;
+        int bMinGx = 0, bMinGy = 0, bMaxGx = 0, bMaxGy = 0;
+
+        foreach (int start in cells)
+        {
+            if (!visited.Add(start))
+                continue;
+
+            stack.Clear();
+            stack.Push(start);
+
+            int count = 0;
+            int mnGx = int.MaxValue, mnGy = int.MaxValue, mxGx = int.MinValue, mxGy = int.MinValue;
+
+            while (stack.Count > 0)
+            {
+                int c = stack.Pop();
+                int gx = c % side;
+                int gy = c / side;
+
+                count++;
+                if (gx < mnGx) mnGx = gx;
+                if (gy < mnGy) mnGy = gy;
+                if (gx > mxGx) mxGx = gx;
+                if (gy > mxGy) mxGy = gy;
+
+                if (gx > 0 && set.Contains(c - 1) && visited.Add(c - 1)) stack.Push(c - 1);
+                if (gx < side - 1 && set.Contains(c + 1) && visited.Add(c + 1)) stack.Push(c + 1);
+                if (gy > 0 && set.Contains(c - side) && visited.Add(c - side)) stack.Push(c - side);
+                if (gy < side - 1 && set.Contains(c + side) && visited.Add(c + side)) stack.Push(c + side);
+            }
+
+            if (count > bestCount)
+            {
+                bestCount = count;
+                bMinGx = mnGx; bMinGy = mnGy; bMaxGx = mxGx; bMaxGy = mxGy;
+            }
+        }
+
+        return (bMinGx, bMinGy, bMaxGx, bMaxGy);
     }
 }

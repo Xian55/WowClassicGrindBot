@@ -12,10 +12,12 @@
         "Core.ConfigurableInput": "Verbose",
 
         "Core.BotController": "Debug",
+        "Core.Goals.Navigation": "Debug",
         "Core.Goals.LootGoal": "Verbose",
         "Core.Goals.CastingHandler": "Verbose",
         "Core.ReactCastError": "Verbose"
       }
     }
-  }
+  },
+  "Navmesh": { "Bake": { "MinWorldZ": { "Expansion01": -700 } } }
 }

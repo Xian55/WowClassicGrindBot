@@ -135,7 +135,10 @@ public sealed class PathGraph
         this.MapId = mapId;
         this.triangleWorld = triangles;
 
-        chunkDir = System.IO.Path.Join(dataConfig.PathInfo, ContinentDB.IdToName[MapId]);
+        // Era-partitioned so pre-cata (MPQ) and cata (CASC) geometry caches never
+        // collide - matches DataConfig.Navmesh / Road layout.
+        chunkDir = System.IO.Path.Join(dataConfig.PathInfo,
+            DataConfig.ClientEra(dataConfig.Exp), ContinentDB.IdToName[MapId]);
         if (!Directory.Exists(chunkDir))
             Directory.CreateDirectory(chunkDir);
 

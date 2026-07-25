@@ -51,7 +51,11 @@ Classic (Since 2019)
 For experienced users, here's the minimal setup:
 
 1. **Prerequisites**: Windows 10+, [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-2. **Download**: Clone or download this repository
+2. **Download**: Clone **with submodules** (the pathfinder pulls in the DotRecast submodule):
+   ```
+   git clone --recurse-submodules https://github.com/Xian55/WowClassicGrindBot.git
+   ```
+   Already cloned without it? Run `git submodule update --init --recursive`.
 3. **MPQ Files**: Download [MPQ files](#using-v1-localremote-pathing) and place in `Json\MPQ\`
 4. **Build**: Run `BlazorServer\build.bat` or open solution in Visual Studio
 5. **Configure**: Start WoW, run `BlazorServer\run.bat`, configure addon in browser
@@ -142,6 +146,7 @@ MasterOfPuppets.sln
 | **Web** | ASP.NET Core Blazor Server, SignalR (MessagePack + LZ4) |
 | **UI** | Blazor Bootstrap, MatBlazor, Leaflet.js, Pixi.js (WebGL) |
 | **Graphics** | DirectX 11 via Vortice (DXGI Desktop Duplication, Windows Graphics Capture, Compute Shaders) |
+| **Pathfinding** | DotRecast navmesh (in-process, default) with pre-baked tiles; legacy spot-grid A* and out-of-process/AmeisenNavigation backends |
 | **Native Interop** | `[LibraryImport]` P/Invoke with `DisableRuntimeMarshalling` (user32, gdi32, dwmapi, StormLib) |
 | **Serialization** | Newtonsoft.Json, MessagePack, MemoryPack |
 | **Logging** | Serilog (structured, multi-sink: console, file, debug, in-memory circular buffer) |
@@ -163,12 +168,12 @@ The host and pathfinder are independently composable — pick one from each colu
 
 | Host | Pathfinder | Notes |
 |------|-----------|-------|
-| **BlazorServer** | PPather (in-process) | Simplest setup, no external services |
+| **BlazorServer** | Navmesh (in-process) | **Recommended** - DotRecast navmesh, no external services (Vanilla-Wrath) |
 | **BlazorServer** | PathingAPI (out-of-process) | Offloads pathfinding to a dedicated service |
-| **BlazorServer** | AmeisenNavigation (external) | Best navigation quality, supports Cataclysm+ |
-| **HeadlessServer** | PPather (in-process) | Fully headless, single process |
+| **BlazorServer** | AmeisenNavigation (external) | Required for Cataclysm+ (CASC) |
+| **HeadlessServer** | Navmesh (in-process) | **Recommended** - fully headless, single process |
 | **HeadlessServer** | PathingAPI (out-of-process) | Headless with remote pathfinding |
-| **HeadlessServer** | AmeisenNavigation (external) | Headless with best-quality navigation |
+| **HeadlessServer** | AmeisenNavigation (external) | Headless, required for Cataclysm+ |
 
 **Multi-instance support** — Using Windows Graphics Capture (WGC), each instance captures a specific window rather than the entire desktop. This allows running multiple bot instances on a single machine, each attached to a different game client, with no additional configuration needed.
 
@@ -316,17 +321,34 @@ The BlazorServer frontend provides deep runtime observability beyond basic UI co
 
 ## Pathfinders
 
-Pathfinding allows the bot to navigate the game world - walking around obstacles, across terrain, and to your defined routes. Different pathfinder backends exist because WoW's map data format changed over time (MPQ to CASC).
+Pathfinding allows the bot to navigate the game world - walking around obstacles, across terrain, and to your defined routes.
+
+### Navmesh engine (default, recommended)
+
+The bot ships an in-process **[DotRecast](https://github.com/Xian55/DotRecast) navmesh** engine, now the default (`Pathing:Engine=Navmesh`). It runs from small **pre-baked navmesh tiles** and produces smooth, high-quality routes - the basis for the WASD spline follower. Versus the older backends it needs **no external service** and **no MPQ at query time**; the runtime query is pure managed, cross-platform code, and the tile data is tiny enough to distribute. Tiles are baked once from the game's MPQ files (or downloaded pre-baked).
+
+Recommended for **Vanilla through Wrath**, where it supersedes the legacy in-process grid pathfinder and removes the need for the external navigation service.
+
+**Get the tiles — download pre-baked (no client/MPQ needed):**
+```powershell
+.\scripts\download-navmesh.ps1 -Force
+```
+Pulls the pre-baked tiles from the CDN into `Json\PathInfo\navmesh\<era>\` (destination honors your `data_config.json` `Root`). Options: `-Continent Northrend`, `-Era precata`. If you run a custom agent config (different settings hash), bake instead (see [navmesh bake skill](.claude/skills/navmesh-bake-upload/SKILL.md)).
+
+> **Cataclysm Classic and above** still require **V3 Remote** (below): the navmesh is baked from MPQ, so it does not cover CASC-based clients.
 
 **Which should you use?**
-- **Most users**: V1 Local is easiest (just download MPQ files, no extra services needed)
-- **Best quality**: V3 Remote provides the most accurate navigation but requires running an external service
-- **Cataclysm+**: Only V3 Remote works (game uses CASC format instead of MPQ)
+- **Vanilla-Wrath (most users)**: the default in-process **navmesh** engine - high quality, no external service. Provide navmesh tiles (bake from MPQ, or download pre-baked).
+- **Cataclysm+**: **V3 Remote** (AmeisenNavigation) - the only backend that reads CASC.
+- **Legacy fallbacks**: the MPQ grid engine (`Pathing:Engine=SpotAStar`) and V1 Remote remain available.
 
-* World map - Outdoor there are multiple solutions - *by default the app attempts to discover the available services in the following order*:
-    * **V3 Remote**: Out of process [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord) - Best navigation quality, works with all versions
-    * **V1 Remote**: Out of process [PathingAPI](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PathingAPI) more info [here](#v1-remote-pathing---pathingapi) - Good quality, MPQ-based
-    * **V1 Local**: In process [PPather](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PPather) - Simplest setup, MPQ-based
+### Legacy / alternative backends
+
+Different backends exist because WoW's map data format changed over time (MPQ to CASC). Outdoors the app can discover an available service in this order:
+
+* **V3 Remote**: Out of process [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord) - external service; **required for Cataclysm+** (CASC). For Vanilla-Wrath it is superseded by the in-process navmesh engine.
+* **V1 Remote**: Out of process [PathingAPI](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PathingAPI) more info [here](#v1-remote-pathing---pathingapi) - MPQ-based; can host either engine.
+* **V1 Local**: In process [PPather](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PPather) - MPQ-based. Its legacy spot-grid A* engine (`Pathing:Engine=SpotAStar`) is superseded by the navmesh engine.
 * World map - Indoors pathfinder only works properly if `PathFilename` exists.
 * Dungeons / instances **not** supported!
 
@@ -451,6 +473,16 @@ This section guides you through the complete setup process. Here's an overview o
 ## Download this Repository
 
 Put the contents of the repo into a folder, e.g., `C:\WowClassicGrindBot`. I am going to refer to this folder from now on, so just substitute your folder path.
+
+> **Clone with submodules.** The pathfinder depends on the [DotRecast](https://github.com/Xian55/DotRecast) git submodule, so a plain `git clone` leaves `external/DotRecast` empty and the build will fail. Clone it in one step:
+> ```
+> git clone --recurse-submodules https://github.com/Xian55/WowClassicGrindBot.git
+> ```
+> If you already cloned without submodules (or you pull an update that changes them), run:
+> ```
+> git submodule update --init --recursive
+> ```
+> Downloading the repo as a ZIP does **not** include submodule contents — use `git clone --recurse-submodules`.
 
 ## Using V1 Local/Remote Pathing
 
@@ -667,7 +699,7 @@ run.bat --Reader:Type=WGC --Pathing:Mode=Local --Reader:UseGpu=true
 | `Reader` | `Type` | string | `DXGI` | `DXGI`, `WGC` | Screen reader type. `WGC` = Windows Graphics Capture (supports background window) |
 | `Reader` | `UseGpu` | bool | `false` | `true`, `false` | Use GPU acceleration for screen reading |
 | `Pathing` | `Mode` | string | `RemoteV3` | `Local`, `RemoteV1`, `RemoteV3` | Pathfinding mode |
-| `Pathing` | `Engine` | string | `SpotAStar` | `SpotAStar`, `Navmesh` | In-process engine for `Local` mode (and PathingAPI). `Navmesh` (experimental) bakes a DotRecast navmesh at runtime from your MPQ files and answers queries from it; tiles are cached under `Json/PathInfo/navmesh/` |
+| `Pathing` | `Engine` | string | `Navmesh` | `Navmesh`, `SpotAStar` | In-process engine for `Local` mode (and PathingAPI). `Navmesh` (default) answers queries from pre-baked DotRecast tiles under `Json/PathInfo/navmesh/`, baking on demand from your MPQ files on a cache miss. `SpotAStar` is the legacy spot-grid A* |
 | `Pathing` | `hostv1` | string | `localhost` | hostname/IP | RemoteV1 pathing server host |
 | `Pathing` | `portv1` | int | `5001` | port number | RemoteV1 pathing server port |
 | `Pathing` | `hostv3` | string | `127.0.0.1` | hostname/IP | RemoteV3 pathing server host |
@@ -3393,18 +3425,27 @@ Pathed routes are shown in Green.
 
 ### Leaflet
 
-**Note:** Currently the component **only** works with
-* som -> 1.13.x - 1.14.x - 1.15.x
-* tbc -> 2.5.x
+**Supported:** `som` (1.13–1.15), `tbc` (2.5.x) and `wrath` (3.3.5). All three
+share one tile set because the old world is unchanged pre-Cataclysm.
 
-Also it is required to download the map tiles
-* [som - Azeroth and Kalimdor map tiles](https://mega.nz/file/mfgiRRLQ#RvUjd-eb1pMOC5GXCI4jDfpiYyiAUJK_gGfkaWGtz0I)
-* * Copy the content under the `json\leaflet\som` folder.
-* * So the path look like this `Json\leaflet\som\Azeroth\z2x0y0.png`
+Map tiles are generated locally from your client's minimap art rather than
+downloaded. Tiles are stored per **mesh era** (`precata` = vanilla…wotlk) as
+`webp`, so a single run against a Wrath 3.3.5 client produces every continent:
 
-* [tbc - Azeroth and Kalimdor and Expansion01 map tiles](https://mega.nz/file/HLAzgJaJ#UxmaVPSLqgbdl_OQ75vd9C1_DV1kTJxzq-Ce727Z8mw)
-* * Copy the content under the `json\leaflet\tbc` folder.
-* * So the path look like this `Json\leaflet\tbc\Expansion01\z2x0y0.png`
+```
+python scripts/extract-minimap.py
+```
+
+* Requires `pip install Pillow` (decodes BLP, writes webp).
+* Reads the client archives from `Json\MPQ` by default (override with the
+  `WOW_MPQ` env var); uses the bundled `PPather\MPQ\StormLib_x64.dll`.
+* Writes `Json\leaflet\precata\<Continent>\z{z}x{x}y{y}.webp` for Azeroth,
+  Kalimdor, Expansion01 (Outland) and Northrend.
+* Prints the `Configs` entry (resX/resY/offset) for each continent, matching
+  `Frontend\wwwroot\script\leaflet-watch.js`.
+
+The `/tiles` route resolves to `Json\leaflet\<era>` (`DataConfig.Leaflet`), so
+running the bot as som, tbc or wrath all serve the same `precata` tiles.
 
 This component is meant to replace the Route later on, it has *'readonly'* mode when no authoring is enabled.
 

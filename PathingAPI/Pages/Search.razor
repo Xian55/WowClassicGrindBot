@@ -38,6 +38,11 @@
         }
         this.parameters = searchParameters;
 
+        // The service is a singleton also driven by the HTTP API; set the
+        // jitter explicitly so this search never reuses a stale request's.
+        pPatherService.PathJitterYards = searchParameters.Jitter;
+        pPatherService.PathJitterSeed = searchParameters.Seed;
+
         await DoSearch(parameters.SearchType, ((int)parameters.SearchType) + 1, parameters.SearchType.ToString());
     }
 

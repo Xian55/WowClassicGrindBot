@@ -59,8 +59,13 @@ public sealed partial class GoapAgent : IDisposable
                     goal.OnGoapEvent(new AbortEvent());
                 }
 
-                input.Reset();
+                // Stop first: StopMoving decides which key to release from the
+                // input's own record of what is held, and Reset clears that
+                // record. Reversed, the stop reads an empty record, takes the
+                // "moving by interact key" branch and never releases the key
+                // the character is actually running on.
                 stopMoving.Stop();
+                input.Reset();
 
                 if (classConfig.Mode is Mode.AttendedGrind or Mode.Grind)
                 {

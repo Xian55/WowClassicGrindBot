@@ -60,14 +60,20 @@ internal static class ChunkReader
     [SkipLocalsInit]
     public static string ExtractString(ReadOnlySpan<byte> buf, int off)
     {
-        const byte nullTerminator = 0;
-        int length = buf[off..].IndexOf(nullTerminator);
-        if (length == -1 || length > buf.Length)
+        if ((uint)off >= (uint)buf.Length)
         {
-            length = buf.Length;
+            return string.Empty;
         }
 
-        return Encoding.ASCII.GetString(buf.Slice(off, length));
+        const byte nullTerminator = 0;
+        ReadOnlySpan<byte> rest = buf[off..];
+        int length = rest.IndexOf(nullTerminator);
+        if (length < 0)
+        {
+            length = rest.Length;
+        }
+
+        return Encoding.ASCII.GetString(rest.Slice(0, length));
     }
 
     // NOTE:

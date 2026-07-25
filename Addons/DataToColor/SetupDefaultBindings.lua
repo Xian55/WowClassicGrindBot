@@ -71,6 +71,7 @@ local BindingIndex = {
     ["TURNLEFT"] = 6,
     ["TURNRIGHT"] = 7,
     ["SITORSTAND"] = 8,
+    ["TOGGLERUN"] = 62,   -- walk-toggle; extracted so the follower can slow into hairpins
 
     -- Targeting (9-14)
     ["TARGETNEARESTENEMY"] = 9,

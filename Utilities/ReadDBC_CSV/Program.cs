@@ -37,7 +37,8 @@ internal sealed class Program
         "spell",
         "icon",
         "talent",
-        "worldmap"
+        "worldmap",
+        "areatable"
     ];
 
     public static async Task Main(string[] args)
@@ -77,6 +78,7 @@ internal sealed class Program
         string projectRoot = GetProjectRoot();
         string dataPath = Path.Join(projectRoot, "data");
         string outputPath = Path.GetFullPath(Path.Join(projectRoot, "..", "..", "Json", "dbc", versionName));
+        string subzonesPath = Path.GetFullPath(Path.Join(projectRoot, "..", "..", "Json", "subzones", versionName));
 
         Console.WriteLine($"Data path: {dataPath}");
         Console.WriteLine($"Output path: {outputPath}");
@@ -151,9 +153,17 @@ internal sealed class Program
         if (runAll || extractorsToRun.Contains("worldmap"))
         {
             generatedFiles.AddRange(await RunExtractor(
-                new WorldMapAreaExtractor(dataPath),
+                new WorldMapAreaExtractor(dataPath, subzonesPath),
                 dataPath, build,
                 ["worldmaparea.json"]));
+        }
+
+        if (runAll || extractorsToRun.Contains("areatable"))
+        {
+            generatedFiles.AddRange(await RunExtractor(
+                new AreaTableExtractor(dataPath),
+                dataPath, build,
+                ["AreaTable.json"]));
         }
 
         // Copy generated files to output directory

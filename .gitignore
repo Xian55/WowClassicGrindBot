@@ -287,6 +287,10 @@ Json/cap/*.jpg
 
 # leaflet files
 Json/leaflet/**/*.png
+Json/leaflet/**/*.webp
+
+# offline leaflet tile bundle (built by scripts/upload-leaflet-r2.py --zip)
+Json/leaflet/*.zip
 
 # Configs
 **/frame_config.json
@@ -309,3 +313,5 @@ PathingAPI/data_config.json
 **/BenchmarkDotNet.Artifacts/
 # Runtime-baked navmesh tile cache
 Json/PathInfo/navmesh/
+# Local-only working files (benchmark reports, scratch) - never committed
+local/

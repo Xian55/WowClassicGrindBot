@@ -15,10 +15,29 @@ public static class CatmullRom
     public const float Alpha = 0.5f;
     public const int PointsPerSegment = 4;
 
-    /// <summary>Endpoints are preserved; needs at least 4 control points.</summary>
-    public static List<Vector3> Smooth(List<Vector3> points, int pointsPerSegment = PointsPerSegment)
+    /// <summary>
+    /// Minimum points to resample. Two (a single leg) is enough: the loop clamps
+    /// the missing outer control points to the endpoints, so short 2-3 corner
+    /// funnel paths still get densified. Bailing at 4 handed those short legs to
+    /// the follower as sparse corners, which - popping a waypoint several yards
+    /// out - cut across whatever the path routed around (into trees/rocks).
+    /// </summary>
+    public const int MinPoints = 2;
+
+    /// <summary>
+    /// Resamples the control points to roughly <paramref name="targetSpacingYd"/>
+    /// yards apart (0 restores the fixed per-segment subdivision), preserving the
+    /// endpoints. A fixed subdivision count gives a long corner-to-corner leg the
+    /// same few points as a short one, so on long legs the waypoints end up far
+    /// apart and the WASD follower - which pops a waypoint several yards out -
+    /// cuts the corner across whatever the path was routing around. Fixed spacing
+    /// keeps a waypoint just ahead of the follower on the curve. Query-time only:
+    /// shapes the path handed to the follower, does not touch the baked tiles.
+    /// </summary>
+    public static List<Vector3> Smooth(List<Vector3> points, float targetSpacingYd,
+        int pointsPerSegment = PointsPerSegment)
     {
-        if (points.Count < 4)
+        if (points.Count < MinPoints)
         {
             return points;
         }
@@ -35,9 +54,22 @@ public static class CatmullRom
             Vector3 p2 = points[i + 1];
             Vector3 p3 = points[Math.Min(points.Count - 1, i + 2)];
 
-            for (int s = 1; s <= pointsPerSegment; s++)
+            // Subdivide this leg by its length, not a fixed count: a long leg
+            // gets proportionally more points so the spacing stays roughly
+            // uniform. Catmull-Rom arc length is not linear in t, so this is
+            // approximate - but "roughly every TargetSpacingYd" is all the
+            // follower needs. TargetSpacingYd <= 0 falls back to the old fixed
+            // subdivision.
+            int n = pointsPerSegment;
+            if (targetSpacingYd > 0f)
             {
-                float t = s / (float)pointsPerSegment;
+                float legLength = Vector3.Distance(p1, p2);
+                n = Math.Max(1, (int)MathF.Ceiling(legLength / targetSpacingYd));
+            }
+
+            for (int s = 1; s <= n; s++)
+            {
+                float t = s / (float)n;
                 output.Add(Sample(p0, p1, p2, p3, t));
             }
         }

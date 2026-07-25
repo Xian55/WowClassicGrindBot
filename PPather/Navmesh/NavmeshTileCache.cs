@@ -14,6 +14,8 @@ using DotRecast.Detour.Io;
 
 using Microsoft.Extensions.Logging;
 
+using SharedLib;
+
 using WowTriangles;
 
 namespace PPather.Navmesh;
@@ -41,11 +43,41 @@ public sealed class NavmeshTileCache : IDisposable
     /// with whatever is resident (stitching self-heals on the next request).</summary>
     public static readonly TimeSpan CorridorWaitBudget = TimeSpan.FromSeconds(5);
 
-    private static readonly int WorkerCount = Math.Clamp(Environment.ProcessorCount / 4, 2, 4);
+    /// <summary>How long Dispose waits for the bake workers to drain before giving up.</summary>
+    public static readonly TimeSpan WorkerShutdownTimeout = TimeSpan.FromSeconds(10);
+
+    /// <summary>Auto-derived bake workers stay within this range (see <see cref="ResolveWorkerCount"/>).</summary>
+    public const int MinBakeWorkers = 2;
+    public const int MaxBakeWorkers = 6;
+
+    /// <summary>Corridor sampling stride along the from->to line, as a fraction of a tile.</summary>
+    public const float CorridorSampleStepFactor = 0.5f;
+
+    private static int ResolveWorkerCount(int? configured)
+    {
+        if (configured is int workers && workers > 0)
+        {
+            return Math.Min(workers, Environment.ProcessorCount);
+        }
+
+        // Measured on a virgin 40-tile corridor (8 cores): 2 workers 6.1s,
+        // 4 workers 4.9s, 6 workers 4.6s, 8 workers 4.5s. Most of the win is in
+        // by 4, and the remainder is not worth taking every core from the game
+        // client the bot is capturing.
+        return Math.Clamp(Environment.ProcessorCount / 2, MinBakeWorkers, MaxBakeWorkers);
+    }
+
+    /// <summary>The auto-derived bake worker count, for harnesses that only log it.</summary>
+    public static int BakeWorkerCount => ResolveWorkerCount(null);
 
     private readonly ILogger logger;
-    private readonly ChunkedTriangleCollection world;
+    // Null when the cache is disk-only (area/height queries): tiles are loaded
+    // from disk but never baked, so no MPQ / game files are needed.
+    private readonly ChunkedTriangleCollection? world;
     private readonly string cacheDir;
+    private readonly NavmeshBakeOptions bake;
+    private readonly float? minWorldZ;
+    private readonly int corridorTileRadius;
 
     private readonly DtNavMesh navMesh;
     private readonly ReaderWriterLockSlim rwLock = new();
@@ -82,13 +114,31 @@ public sealed class NavmeshTileCache : IDisposable
     public ReaderWriterLockSlim Lock => rwLock;
 
     public int ResidentTileCount => resident.Count;
-    public int TilesBakedThisSession { get; private set; }
 
-    public NavmeshTileCache(ILogger logger, ChunkedTriangleCollection world, string cacheDir)
+    /// <summary>Snapshot of the tiles currently stitched into the mesh.</summary>
+    public (int x, int z)[] ResidentTiles => [.. resident.Keys];
+    private int tilesBakedThisSession;
+
+    // Diagnostics for the extract serialization: how long workers sat waiting
+    // for extractLock versus how long they held it doing real work.
+    private long extractWaitTicks;
+    private long extractHoldTicks;
+
+    public TimeSpan ExtractWait => Stopwatch.GetElapsedTime(0, Volatile.Read(ref extractWaitTicks));
+    public TimeSpan ExtractHold => Stopwatch.GetElapsedTime(0, Volatile.Read(ref extractHoldTicks));
+
+    /// <summary>Incremented from every bake worker, so keep the update atomic.</summary>
+    public int TilesBakedThisSession => Volatile.Read(ref tilesBakedThisSession);
+
+    public NavmeshTileCache(ILogger logger, ChunkedTriangleCollection? world, string cacheDir,
+        NavmeshBakeOptions bake, int corridorTileRadius, float? minWorldZ = null)
     {
         this.logger = logger;
         this.world = world;
         this.cacheDir = cacheDir;
+        this.bake = bake;
+        this.minWorldZ = minWorldZ;
+        this.corridorTileRadius = corridorTileRadius;
 
         Directory.CreateDirectory(cacheDir);
 
@@ -108,7 +158,7 @@ public sealed class NavmeshTileCache : IDisposable
             throw new InvalidOperationException($"DtNavMesh.Init failed: {status}");
         }
 
-        workers = new Task[WorkerCount];
+        workers = new Task[ResolveWorkerCount(bake.BakeWorkers)];
         for (int i = 0; i < workers.Length; i++)
         {
             workers[i] = Task.Run(WorkerLoop);
@@ -123,7 +173,7 @@ public sealed class NavmeshTileCache : IDisposable
 
         try
         {
-            Task.WaitAll(workers, TimeSpan.FromSeconds(10));
+            Task.WaitAll(workers, WorkerShutdownTimeout);
         }
         catch (AggregateException)
         {
@@ -149,6 +199,16 @@ public sealed class NavmeshTileCache : IDisposable
 
     public void EnsureTilesForSegment(Vector3 wowFrom, Vector3 wowTo, TimeSpan corridorBudget)
     {
+        EnsureTilesForSegment(wowFrom, wowTo, corridorBudget, corridorTileRadius);
+    }
+
+    /// <summary>
+    /// Same, with an explicit band half-width. The pathfinder widens the band
+    /// and retries when a search stalls inside the loaded region.
+    /// </summary>
+    public void EnsureTilesForSegment(Vector3 wowFrom, Vector3 wowTo, TimeSpan corridorBudget,
+        int tileRadius)
+    {
         List<Task> endpointWaits = [];
         List<Task> corridorWaits = [];
 
@@ -160,7 +220,7 @@ public sealed class NavmeshTileCache : IDisposable
 
         Vector3 delta = wowTo - wowFrom;
         float length = MathF.Sqrt((delta.X * delta.X) + (delta.Y * delta.Y));
-        float step = NavmeshSettings.TileWorldSize * 0.5f;
+        float step = NavmeshSettings.TileWorldSize * CorridorSampleStepFactor;
 
         for (float d = step; d < length; d += step)
         {
@@ -170,9 +230,14 @@ public sealed class NavmeshTileCache : IDisposable
                 wowFrom.Y + (delta.Y * t),
                 out int tx, out int tz);
 
-            for (int dx = -1; dx <= 1; dx++)
+            // The straight from->to line is only a hint - the walkable route can
+            // bulge well off it around terrain. A +-1 tile band leaves A* hitting
+            // the edge of the loaded region and returning a partial path; and
+            // because Detour only links tiles across their four edges, a route
+            // stepping diagonally needs the edge-adjacent tiles resident too.
+            for (int dx = -tileRadius; dx <= tileRadius; dx++)
             {
-                for (int dz = -1; dz <= 1; dz++)
+                for (int dz = -tileRadius; dz <= tileRadius; dz++)
                 {
                     Request(tx + dx, tz + dz, corridorWaits, urgentQueue: true);
                 }
@@ -191,6 +256,48 @@ public sealed class NavmeshTileCache : IDisposable
     public void Prefetch(int tx, int tz)
     {
         Request(tx, tz, waits: null, urgentQueue: false);
+    }
+
+    /// <summary>
+    /// Bakes a batch of tiles and waits for it. Bulk bakes go through here in
+    /// small batches rather than queueing thousands of requests at once, so the
+    /// job stays cancellable and interactive queries can still get a turn on the
+    /// urgent channel. Tiles already on disk or known empty return immediately.
+    /// </summary>
+    public void BakeBatch(ReadOnlySpan<(int tx, int tz)> batch, CancellationToken token)
+    {
+        List<Task> waits = [];
+
+        foreach ((int tx, int tz) in batch)
+        {
+            token.ThrowIfCancellationRequested();
+            Request(tx, tz, waits, urgentQueue: false);
+        }
+
+        if (waits.Count > 0)
+        {
+            Task.WaitAll([.. waits], token);
+        }
+    }
+
+    /// <summary>True when this tile is already baked to disk.</summary>
+    public bool IsTileOnDisk(int tx, int tz)
+    {
+        return File.Exists(TilePath(tx, tz));
+    }
+
+    /// <summary>
+    /// Releases the cached ADT triangle geometry. Taken under the extract lock so
+    /// it cannot clear a chunk a baker thread is mid-read of; the geometry
+    /// reloads on demand for the next tile that needs baking. Call after a bulk
+    /// bake so a whole continent's soup is not left resident.
+    /// </summary>
+    public void EvictGeometry()
+    {
+        lock (extractLock)
+        {
+            world?.EvictAll();
+        }
     }
 
     /// <summary>
@@ -375,17 +482,30 @@ public sealed class NavmeshTileCache : IDisposable
             }
         }
 
+        if (world == null)
+        {
+            // Disk-only cache: the tile is not baked and there is no geometry
+            // source to bake it from. Absent tile -> no data.
+            return null;
+        }
+
         long start = Stopwatch.GetTimestamp();
 
         TileGeometry geom;
+        long lockStart = Stopwatch.GetTimestamp();
         lock (extractLock)
         {
-            geom = TileGeometryExtractor.Extract(world, tx, tz);
+            long held = Stopwatch.GetTimestamp();
+            Interlocked.Add(ref extractWaitTicks, held - lockStart);
+
+            geom = TileGeometryExtractor.Extract(world, tx, tz, bake, minWorldZ);
+
+            Interlocked.Add(ref extractHoldTicks, Stopwatch.GetTimestamp() - held);
         }
 
-        DtMeshData? data = NavmeshTileBuilder.Bake(geom, tx, tz);
+        DtMeshData? data = NavmeshTileBuilder.Bake(geom, tx, tz, bake);
 
-        TilesBakedThisSession++;
+        Interlocked.Increment(ref tilesBakedThisSession);
 
         if (logger.IsEnabled(LogLevel.Debug))
         {

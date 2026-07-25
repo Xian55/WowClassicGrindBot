@@ -125,6 +125,10 @@ public sealed partial class ClassConfiguration
     public ConsoleKey TurnLeftKey { get; init; } = ConsoleKey.LeftArrow;
     public ConsoleKey TurnRightKey { get; init; } = ConsoleKey.RightArrow;
 
+    // Bound in-game to "Toggle Run/Walk". Unset (default) disables the spline
+    // follower's walk-speed approach into hairpins - it then just brakes+pivots.
+    public ConsoleKey WalkKey { get; init; }
+
     // Cached macro KeyActions for efficient re-resolution on action bar changes
     private readonly List<KeyAction> macroActions = [];
     public IReadOnlyList<KeyAction> MacroActions => macroActions;

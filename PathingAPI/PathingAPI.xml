@@ -4,7 +4,7 @@
         <name>PathingAPI</name>
     </assembly>
     <members>
-        <member name="M:PathingAPI.Controllers.PPatherController.MapRoute(System.Int32,System.Single,System.Single,System.Int32,System.Single,System.Single)">
+        <member name="M:PathingAPI.Controllers.PPatherController.MapRoute(System.Int32,System.Single,System.Single,System.Int32,System.Single,System.Single,System.Nullable{System.Single})">
              <summary>
              Allows a route to be calculated from one point to another using only minimap coords.
              </summary>
@@ -26,9 +26,54 @@
              <param name="uimap2" example="1451">to Silithus [uimap id](https://wago.tools/db2/UiMap)</param>
              <param name="x2" example="51.2">to x</param>
              <param name="y2" example="38.9">to Y</param>
+             <param name="edgeMargin">Edge margin override in yards; omit for the engine default, 0 disables the push.</param>
              <response code="200">List of <see cref="T:System.Numerics.Vector3"/> minimap coordinates.</response>
         </member>
-        <member name="M:PathingAPI.Controllers.PPatherController.WorldRoute(System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean)">
+        <member name="M:PathingAPI.Controllers.PPatherController.Bake(System.String,System.Nullable{System.Int32},System.Nullable{System.Int32})">
+            <summary>
+            Starts a background navmesh bake. Only ADTs the continent actually has
+            terrain for are visited, so the open ocean filling most of the 64x64 grid
+            costs nothing. One ADT is seconds; a continent is tens of minutes.
+            </summary>
+            <param name="continent" example="Azeroth">Continent; omit to bake every continent</param>
+            <param name="adtX" example="30">ADT grid X; omit to bake the whole continent</param>
+            <param name="adtY" example="49">ADT grid Y</param>
+            <response code="200">Bake started.</response>
+            <response code="409">A bake is already running.</response>
+        </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.BakeAreaGrid(System.String)">
+            <summary>
+            One-time extraction of the standalone spatial area-id grid(s) from the
+            game files into DataConfig.AreaGrid, so GetAreaIdAndZ can answer without
+            them. Runs in the background; needs the client archives present.
+            </summary>
+            <param name="continent" example="Northrend">Continent; omit to bake every continent</param>
+            <response code="200">Extraction started.</response>
+        </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.BakeStatus">
+            <summary>Progress of the running (or last) bake.</summary>
+        </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.BakeCancel">
+            <summary>Cancels the running bake. Tiles already written stay on disk.</summary>
+        </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.BakeClear(System.String)">
+            <summary>
+            Deletes cached navmesh tiles, including stale settings-hash directories
+            from earlier bake parameters.
+            </summary>
+            <param name="continent" example="Azeroth">Continent; omit to clear every continent</param>
+            <response code="200">Bytes freed.</response>
+            <response code="409">A bake is running.</response>
+        </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.NavmeshTiles(System.String)">
+            <summary>
+            Navmesh tiles baked to disk for a continent, with their world bounds, so
+            the map can show which ground actually has a navmesh.
+            </summary>
+            <param name="continent" example="Azeroth">Continent name</param>
+            <response code="200">Baked tiles; Resident marks the ones live in the mesh now.</response>
+        </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.WorldRoute(System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Boolean,System.Single,System.Nullable{System.Int32},System.Nullable{System.Single})">
             <summary>
             Allows a route to be calculated from one point to another using world coordinates.
             </summary>
@@ -45,6 +90,9 @@
             <param name="z2" example="96">to Z</param>
             <param name="mapid" example="1">ContientID ["Azeroth=0", "Kalimdor=1", "Outland/Expansion01=530", "Northrend=571"]</param>
             <param name="reverse" example="true">Reverse the start and end points</param>
+            <param name="jitter" example="0">Randomly offsets each corner by up to this many yards, so repeated runs of the same route do not retrace one line. 0 disables it.</param>
+            <param name="seed" example="1234">Seeds the jitter so a route is reproducible; omit for a random seed.</param>
+            <param name="edgeMargin">Edge margin override in yards; omit for the engine default, 0 disables the push.</param>
             <response code="200">List of <see cref="T:System.Numerics.Vector3"/> world coordinates.</response>
         </member>
         <member name="M:PathingAPI.Controllers.PPatherController.WorldRoute2(System.Single,System.Single,System.Single,System.Single,System.Single,System.Single,System.Int32,System.Nullable{System.Boolean})">
@@ -154,6 +202,12 @@
         <member name="M:PathingAPI.Controllers.PPatherController.Stats">
             <summary>Timing breakdown of the most recent navmesh query.</summary>
         </member>
+        <member name="M:PathingAPI.Controllers.PPatherController.ReloadCostZones">
+            <summary>
+            Re-reads the authored road / danger zone files for the active continent.
+            Applies to the next query; the navmesh is untouched so nothing rebakes.
+            </summary>
+        </member>
         <member name="M:PathingAPI.Controllers.PPatherController.BakeTile(System.Single,System.Single,System.Single)">
             <summary>
             Debug/diagnostic: bakes one DotRecast navmesh tile at the given world
@@ -208,6 +262,21 @@
         </member>
         <member name="M:PathingAPI.Pages.Index.MR(System.Int32,System.Double,System.Double,System.Int32,System.Double,System.Double)">
             <summary>MapRoute: uiMap coordinates</summary>
+        </member>
+        <member name="P:PathingAPI.Pages.SearchParameters.ParsedSeed">
+            <summary>Empty or non-numeric text means "random seed" (null).</summary>
+        </member>
+        <member name="M:PathingAPI.Pages.SearchParameters.RollSeed">
+            <summary>
+            Rolls a fresh seed into the visible field, so a "random" run is still
+            reproducible: the value used is on screen and can be re-searched.
+            </summary>
+        </member>
+        <member name="M:PathingAPI.Pages.SearchParameters.AddCustomPoi(System.Single,System.Single,System.Single,System.Single,System.String)">
+            <summary>
+            Adds a map-authored point to the From/To autocomplete. Called from the
+            Leaflet page when a custom POI is placed or restored.
+            </summary>
         </member>
         <member name="M:PathingAPI.Pages.Watch.SendNavmeshTile(System.Int32,System.Int32,DotRecast.Detour.DtMeshData,System.Threading.CancellationToken)">
             <summary>

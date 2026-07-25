@@ -4,6 +4,8 @@ using System.Numerics;
 
 using PPather.Triangles;
 
+using SharedLib;
+
 using WowTriangles;
 
 namespace PPather.Navmesh;
@@ -27,22 +29,31 @@ public static class TileGeometryExtractor
     // classify lethal liquids.
     private const TriangleType LiquidMask = TriangleType.Water;
 
-    public static TileGeometry Extract(ChunkedTriangleCollection world, int dtTileX, int dtTileZ)
+    /// <summary>
+    /// MCNK-granularity sample step, yards: touching every point on this grid
+    /// inside the padded bounds loads all overlapping ADT chunks on demand.
+    /// </summary>
+    private const float ChunkSampleStepYd = 256f;
+
+    public static TileGeometry Extract(ChunkedTriangleCollection world, int dtTileX, int dtTileZ,
+        NavmeshBakeOptions? bake = null, float? minWorldZ = null)
     {
+        bake ??= new NavmeshBakeOptions();
+
         NavmeshCoords.GetTileWowBounds(dtTileX, dtTileZ,
             out float tileMinX, out float tileMinY, out float tileMaxX, out float tileMaxY);
 
-        float border = (RcBorderCells * NavmeshSettings.CellSize) + PaddingYd;
+        float border = (BorderCells(bake.AgentRadius) * NavmeshSettings.CellSize) + PaddingYd;
         float minX = tileMinX - border;
         float minY = tileMinY - border;
         float maxX = tileMaxX + border;
         float maxY = tileMaxY + border;
 
-        // Touching every 256yd sample point inside the padded bounds loads all
+        // Touching every sample point inside the padded bounds loads all
         // overlapping ADT chunks on demand (ADT = 533.33yd).
         List<TriangleCollection> chunks = [];
         int failedChunkLoads = 0;
-        for (float x = minX; ; x += 256f)
+        for (float x = minX; ; x += ChunkSampleStepYd)
         {
             bool lastX = x >= maxX;
             if (lastX)
@@ -50,7 +61,7 @@ public static class TileGeometryExtractor
                 x = maxX;
             }
 
-            for (float y = minY; ; y += 256f)
+            for (float y = minY; ; y += ChunkSampleStepYd)
             {
                 bool lastY = y >= maxY;
                 if (lastY)
@@ -132,6 +143,16 @@ public static class TileGeometryExtractor
                     continue;
                 }
 
+                // Below the world-Z floor: the floating-continent death base
+                // (Outland's playable landmass sits far above it). Dropping it
+                // here keeps it out of both the ground and liquid sets and out
+                // of the tile's vertical bounds.
+                if (minWorldZ is float floorZ &&
+                    MathF.Max(v0.Z, MathF.Max(v1.Z, v2.Z)) < floorZ)
+                {
+                    continue;
+                }
+
                 minZ = MathF.Min(minZ, MathF.Min(v0.Z, MathF.Min(v1.Z, v2.Z)));
                 maxZ = MathF.Max(maxZ, MathF.Max(v0.Z, MathF.Max(v1.Z, v2.Z)));
 
@@ -156,7 +177,7 @@ public static class TileGeometryExtractor
         // Horizontal bounds stay the unpadded tile edges: RcBuilderConfig
         // expands them by borderSize*cs itself. Vertical from geometry with
         // climb headroom.
-        Vector3 wowMin = new(tileMinX, tileMinY, minZ - NavmeshSettings.AgentMaxClimb);
+        Vector3 wowMin = new(tileMinX, tileMinY, minZ - bake.AgentMaxClimb);
         Vector3 wowMax = new(tileMaxX, tileMaxY, maxZ + NavmeshSettings.AgentHeight);
 
         return new TileGeometry
@@ -172,8 +193,20 @@ public static class TileGeometryExtractor
         };
     }
 
-    /// <summary>Matches RcConfig.CalcBorder(AgentRadius, CellSize): 3 + ceil(r/cs) = 5.</summary>
-    public const int RcBorderCells = 5;
+    /// <summary>Recast's CalcBorder base cell count (the constant term of 3 + ceil(radius/cs)).</summary>
+    public const int RcBorderBaseCells = 3;
+
+    /// <summary>
+    /// Cells of geometry to pull beyond the tile edge, matching recast's
+    /// RcConfig.CalcBorder(agentRadius, CellSize) = 3 + ceil(radius / cellSize).
+    ///
+    /// Must track the agent radius: the bake erodes by it, so its border grows
+    /// with the radius, and if the extractor fetched a smaller border the outer
+    /// ring of each tile would bake against missing geometry and leave holes at
+    /// tile seams. At the default radius this is 5; at radius 1.0 it is 7.
+    /// </summary>
+    public static int BorderCells(float agentRadius) =>
+        RcBorderBaseCells + (int)MathF.Ceiling(agentRadius / NavmeshSettings.CellSize);
 
     private static void AppendTriangle(List<float> verts, List<int> tris, in Vector3 v0, in Vector3 v1, in Vector3 v2)
     {

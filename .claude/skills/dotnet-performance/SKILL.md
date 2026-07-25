@@ -1,7 +1,7 @@
 ---
 name: dotnet-performance
 description: .NET 10 performance best practices and patterns for C# code
-user-invocable: false
+user-invocable: true
 ---
 
 # .NET Performance Guidelines
@@ -24,12 +24,19 @@ Reference material:
 - Prefer `sealed` classes by default — enables devirtualization and inlining
 - Prefer `readonly struct` when structs don't need mutation
 - Use `StringComparison.Ordinal` / `OrdinalIgnoreCase` explicitly — unlocks vectorized fast paths
+- Watch for hidden boxing: cast-to-`object`, struct-to-interface cast, `params object[]` (e.g. `string.Format("{0}", intValue)`), enum dict keys pre-.NET 5
+- Prefer generic constraints (`where T : struct, IFoo`) over casting structs to interfaces — JIT specialises per `T`, no box
+- Mark lambdas `static` (C# 9+) when they don't need captures — prevents accidental capture and lets the JIT cache a single delegate instance
+- Avoid lambda captures in hot paths; cache the delegate in a `readonly` field instead of re-creating it per call site
 
 ## Memory & Buffers
 
 - Prefer `Span<T>` / `ReadOnlySpan<T>` / `Memory<T>` over arrays for buffer operations
 - `stackalloc` for small, fixed-size temporary buffers
 - `ArrayPool<T>.Shared` / `MemoryPool<T>.Shared` for larger temporary buffers — always return rentals
+- `Microsoft.Extensions.ObjectPool.ObjectPool<T>` for expensive-to-build reference types (StringBuilder, parsers, regex state) — pool maintained with fallback construction under contention
+- `ref struct` for stack-only aggregates (parsers, builders) — cannot escape to heap, no boxing, no field storage in classes, no generic type-argument use
+- Pass large structs as `in` / `ref` / `out` parameters — avoids the copy without heap allocation
 - `[InlineArray]` for fixed-size inline buffers without heap allocation
 - `ReadOnlySpan<byte> x = new byte[] { ... }` — compiler embeds in PE data section, zero heap allocation
 - `BinaryPrimitives.ReadInt32LittleEndian(span)` (and family) for endian-aware reads/writes without unsafe code
@@ -44,6 +51,8 @@ Reference material:
 - `SearchValues<string>` for multi-substring search with SIMD optimization
 - `Dictionary.GetAlternateLookup<ReadOnlySpan<char>>()` for span-based lookups without string allocation
 - `CollectionsMarshal.GetValueRefOrAddDefault()` for insert-or-update without double lookup
+- `CollectionsMarshal.AsSpan(list)` returns a span over the internal `T[]` — alloc-free iteration, also lets you mutate elements in-place when `T` is a struct
+- Pre-size collections at construction (`new List<T>(expectedCount)`, `new Dictionary<K,V>(capacity: 64)`) to skip resize allocations
 - Use collection types with `Empty` semantics rather than allocating zero-element collections
 - Prefer `OrderedDictionary<K,V>` over the non-generic `OrderedDictionary`
 
@@ -67,6 +76,8 @@ Reference material:
 - `PeriodicTimer` with `WaitForNextTickAsync()` for async periodic work
 - `CancellationTokenSource.TryReset()` to reuse instead of allocating new per operation
 - `Parallel.ForEachAsync()` for async-aware parallel iteration with concurrency control
+- Implement `IValueTaskSource<T>` for completely alloc-free async I/O after warm-up (sockets, pipelines) — reuses one completion source instead of allocating per await
+- Use `ConfigureAwait(false)` on library / non-UI code to avoid capturing `SynchronizationContext` and `TaskScheduler` — saves cross-thread marshalling cost and a small allocation
 
 ## I/O
 
@@ -76,6 +87,7 @@ Reference material:
 
 ## LINQ
 
+- Avoid LINQ in hot paths — enumerators, state machines, captured-variable closures and intermediate collections all allocate; rewrite as plain `for` / `foreach`. The bullets below apply when LINQ is unavoidable.
 - `CountBy()` / `AggregateBy()` instead of `GroupBy` + aggregate — single pass, fewer allocations
 - `Order()` / `OrderDescending()` for self-comparable elements without key selector
 - `LeftJoin()` / `RightJoin()` instead of verbose `GroupJoin` + `SelectMany` + `DefaultIfEmpty`
@@ -98,3 +110,17 @@ Reference material:
 - `[SkipLocalsInit]` on performance-critical methods when safe
 - `typeof(T).IsValueType` in generic methods — JIT replaces with compile-time constant
 - `EqualityComparer<T>.Default.Equals()` — JIT devirtualizes for value types; do not cache in a local
+
+## Measurement & Diagnostics
+
+- Measure before optimising — profile first, don't guess. Hot-path means hot in *your* workload
+- For this repo specifically: use the `/ppather-profile` skill (`.claude/skills/ppather-profile/SKILL.md`) — wraps `dotnet-trace` / `dotnet-counters` / `dotnet-gcdump` / `dotnet-dump` and the `Benchmarks` project against a live PathingAPI or bake process
+- `BenchmarkDotNet` with `[MemoryDiagnoser]` — surfaces per-invocation allocation bytes and Gen0/1/2 counts; catches regressions in CI
+- `GC.GetAllocatedBytesForCurrentThread()` to assert zero-allocation in unit tests:
+  ```csharp
+  long before = GC.GetAllocatedBytesForCurrentThread();
+  HotPath(input);
+  Assert.Equal(before, GC.GetAllocatedBytesForCurrentThread());
+  ```
+- `dotnet-trace` / PerfView for ETW GC traces; dotMemory for heap snapshots and allocation trees; Roslyn analyzers (e.g. ClrHeapAllocationAnalyzer) for compile-time boxing / closure detection
+- Reference link: https://slicker.me/dotnet/allocation-free.html (foundational allocation-free patterns)

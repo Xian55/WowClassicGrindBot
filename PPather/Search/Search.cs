@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 
 using PPather.Graph;
+using PPather.Navmesh;
 
 using System;
 using System.Numerics;
@@ -193,5 +194,10 @@ public sealed class Search
     public (int, float) GetAreaIdAndZ(Vector3 location)
     {
         return PathGraph.triangleWorld.GetAreaIdAndZ(location);
+    }
+
+    public (AreaGrid grid, SharedLib.SubZoneArea[] subZones) BuildAreaData()
+    {
+        return PathGraph.triangleWorld.BuildAreaData();
     }
 }

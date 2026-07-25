@@ -29,6 +29,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PathingAPI;
 
@@ -50,8 +51,15 @@ public sealed class Startup
             PathingAPILoggerSink sink = new();
             builder.Services.AddSingleton(sink);
 
+            // Logging:PatherDebug=true opens the per-query navmesh diagnostics
+            // (corridor legs, tile bakes) without recompiling.
+            LogEventLevel minimum =
+                configuration.GetValue<bool>("Logging:PatherDebug")
+                ? LogEventLevel.Debug
+                : LogEventLevel.Information;
+
             Log.Logger = new LoggerConfiguration()
-                //.MinimumLevel.Debug()
+                .MinimumLevel.Is(minimum)
                 //.MinimumLevel.Verbose()
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
                 .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information)
@@ -87,6 +95,11 @@ public sealed class Startup
         services.AddSingleton<CancellationTokenSource>();
         services.AddSingleton<DataConfig>(x => DataConfig.Load(exp));
         services.AddSingleton<WorldMapAreaDB>();
+
+        services.Configure<NavmeshBakeOptions>(configuration.GetSection(NavmeshBakeOptions.Position));
+        services.Configure<NavmeshQueryOptions>(configuration.GetSection(NavmeshQueryOptions.Position));
+        services.Configure<SplineFollowerOptions>(configuration.GetSection(SplineFollowerOptions.Position));
+
         services.AddSingleton<PPatherService>();
         services.AddSingleton<FactionTemplateDB>();
         services.AddSingleton<CreatureDB>();
@@ -99,15 +112,21 @@ public sealed class Startup
         {
             options.SerializerOptions.PropertyNameCaseInsensitive = true;
             options.SerializerOptions.Converters.Add(new Vector3Converter());
+            options.SerializerOptions.Converters.Add(new Vector2Converter());
             options.SerializerOptions.Converters.Add(new Vector4Converter());
         });
 
-        services.AddControllers().AddJsonOptions(options =>
-        {
-            options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
-            options.JsonSerializerOptions.Converters.Add(new Vector3Converter());
-            options.JsonSerializerOptions.Converters.Add(new Vector4Converter());
-        });
+        // Pull in the Frontend authoring controllers (road / danger zone) so the
+        // cost-zone edit loop works against this host, which needs no game client.
+        services.AddControllers()
+            .AddApplicationPart(typeof(Frontend.Controllers.RoadController).Assembly)
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+                options.JsonSerializerOptions.Converters.Add(new Vector3Converter());
+                options.JsonSerializerOptions.Converters.Add(new Vector2Converter());
+                options.JsonSerializerOptions.Converters.Add(new Vector4Converter());
+            });
 
         services.AddSignalR()
             .AddMessagePackProtocol(options =>
@@ -140,6 +159,42 @@ public sealed class Startup
             out PathingEngine engine))
         {
             app.ApplicationServices.GetRequiredService<PPatherService>().Engine = engine;
+        }
+
+        // Optional startup bake: `--bake=<continent>` kicks a background bake as
+        // the server comes up, using the `--exp` expansion. `all` (or `*`) bakes
+        // every continent; the API serves immediately and progress is on
+        // GET api/PPather/Bake/Status.
+        string? bake = configuration["bake"] ?? Environment.GetEnvironmentVariable("bake");
+        if (!string.IsNullOrWhiteSpace(bake))
+        {
+            string? continent = bake is "all" or "*" ? null : bake;
+            PPatherService service = app.ApplicationServices.GetRequiredService<PPatherService>();
+
+            if (service.StartBake(continent, null))
+            {
+                Log.Information("Startup bake requested: {Scope} (expansion {Exp})",
+                    continent ?? "all continents",
+                    configuration["exp"] ?? Environment.GetEnvironmentVariable("exp") ?? "som");
+            }
+            else
+            {
+                Log.Warning("Startup bake could not start - a bake is already running.");
+            }
+        }
+
+        // Optional one-time area-grid extraction: `--bake-area=<continent>` reads
+        // the client ADTs and writes the standalone spatial area-id grid(s) under
+        // DataConfig.AreaGrid, so GetAreaIdAndZ answers without the game files.
+        // `all` (or `*`) does every continent.
+        string? bakeArea = configuration["bake-area"] ?? Environment.GetEnvironmentVariable("bake-area");
+        if (!string.IsNullOrWhiteSpace(bakeArea))
+        {
+            string? continent = bakeArea is "all" or "*" ? null : bakeArea;
+            PPatherService service = app.ApplicationServices.GetRequiredService<PPatherService>();
+
+            Log.Information("Startup area-grid bake requested: {Scope}", continent ?? "all continents");
+            Task.Run(() => service.BuildAreaGrid(continent));
         }
 
         // Enable middleware to serve generated Swagger as a JSON endpoint.

@@ -2,6 +2,7 @@ using Core.Database;
 using Core.GOAP;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using SharedLib;
 using SharedLib.Data;
@@ -68,6 +69,12 @@ public sealed partial class Navigation : IDisposable
 
     public bool SimplifyRouteToWaypoint { get; set; } = true;
 
+    // Simplification thins the route (drops near/collinear points); it suits the
+    // sparse SpotAStar output but guts the navmesh's dense funnel path, so the
+    // follower cuts corners. Never simplify when the pather already returns
+    // smoothed (navmesh) paths - keep them dense regardless of the flag.
+    private bool ShouldSimplify => SimplifyRouteToWaypoint && !pather.PathsAreSmoothed;
+
     private bool active;
     private Vector3 playerWorldPos;
 
@@ -81,6 +88,40 @@ public sealed partial class Navigation : IDisposable
     private int failedAttempt;
     private Vector3 lastFailedDestination;
 
+    // Closed-loop follower for dense navmesh splines. Engaged only when the
+    // pather emits smoothed paths AND the master env switch is on; the legacy
+    // waypoint-pop follower below is bypassed wholesale, never modified, so
+    // turning the switch off restores todays behaviour exactly.
+    private readonly SplineFollowerCore spline;
+    private readonly SplineFollowerOptions splineSettings;
+    private readonly ConsoleKey turnLeftKey;
+    private readonly ConsoleKey turnRightKey;
+    private TurnState appliedTurn;
+    private long brakeSinceMs;
+
+    // True while the character is toggled into walk (slow) mode for a hairpin
+    // approach. ReleaseTurnKeys (every exit/stop) toggles it back to run, so the
+    // bot can never be left stuck walking.
+    private bool walking;
+
+    // Logs which follower is in use once, on the first navigation tick.
+    private bool splineLogged;
+    private bool warnedNoWalkKey;
+
+    /// <summary>
+    /// How long a deliberate stop-and-turn may hold the character stationary
+    /// before the stuck ladder is allowed to intervene. A worst-case 180 degree
+    /// pivot takes ~1000ms at the client turn rate; the margin covers brake
+    /// decay and tick jitter.
+    /// </summary>
+    private const long PivotGraceMs = 2500;
+
+    /// <summary>Stuck duration that clears the route and dismounts, ms.</summary>
+    private const double StuckClearRouteMs = 10_000;
+
+    private bool SplineActive =>
+        splineSettings.Enabled && pather.PathsAreSmoothed && spline.HasPath;
+
     public Navigation(ILogger<Navigation> logger,
         CancellationTokenSource<GoapAgent> cts,
         PlayerDirection playerDirection,
@@ -89,7 +130,8 @@ public sealed partial class Navigation : IDisposable
         StopMoving stopMoving,
         StuckDetector stuckDetector, IPPather pather, IMountHandler mountHandler,
         ClassConfiguration classConfiguration,
-        AreaDB areaDB)
+        AreaDB areaDB,
+        IOptions<SplineFollowerOptions> splineOptions)
     {
         this.logger = logger;
         this.playerDirection = playerDirection;
@@ -102,7 +144,13 @@ public sealed partial class Navigation : IDisposable
         this.mountHandler = mountHandler;
         this.areaDB = areaDB;
 
+        splineSettings = splineOptions.Value;
+        spline = new SplineFollowerCore(splineSettings);
+
         patherName = pather.GetType().Name;
+
+        turnLeftKey = classConfiguration.TurnLeftKey;
+        turnRightKey = classConfiguration.TurnRightKey;
 
         AvgDistance = OutDoorMinDistance;
         token = cts.Token;
@@ -122,6 +170,7 @@ public sealed partial class Navigation : IDisposable
 
     public void Dispose()
     {
+        ReleaseTurnKeys();
         manualReset.Set();
     }
 
@@ -157,6 +206,21 @@ public sealed partial class Navigation : IDisposable
         }
 
         LastActive = DateTime.UtcNow;
+
+        if (!splineLogged)
+        {
+            splineLogged = true;
+            LogFollowerSelected(logger,
+                (splineSettings.Enabled && pather.PathsAreSmoothed) ? "SPLINE (WASD)" : "LEGACY waypoint",
+                splineSettings.Enabled, pather.PathsAreSmoothed, input.CanWalk);
+        }
+
+        if (SplineActive)
+        {
+            SplineUpdate(token);
+            return;
+        }
+
         input.StartForward(true);
 
         // main loop
@@ -176,7 +240,7 @@ public sealed partial class Navigation : IDisposable
                 playerReader.WorldPosZ = targetW.Z;
             }
 
-            if (SimplifyRouteToWaypoint)
+            if (ShouldSimplify)
                 ReduceByDistance(playerW, OutDoorMinDistance);
             else
                 routeToNextWaypoint.Pop();
@@ -201,7 +265,8 @@ public sealed partial class Navigation : IDisposable
             }
             else
             {
-                targetW = routeToNextWaypoint.Peek();
+                if (!routeToNextWaypoint.TryPeek(out targetW))
+                    return;
                 stuckDetector.SetTargetLocation(targetW);
 
                 playerM = WorldMapAreaDB.ToMap_FlipXY(playerW, playerReader.WorldMapArea);
@@ -222,7 +287,7 @@ public sealed partial class Navigation : IDisposable
             }
             else
             {
-                if (stuckDetector.ActionDurationMs > 10_000)
+                if (stuckDetector.ActionDurationMs > StuckClearRouteMs)
                 {
                     if (mountHandler.IsMounted())
                         mountHandler.Dismount();
@@ -236,12 +301,210 @@ public sealed partial class Navigation : IDisposable
                 if (HasBeenActiveRecently())
                 {
                     stuckDetector.Update(token);
-                    worldDistance = playerW.WorldDistanceXYTo(routeToNextWaypoint.Peek());
+                    // Stop/Reset can clear the route on another thread between the
+                    // Count check above and here - TryPeek instead of crashing.
+                    if (routeToNextWaypoint.TryPeek(out Vector3 nextW))
+                        worldDistance = playerW.WorldDistanceXYTo(nextW);
                 }
             }
         }
 
         lastWorldDistance = worldDistance;
+    }
+
+    /// <summary>
+    /// Per-tick application of the spline follower. Non-blocking by
+    /// construction: every input is a key STATE decided from this frame's
+    /// sensors - no timed presses, no thread sleeps - so the tick rate of the
+    /// addon feed is fully used. Event timing mirrors the legacy loop point
+    /// for point so goals cannot tell the followers apart.
+    /// </summary>
+    private void SplineUpdate(CancellationToken token)
+    {
+        Vector3 playerW = playerReader.WorldPos;
+        playerWorldPos = playerW;
+
+        SplineSnapshot snap = new(
+            playerW.AsVector2(), playerW.Z,
+            playerReader.Direction, playerReader.RunSpeed,
+            bits.Indoors(), bits.Falling(), bits.Moving(),
+            Environment.TickCount64);
+
+        SplineCommand cmd = spline.Tick(in snap, ReachedDistance(OutDoorMinDistance));
+
+        if (cmd.ConsumedPoints > 0)
+        {
+            // Pop-sync: the route stack tracks follower progress so TotalRoute,
+            // the frontend overlay and goal-side distance math see exactly what
+            // the legacy popper would have shown.
+            Vector3 lastConsumed = default;
+            for (int i = 0; i < cmd.ConsumedPoints && routeToNextWaypoint.Count > 1; i++)
+            {
+                lastConsumed = routeToNextWaypoint.Pop();
+            }
+
+            if (lastConsumed.Z != 0 && lastConsumed.Z != playerW.Z)
+            {
+                playerReader.WorldPosZ = lastConsumed.Z;
+            }
+
+            OnAnyPointReached?.Invoke();
+            UpdateTotalRoute();
+            stuckDetector.SetTargetLocation(spline.PointAt(cmd.StuckTargetIndex));
+
+            LogSplineConsumed(logger, cmd.ConsumedPoints, routeToNextWaypoint.Count);
+        }
+
+        switch (cmd.Status)
+        {
+            case SplineStatus.Completed:
+            {
+                Vector3 finalPoint = spline.PointAt(int.MaxValue);
+                if (finalPoint.Z != 0 && finalPoint.Z != playerW.Z)
+                {
+                    playerReader.WorldPosZ = finalPoint.Z;
+                }
+
+                spline.Clear();
+                ReleaseTurnKeys();
+                routeToNextWaypoint.Clear();
+
+                if (wayPoints.Count > 0)
+                {
+                    wayPoints.Pop();
+                    UpdateTotalRoute();
+                    OnWayPointReached?.Invoke();
+                }
+
+                LogSplineCompleted(logger, wayPoints.Count);
+                return;
+            }
+            case SplineStatus.OffPath:
+            {
+                LogSplineOffPath(logger, cmd.OffPathDistance);
+                spline.Clear();
+                ReleaseTurnKeys();
+                routeToNextWaypoint.Clear();
+                return; // next tick: refill -> stopMoving -> fresh path request
+            }
+        }
+
+        // A deliberate stop-and-turn looks exactly like being stuck to the
+        // detector: stationary, no XY progress, and IsGettingCloser's grace
+        // requires bits.Moving(). Without this window the ladder fires within
+        // a tick of the brake engaging, releases the turn keys mid-pivot, and
+        // the pivot can never complete - a jump-in-place deadlock at every
+        // tight corner.
+        long nowMs = Environment.TickCount64;
+        if (cmd.Braking)
+        {
+            if (brakeSinceMs == 0)
+            {
+                brakeSinceMs = nowMs;
+                LogSplineBrake(logger, true, cmd.OffPathDistance);
+            }
+        }
+        else
+        {
+            if (brakeSinceMs != 0)
+                LogSplineBrake(logger, false, cmd.OffPathDistance);
+            brakeSinceMs = 0;
+        }
+
+        bool pivotGrace = cmd.Braking && nowMs - brakeSinceMs < PivotGraceMs;
+
+        if (!pivotGrace && !stuckDetector.IsGettingCloser())
+        {
+            if (stuckDetector.ActionDurationMs > StuckClearRouteMs)
+            {
+                if (mountHandler.IsMounted())
+                    mountHandler.Dismount();
+
+                LogClearRouteToWaypointStuck(logger, stuckDetector.ActionDurationMs);
+                stuckDetector.Reset();
+                spline.Clear();
+                ReleaseTurnKeys();
+                routeToNextWaypoint.Clear();
+                return;
+            }
+
+            if (HasBeenActiveRecently())
+            {
+                // The unstick ladder does blocking presses on the same keys -
+                // hand them over cleanly, then KEEP FORWARD ENGAGED, exactly
+                // like the legacy loop which holds forward at the top of every
+                // tick. Returning without any movement input here deadlocks:
+                // no motion means Moving stays false, so the ladder repeats
+                // while the character pogo-jumps in place.
+                ReleaseTurnKeys();
+                stuckDetector.Update(token);
+                input.StartForward(true);
+                return;
+            }
+        }
+
+        // Walk-speed hairpin approach: match the follower's Slow request. Every
+        // exit path resets this via ReleaseTurnKeys, so it cannot stick on.
+        bool wantWalk = cmd.Slow && input.CanWalk;
+        if (wantWalk != walking)
+        {
+            input.ToggleWalk(token);
+            walking = wantWalk;
+            LogSplineWalkToggle(logger, walking);
+        }
+        else if (cmd.Slow && !input.CanWalk && !warnedNoWalkKey)
+        {
+            // Surface once: the follower asked to slow into a hairpin but there
+            // is no walk key to honour it. Explains run-speed hairpin approaches.
+            warnedNoWalkKey = true;
+            LogSplineNoWalkKey(logger);
+        }
+
+        if (cmd.Forward)
+            input.StartForward(true);
+        else
+            input.StopForward(true);
+
+        ApplyTurn(cmd.Turn);
+    }
+
+    private void ApplyTurn(TurnState desired)
+    {
+        if (desired == appliedTurn)
+        {
+            return;
+        }
+
+        if (appliedTurn == TurnState.Left)
+            input.SetKeyState(turnLeftKey, false, true);
+        else if (appliedTurn == TurnState.Right)
+            input.SetKeyState(turnRightKey, false, true);
+
+        if (desired == TurnState.Left)
+            input.SetKeyState(turnLeftKey, true, true);
+        else if (desired == TurnState.Right)
+            input.SetKeyState(turnRightKey, true, true);
+
+        appliedTurn = desired;
+    }
+
+    private void ReleaseTurnKeys()
+    {
+        if (input.IsKeyDown(turnLeftKey))
+            input.SetKeyState(turnLeftKey, false, true);
+
+        if (input.IsKeyDown(turnRightKey))
+            input.SetKeyState(turnRightKey, false, true);
+
+        appliedTurn = TurnState.None;
+
+        // Guaranteed walk-mode reset: every exit/stop path funnels through here,
+        // so the bot is never left toggled into walk.
+        if (walking)
+        {
+            input.ToggleWalk();
+            walking = false;
+        }
     }
 
     public void Resume()
@@ -271,6 +534,12 @@ public sealed partial class Navigation : IDisposable
         if (pather.PathsAreSmoothed)
             routeToNextWaypoint.Clear();
 
+        // Every goal interrupt (combat pull, abort) lands here. The follower
+        // holds turn keys as state, so without this a pull mid-turn would
+        // leave the character spinning.
+        spline.Clear();
+        ReleaseTurnKeys();
+
         ResetStuckParameters();
     }
 
@@ -298,6 +567,8 @@ public sealed partial class Navigation : IDisposable
     {
         wayPoints.Clear();
         routeToNextWaypoint.Clear();
+        spline.Clear();
+        ReleaseTurnKeys();
 
         float mapDistanceXY = 0;
         WorldMapArea wma = playerReader.WorldMapArea;
@@ -338,6 +609,8 @@ public sealed partial class Navigation : IDisposable
     private void RefillRouteToNextWaypoint(CancellationToken token)
     {
         routeToNextWaypoint.Clear();
+        spline.Clear();
+        ReleaseTurnKeys();
 
         Vector3 playerW = playerReader.WorldPos;
         Vector3 targetW = wayPoints.Peek();
@@ -431,8 +704,19 @@ public sealed partial class Navigation : IDisposable
                 routeToNextWaypoint.Push(result.Path[i]);
             }
 
-            if (SimplifyRouteToWaypoint)
+            if (splineSettings.Enabled && pather.PathsAreSmoothed)
+            {
+                // The spline follower consumes the path raw - the density IS
+                // the mechanism. Douglas-Peucker would gut it on straights and
+                // leave clusters only at turns, which is exactly the shape the
+                // legacy popper mishandles.
+                spline.SetPath(result.Path, playerReader.RunSpeed);
+                LogSplineLoaded(logger, result.Path.Length, playerReader.RunSpeed);
+            }
+            else if (ShouldSimplify)
+            {
                 SimplyfyRouteToWaypoint();
+            }
         }
 
         if (routeToNextWaypoint.Count == 0)
@@ -443,7 +727,13 @@ public sealed partial class Navigation : IDisposable
                 LogDebug($"RefillRouteToNextWaypoint -- WayPoint reached! {wayPoints.Count}");
         }
 
-        stuckDetector.SetTargetLocation(routeToNextWaypoint.Peek());
+        // The spline branch seeds a short-lookahead progress target: the
+        // legacy peek is the first route point, which is roughly the player's
+        // own position and only works because the legacy popper immediately
+        // replaces it.
+        stuckDetector.SetTargetLocation(SplineActive
+            ? spline.PointAt(2)
+            : routeToNextWaypoint.Peek());
         UpdateTotalRoute();
 
         OnPathCalculated?.Invoke();
@@ -674,6 +964,54 @@ public sealed partial class Navigation : IDisposable
         Level = LogLevel.Information,
         Message = "[{name}] total distance {totalDistance} > {maxDistancehalf}. Have to clear RouteToWaypoint.")]
     static partial void LogV1ClearRouteToWaypointTooFar(ILogger logger, string name, float totalDistance, float maxDistancehalf);
+
+    [LoggerMessage(
+        EventId = 0046,
+        Level = LogLevel.Warning,
+        Message = "Spline follower off path by {distance:0.0}yd - requesting a fresh path")]
+    static partial void LogSplineOffPath(ILogger logger, float distance);
+
+    [LoggerMessage(
+        EventId = 0049,
+        Level = LogLevel.Information,
+        Message = "Follower: {which} (SplineFollower.Enabled={enabled}, PathsAreSmoothed={smoothed}, WalkKey={canWalk})")]
+    static partial void LogFollowerSelected(ILogger logger, string which, bool enabled, bool smoothed, bool canWalk);
+
+    [LoggerMessage(
+        EventId = 0050,
+        Level = LogLevel.Debug,
+        Message = "Spline loaded: {points} points, runSpeed {runSpeed:0.0}")]
+    static partial void LogSplineLoaded(ILogger logger, int points, float runSpeed);
+
+    [LoggerMessage(
+        EventId = 0051,
+        Level = LogLevel.Trace,
+        Message = "Spline consumed {consumed} point(s), {remaining} remain")]
+    static partial void LogSplineConsumed(ILogger logger, int consumed, int remaining);
+
+    [LoggerMessage(
+        EventId = 0052,
+        Level = LogLevel.Debug,
+        Message = "Spline segment completed, {waypointsRemaining} waypoint(s) remain")]
+    static partial void LogSplineCompleted(ILogger logger, int waypointsRemaining);
+
+    [LoggerMessage(
+        EventId = 0053,
+        Level = LogLevel.Debug,
+        Message = "Spline brake={braking} (offPath {offPath:0.0}yd)")]
+    static partial void LogSplineBrake(ILogger logger, bool braking, float offPath);
+
+    [LoggerMessage(
+        EventId = 0054,
+        Level = LogLevel.Debug,
+        Message = "Spline walk-speed={walk}")]
+    static partial void LogSplineWalkToggle(ILogger logger, bool walk);
+
+    [LoggerMessage(
+        EventId = 0055,
+        Level = LogLevel.Warning,
+        Message = "Spline wants walk-speed hairpin approach but no walk key bound (TOGGLERUN/WalkKey); staying at run speed")]
+    static partial void LogSplineNoWalkKey(ILogger logger);
 
     #endregion
 }

@@ -138,6 +138,7 @@ public static class Program
         {
             options.SerializerOptions.PropertyNameCaseInsensitive = true;
             options.SerializerOptions.Converters.Add(new Vector3Converter());
+            options.SerializerOptions.Converters.Add(new Vector2Converter());
             options.SerializerOptions.Converters.Add(new Vector4Converter());
         });
 
@@ -156,6 +157,7 @@ public static class Program
         {
             options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             options.JsonSerializerOptions.Converters.Add(new Vector3Converter());
+            options.JsonSerializerOptions.Converters.Add(new Vector2Converter());
             options.JsonSerializerOptions.Converters.Add(new Vector4Converter());
         });
 

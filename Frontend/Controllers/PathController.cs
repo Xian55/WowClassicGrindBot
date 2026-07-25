@@ -58,9 +58,9 @@ public class PathController : ControllerBase
     [ProducesResponseType(typeof(int), StatusCodes.Status200OK, "application/json")]
     public IActionResult GetAreaIdAndZ(int mapid, float x, float y)
     {
-        service.Initialise(mapid);
-
-        (int areaId, float z) = service.GetAreaIdAndZ(new Vector3(x, y, 0));
+        // Area id from the pre-baked AreaGrid, z from the navmesh; no MPQ load
+        // and no per-continent Initialise, so it answers game-file-free.
+        (int areaId, float z) = service.GetAreaIdAndZ(mapid, x, y);
         return new JsonResult(new { areaId, z }, options);
     }
 }
