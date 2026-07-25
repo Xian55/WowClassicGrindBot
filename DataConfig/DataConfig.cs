@@ -26,7 +26,11 @@ public sealed class DataConfig
     [JsonIgnore]
     public string PathInfo => Join(Root, "PathInfo");
     [JsonIgnore]
+    public string Navmesh => Join(Root, "PathInfo", "navmesh", ClientEra(Exp));
+    [JsonIgnore]
     public string MPQ => Join(Root, "MPQ");
+    [JsonIgnore]
+    public string Road => Join(Root, "road", ClientEra(Exp));
     [JsonIgnore]
     public string ExpArea => Join(Root, "area", Exp);
     [JsonIgnore]
@@ -38,7 +42,28 @@ public sealed class DataConfig
     [JsonIgnore]
     public string ExpExperience => Join(Root, "experience", Exp);
     [JsonIgnore]
-    public string Leaflet => Join(Root, "leaflet", Exp);
+    public string Leaflet => Join(Root, "leaflet", ClientEra(Exp));
+    [JsonIgnore]
+    public string AreaGrid => Join(Root, "area_grid", ClientEra(Exp));
+
+    /// <summary>
+    /// Groups clients whose art/geometry is shared, so geometry-derived assets
+    /// (leaflet tiles, navmesh, area grids, cost zones) live in one folder per
+    /// era instead of one per expansion. Mirrors PPather NavmeshSettings.MeshEra:
+    /// vanilla..wotlk (incl. their legacy_* clients) read the same pre-Cataclysm
+    /// world -> "precata"; Cataclysm rewrote it and switched MPQ -> CASC -> "cata".
+    /// An unrecognized client gets its own era.
+    /// </summary>
+    public static string ClientEra(string client)
+    {
+        return client.ToLowerInvariant() switch
+        {
+            "vanilla" or "classic" or "som" or "tbc" or "bcc" or "wrath" or "wotlk"
+                or "legacy_vanilla" or "legacy_tbc" or "legacy_wrath" => "precata",
+            "cata" or "mop" or "legacy_cata" or "legacy_mop" => "cata",
+            _ => client.ToLowerInvariant(),
+        };
+    }
     [JsonIgnore]
     public string Subzones => Join(Root, "subzones", Exp);
 
