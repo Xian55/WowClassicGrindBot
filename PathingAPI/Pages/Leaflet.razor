@@ -18,7 +18,7 @@
 
 
 <div id="searchParam" style="position: fixed; bottom: 0; z-index: 1000; background-color: black; color: white; padding: 0 10px; text-align: center; display: flex; align-items: center;">
-    <SearchParameters OnSearch="OnSearch" IsDisabled="@IsDisabled" OnDraw="OnDraw" OnlyMap="@continent" />
+    <SearchParameters @ref="searchParametersRef" OnSearch="OnSearch" IsDisabled="@IsDisabled" OnDraw="OnDraw" OnlyMap="@continent" />
 </div>
 
 
@@ -93,14 +93,22 @@
     [Parameter] public float x { get; set; } = 0;
     [Parameter] public float y { get; set; } = 0;
 
+    private DotNetObjectReference<Leaflet> dotNetRef;
+    private SearchParameters searchParametersRef;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            // Handed to the map so custom POIs can be mirrored into the
+            // From/To autocomplete. See leaflet-poi.js.
+            dotNetRef = DotNetObjectReference.Create(this);
+
             await jsRuntime.InvokeVoidAsync("init",
                 expansion ?? "som", continent ?? "Azeroth",
                 zoom, x, y, true,
-                NpcFlagsExtensions.ToDictionary());
+                NpcFlagsExtensions.ToDictionary(),
+                dotNetRef);
 
             pPatherService.Reset();
 
@@ -125,6 +133,11 @@
             return;
         }
         parameters = searchParameters;
+
+        // The service is a singleton also driven by the HTTP API; set the
+        // jitter explicitly so this search never reuses a stale request's.
+        pPatherService.PathJitterYards = searchParameters.Jitter;
+        pPatherService.PathJitterSeed = searchParameters.Seed;
 
         await DoSearch(searchParameters.SearchType, ((int)searchParameters.SearchType) + 1, searchParameters.SearchType.ToString());
     }
@@ -184,5 +197,33 @@
         }
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable("AddCustomPoi")]
+    public async Task AddCustomPoi(float x, float y, float z, float mapId, string description)
+    {
+        if (searchParametersRef is not null)
+        {
+            await searchParametersRef.AddCustomPoi(x, y, z, mapId, description);
+        }
+    }
+
+    [JSInvokable("RemoveCustomPoi")]
+    public async Task RemoveCustomPoi(string description)
+    {
+        if (searchParametersRef is not null)
+        {
+            await searchParametersRef.RemoveCustomPoi(description);
+        }
+    }
+
+    public override void Dispose()
+    {
+        dotNetRef?.Dispose();
+
+        // Cancels and disposes the component's CancellationTokenSource. Without
+        // this the base never runs, because @implements IDisposable mapped the
+        // interface straight to this method.
+        base.Dispose();
     }
 }

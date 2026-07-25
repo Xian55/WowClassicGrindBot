@@ -7,12 +7,19 @@
     gap: 6px;
 }
 
-/* Left column: layer controls */
+/* Right rail: toggle + layer controls, flush to the map edge */
+.sidebar-right-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Layer controls stack under the toggle */
 .sidebar-layers-column {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-height: calc(100vh - 80px);
+    max-height: calc(100vh - 128px);
     overflow-y: auto;
 }
 
@@ -33,14 +40,27 @@
     border-radius: 3px;
 }
 
+/* Neutralise Leaflet's default control margins inside the rail so the
+   toggle and layer buttons share the exact same right edge */
+.sidebar-right-rail .leaflet-control {
+    margin: 0;
+}
+
 /* Layer controls styling to match sidebar theme */
 .sidebar-layers-column .leaflet-control-layers {
     position: relative;
+    margin: 0;
     background: rgba(0, 0, 0, 0.85);
     color: #eee;
     border: none;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Collapsed layer button: same 44x44 square as the toggle */
+.sidebar-layers-column .leaflet-control-layers-toggle {
+    width: 44px;
+    height: 44px;
 }
 
 .sidebar-layers-column .leaflet-control-layers-expanded {
@@ -84,22 +104,46 @@
     border-radius: 3px;
 }
 
-/* Toggle button when sidebar is collapsed */
+/* Toggle button - square, matches the layer-control buttons in the rail */
 .sidebar-toggle-btn {
     background: rgba(0, 0, 0, 0.85);
     color: #eee;
     border: none;
-    padding: 6px 10px;
     cursor: pointer;
     font-size: 16px;
     border-radius: 4px;
-    display: block;
-    width: 100%;
-    text-align: right;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .sidebar-toggle-btn:hover {
     background: rgba(255, 255, 255, 0.1);
+}
+
+/* Continent selector */
+.continent-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid #444;
+    font-size: 13px;
+    color: #eee;
+}
+
+.continent-selector select {
+    flex: 1;
+    background: #333;
+    color: #eee;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 3px 6px;
+    font-size: 13px;
+    cursor: pointer;
 }
 
 /* Content wrapper */
@@ -422,4 +466,36 @@
     .sidebar-content.auto-collapsed {
         display: none;
     }
+}
+
+/* ===== Custom POI markers ===== */
+.custom-poi-icon {
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.custom-poi-dot {
+    width: 10px;
+    height: 10px;
+    background: #ff6600;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.custom-poi-label {
+    color: #fff;
+    font-size: 11px;
+    text-shadow: 1px 1px 2px #000;
+    white-space: nowrap;
+}
+
+.custom-poi-form label {
+    font-size: 12px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
 }

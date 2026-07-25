@@ -1,6 +1,9 @@
 ﻿// 512
+// Tiles are stored and served per mesh ERA (see DataConfig.ClientEra /
+// NavmeshSettings.MeshEra), so identical old-world art is not duplicated per
+// expansion. som/tbc/wrath all resolve to 'precata'.
 const Configs = {
-    'som': {
+    'precata': {
         'Azeroth': {
             resX: 10752,
             resY: 21504,
@@ -11,32 +14,12 @@ const Configs = {
             }
         },
         'Kalimdor': {
-            resX: 15360,
-            resY: 24064,
+            resX: 26112,
+            resY: 28672,
             maxZoom: 6,
             MapID: 1,
             offset: {
-                min: { x: 9, y: 19 },
-            }
-        }
-    },
-    'tbc': {
-        'Azeroth': {
-            resX: 10752,
-            resY: 21504,
-            maxZoom: 6,
-            MapID: 0,
-            offset: {
-                min: { x: 20, y: 24 },
-            }
-        },
-        'Kalimdor': {
-            resX: 15360,
-            resY: 24064,
-            maxZoom: 6,
-            MapID: 1,
-            offset: {
-                min: { x: 9, y: 19 },
+                min: { x: 0, y: 0 },
             }
         },
         'Expansion01': {
@@ -47,9 +30,32 @@ const Configs = {
             offset: {
                 min: { x: 6, y: 12 },
             }
+        },
+        'Northrend': {
+            // Filled from scripts/extract-minimap.py manifest output.
+            resX: 19968,
+            resY: 14848,
+            maxZoom: 6,
+            MapID: 571,
+            offset: {
+                min: { x: 9, y: 11 },
+            }
         }
     },
 };
+
+// Mirrors DataConfig.ClientEra: which tile/config era a client uses.
+function clientEra(expansion) {
+    switch ((expansion || '').toLowerCase()) {
+        case 'vanilla': case 'classic': case 'som':
+        case 'tbc': case 'bcc': case 'wrath': case 'wotlk':
+            return 'precata';
+        case 'cata': case 'mop':
+            return 'cata';
+        default:
+            return (expansion || '').toLowerCase();
+    }
+}
 
 const aSize = 32;
 
@@ -59,6 +65,7 @@ var areaCache = {};
 var WMADB = {};
 var Zones = {};
 var SubZones = {};
+var AreaTableById = {};   // areaId -> { AreaID, MapID, ParentAreaId, AreaName }
 var creatures = {};
 var spawnLocations = {};
 let factionTemplates = {};
@@ -139,6 +146,32 @@ var startZoom = 4;
 
 var baseUrl = "https://www.wowhead.com/classic";
 
+// Tiles are served locally when present (downloaded / generated via
+// scripts/extract-minimap.py -> the /tiles route), else from the Cloudflare R2
+// CDN. Decided once per continent by probing a known low-zoom tile, so a remote
+// user does not 404 on every tile. `leafletTilesLocal=0` in localStorage forces
+// the CDN even when local tiles exist.
+const R2_TILE_BASE = 'https://bot.tortoiseclothing.org/precata';
+
+async function resolveTileBase(c) {
+    if (localStorage.getItem('leafletTilesLocal') === '0') {
+        return R2_TILE_BASE;
+    }
+
+    // If any of these local tiles is present the full set was downloaded. The
+    // candidates cover offset-cropped continents (e.g. Outland has no z2x0y0).
+    for (const t of ['z2x0y0', 'z2x0y1', 'z2x1y0', 'z2x1y1', 'z3x0y0']) {
+        try {
+            const r = await fetch('tiles/' + c + '/' + t + '.webp', { method: 'HEAD', cache: 'no-store' });
+            if (r.ok) {
+                return 'tiles';
+            }
+        } catch { /* fall through to CDN */ }
+    }
+
+    return R2_TILE_BASE;
+}
+
 var config;
 
 var enableUrlEdit = false;
@@ -172,6 +205,13 @@ var lastRenderArea;
 
 var editablePathLayerControl;
 
+// DotNetObjectReference of the hosting Blazor page, when it supplies one.
+// Used to mirror custom POIs into the search component. See leaflet-poi.js.
+var dotNetHelper = null;
+
+// Drawn search paths: thick enough to read over the map art.
+const PATH_WEIGHT = 4;
+
 var groupedLayerControls = [];
 var groupedOverlays = {
     "Zones": {},
@@ -193,16 +233,19 @@ function schedulePixiRedraw() {
 async function getDBC(database) {
     const url = `/dbc/${database}.json`;
 
-    return fetch(url)
-        .then(r => r.json())
+    // no-cache: always revalidate. DBC files are served per-client (DataConfig.Exp);
+    // switching clients (e.g. vanilla -> TBC) reuses the same URL, so a cached copy
+    // would otherwise serve the wrong expansion's data (missing Outland/Northrend).
+    return fetch(url, { cache: 'no-cache' })
+        .then(r => r.ok ? r.json() : null)
         .catch(e => console.error(e));
 }
 
 async function getNpcSpawnLocations(mapId) {
     const url = `/npcspawnlocations/${mapId}.json`;
 
-    return fetch(url)
-        .then(r => r.json())
+    return fetch(url, { cache: 'no-cache' })
+        .then(r => r.ok ? r.json() : null)
         .catch(e => console.error(e));
 }
 
@@ -482,6 +525,8 @@ function initializeMap(x, y) {
 }
 
 function disposeMap() {
+    dotNetHelper = null;
+
     if (LeafletMap && Object.keys(layerNames).length > 0) {
         savedLayerVisibility = new Map();
         for (const name in layerNames) {
@@ -540,17 +585,21 @@ function disposeMap() {
     lastRenderArea = undefined;
 }
 
-async function init(e, c, z, x, y, urlEdit, flags) {
+async function init(e, c, z, x, y, urlEdit, flags, dotNetRef) {
 
     npcFlags = flags;
 
     disposeMap();
 
+    dotNetHelper = dotNetRef || null;
+
     expansion = e;
     enableUrlEdit = urlEdit;
 
-    // currently only som is supported
-    if (expansion !== 'som' && expansion !== 'tbc') {
+    // Supported when the client's era has a config for this continent
+    // (precata: Azeroth/Kalimdor/Expansion01/Northrend). Cata+ not yet.
+    const era = clientEra(expansion);
+    if (!Configs[era] || !Configs[era][c]) {
         return;
     }
 
@@ -559,7 +608,7 @@ async function init(e, c, z, x, y, urlEdit, flags) {
     continent = c;
     startZoom = z;
 
-    config = Configs[expansion][continent];
+    config = Configs[era][continent];
 
     maxSize = Math.max(config.resX, config.resY);
     const multi = 17066.66666666667 / maxSize;
@@ -640,7 +689,8 @@ async function init(e, c, z, x, y, urlEdit, flags) {
 
     LeafletMap.doubleClickZoom.disable();
 
-    L.tileLayer('tiles/' + continent + '/z{z}x{x}y{y}.png', {
+    const tileBase = await resolveTileBase(continent);
+    L.tileLayer(tileBase + '/' + continent + '/z{z}x{x}y{y}.webp', {
         maxZoom: maxZoom,
         maxNativeZoom: config.maxZoom,
         continuousWorld: true,
@@ -655,6 +705,17 @@ async function init(e, c, z, x, y, urlEdit, flags) {
     WMADB = filterContientsAndInvalid(WMADB, config.MapID);
     Zones = createZoneLookup(WMADB);
     SubZones = createSubZoneLookup(WMADB);
+
+    // Full AreaTable (all continents) so subzone areaIds with no WorldMapArea
+    // row can be named and walked up to their parent zone. Optional - if the
+    // file is absent the map falls back to spatial zone resolution.
+    const areaTableRaw = await getDBC("AreaTable");
+    AreaTableById = {};
+    if (Array.isArray(areaTableRaw)) {
+        for (const a of areaTableRaw) {
+            AreaTableById[a.AreaID] = a;
+        }
+    }
 
     let creaturesFile = await getDBC("creatures");
     creatures = createCreaturesLookup(creaturesFile);
@@ -677,7 +738,28 @@ async function init(e, c, z, x, y, urlEdit, flags) {
     // Sidebar is always visible regardless of enableUrlEdit
     createSidebar().addTo(LeafletMap);
 
+    if (typeof costZoneInit === 'function') {
+        await costZoneInit(continent);
+    }
+
+    if (typeof navmeshCoverageInit === 'function') {
+        await navmeshCoverageInit(continent);
+    }
+
+    if (enableUrlEdit && typeof bakeInit === 'function') {
+        bakeInit(continent);
+    }
+
+    if (enableUrlEdit && typeof customPoiInit === 'function') {
+        customPoiInit();
+    }
+
     LeafletMap.on(L.Draw.Event.CREATED, function (e) {
+        // Circles, rectangles and (in road mode) polylines are cost zones.
+        if (costZoneHandleCreated(e)) {
+            return;
+        }
+
         var type = e.layerType;
         var layer = e.layer;
 
@@ -687,8 +769,17 @@ async function init(e, c, z, x, y, urlEdit, flags) {
         editableLayers.addLayer(layer);
     });
 
+    LeafletMap.on(L.Draw.Event.DELETED, function (e) {
+        costZoneHandleDeleted(e.layers.getLayers());
+    });
+
     LeafletMap.on(L.Draw.Event.EDITED, function (e) {
         const layers = e.layers.getLayers();
+
+        if (costZoneHandleEdited(layers)) {
+            return;
+        }
+
         for (const layer of layers) {
             if (layer.groupName !== undefined && layer.PathName !== undefined) {
                 editableLayers.removeLayer(layer);
@@ -1666,37 +1757,60 @@ function screenToAdt(point) {
 }
 
 function worldToPercentage(p, areaId) {
-    let bestMatch = null;
-
     let bestParentArea = null;
-    let bestSubZone = null;
 
-    const subzone = SubZones[areaId];
-    if (subzone != null) {
-        bestParentArea = Zones[subzone.ParentAreaId];
-        bestSubZone = subzone;
+    // Exact WorldMapArea hit (areaId is a zone that has its own map).
+    if (Zones[areaId] != null) {
+        bestParentArea = Zones[areaId];
     }
     else {
-        const zone = Zones[areaId];
-        if (zone != null) {
-            bestParentArea = Zones[areaId];
-            bestSubZone = bestParentArea;
+        // WMA subzone link - only present in data that fills ParentAreaId.
+        const wmaSub = SubZones[areaId];
+        if (wmaSub != null && Zones[wmaSub.ParentAreaId] != null) {
+            bestParentArea = Zones[wmaSub.ParentAreaId];
         }
+        else {
+            // Walk the AreaTable parent chain up to a WorldMapArea zone. This is
+            // what resolves TBC/WotLK terrain subzones (e.g. 4254 -> Borean).
+            let cur = areaId, guard = 0;
+            while (cur && guard++ < 32) {
+                if (Zones[cur] != null) {
+                    bestParentArea = Zones[cur];
+                    break;
+                }
+                const at = AreaTableById[cur];
+                if (at == null) {
+                    break;
+                }
+                cur = at.ParentAreaId;
+            }
+        }
+    }
+
+    // Last resort: the zone whose world Loc bounds contain the point
+    // (game-file-free, WorldMapArea data only).
+    if (!bestParentArea) {
+        bestParentArea = findZoneByWorld(p.x, p.y);
     }
 
     if (!bestParentArea) {
         return { p: new L.Point(0, 0), name: "not found", subZoneName: '' };
     }
 
-    bestMatch = {
+    // Subzone label: prefer the fine AreaTable name for the clicked areaId,
+    // then any WMA subzone, else the zone itself.
+    const leaf = AreaTableById[areaId];
+    const bestSubZone = leaf != null
+        ? { AreaID: leaf.AreaID, AreaName: leaf.AreaName, ParentAreaId: leaf.ParentAreaId }
+        : (SubZones[areaId] ?? bestParentArea);
+
+    return {
         p: new L.Point(toMapY(bestParentArea, p.y), toMapX(bestParentArea, p.x)),
         area: bestParentArea,
-        AreaID: bestParentArea ? bestParentArea.AreaID : null,
-        name: bestParentArea ? bestParentArea.AreaName : "not found",
+        AreaID: bestParentArea.AreaID,
+        name: bestParentArea.AreaName,
         subZone: bestSubZone
     };
-
-    return bestMatch;
 }
 
 const getAreaIdFromServiceCache = {};
@@ -1763,6 +1877,29 @@ function contains(area, point) {
     const maxY = Math.max(area.LocLeft, area.LocRight);
 
     return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY;
+}
+
+// Smallest (most specific) WorldMapArea zone whose Loc bounds contain the world
+// point. Used when a click's areaId has no WorldMapArea row (common in
+// Outland/Northrend), so the map still shows local coords + zone name.
+function findZoneByWorld(x, y) {
+    const point = { x, y };
+    let best = null;
+    let bestArea = Infinity;
+
+    for (const zone of Object.values(Zones)) {
+        if (!contains(zone, point)) {
+            continue;
+        }
+
+        const area = Math.abs(zone.LocTop - zone.LocBottom) * Math.abs(zone.LocLeft - zone.LocRight);
+        if (area < bestArea) {
+            bestArea = area;
+            best = zone;
+        }
+    }
+
+    return best;
 }
 
 //////////////////////////////////////////////////////////////
@@ -2787,22 +2924,49 @@ function createSidebar() {
         options: { position: 'topright' },
 
         onAdd: function (map) {
-            // Wrapper holds layers column (left) + sidebar (right)
+            // Wrapper: collapsible filter panel (left) + always-visible right rail
             const wrapper = L.DomUtil.create('div', 'sidebar-wrapper');
             L.DomEvent.disableClickPropagation(wrapper);
             L.DomEvent.disableScrollPropagation(wrapper);
 
-            // Left column: layer controls
-            const layersCol = L.DomUtil.create('div', 'sidebar-layers-column', wrapper);
-            sidebarLayersColumn = layersCol;
-
-            // Right column: map filters sidebar
+            // Left: map filters panel (collapses away)
             const sidebar = L.DomUtil.create('div', 'map-filter-sidebar', wrapper);
 
-            // Toggle button
-            const toggleBtn = L.DomUtil.create('button', 'sidebar-toggle-btn', sidebar);
+            // Right: vertical rail flush to the map edge - toggle on top,
+            // layer controls stacked below it. Stays put when the panel collapses.
+            const rail = L.DomUtil.create('div', 'sidebar-right-rail', wrapper);
+
+            // Toggle button (expands/collapses the filter panel)
+            const toggleBtn = L.DomUtil.create('button', 'sidebar-toggle-btn', rail);
             toggleBtn.innerHTML = '◀';
-            toggleBtn.title = 'Toggle sidebar';
+            toggleBtn.title = 'Toggle filters';
+
+            // Layer controls live in the rail, under the toggle
+            const layersCol = L.DomUtil.create('div', 'sidebar-layers-column', rail);
+            sidebarLayersColumn = layersCol;
+
+            // Continent selector - jumps between the current era's continents.
+            // Manual navigation only; in follow mode the continent tracks the player.
+            if (enableUrlEdit) {
+                const continentRow = L.DomUtil.create('div', 'continent-selector', sidebar);
+                const continentLabel = L.DomUtil.create('span', '', continentRow);
+                continentLabel.textContent = 'Continent:';
+                const continentSelect = L.DomUtil.create('select', '', continentRow);
+                const continentNames = { 'Expansion01': 'Outland' };
+                for (const key of Object.keys(Configs[clientEra(expansion)] || {})) {
+                    const opt = L.DomUtil.create('option', '', continentSelect);
+                    opt.value = key;
+                    opt.textContent = continentNames[key] || key;
+                    if (key === continent) opt.selected = true;
+                }
+                continentSelect.onchange = () => {
+                    const z = LeafletMap.getZoom();
+                    const center = LeafletMap.getCenter();
+                    window.location.href = '/Leaflet/' + expansion + '/' + continentSelect.value
+                        + '/' + z + '/' + center.lat.toFixed(3) + '/' + center.lng.toFixed(3) + '/';
+                };
+                L.DomEvent.disableClickPropagation(continentRow);
+            }
 
             // Content wrapper
             const content = L.DomUtil.create('div', 'sidebar-content', sidebar);
@@ -2814,9 +2978,8 @@ function createSidebar() {
             let isCollapsed = false;
             const collapseFilters = (collapsed) => {
                 isCollapsed = collapsed;
-                content.style.display = isCollapsed ? 'none' : '';
+                sidebar.style.display = isCollapsed ? 'none' : '';
                 toggleBtn.innerHTML = isCollapsed ? '▶' : '◀';
-                sidebar.style.width = isCollapsed ? 'auto' : '';
             };
             toggleBtn.onclick = () => collapseFilters(!isCollapsed);
 
@@ -2831,6 +2994,10 @@ function createSidebar() {
 
             // ===== Utilities Section =====
             this._buildUtilitySection(content);
+
+            if (enableUrlEdit && typeof bakeBuildSection === 'function') {
+                this._buildBakeSection(content);
+            }
 
             // Auto-collapse on small screens or when not in edit mode
             if (window.innerWidth <= 768 || !enableUrlEdit) {
@@ -3091,6 +3258,12 @@ function createSidebar() {
             }
         },
 
+        _buildBakeSection: function (parent) {
+            const body = this._buildSectionHeader(parent, 'Navmesh Bake', null);
+            body.id = 'sidebar-bake-body';
+            bakeBuildSection(body);
+        },
+
         _buildUtilitySection: function (parent) {
             const body = this._buildSectionHeader(parent, 'Utilities', clearSidebarUtilityCategories);
             body.id = 'sidebar-utility-body';
@@ -3106,6 +3279,40 @@ function createSidebar() {
             adtRow.appendChild(adtCb);
             const adtLabel = L.DomUtil.create('span', 'cb-label', adtRow);
             adtLabel.textContent = 'ADT Grid';
+
+            // Navmesh coverage - which ground actually has a baked navmesh.
+            // Guarded: these live in sibling scripts, and a stale cached copy of
+            // one must not take the whole map down with it.
+            if (typeof setNavmeshTilesVisible === 'function') {
+            const nmTileRow = L.DomUtil.create('label', 'sidebar-checkbox-row', body);
+            const nmTileCb = document.createElement('input');
+            nmTileCb.type = 'checkbox';
+            nmTileCb.onchange = () => setNavmeshTilesVisible(nmTileCb.checked);
+            nmTileRow.appendChild(nmTileCb);
+            const nmTileLabel = L.DomUtil.create('span', 'cb-label', nmTileRow);
+            nmTileLabel.textContent = 'Navmesh Tiles';
+
+            const nmAdtRow = L.DomUtil.create('label', 'sidebar-checkbox-row', body);
+            const nmAdtCb = document.createElement('input');
+            nmAdtCb.type = 'checkbox';
+            nmAdtCb.onchange = () => setNavmeshAdtVisible(nmAdtCb.checked);
+            nmAdtRow.appendChild(nmAdtCb);
+            const nmAdtLabel = L.DomUtil.create('span', 'cb-label', nmAdtRow);
+            nmAdtLabel.textContent = 'Navmesh ADT Coverage';
+            }
+
+            // Road authoring: a drawn polyline means a road, not a bot path.
+            if (enableUrlEdit && typeof setRoadDrawMode === 'function') {
+                const roadRow = L.DomUtil.create('label', 'sidebar-checkbox-row', body);
+                const roadCb = document.createElement('input');
+                roadCb.type = 'checkbox';
+                roadCb.checked = getRoadDrawMode();
+                roadCb.onchange = () => setRoadDrawMode(roadCb.checked);
+                roadRow.appendChild(roadCb);
+                const roadLabel = L.DomUtil.create('span', 'cb-label', roadRow);
+                roadLabel.textContent = 'Draw Roads';
+                roadRow.title = 'When on, a drawn polyline becomes a road instead of a bot path';
+            }
 
             // POI Points
             const poiRow = L.DomUtil.create('label', 'sidebar-checkbox-row', body);
@@ -3701,6 +3908,7 @@ window.addEventListener('DOMContentLoaded', function () {
             requestAnimationFrame(() => {
                 existing.setLatLngs(latlngs);
                 existing.setStyle({ color: getColor(color) });
+                existing.bringToFront();
             });
             return;
         }
@@ -3711,13 +3919,34 @@ window.addEventListener('DOMContentLoaded', function () {
 
             const resolvedColor = getColor(color);
 
+            // A 1px line disappears against the map art - Westfall's orange in
+            // particular swallows a thin red path completely. Draw a dark casing
+            // under a thicker coloured line so the route reads on any terrain.
+            const casing = L.polyline(latlngs, {
+                color: '#000000',
+                weight: PATH_WEIGHT + 3,
+                opacity: 0.45
+            });
+
             const polyline = L.polyline(latlngs, {
                 color: resolvedColor,
-                weight: 1,
+                weight: PATH_WEIGHT,
                 opacity: 1
             }).bindPopup(name);
 
-            addToggleLayer('Watch', name, polyline);
+            const group = L.layerGroup([casing, polyline]);
+            group.setLatLngs = (ll) => {
+                casing.setLatLngs(ll);
+                polyline.setLatLngs(ll);
+            };
+            group.setStyle = (s) => polyline.setStyle(s);
+            group.bringToFront = () => {
+                casing.bringToFront();
+                polyline.bringToFront();
+            };
+
+            addToggleLayer('Watch', name, group);
+            group.bringToFront();
             scheduleGroupedLayerControlUpdate();
         });
     });

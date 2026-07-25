@@ -16,25 +16,23 @@
         </select>
     }
 
-    <!-- From Combo -->
+    <!-- From Autocomplete -->
     <label style="margin-left: 10px">From:</label>
-    <select disabled="@IsDisabled" class="form-control" @bind="From">
-        <option value=""></option>
-        @foreach (var location in knownLocations.Where(l => l.Location.W == MapId))
-        {
-            <option value="@location.Description">@location.Description</option>
-        }
-    </select>
+    <MatAutocompleteList Items="@FilteredLocations"
+                         TItem="string"
+                         Label="From"
+                         ValueChanged="OnFromChanged"
+                         ShowClearButton="true"
+                         NumberOfElementsInPopup="10" />
 
-    <!-- To Combo -->
+    <!-- To Autocomplete -->
     <label style="margin-left: 10px">To:</label>
-    <select disabled="@IsDisabled" class="form-control" @bind="To">
-        <option value=""></option>
-        @foreach (var location in knownLocations.Where(l => l.Location.W == MapId))
-        {
-            <option value="@location.Description">@location.Description</option>
-        }
-    </select>
+    <MatAutocompleteList Items="@FilteredLocations"
+                         TItem="string"
+                         Label="To"
+                         ValueChanged="OnToChanged"
+                         ShowClearButton="true"
+                         NumberOfElementsInPopup="10" />
 
     <!-- Search Type Combo -->
     <label style="margin-left: 10px">Search:</label>
@@ -43,6 +41,14 @@
         <option value="1">A*</option>
         <option value="2">A* avoid models</option>
     </select>
+
+    <!-- Path jitter (yards) and its seed. Seed only matters when jitter > 0. -->
+    <label style="margin-left: 10px" title="Randomly offsets each path corner by up to this many yards. 0 disables it.">Jitter:</label>
+    <input type="number" min="0" max="10" step="0.5" style="width: 70px" disabled="@IsDisabled" class="form-control" @bind="Jitter" />
+
+    <label style="margin-left: 10px" title="Seeds the jitter so a route is reproducible. Leave empty for a random seed each search.">Seed:</label>
+    <input type="text" placeholder="random" style="width: 100px" disabled="@IsDisabled" class="form-control" @bind="SeedText" />
+    <button type="button" title="Roll a new seed" disabled="@IsDisabled" class="form-control btn btn-secondary" @onclick="RollSeed">&#127922;</button>
 
     <button style="margin-left: 10px" type="button" disabled="@IsDisabled" class="form-control btn btn-primary" @onclick="Draw">
         @if (IsDisabled)
@@ -61,6 +67,19 @@
         Search
     </button>
 </span>
+
+<style>
+    /* The bar sits at the bottom of the map, so the suggestion popup has to
+       open upwards or it renders off-screen. */
+    .mat-autocomplete-list-popup > .mdc-list {
+        position: absolute;
+        bottom: 60px;
+        background-color: #1e1e2e;
+        color: #ffffff;
+        border: 1px solid #444;
+        border-radius: 4px;
+    }
+</style>
 
 <script>
     showAlert = (message) => {
@@ -86,6 +105,24 @@
     private string From { get; set; }
     private string To { get; set; }
     private int SearchType { get; set; }
+    private float Jitter { get; set; }
+    private string SeedText { get; set; } = string.Empty;
+
+    /// <summary>Empty or non-numeric text means "random seed" (null).</summary>
+    private int? ParsedSeed =>
+        int.TryParse(SeedText, out int seed) ? seed : null;
+
+    /// <summary>
+    /// Rolls a fresh seed into the visible field, so a "random" run is still
+    /// reproducible: the value used is on screen and can be re-searched.
+    /// </summary>
+    private void RollSeed() => SeedText = Random.Shared.Next(1_000_000).ToString();
+
+    private IEnumerable<string> FilteredLocations =>
+        knownLocations.Where(l => l.Location.W == MapId).Select(l => l.Description);
+
+    private void OnFromChanged(string value) => From = value;
+    private void OnToChanged(string value) => To = value;
 
     private readonly List<SearchLocation> knownLocations = new();
     private readonly Dictionary<float, string> knownMapIds = new();
@@ -117,7 +154,9 @@
             From = knownLocations.Where(l => l.Description == this.From).FirstOrDefault(),
             To = knownLocations.Where(l => l.Description == this.To).FirstOrDefault(),
             SearchType = (SearchStrategy)this.SearchType,
-            Continent = ContinentDB.IdToName[this.MapId]
+            Continent = ContinentDB.IdToName[this.MapId],
+            Jitter = this.Jitter,
+            Seed = ParsedSeed
         };
 
         await OnSearch.InvokeAsync(searchParameters);
@@ -140,7 +179,9 @@
             From = knownLocations.Where(l => l.Description == this.From).FirstOrDefault(),
             To = knownLocations.Where(l => l.Description == this.To).FirstOrDefault(),
             SearchType = (SearchStrategy)this.SearchType,
-            Continent = ContinentDB.IdToName[this.MapId]
+            Continent = ContinentDB.IdToName[this.MapId],
+            Jitter = this.Jitter,
+            Seed = ParsedSeed
         };
 
         await OnDraw.InvokeAsync(searchParameters);
@@ -231,6 +272,27 @@
         }
 
         ReadTeleportsLocationsFile();
+    }
+
+    /// <summary>
+    /// Adds a map-authored point to the From/To autocomplete. Called from the
+    /// Leaflet page when a custom POI is placed or restored.
+    /// </summary>
+    public async Task AddCustomPoi(float x, float y, float z, float mapId, string description)
+    {
+        if (knownLocations.Any(l => l.Description == description))
+        {
+            return;
+        }
+
+        knownLocations.Add(new SearchLocation(x, y, z, mapId, description));
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task RemoveCustomPoi(string description)
+    {
+        knownLocations.RemoveAll(l => l.Description == description);
+        await InvokeAsync(StateHasChanged);
     }
 
     private void ReadTeleportsLocationsFile()
