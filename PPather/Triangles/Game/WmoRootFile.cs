@@ -127,7 +127,11 @@ internal static class WmoRootFile
 
         for (int i = 0; i < sets; i++)
         {
-            uint nameOffsetInMODN = file.ReadUInt32(); // 0x00
+            // Only the low 24 bits are the MODN offset; the top 8 bits are
+            // doodad flags (SMODoodadDef bitfield). Vanilla WMOs left the flags
+            // zero so reading the full uint32 worked, but TBC/WotLK doodads set
+            // them, which pushes the "offset" past MODN and throws (OOB).
+            uint nameOffsetInMODN = file.ReadUInt32() & 0x00FFFFFF; // 0x00
 
             Vector3 pos = file.ReadVector3_XZY();
 

@@ -12,11 +12,14 @@ using PPather.Triangles;
 using PPather.Triangles.Data;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
+
+using PPather.Navmesh;
 
 using Wmo;
 
@@ -43,7 +46,21 @@ public sealed class ChunkedTriangleCollection
     private readonly MPQTriangleSupplier supplier;
     private readonly SparseMatrix2D<TriangleCollection> chunks;
 
+    /// <summary>
+    /// Most ADT chunks kept resident. Each cached chunk is a whole ADT's
+    /// triangle soup (several MB), so an unbounded cache retains an entire
+    /// continent during a bulk bake (gigabytes). LRU-evict past this so a long
+    /// session or a full-continent bake stays bounded.
+    /// </summary>
     private const int maxCache = 128;
+
+    // Guards chunks + touch. Chunk loads are rare and I/O-bound, so the lock is
+    // never contended enough to matter; it makes the cache safe when a bake and
+    // an interactive search touch it at the same time.
+    private readonly System.Threading.Lock cacheLock = new();
+    private readonly Dictionary<int, long> touch = [];
+    private long touchSeq;
+
     public Action<ChunkEventArgs> NotifyChunkAdded;
 
     public ChunkedTriangleCollection(ILogger logger, int initCapacity, MPQTriangleSupplier supplier)
@@ -62,12 +79,16 @@ public sealed class ChunkedTriangleCollection
 
     public void EvictAll()
     {
-        foreach (TriangleCollection chunk in chunks.GetAllElements())
+        lock (cacheLock)
         {
-            chunk.Clear();
-        }
+            foreach (TriangleCollection chunk in chunks.GetAllElements())
+            {
+                chunk.Clear();
+            }
 
-        chunks.Clear();
+            chunks.Clear();
+            touch.Clear();
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -90,6 +111,39 @@ public sealed class ChunkedTriangleCollection
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>
+    /// ADT cells this continent actually has terrain for, in this class's grid
+    /// convention (grid_x spans world X, grid_y spans world Y). Existence is
+    /// asked of the supplier by world position so the two differing ADT index
+    /// conventions never meet.
+    /// </summary>
+    public List<(int x, int y)> ExistingAdts()
+    {
+        List<(int x, int y)> result = [];
+
+        for (int gx = 0; gx < 64; gx++)
+        {
+            for (int gy = 0; gy < 64; gy++)
+            {
+                GetGridLimits(gx, gy, out float minX, out float minY, out float maxX, out float maxY);
+
+                if (supplier.HasAdtAt((minX + maxX) * 0.5f, (minY + maxY) * 0.5f))
+                {
+                    result.Add((gx, gy));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>World bounds of one ADT cell.</summary>
+    public static void GetAdtWorldBounds(int grid_x, int grid_y,
+        out float minX, out float minY, out float maxX, out float maxY)
+    {
+        GetGridLimits(grid_x, grid_y, out minX, out minY, out maxX, out maxY);
+    }
+
     private static void GetGridLimits(int grid_x, int grid_y,
                                 out float min_x, out float min_y,
                                 out float max_x, out float max_y)
@@ -103,12 +157,19 @@ public sealed class ChunkedTriangleCollection
     private TriangleCollection LoadChunkAt(float x, float y)
     {
         GetGridStartAt(x, y, out int grid_x, out int grid_y);
+        int key = chunks.GetKey(grid_x, grid_y);
 
-        if (chunks.TryGetValue(grid_x, grid_y, out TriangleCollection r))
+        lock (cacheLock)
         {
-            return r;
+            if (chunks.TryGetValue(grid_x, grid_y, out TriangleCollection cached))
+            {
+                touch[key] = ++touchSeq;
+                return cached;
+            }
         }
 
+        // Build outside the lock: supplier.GetTriangles is disk/MPQ-bound and
+        // must not stall other chunk lookups.
         GetGridLimits(grid_x, grid_y, out float min_x, out float min_y, out float max_x, out float max_y);
 
         long startTime = Stopwatch.GetTimestamp();
@@ -118,16 +179,55 @@ public sealed class ChunkedTriangleCollection
         supplier.GetTriangles(tc, min_x, min_y, max_x, max_y);
         var endTime = Stopwatch.GetElapsedTime(startTime);
 
-        chunks.Add(grid_x, grid_y, tc);
-
-        if (logger.IsEnabled(LogLevel.Trace))
+        lock (cacheLock)
         {
-            logger.LogTrace("Grid [{GridX},{GridY}] Bounds: [{MinX:F4}, {MinY:F4}] [{MaxX:F4}, {MaxY:F4}] [{X}, {Y}] - Count: {ChunkCount} - Loaded {ElapsedMs}ms",
-                grid_x, grid_y, min_x, min_y, max_x, max_y, x, y, chunks.Count, endTime.TotalMilliseconds);
+            // Another thread may have loaded the same chunk while we were
+            // reading it; keep theirs and drop ours.
+            if (chunks.TryGetValue(grid_x, grid_y, out TriangleCollection raced))
+            {
+                tc.Clear();
+                touch[key] = ++touchSeq;
+                return raced;
+            }
+
+            chunks.Add(grid_x, grid_y, tc);
+            touch[key] = ++touchSeq;
+            EvictOldest();
+
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                logger.LogTrace("Grid [{GridX},{GridY}] Bounds: [{MinX:F4}, {MinY:F4}] [{MaxX:F4}, {MaxY:F4}] [{X}, {Y}] - Count: {ChunkCount} - Loaded {ElapsedMs}ms",
+                    grid_x, grid_y, min_x, min_y, max_x, max_y, x, y, chunks.Count, endTime.TotalMilliseconds);
+            }
         }
+
         NotifyChunkAdded?.Invoke(new ChunkEventArgs(grid_x, grid_y));
 
         return tc;
+    }
+
+    /// <summary>Drops least-recently-used chunks until the cache is within budget. Call under cacheLock.</summary>
+    private void EvictOldest()
+    {
+        while (chunks.Count > maxCache)
+        {
+            int oldestKey = 0;
+            long oldestTouch = long.MaxValue;
+            foreach ((int k, long t) in touch)
+            {
+                if (t < oldestTouch)
+                {
+                    oldestTouch = t;
+                    oldestKey = k;
+                }
+            }
+
+            if (chunks.Dict.Remove(oldestKey, out TriangleCollection evicted))
+            {
+                evicted.Clear();
+            }
+            touch.Remove(oldestKey);
+        }
     }
 
     public TriangleCollection GetChunkAt(float x, float y)
@@ -997,5 +1097,10 @@ public sealed class ChunkedTriangleCollection
     public (int, float) GetAreaIdAndZ(Vector3 location)
     {
         return supplier.GetAreaIdAndZ(location);
+    }
+
+    public (AreaGrid grid, SharedLib.SubZoneArea[] subZones) BuildAreaData()
+    {
+        return supplier.BuildAreaData();
     }
 }

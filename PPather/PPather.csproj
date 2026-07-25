@@ -2,11 +2,16 @@
 
   <PropertyGroup>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <Nullable>annotations</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\DataConfig\DataConfig.csproj" />
     <ProjectReference Include="..\SharedLib\SharedLib.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
 
   <!-- DotRecast from the pinned submodule (Xian55/DotRecast @ wow-mods). -->

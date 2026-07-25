@@ -2,14 +2,20 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 
+using Wmo;
+
 namespace PPather.Navmesh;
 
 /// <summary>
-/// All recast bake parameters for the WoW navmesh engine.
+/// Compile-time recast bake constants for the WoW navmesh engine.
 ///
-/// Values mirror TrinityCore 3.3.5 mmaps_generator defaults (bigBaseUnit=false)
-/// so the runtime filter semantics proven by AmeisenNavigation transfer 1:1.
-/// Any change that alters produced mesh bytes must bump <see cref="FormatVersion"/>.
+/// The baseline mirrors TrinityCore 3.3.5 mmaps_generator defaults
+/// (bigBaseUnit=false) so the runtime filter semantics proven by
+/// AmeisenNavigation transfer 1:1. The agent tunables that deliberately deviate
+/// (radius, climb, slope) now live in <see cref="SharedLib.NavmeshBakeOptions"/>
+/// so they can be configured; they are fed into <see cref="ComputeSettingsHash"/>
+/// as parameters. Any change that alters produced mesh bytes must bump
+/// <see cref="FormatVersion"/>.
 /// </summary>
 public sealed class NavmeshSettings
 {
@@ -31,21 +37,30 @@ public sealed class NavmeshSettings
     // --- Agent (toon) ---------------------------------------------------
 
     public const float AgentHeight = 1.6f;
-    public const float AgentRadius = 0.533f;
-    /// <summary>1.6yd: walks over fences/small steps like the WoW client.</summary>
-    public const float AgentMaxClimb = 1.6f;
-    public const float WalkableSlopeAngle = 55f;
+
+    // Agent radius / climb / slope are configurable and live in
+    // SharedLib.NavmeshBakeOptions - they are passed into ComputeSettingsHash
+    // and the bake, not read from a static here.
 
     // --- Region/contour/detail ------------------------------------------
 
-    /// <summary>3600 cells^2 (TC minRegionArea) in world units.</summary>
-    public const float MinRegionAreaWorld = 3600f * CellSize * CellSize;
+    /// <summary>TrinityCore minRegionArea, in cells^2.</summary>
+    public const float MinRegionAreaCells = 3600f;
 
-    /// <summary>2500 cells^2 (TC mergeRegionArea) in world units.</summary>
-    public const float MergeRegionAreaWorld = 2500f * CellSize * CellSize;
+    /// <summary>TrinityCore mergeRegionArea, in cells^2.</summary>
+    public const float MergeRegionAreaCells = 2500f;
 
-    /// <summary>81 cells (TC maxEdgeLen) in world units.</summary>
-    public const float MaxEdgeLenWorld = 81f * CellSize;
+    /// <summary>TrinityCore maxEdgeLen, in cells.</summary>
+    public const float MaxEdgeLenCells = 81f;
+
+    /// <summary>minRegionArea in world units.</summary>
+    public const float MinRegionAreaWorld = MinRegionAreaCells * CellSize * CellSize;
+
+    /// <summary>mergeRegionArea in world units.</summary>
+    public const float MergeRegionAreaWorld = MergeRegionAreaCells * CellSize * CellSize;
+
+    /// <summary>maxEdgeLen in world units.</summary>
+    public const float MaxEdgeLenWorld = MaxEdgeLenCells * CellSize;
 
     public const float MaxSimplificationError = 1.8f;
 
@@ -71,18 +86,59 @@ public sealed class NavmeshSettings
 
     // --- Detour runtime -------------------------------------------------
 
-    /// <summary>64 ADT * 4 tiles per side.</summary>
-    public const int TilesPerSide = 256;
-    public const int MaxTiles = TilesPerSide * TilesPerSide;
+    /// <summary>
+    /// World span in tiles per side, derived from <see cref="TileWorldSize"/>.
+    ///
+    /// Derived rather than hard-coded because <see cref="NavmeshCoords.IsValidTile"/>
+    /// bounds every tile request against it and <see cref="NavmeshTileCache"/>
+    /// drops out-of-range requests silently. A constant tuned for one tile size
+    /// turns any smaller tile into "most of the world quietly has no navmesh":
+    /// at 66yd tiles the world needs 512 a side, at 33yd it needs 1024.
+    /// </summary>
+    public static readonly int TilesPerSide =
+        (int)MathF.Ceiling((2f * ChunkReader.ZEROPOINT) / TileWorldSize);
+
+    /// <summary>
+    /// Detour's tile pool size - how many tiles may be *resident* at once, not
+    /// how many exist in the world. Tiles are looked up by hashed (x, z), so
+    /// this is unrelated to <see cref="TilesPerSide"/>; we hold hundreds.
+    /// </summary>
+    public const int MaxTiles = 1 << 16;
     public const int MaxPolysPerTile = 1 << 20;
     public const int MaxSearchNodes = 65535;
 
     /// <summary>
-    /// Cache directory discriminator: same inputs => same tiles.
-    /// Combines bake constants, format version, client expansion and the
-    /// DotRecast fork commit (informational version).
+    /// Groups clients whose world geometry is the same, so one bake serves all
+    /// of them instead of one per expansion.
+    ///
+    /// Vanilla through WotLK read the same MPQ-era continents: the zones TBC
+    /// and WotLK add (Quel'Thalas and the Draenei isles sit on the vanilla
+    /// continent maps) are extra tiles rather than edits to existing ones, and
+    /// a client that has no geometry for a tile simply never bakes it - the
+    /// "this tile is empty" marker is per-session, never written to disk, so it
+    /// cannot leak from one client to another. Cataclysm rewrote the old world,
+    /// which is also where the storage changes to CASC, so it starts a new era.
+    ///
+    /// An unrecognised client gets an era of its own: silently handing it
+    /// another client's mesh is the one failure that would be hard to notice.
     /// </summary>
-    public static string ComputeSettingsHash(string clientExpansion, string dotRecastVersion)
+    public static string MeshEra(string clientExpansion) => DataConfig.ClientEra(clientExpansion);
+
+    /// <summary>
+    /// Leading SHA-256 bytes kept as the cache-dir discriminator. 4 bytes (8 hex
+    /// chars) is ample to separate the handful of live bake configurations.
+    /// </summary>
+    public const int HashPrefixBytes = 4;
+
+    /// <summary>
+    /// Cache directory discriminator: same inputs => same tiles.
+    /// Combines bake constants, format version, the configurable agent values
+    /// (from <see cref="SharedLib.NavmeshBakeOptions"/>), the client's geometry
+    /// era (see <see cref="MeshEra"/>) and the DotRecast fork commit
+    /// (informational version).
+    /// </summary>
+    public static string ComputeSettingsHash(string clientExpansion, string dotRecastVersion,
+        float agentRadius, float agentMaxClimb, float walkableSlope, float? minWorldZ = null)
     {
         StringBuilder sb = new();
         sb.Append(FormatVersion).Append('|')
@@ -91,9 +147,9 @@ public sealed class NavmeshSettings
           .Append(TileWorldSize).Append('|')
           .Append(TileSizeCells).Append('|')
           .Append(AgentHeight).Append('|')
-          .Append(AgentRadius).Append('|')
-          .Append(AgentMaxClimb).Append('|')
-          .Append(WalkableSlopeAngle).Append('|')
+          .Append(agentRadius).Append('|')
+          .Append(agentMaxClimb).Append('|')
+          .Append(walkableSlope).Append('|')
           .Append(MinRegionAreaWorld).Append('|')
           .Append(MergeRegionAreaWorld).Append('|')
           .Append(MaxEdgeLenWorld).Append('|')
@@ -104,7 +160,14 @@ public sealed class NavmeshSettings
           .Append(clientExpansion).Append('|')
           .Append(dotRecastVersion);
 
+        // Appended only when set, so the default (no floor) reproduces the
+        // pre-existing hash and its baked tiles stay valid.
+        if (minWorldZ.HasValue)
+        {
+            sb.Append("|minZ").Append(minWorldZ.Value);
+        }
+
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString()));
-        return Convert.ToHexString(hash.AsSpan(0, 4)).ToLowerInvariant();
+        return Convert.ToHexString(hash.AsSpan(0, HashPrefixBytes)).ToLowerInvariant();
     }
 }

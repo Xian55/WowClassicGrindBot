@@ -72,13 +72,17 @@ public static class ModelFile
 
         stream = stream[(sizeof(UInt32) * 18)..];
 
-        if (array != null)
-            pooler.Return(array);
-
-        return new(
+        // `begining` aliases the rented array, so the reads below must happen
+        // before it goes back to the pool.
+        Model model = new(
             ReadVertices(begining, nVertices, ofsVertices),
             ReadBoundingTriangles(begining, nBoundingTriangles, ofsBoundingTriangles),
             ReadBoundingVertices(begining, nBoundingVertices, ofsBoundingVertices));
+
+        if (array != null)
+            pooler.Return(array);
+
+        return model;
     }
 
     [SkipLocalsInit]

@@ -101,8 +101,10 @@ internal static partial class MapTileFile // adt file
         if (models.Length != 0)
             ArrayPool<string>.Shared.Return(models);
 
-        pooler.Return(buffer);
-
+        // NOTE: `file`/`stream` read directly out of `buffer`, so the buffer must
+        // stay rented until the MCNK pass below is done. Returning it earlier
+        // happened to work only because nothing else rented in between - it
+        // corrupts geometry as soon as ADTs are parsed concurrently.
         for (int index = 0; index < MapTile.SIZE * MapTile.SIZE; index++)
         {
             int off = (int)mcin[index].offset;
@@ -112,7 +114,66 @@ internal static partial class MapTileFile // adt file
             hasChunk[index] = true;
         }
 
+        pooler.Return(buffer);
+
         return new(modelis, wmois, chunks, hasChunk);
+    }
+
+    /// <summary>
+    /// Lean pass that pulls only the per-MCNK areaID for all 256 chunks and
+    /// skips geometry, models and WMOs entirely. areaID sits at offset 0x34 of
+    /// the MCNK header, i.e. the chunk's (tag + size) plus 13 header uints ==
+    /// 60 bytes past the MCIN-reported chunk start. Used to bake the standalone
+    /// <see cref="PPather.Navmesh.AreaGrid"/> cheaply and without touching (or
+    /// crashing on) tile collision geometry.
+    /// </summary>
+    public static void ReadAreaIds(ArchiveSet archive, ReadOnlySpan<char> name, Span<uint> areaIds)
+    {
+        Span<SMChunkInfo> mcin = stackalloc SMChunkInfo[MapTile.SIZE * MapTile.SIZE];
+        bool haveMcin = false;
+
+        using MpqFileStream mpq = archive.GetStream(name);
+        int length = (int)mpq.Length;
+
+        var pooler = ArrayPool<byte>.Shared;
+        byte[] buffer = pooler.Rent(length);
+        mpq.ReadAllBytesTo(buffer);
+
+        using MemoryStream stream = new(buffer, 0, length, false);
+        using BinaryReader file = new(stream);
+
+        do
+        {
+            uint type = file.ReadUInt32();
+            uint size = file.ReadUInt32();
+            long nextPos = file.BaseStream.Position + size;
+
+            if (type == ChunkReader.MCIN)
+            {
+                HandleMCIN(file, mcin);
+                haveMcin = true;
+                break;
+            }
+
+            file.BaseStream.Seek(nextPos, SeekOrigin.Begin);
+        } while (!file.EOF());
+
+        if (haveMcin)
+        {
+            for (int i = 0; i < mcin.Length && i < areaIds.Length; i++)
+            {
+                if (mcin[i].offset == 0)
+                {
+                    areaIds[i] = 0;
+                    continue;
+                }
+
+                file.BaseStream.Seek(mcin[i].offset + (sizeof(uint) * 15), SeekOrigin.Begin);
+                areaIds[i] = file.ReadUInt32();
+            }
+        }
+
+        pooler.Return(buffer);
     }
 
     private static void HandleMH2O(BinaryReader file, out LiquidData[] liquidData)

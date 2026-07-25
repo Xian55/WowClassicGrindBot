@@ -47,14 +47,57 @@ public sealed class NavmeshEndpointResolver
         this.filter = filter;
     }
 
-    public bool TryResolve(Vector3 wow, bool? startIndoors, out long polyRef, out Vector3 resolvedWow)
+    /// <summary>
+    /// Height that a column pick is drawn to when the caller knows roughly
+    /// which floor it wants - the surface the player was last resolved onto.
+    /// A candidate this close to it wins over the geometric rules below.
+    /// </summary>
+    public const float PreferZToleranceYd = 5f;
+
+    public bool TryResolve(Vector3 wow, bool? startIndoors, out long polyRef, out Vector3 resolvedWow,
+        float? preferZ = null)
     {
         polyRef = 0;
         resolvedWow = wow;
 
         return wow.Z != 0
             ? TryResolveNear(wow, ref polyRef, ref resolvedWow)
-            : TryResolveColumn(wow, startIndoors, ref polyRef, ref resolvedWow);
+            : TryResolveColumn(wow, startIndoors, preferZ, ref polyRef, ref resolvedWow);
+    }
+
+    /// <summary>
+    /// Every walkable surface stacked in the column around an rc-space point,
+    /// nearest-to-<paramref name="preferRcY"/> first. The pathfinder uses this
+    /// to re-aim at a destination it could not reach: a position with no
+    /// trustworthy height can land on a roof or ledge above the floor the
+    /// caller meant, and only connectivity can tell those apart.
+    /// </summary>
+    public int CollectColumn(Vector3 rcCenter, float preferRcY, List<(long PolyRef, Vector3 RcPos)> into)
+    {
+        into.Clear();
+
+        collector.Reset();
+        DtStatus status = query.QueryPolygons(rcCenter,
+            new Vector3(HorizontalExtent, VerticalExtentColumn, HorizontalExtent),
+            filter, collector);
+
+        if (!status.Succeeded())
+        {
+            return 0;
+        }
+
+        foreach (long refs in collector.Refs)
+        {
+            if (query.ClosestPointOnPoly(refs, rcCenter, out Vector3 closest, out _).Succeeded())
+            {
+                into.Add((refs, closest));
+            }
+        }
+
+        into.Sort((a, b) =>
+            MathF.Abs(a.RcPos.Y - preferRcY).CompareTo(MathF.Abs(b.RcPos.Y - preferRcY)));
+
+        return into.Count;
     }
 
     private bool TryResolveNear(Vector3 wow, ref long polyRef, ref Vector3 resolvedWow)
@@ -82,7 +125,8 @@ public sealed class NavmeshEndpointResolver
         return true;
     }
 
-    private bool TryResolveColumn(Vector3 wow, bool? startIndoors, ref long polyRef, ref Vector3 resolvedWow)
+    private bool TryResolveColumn(Vector3 wow, bool? startIndoors, float? preferZ,
+        ref long polyRef, ref Vector3 resolvedWow)
     {
         Vector3 rcCenter = NavmeshCoords.ToRc(wow);
 
@@ -112,6 +156,24 @@ public sealed class NavmeshEndpointResolver
 
         // rc Y = wow Z (up). Highest first.
         candidates.Sort(static (a, b) => b.RcPos.Y.CompareTo(a.RcPos.Y));
+
+        // A caller that knows which floor it is on - the player walked there,
+        // so the surface under them barely moved between requests - beats every
+        // geometric guess below. IsIndoors reports the WMO's authored flag, not
+        // whether a roof happens to be overhead, so the headroom rule can pick
+        // a different floor than the client would call the player's own.
+        if (preferZ.HasValue)
+        {
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (MathF.Abs(candidates[i].RcPos.Y - preferZ.Value) <= PreferZToleranceYd)
+                {
+                    polyRef = candidates[i].PolyRef;
+                    resolvedWow = NavmeshCoords.ToWow(candidates[i].RcPos);
+                    return true;
+                }
+            }
+        }
 
         Candidate pick = candidates[0];
 

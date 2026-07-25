@@ -46,6 +46,10 @@ internal static class WmoGroupFile
             return;
         }
 
+        // The native MPQ handle leaked whenever parsing threw; `using` releases
+        // it on every path.
+        using MpqFileStream _ = mpq;
+
         var pooler = ArrayPool<byte>.Shared;
         byte[] buffer = pooler.Rent((int)mpq.Length);
         mpq.ReadAllBytesTo(buffer);
@@ -88,7 +92,6 @@ internal static class WmoGroupFile
         } while (!file.EOF());
 
         pooler.Return(buffer);
-        mpq.Dispose();
     }
 
     // MopyFlags

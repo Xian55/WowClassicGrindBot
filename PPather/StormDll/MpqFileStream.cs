@@ -62,7 +62,16 @@ public sealed class MpqFileStream : Stream
 
     public sealed override int Read(Span<byte> buffer)
     {
-        if (!Archive.SFileReadFile(fileHandle, buffer, length, out long bytesRead))
+        // Never ask StormLib for more than the caller's span can hold - it
+        // writes straight into the buffer, so passing the file length would
+        // overrun any span shorter than the file.
+        long toRead = Math.Min(buffer.Length, length - position);
+        if (toRead <= 0)
+        {
+            return 0;
+        }
+
+        if (!Archive.SFileReadFile(fileHandle, buffer, toRead, out long bytesRead))
         {
             int lastError = Marshal.GetLastWin32Error();
             if (lastError != ERROR_HANDLE_EOF)

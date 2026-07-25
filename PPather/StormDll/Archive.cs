@@ -25,7 +25,8 @@ internal sealed class Archive
         using MpqFileStream mpq = GetStream("(listfile)".AsSpan());
         int length = (int)mpq.Length;
 
-        HashSet<string> fileList = new(StringComparer.InvariantCultureIgnoreCase);
+        // MPQ paths are ASCII; Ordinal avoids ICU-backed hashing on every lookup.
+        HashSet<string> fileList = new(StringComparer.OrdinalIgnoreCase);
 
         if (length <= MpqFileStream.MaxStackLimit)
         {
@@ -52,7 +53,7 @@ internal sealed class Archive
         if (fileList.Count == 0)
             throw new InvalidOperationException($"{nameof(fileList)} contains no elements!");
 
-        this.fileList = fileList.ToFrozenSet(StringComparer.InvariantCultureIgnoreCase);
+        this.fileList = fileList.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
 
     public static void ParseFileLines(ReadOnlySpan<byte> data, HashSet<string> fileList)
