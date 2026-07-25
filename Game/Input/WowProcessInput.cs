@@ -44,11 +44,41 @@ public sealed partial class WowProcessInput : IMouseInput
         nativeInput = new(process, cts, InputDuration.FastPress);
     }
 
+    /// <summary>
+    /// Releases everything before forgetting it. Clearing the belief on its own
+    /// leaves the game holding whatever was down - a held movement key runs the
+    /// character on forever - and because <see cref="KeyUp"/> ignores a release
+    /// for a key it does not believe is down, the release can never be issued
+    /// afterwards. The movement keys are released unconditionally: a key the
+    /// game holds without this class knowing (the user pressing it themselves)
+    /// is exactly the case the belief cannot describe.
+    /// </summary>
     public void Reset()
     {
         lock (keysDown)
         {
+            for (int i = 0; i < keysDown.Length; i++)
+            {
+                if (keysDown[i])
+                {
+                    nativeInput.KeyUp(i);
+                }
+            }
+
             keysDown.SetAll(false);
+        }
+
+        ReleaseIfConfigured(ForwardKey);
+        ReleaseIfConfigured(BackwardKey);
+        ReleaseIfConfigured(TurnLeftKey);
+        ReleaseIfConfigured(TurnRightKey);
+    }
+
+    private void ReleaseIfConfigured(ConsoleKey key)
+    {
+        if (key != default)
+        {
+            nativeInput.KeyUp((int)key);
         }
     }
 

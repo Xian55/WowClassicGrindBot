@@ -30,12 +30,81 @@ public sealed partial class ConfigurableInput
         input.TurnLeftKey = classConfig.TurnLeftKey;
         input.TurnRightKey = classConfig.TurnRightKey;
 
+        WalkKey = classConfig.WalkKey;
+
         input.InteractMouseover = classConfig.InteractMouseOver.ConsoleKey;
         input.InteractMouseoverModifier = classConfig.InteractMouseOver.Modifier;
         input.InteractMouseoverPress = classConfig.InteractMouseOver.PressDuration;
     }
 
-    public void Reset() => input.Reset();
+    /// <summary>
+    /// Releases every key this class can hold, including the class-configured
+    /// Jump: a jump key the game believes is held makes the character jump
+    /// continuously, and nothing else in the stack ever releases it.
+    /// </summary>
+    public void Reset()
+    {
+        input.Reset();
+
+        if (Jump.ConsoleKey != default)
+        {
+            input.SetKeyState(Jump.ConsoleKey, false, true);
+        }
+    }
+
+    /// <summary>Class-config fallback for the walk toggle when the game binding
+    /// (<see cref="BindingID.TOGGLERUN"/>) has not been extracted.</summary>
+    public ConsoleKey WalkKey { get; }
+
+    private const int WalkTapMs = 40;
+
+    /// <summary>Walk toggling is possible when the game reported TOGGLERUN or a
+    /// WalkKey fallback is configured.</summary>
+    public bool CanWalk =>
+        KeyReader.GameBindings.ContainsKey(BindingID.TOGGLERUN) || WalkKey != default;
+
+    /// <summary>
+    /// Taps "Toggle Run/Walk". Prefers the key EXTRACTED from the game
+    /// (BindingID.TOGGLERUN, including its modifier) so the exact code the client
+    /// expects is sent; falls back to the class-config WalkKey. No-op if neither.
+    /// </summary>
+    public void ToggleWalk(CancellationToken token = default)
+    {
+        ConsoleKey key = WalkKey;
+        ModifierKey modifier = ModifierKey.None;
+
+        bool fromBinding = KeyReader.GameBindings.TryGetValue(BindingID.TOGGLERUN, out var bound);
+        if (fromBinding)
+        {
+            key = bound.Key;
+            modifier = bound.Modifier;
+        }
+
+        if (key == default)
+        {
+            LogWalkToggleNoKey(logger);
+            return;
+        }
+
+        if (modifier != ModifierKey.None)
+            input.PressRandomWithModifier(key, modifier, WalkTapMs, token);
+        else
+            input.PressRandom(key, WalkTapMs, token);
+
+        LogWalkToggle(logger, key, fromBinding);
+    }
+
+    [LoggerMessage(
+        EventId = 0070,
+        Level = LogLevel.Debug,
+        Message = "Walk toggle -> key {key} (from extracted TOGGLERUN binding: {fromBinding})")]
+    static partial void LogWalkToggle(ILogger logger, ConsoleKey key, bool fromBinding);
+
+    [LoggerMessage(
+        EventId = 0071,
+        Level = LogLevel.Debug,
+        Message = "Walk toggle requested but no walk key bound (TOGGLERUN/WalkKey)")]
+    static partial void LogWalkToggleNoKey(ILogger logger);
 
     public void StartForward(bool forced)
     {
