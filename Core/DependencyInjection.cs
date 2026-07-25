@@ -145,6 +145,11 @@ public static class DependencyInjection
         s.ForwardSingleton<IPPather>(sp);
         s.ForwardSingleton<ExecGameCommand>(sp);
 
+        // Navigation lives in this child container; forward the bound spline
+        // options so it sees appsettings/CLI values instead of a default
+        // SplineFollowerOptions (Enabled=false, untuned).
+        s.ForwardSingleton<IOptions<SplineFollowerOptions>>(sp);
+
         s.ForwardSingleton<Wait>(sp);
 
         s.ForwardSingleton<DataConfig>(sp);
@@ -251,7 +256,9 @@ public static class DependencyInjection
             var serviceLogger = loggerFactory.CreateLogger<PPatherService>();
             var dataConfig = x.GetRequiredService<DataConfig>();
             var worldMapAreaDB = x.GetRequiredService<WorldMapAreaDB>();
-            return new PPatherService(serviceLogger, dataConfig, worldMapAreaDB);
+            var bakeOptions = x.GetRequiredService<IOptions<NavmeshBakeOptions>>();
+            var queryOptions = x.GetRequiredService<IOptions<NavmeshQueryOptions>>();
+            return new PPatherService(serviceLogger, dataConfig, worldMapAreaDB, bakeOptions, queryOptions);
         });
 
         s.AddSingleton<IAddonDataProvider>(x =>
@@ -491,10 +498,11 @@ public static class DependencyInjection
                         StartupConfigPathing.Types.RemoteV1);
                 }
 
+                bool smoothed = api.QueryCapabilities();
                 if (logger.IsEnabled(LogLevel.Information))
                     logger.LogInformation(
-                        "Using {Type}({Name}) {Host}:{Port}",
-                        StartupConfigPathing.Types.RemoteV1, api.GetType().Name, scp.hostv1, scp.portv1);
+                        "Using {Type}({Name}) {Host}:{Port} (PathsAreSmoothed={Smoothed})",
+                        StartupConfigPathing.Types.RemoteV1, api.GetType().Name, scp.hostv1, scp.portv1, smoothed);
                 return api;
             }
         }
@@ -512,8 +520,8 @@ public static class DependencyInjection
         LocalPathingApi localApi = new(pathingLogger, service);
         if (logger.IsEnabled(LogLevel.Information))
             logger.LogInformation(
-                "Using {Type}({Name})",
-                StartupConfigPathing.Types.Local, localApi.GetType().Name);
+                "Using {Type}({Name}) engine {Engine}",
+                StartupConfigPathing.Types.Local, localApi.GetType().Name, service.Engine);
 
         return localApi;
     }

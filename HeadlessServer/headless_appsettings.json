@@ -7,8 +7,29 @@
         "Microsoft.Hosting.Lifetime": "Information",
 
         "Game.WowProcessInput": "Warning",
-        "Core.ConfigurableInput": "Warning"
+        "Core.ConfigurableInput": "Warning",
+        "Core.Goals.Navigation": "Information"
       }
     }
+  },
+  "Navmesh": {
+    "Bake": {
+      "AgentRadius": 0.5,
+      "AgentMaxClimb": 1.6,
+      "WalkableSlope": 48,
+      "MinWorldZ": { "Expansion01": -700 }
+    },
+    "Query": {
+      "EdgeMargin": 1.5,
+      "PathSpacing": 2.5,
+      "CorridorTiles": 2,
+      "CorridorMaxTiles": 4,
+      "CorridorWiden": true,
+      "SkipWidenShortRoutes": true,
+      "RoadCore": 8
+    }
+  },
+  "SplineFollower": {
+    "Enabled": false
   }
 }

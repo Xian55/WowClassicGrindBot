@@ -24,5 +24,14 @@ public static class DependencyInjection
 
         services.Configure<StartupConfigNpcOverlay>
             (configuration.GetSection(StartupConfigNpcOverlay.Position));
+
+        services.Configure<NavmeshBakeOptions>
+            (configuration.GetSection(NavmeshBakeOptions.Position));
+
+        services.Configure<NavmeshQueryOptions>
+            (configuration.GetSection(NavmeshQueryOptions.Position));
+
+        services.Configure<SplineFollowerOptions>
+            (configuration.GetSection(SplineFollowerOptions.Position));
     }
 }
