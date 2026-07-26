@@ -39,11 +39,31 @@ internal static partial class MapTileFile // adt file
     private static readonly LiquidData eLiquidData = new(0, 0, 0, EmptyMH2OData1, [], []);
     public static ref readonly LiquidData EmptyLiquidData => ref eLiquidData;
 
+    /// <summary>
+    /// MCNK header flag 0x10000: the chunk carries a 64-bit 8x8 hole mask in the
+    /// header words that otherwise hold ofsHeight/ofsNormal. Mists-era only;
+    /// no pre-Cataclysm client sets it.
+    /// </summary>
+    private const uint MCNK_FLAG_HIGH_RES_HOLES = 0x10000;
+
+    /// <summary>ADT file extension, including the dot.</summary>
+    private const string AdtExtension = ".adt";
+
+    /// <summary>
+    /// Cataclysm-era companion file carrying the model/WMO placement chunks that
+    /// a pre-Cataclysm root ADT holds inline. Its sibling <c>_tex0</c>/<c>_tex1</c>
+    /// files are texture data only and are never read by the bake.
+    /// </summary>
+    private const string ObjectFileSuffix = "_obj0.adt";
+
     public static MapTile Read(ArchiveSet archive, ReadOnlySpan<char> name, WMOManager wmomanager, ModelManager modelmanager)
     {
         LiquidData[] LiquidDataChunk = [];
 
         Span<SMChunkInfo> mcin = stackalloc SMChunkInfo[MapTile.SIZE * MapTile.SIZE];
+        Span<uint> mcnkOffsets = stackalloc uint[MapTile.SIZE * MapTile.SIZE];
+        int mcnkCount = 0;
+        bool haveMcin = false;
 
         string[] models = [];
         string[] wmos = [];
@@ -66,6 +86,8 @@ internal static partial class MapTileFile // adt file
 
         do
         {
+            long chunkStart = file.BaseStream.Position;
+
             uint type = file.ReadUInt32();
             uint size = file.ReadUInt32();
             long nextPos = file.BaseStream.Position + size;
@@ -74,6 +96,12 @@ internal static partial class MapTileFile // adt file
             {
                 case ChunkReader.MCIN:
                     HandleMCIN(file, mcin);
+                    haveMcin = true;
+                    break;
+                case ChunkReader.MCNK when mcnkCount < mcnkOffsets.Length:
+                    // Only used when MCIN is absent, but recording the offsets
+                    // costs one store per chunk and keeps this a single pass.
+                    mcnkOffsets[mcnkCount++] = (uint)chunkStart;
                     break;
                 case ChunkReader.MMDX when size != 0:
                     models = ChunkReader.ExtractFileNames(file, size);
@@ -101,13 +129,36 @@ internal static partial class MapTileFile // adt file
         if (models.Length != 0)
             ArrayPool<string>.Shared.Return(models);
 
+        // Cataclysm split the ADT: the root lost MCIN and handed model/WMO
+        // placement to a `_obj0` companion. Keyed off the absence of MCIN in the
+        // file itself rather than the configured client version, so vanilla/TBC/
+        // WotLK keep the exact pre-existing path and one reader serves both
+        // layouts.
+        if (!haveMcin)
+            ReadObjectFile(archive, name, wmomanager, modelmanager, ref modelis, ref wmois);
+
         // NOTE: `file`/`stream` read directly out of `buffer`, so the buffer must
         // stay rented until the MCNK pass below is done. Returning it earlier
         // happened to work only because nothing else rented in between - it
         // corrupts geometry as soon as ADTs are parsed concurrently.
         for (int index = 0; index < MapTile.SIZE * MapTile.SIZE; index++)
         {
-            int off = (int)mcin[index].offset;
+            int off;
+            if (haveMcin)
+            {
+                off = (int)mcin[index].offset;
+            }
+            else
+            {
+                // A split ADT lists its MCNKs in grid order with no offset table,
+                // so encounter order is the index. A short tile leaves the tail
+                // unflagged rather than reading from offset 0.
+                if (index >= mcnkCount)
+                    continue;
+
+                off = (int)mcnkOffsets[index];
+            }
+
             file.BaseStream.Seek(off, SeekOrigin.Begin);
 
             chunks[index] = ReadMapChunk(file, LiquidDataChunk.Length > 0 ? LiquidDataChunk[index] : EmptyLiquidData);
@@ -120,19 +171,33 @@ internal static partial class MapTileFile // adt file
     }
 
     /// <summary>
-    /// Lean pass that pulls only the per-MCNK areaID for all 256 chunks and
-    /// skips geometry, models and WMOs entirely. areaID sits at offset 0x34 of
-    /// the MCNK header, i.e. the chunk's (tag + size) plus 13 header uints ==
-    /// 60 bytes past the MCIN-reported chunk start. Used to bake the standalone
-    /// <see cref="PPather.Navmesh.AreaGrid"/> cheaply and without touching (or
-    /// crashing on) tile collision geometry.
+    /// Loads the model/WMO placement chunks for a Cataclysm-era split ADT from its
+    /// <c>_obj0</c> companion. Leaves the outputs untouched when the companion is
+    /// absent, so a root ADT that simply carries no placements stays empty.
+    /// The companion's own MCNK chunks hold per-chunk doodad references, which the
+    /// bake does not use - <c>MPQTriangleSupplier</c> culls against instance bounds
+    /// instead - so they are skipped.
     /// </summary>
-    public static void ReadAreaIds(ArchiveSet archive, ReadOnlySpan<char> name, Span<uint> areaIds)
+    private static void ReadObjectFile(ArchiveSet archive, ReadOnlySpan<char> name,
+        WMOManager wmomanager, ModelManager modelmanager,
+        ref ModelInstance[] modelis, ref WMOInstance[] wmois)
     {
-        Span<SMChunkInfo> mcin = stackalloc SMChunkInfo[MapTile.SIZE * MapTile.SIZE];
-        bool haveMcin = false;
+        if (!name.EndsWith(AdtExtension, StringComparison.OrdinalIgnoreCase))
+            return;
 
-        using MpqFileStream mpq = archive.GetStream(name);
+        ReadOnlySpan<char> stem = name[..^AdtExtension.Length];
+
+        Span<char> objName = stackalloc char[stem.Length + ObjectFileSuffix.Length];
+        stem.CopyTo(objName);
+        ObjectFileSuffix.CopyTo(objName[stem.Length..]);
+
+        if (!archive.Exists(objName))
+            return;
+
+        string[] models = [];
+        string[] wmos = [];
+
+        using MpqFileStream mpq = archive.GetStream(objName);
         int length = (int)mpq.Length;
 
         var pooler = ArrayPool<byte>.Shared;
@@ -148,6 +213,68 @@ internal static partial class MapTileFile // adt file
             uint size = file.ReadUInt32();
             long nextPos = file.BaseStream.Position + size;
 
+            switch (type)
+            {
+                case ChunkReader.MMDX when size != 0:
+                    models = ChunkReader.ExtractFileNames(file, size);
+                    break;
+                case ChunkReader.MWMO when size != 0:
+                    wmos = ChunkReader.ExtractFileNames(file, size);
+                    break;
+                case ChunkReader.MDDF:
+                    HandleMDDF(file, modelmanager, models, size, out modelis);
+                    break;
+                case ChunkReader.MODF:
+                    HandleMODF(file, wmos, wmomanager, size, out wmois);
+                    break;
+            }
+
+            file.BaseStream.Seek(nextPos, SeekOrigin.Begin);
+        } while (!file.EOF());
+
+        if (wmos.Length != 0)
+            ArrayPool<string>.Shared.Return(wmos);
+
+        if (models.Length != 0)
+            ArrayPool<string>.Shared.Return(models);
+
+        pooler.Return(buffer);
+    }
+
+    /// <summary>
+    /// Lean pass that pulls only the per-MCNK areaID for all 256 chunks and
+    /// skips geometry, models and WMOs entirely. Handles both the pre-Cataclysm
+    /// layout (chunk starts from MCIN) and the Cataclysm-era split ADT (no MCIN;
+    /// MCNKs walked in grid order) - the MCNK header itself is unchanged between
+    /// the two. Used to bake the standalone
+    /// <see cref="PPather.Navmesh.AreaGrid"/> cheaply and without touching (or
+    /// crashing on) tile collision geometry.
+    /// </summary>
+    public static void ReadAreaIds(ArchiveSet archive, ReadOnlySpan<char> name, Span<uint> areaIds)
+    {
+        Span<SMChunkInfo> mcin = stackalloc SMChunkInfo[MapTile.SIZE * MapTile.SIZE];
+        Span<uint> mcnkOffsets = stackalloc uint[MapTile.SIZE * MapTile.SIZE];
+        int mcnkCount = 0;
+        bool haveMcin = false;
+
+        using MpqFileStream mpq = archive.GetStream(name);
+        int length = (int)mpq.Length;
+
+        var pooler = ArrayPool<byte>.Shared;
+        byte[] buffer = pooler.Rent(length);
+        mpq.ReadAllBytesTo(buffer);
+
+        using MemoryStream stream = new(buffer, 0, length, false);
+        using BinaryReader file = new(stream);
+
+        do
+        {
+            long chunkStart = file.BaseStream.Position;
+
+            uint type = file.ReadUInt32();
+            uint size = file.ReadUInt32();
+            long nextPos = file.BaseStream.Position + size;
+
             if (type == ChunkReader.MCIN)
             {
                 HandleMCIN(file, mcin);
@@ -155,9 +282,17 @@ internal static partial class MapTileFile // adt file
                 break;
             }
 
+            // Cataclysm-era split ADT: no offset table, MCNKs run in grid order.
+            // Keep walking to collect them - unlike the MCIN case there is no
+            // early chunk to stop on.
+            if (type == ChunkReader.MCNK && mcnkCount < mcnkOffsets.Length)
+                mcnkOffsets[mcnkCount++] = (uint)chunkStart;
+
             file.BaseStream.Seek(nextPos, SeekOrigin.Begin);
         } while (!file.EOF());
 
+        // areaID sits at offset 0x34 of the MCNK header, i.e. the chunk's
+        // (tag + size) plus 13 header uints == 60 bytes past the chunk start.
         if (haveMcin)
         {
             for (int i = 0; i < mcin.Length && i < areaIds.Length; i++)
@@ -169,6 +304,14 @@ internal static partial class MapTileFile // adt file
                 }
 
                 file.BaseStream.Seek(mcin[i].offset + (sizeof(uint) * 15), SeekOrigin.Begin);
+                areaIds[i] = file.ReadUInt32();
+            }
+        }
+        else
+        {
+            for (int i = 0; i < mcnkCount && i < areaIds.Length; i++)
+            {
+                file.BaseStream.Seek(mcnkOffsets[i] + (sizeof(uint) * 15), SeekOrigin.Begin);
                 areaIds[i] = file.ReadUInt32();
             }
         }
@@ -302,7 +445,18 @@ internal static partial class MapTileFile // adt file
         //_ = file.ReadUInt32(); // uint ofsShadow
         //_ = file.ReadUInt32(); // uint sizeShadow
 
-        file.BaseStream.Seek(sizeof(UInt32) * 15, SeekOrigin.Current);
+        // Header words are read rather than blind-skipped from here on, because
+        // Mists overlays holes_high_res on ofsHeight/ofsNormal (words 5-6) when
+        // the flag below is set. Layout is otherwise unchanged from vanilla.
+        file.BaseStream.Seek(sizeof(UInt32) * 2, SeekOrigin.Current); // magic + size
+        uint mcnkFlags = file.ReadUInt32();                           // [0] flags
+        file.BaseStream.Seek(sizeof(UInt32) * 4, SeekOrigin.Current); // [1..4]
+        ulong holesHighResRaw = file.ReadUInt64();                    // [5..6]
+        file.BaseStream.Seek(sizeof(UInt32) * 6, SeekOrigin.Current); // [7..12]
+
+        ulong holesHighRes = (mcnkFlags & MCNK_FLAG_HIGH_RES_HOLES) != 0
+            ? holesHighResRaw
+            : 0;
 
         uint areaID = file.ReadUInt32();
         //_ = file.ReadUInt32(); // uint nMapObjRefs
@@ -394,7 +548,7 @@ internal static partial class MapTileFile // adt file
         }
 
         return new(xbase, ybase, zbase,
-            areaID, haswater, holes,
+            areaID, haswater, holes, holesHighRes,
             vertices, water_height1, water_height2,
             water_height, water_flags, legacyWater);
     }

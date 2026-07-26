@@ -41,11 +41,38 @@ public sealed class PPatherService : IDisposable
     public Action<LinesEventArgs> OnLinesAdded;
     public Action<SphereEventArgs> OnSphereAdded;
 
-    private Search search { get; set; }
+    /// <summary>
+    /// Geometry-backed search (MPQ triangle world + PathGraph). Null in a
+    /// disk-only run: see <see cref="geometryUnavailable"/>.
+    /// </summary>
+    private Search? search { get; set; }
 
     private NavmeshPathfinder navmeshPathfinder;
     private float navmeshMapId = -1;
     private bool? lastStartIndoors;
+
+    /// <summary>
+    /// Continent of the active query, tracked here rather than read off
+    /// <see cref="search"/> so a disk-only run still knows where it is.
+    /// </summary>
+    private float activeMapId = -1;
+
+    private Vector4 activeFrom;
+    private Vector4 activeTarget;
+
+    /// <summary>
+    /// Continents whose geometry could not be opened - no client archives
+    /// installed, or archives that do not carry this continent (a wrath client
+    /// has no Pandaria). The navmesh answers from baked tiles alone, so this is
+    /// a normal operating mode, not a failure: post-Cata clients are tens of GB
+    /// and there is no reason to keep one installed just to path over tiles that
+    /// are already baked. Remembered per continent so a missing client costs one
+    /// archive-open attempt instead of one per query.
+    /// </summary>
+    private readonly HashSet<float> geometryUnavailable = [];
+
+    /// <summary>True when this continent is pathing off baked tiles with no game files.</summary>
+    public bool DiskOnly => search == null && activeMapId >= 0;
 
     private readonly Lock areaGridLock = new();
     private readonly Dictionary<string, AreaGrid?> areaGrids = new();
@@ -83,12 +110,12 @@ public sealed class PPatherService : IDisposable
     /// </summary>
     public bool ReloadCostZones()
     {
-        if (navmeshPathfinder == null || search == null)
+        if (navmeshPathfinder == null || activeMapId < 0)
         {
             return false;
         }
 
-        string continent = ContinentDB.IdToName[search.MapId];
+        string continent = ContinentDB.IdToName[activeMapId];
 
         // All or nothing. These files are hand-editable and the watcher can fire
         // mid-write, so a partial read is expected rather than exceptional -
@@ -107,12 +134,13 @@ public sealed class PPatherService : IDisposable
         return true;
     }
 
-    public bool Initialised => search != null;
+    /// <summary>A continent is active and queries can be answered - with or without geometry.</summary>
+    public bool Initialised => activeMapId >= 0;
 
     public bool IsSearching { get; set; }
 
-    public Vector4 SearchFrom => search.From;
-    public Vector4 SearchTo => search.Target;
+    public Vector4 SearchFrom => activeFrom;
+    public Vector4 SearchTo => activeTarget;
     public Vector3 ClosestLocation => search?.PathGraph?.ClosestSpot?.Loc ?? Vector3.Zero;
     public Vector3 PeekLocation => search?.PathGraph?.PeekSpot?.Loc ?? Vector3.Zero;
 
@@ -258,6 +286,7 @@ public sealed class PPatherService : IDisposable
         navmeshPathfinder?.Dispose();
         navmeshPathfinder = null;
         navmeshMapId = -1;
+        activeMapId = -1;
 
         if (search == null)
             return;
@@ -268,18 +297,44 @@ public sealed class PPatherService : IDisposable
 
     public void Initialise(float mapId)
     {
-        if (search != null && mapId == search.MapId)
+        if (activeMapId == mapId && (search != null || geometryUnavailable.Contains(mapId)))
         {
             return;
         }
 
-        if (search != null && mapId != search.MapId)
+        if (activeMapId >= 0 && activeMapId != mapId)
         {
             Reset();
         }
 
-        search = new Search(mapId, logger, dataConfig);
-        search.PathGraph.triangleWorld.NotifyChunkAdded = ChunkAdded;
+        activeMapId = mapId;
+
+        if (geometryUnavailable.Contains(mapId))
+        {
+            return;
+        }
+
+        try
+        {
+            search = new Search(mapId, logger, dataConfig);
+            search.PathGraph.triangleWorld.NotifyChunkAdded = ChunkAdded;
+        }
+        catch (Exception e) when (Engine == PathingEngine.Navmesh)
+        {
+            // Disk-only fallback. The navmesh engine reads baked tiles straight
+            // off disk and never needs the client, so a missing or wrong-era
+            // archive set is recoverable here - but only for Navmesh: SpotAStar
+            // walks the triangle world itself and has nothing to fall back to,
+            // hence the `when` filter rethrowing for it.
+            geometryUnavailable.Add(mapId);
+            search = null;
+
+            logger.LogWarning(
+                "No usable geometry for {Continent} ({Message}). Pathing disk-only over baked navmesh tiles; " +
+                "baking and SpotAStar are unavailable for this continent.",
+                ContinentDB.IdToName.TryGetValue(mapId, out string? name) ? name : mapId.ToString(),
+                e.Message);
+        }
     }
 
     public bool MPQSelfTest()
@@ -297,17 +352,126 @@ public sealed class PPatherService : IDisposable
         return true;
     }
 
-    public TriangleCollection GetChunkAt(int grid_x, int grid_y)
+    /// <summary>Baked navmesh tiles on disk for one continent of the active era.</summary>
+    public readonly record struct NavmeshCoverage(string Continent, string Hash, string CacheDir, int Tiles);
+
+    /// <summary>
+    /// What <see cref="SelfTest"/> found. <see cref="Ok"/> is the single yes/no; the rest
+    /// is there so a failure says which era and which directory were looked at, instead of
+    /// a bare false.
+    /// </summary>
+    public sealed record SelfTestReport(
+        bool Ok, string Engine, string Exp, string Era, string Detail,
+        bool MpqPresent, int TotalTiles, NavmeshCoverage[] Continents);
+
+    /// <summary>
+    /// Per-continent baked tile counts for the active era. Counts files only - never loads
+    /// a mesh - so it is cheap enough for a health endpoint.
+    /// </summary>
+    public NavmeshCoverage[] GetNavmeshCoverage()
     {
-        return search.PathGraph.triangleWorld.GetChunkAt(grid_x, grid_y);
+        List<string> continents = KnownWorldContinents();
+        NavmeshCoverage[] result = new NavmeshCoverage[continents.Count];
+
+        for (int i = 0; i < continents.Count; i++)
+        {
+            string dir = NavmeshCacheDir(continents[i]);
+            int tiles = System.IO.Directory.Exists(dir)
+                ? System.IO.Directory.EnumerateFiles(dir, "*.dnm").Count()
+                : 0;
+
+            result[i] = new(continents[i], System.IO.Path.GetFileName(dir), dir, tiles);
+        }
+
+        return result;
     }
 
-    public ChunkedTriangleCollection TriangleWorld => search.PathGraph.triangleWorld;
+    /// <summary>
+    /// Can this install actually path? The answer depends on the engine, which is why it
+    /// is not <see cref="MPQSelfTest"/> any more: the navmesh engine reads baked tiles and
+    /// treats game archives as optional, so on a tiles-only install (or any CASC client)
+    /// the MPQ check reports a failure that does not exist. SpotAStar has no tile cache to
+    /// fall back on, so for it the archives really are the answer.
+    /// </summary>
+    public SelfTestReport SelfTest()
+    {
+        string era = DataConfig.ClientEra(dataConfig.Exp);
+        bool mpq = MPQTriangleSupplier.GetArchiveNames(dataConfig).Length > 0;
+
+        if (Engine != PathingEngine.Navmesh)
+        {
+            return new(mpq, Engine.ToString(), dataConfig.Exp, era,
+                mpq
+                    ? "SpotAStar: game archives present."
+                    : $"SpotAStar needs game archives in {dataConfig.MPQ}; none found.",
+                mpq, 0, []);
+        }
+
+        NavmeshCoverage[] coverage = GetNavmeshCoverage();
+        int total = 0;
+        for (int i = 0; i < coverage.Length; i++)
+        {
+            total += coverage[i].Tiles;
+        }
+
+        if (total == 0)
+        {
+            string detail =
+                $"No baked navmesh tiles for era '{era}' under {dataConfig.Navmesh}. " +
+                $"Download them (scripts/download-navmesh.ps1 -Era {era}) or bake with --bake=all.";
+
+            logger.LogWarning("Navmesh self-test FAILED: {Detail}", detail);
+            return new(false, Engine.ToString(), dataConfig.Exp, era, detail, mpq, 0, coverage);
+        }
+
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            foreach (NavmeshCoverage c in coverage)
+            {
+                logger.LogInformation("Navmesh {Era}/{Continent}/{Hash}: {Tiles} tiles",
+                    era, c.Continent, c.Hash, c.Tiles);
+            }
+        }
+
+        int missing = 0;
+        for (int i = 0; i < coverage.Length; i++)
+        {
+            if (coverage[i].Tiles == 0)
+                missing++;
+        }
+
+        return new(true, Engine.ToString(), dataConfig.Exp, era,
+            missing == 0
+                ? $"{total} tiles across {coverage.Length} continent(s)."
+                : $"{total} tiles; {missing} of {coverage.Length} continent(s) have none baked.",
+            mpq, total, coverage);
+    }
+
+    public TriangleCollection GetChunkAt(int grid_x, int grid_y)
+    {
+        return RequireGeometry().PathGraph.triangleWorld.GetChunkAt(grid_x, grid_y);
+    }
+
+    /// <summary>Triangle world of the active continent; null in a disk-only run.</summary>
+    public ChunkedTriangleCollection? TriangleWorld => search?.PathGraph.triangleWorld;
 
     public IEnumerable<Spot> GetSpots()
     {
-        return search.PathGraph.SpotManager.AllSpots();
+        return search == null ? [] : search.PathGraph.SpotManager.AllSpots();
     }
+
+    /// <summary>
+    /// The geometry-backed search, or a clear failure. For the operations that
+    /// genuinely cannot work off baked tiles alone - baking, SpotAStar, spot
+    /// graph authoring - so they report the missing client instead of throwing
+    /// NullReferenceException somewhere deeper.
+    /// </summary>
+    private Search RequireGeometry() =>
+        search ?? throw new InvalidOperationException(
+            $"This operation needs the game archives for " +
+            $"{(ContinentDB.IdToName.TryGetValue(activeMapId, out string? n) ? n : activeMapId.ToString())}, " +
+            $"which are not available in {dataConfig.MPQ}. Baked navmesh tiles alone " +
+            $"support path and height queries, not baking or SpotAStar.");
 
     public void ChunkAdded(ChunkEventArgs e)
     {
@@ -338,7 +502,8 @@ public sealed class PPatherService : IDisposable
 
         Initialise(wma.MapID);
 
-        return search.CreateWorldLocation(worldX, worldY, z, wma.MapID, null);
+        return search?.CreateWorldLocation(worldX, worldY, z, wma.MapID, null)
+            ?? NavmeshWorldLocation(worldX, worldY, z, wma.MapID);
     }
 
     public Vector4 ToWorldZ(int uiMap, float x, float y, float z, bool? startIndoors = null)
@@ -350,7 +515,31 @@ public sealed class PPatherService : IDisposable
 
         lastStartIndoors = startIndoors;
 
-        return search.CreateWorldLocation(x, y, z, wma.MapID, startIndoors);
+        return search?.CreateWorldLocation(x, y, z, wma.MapID, startIndoors)
+            ?? NavmeshWorldLocation(x, y, z, wma.MapID);
+    }
+
+    /// <summary>
+    /// Surface height from the baked navmesh, for when there is no triangle world
+    /// to run <see cref="Search.CreateWorldLocation"/> against. Coarser than the
+    /// geometry path - it cannot apply the canopy/indoor heuristics, only the
+    /// walkable surface the navmesh already encodes - which is the right trade
+    /// when the alternative is no answer at all. A non-zero caller z is kept as
+    /// given, matching the geometry path's treatment of an explicit height.
+    /// </summary>
+    private Vector4 NavmeshWorldLocation(float worldX, float worldY, float z, float mapId)
+    {
+        if (z != 0)
+        {
+            return new(worldX, worldY, z, mapId);
+        }
+
+        string continent = ContinentDB.IdToName[mapId];
+        NavmeshPathfinder? nav = GetQueryNavmesh(continent, mapId);
+
+        return nav != null && nav.TryGetHeight(worldX, worldY, out float found)
+            ? new(worldX, worldY, found, mapId)
+            : new(worldX, worldY, 0, mapId);
     }
 
     public int GetMapId(int uiMap)
@@ -371,7 +560,7 @@ public sealed class PPatherService : IDisposable
 
         Path path = Engine == PathingEngine.Navmesh
             ? NavmeshSearch()
-            : search.DoSearch(searchType);
+            : RequireGeometry().DoSearch(searchType);
 
         IsSearching = false;
         OnPathCreated?.Invoke(path);
@@ -386,22 +575,25 @@ public sealed class PPatherService : IDisposable
         navmeshPathfinder.JitterSeed = PathJitterSeed;
         navmeshPathfinder.EdgeMarginYards = PathEdgeMarginYards ?? queryOptions.EdgeMargin;
 
-        Vector3 from = search.From.AsVector3();
-        Vector3 to = search.Target.AsVector3();
+        Vector3 from = activeFrom.AsVector3();
+        Vector3 to = activeTarget.AsVector3();
 
         // Callers that bypass ToWorldZ (raw WorldRoute) pass z=0. The navmesh
         // column scan alone would pick the highest poly - which can be a tree
         // canopy or roof. Seed the height with the spot-geometry surface
         // heuristics (canopy/terrain preference) first; the resolver then only
-        // needs its small vertical extents.
+        // needs its small vertical extents. Disk-only runs have no geometry to
+        // ask, so they fall back to the navmesh surface via TryGetHeight.
         if (from.Z == 0)
         {
-            from = search.CreateWorldLocation(from.X, from.Y, 0, (int)search.MapId, lastStartIndoors).AsVector3();
+            from = search?.CreateWorldLocation(from.X, from.Y, 0, (int)activeMapId, lastStartIndoors).AsVector3()
+                ?? NavmeshWorldLocation(from.X, from.Y, 0, activeMapId).AsVector3();
         }
 
         if (to.Z == 0)
         {
-            to = search.CreateWorldLocation(to.X, to.Y, 0, (int)search.MapId, null).AsVector3();
+            to = search?.CreateWorldLocation(to.X, to.Y, 0, (int)activeMapId, null).AsVector3()
+                ?? NavmeshWorldLocation(to.X, to.Y, 0, activeMapId).AsVector3();
         }
 
         return navmeshPathfinder.FindPath(from, to, lastStartIndoors);
@@ -504,7 +696,7 @@ public sealed class PPatherService : IDisposable
         try
         {
             List<string> continents = continent is null
-                ? [.. WorldContinents]
+                ? KnownWorldContinents()
                 : [continent];
 
             foreach (string name in continents)
@@ -548,13 +740,18 @@ public sealed class PPatherService : IDisposable
         float mapId = ContinentDB.IdToName.First(kvp => kvp.Value == name).Key;
 
         Initialise(mapId);
+
+        // Baking reads ADT geometry, so unlike querying it cannot run off the
+        // tile cache. Fail here with the reason rather than inside the loop.
+        _ = RequireGeometry();
+
         EnsureNavmeshPathfinder();
 
         NavmeshTileCache tiles = navmeshPathfinder!.Tiles;
 
         List<(int x, int y)> adts = adt.HasValue
             ? [adt.Value]
-            : TriangleWorld.ExistingAdts();
+            : TriangleWorld!.ExistingAdts();
 
         lock (bakeLock)
         {
@@ -752,14 +949,14 @@ public sealed class PPatherService : IDisposable
 
     private void EnsureNavmeshPathfinder()
     {
-        if (navmeshPathfinder != null && navmeshMapId == search.MapId)
+        if (navmeshPathfinder != null && navmeshMapId == activeMapId)
         {
             return;
         }
 
         navmeshPathfinder?.Dispose();
 
-        string continent = ContinentDB.IdToName[search.MapId];
+        string continent = ContinentDB.IdToName[activeMapId];
         string cacheDir = NavmeshCacheDir(continent);
 
         navmeshPathfinder = new NavmeshPathfinder(logger, TriangleWorld, cacheDir, bakeOptions, queryOptions,
@@ -770,16 +967,24 @@ public sealed class PPatherService : IDisposable
             (x, z, data) => OnNavmeshTileAdded?.Invoke(x, z, data);
         navmeshPathfinder.Tiles.NotifyTileRemoved =
             (x, z) => OnNavmeshTileRemoved?.Invoke(x, z);
-        navmeshMapId = search.MapId;
+        navmeshMapId = activeMapId;
 
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Navmesh engine ready for {Continent} - tile cache: {CacheDir}", continent, cacheDir);
+            logger.LogInformation("Navmesh engine ready for {Continent} ({Mode}) - tile cache: {CacheDir}",
+                continent, search == null ? "disk-only, no game files" : "geometry available", cacheDir);
         }
     }
 
     public void Save()
     {
+        // Nothing to persist without a PathGraph - the navmesh tile cache is
+        // already on disk.
+        if (search == null)
+        {
+            return;
+        }
+
         long timestamp = GetTimestamp();
 
         search.PathGraph.Save();
@@ -792,8 +997,14 @@ public sealed class PPatherService : IDisposable
     {
         Initialise(from.W);
 
-        search.From = from;
-        search.Target = to;
+        activeFrom = from;
+        activeTarget = to;
+
+        if (search != null)
+        {
+            search.From = from;
+            search.Target = to;
+        }
     }
 
     public List<Vector3> GetCurrentSearchPath()
@@ -833,9 +1044,11 @@ public sealed class PPatherService : IDisposable
 
         SetLocations(from, to);
 
-        if (search.PathGraph == null)
+        Search geometry = RequireGeometry();
+
+        if (geometry.PathGraph == null)
         {
-            search.CreatePathGraph(mapId);
+            geometry.CreatePathGraph(mapId);
         }
 
         List<Spot> spots = new(path.Length);
@@ -843,7 +1056,7 @@ public sealed class PPatherService : IDisposable
         {
             Spot spot = new(path[i]);
             spots.Add(spot);
-            search.PathGraph.CreateSpotsAroundSpot(spot, false, spot);
+            geometry.PathGraph.CreateSpotsAroundSpot(spot, false, spot);
         }
 
         OnPathCreated?.Invoke(new(spots));
@@ -943,9 +1156,41 @@ public sealed class PPatherService : IDisposable
         Converters = { new SharedLib.Converters.Vector3Converter(true) }
     };
 
-    /// <summary>The world continents `--bake-area=all` covers (skips instances).</summary>
+    /// <summary>
+    /// The world continents an "all" bake covers (skips instances). Superset
+    /// across every supported client - HawaiiMainLand is Pandaria, which only a
+    /// Mists client has - so it is filtered per client by
+    /// <see cref="KnownWorldContinents"/> rather than used directly.
+    /// </summary>
     private static readonly string[] WorldContinents =
-        ["Azeroth", "Kalimdor", "Expansion01", "Northrend"];
+    [
+        "Azeroth", "Kalimdor", "Expansion01", "Northrend",
+        "HawaiiMainLand",    // 870 Pandaria                    - Mists
+        "Deephome",          // 646 Deepholm                    - Cataclysm
+        "LostIsles",         // 648 The Lost Isles + Kezan      - Cataclysm (goblin start)
+        "Gilneas2",          // 654 Gilneas                     - Cataclysm (worgen start)
+        "MaelstromZone",     // 730 The Maelstrom               - Cataclysm
+        "NewRaceStartZone",  // 860 The Wandering Isle          - Mists (pandaren start)
+    ];
+
+    /// <summary>
+    /// The subset of <see cref="WorldContinents"/> the loaded client actually
+    /// has. Without this an "all" bake throws on the first continent the client
+    /// does not know - Pandaria on anything pre-Mists, and equally Northrend on a
+    /// vanilla client.
+    /// </summary>
+    private static List<string> KnownWorldContinents()
+    {
+        List<string> known = new(WorldContinents.Length);
+
+        foreach (string name in WorldContinents)
+        {
+            if (ContinentDB.NameToId.ContainsKey(name))
+                known.Add(name);
+        }
+
+        return known;
+    }
 
     /// <summary>
     /// Bakes, per continent, from the game files: the standalone area-id grid
@@ -957,7 +1202,7 @@ public sealed class PPatherService : IDisposable
     public bool BuildAreaGrid(string? continent)
     {
         List<string> continents = continent is null
-            ? [.. WorldContinents]
+            ? KnownWorldContinents()
             : [continent];
 
         foreach (string name in continents)
@@ -969,6 +1214,17 @@ public sealed class PPatherService : IDisposable
             }
 
             Initialise(mapId);
+
+            if (search == null)
+            {
+                // Area data comes from ADT area ids, not from the navmesh, so
+                // there is nothing to extract without the client archives.
+                logger.LogWarning(
+                    "Area data bake skipped for {Continent}: no game archives in {MPQ}.",
+                    name, dataConfig.MPQ);
+                continue;
+            }
+
             (AreaGrid grid, SubZoneArea[] subZones) = search.BuildAreaData();
 
             string gridPath = System.IO.Path.Combine(dataConfig.AreaGrid, name + ".grid");

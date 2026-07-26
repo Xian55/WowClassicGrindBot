@@ -101,6 +101,27 @@ public sealed class Startup
         services.Configure<SplineFollowerOptions>(configuration.GetSection(SplineFollowerOptions.Position));
 
         services.AddSingleton<PPatherService>();
+
+        // Opt-in AnTCP listener speaking AmeisenNavigation's binary protocol, so a bot
+        // configured for RemoteV3 can point at this server and get routes from this
+        // project's navmesh instead of running the external AmeisenNavigation binary.
+        // Off by default: it opens a socket, which a plain HTTP install should not.
+        if (bool.TryParse(configuration["Pathing:AnTcp:Enabled"], out bool anTcpEnabled) && anTcpEnabled)
+        {
+            string anTcpIp = configuration["Pathing:AnTcp:Ip"] ?? "127.0.0.1";
+            int anTcpPort = int.TryParse(configuration["Pathing:AnTcp:Port"], out int p)
+                ? p
+                : 47110;   // AmeisenNavigation's default, so existing hostv3/portv3 config just works
+
+            services.AddSingleton<Microsoft.Extensions.Hosting.IHostedService>(sp =>
+                new PathingAPI.AnTcp.AnTcpPathServer(
+                    sp.GetRequiredService<ILogger<PathingAPI.AnTcp.AnTcpPathServer>>(),
+                    sp.GetRequiredService<PPatherService>(),
+                    anTcpIp, anTcpPort));
+
+            Log.Information("AnTCP path server enabled on {Ip}:{Port}", anTcpIp, anTcpPort);
+        }
+
         services.AddSingleton<FactionTemplateDB>();
         services.AddSingleton<CreatureDB>();
         services.AddSingleton<AreaDB>();

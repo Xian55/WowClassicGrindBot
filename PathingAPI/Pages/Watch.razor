@@ -378,9 +378,34 @@
         thread.Start();
     }
 
+    /// <summary>
+    /// Reported once per page so a disk-only install does not spam the log every frame.
+    /// </summary>
+    private bool loggedNoGeometry;
+
     private async Task DrawGeometry(CancellationToken token)
     {
         if (!BabylonJs) { return; }
+
+        // No triangle world = a disk-only install: navmesh tiles were downloaded (or
+        // baked elsewhere) and there are no game archives to build a mesh from. Every
+        // path below needs that geometry - GetChunkAt would throw and each queued chunk
+        // would surface as an error toast - so stop here rather than at the bottom. The
+        // navmesh tile overlay is unaffected: DrawNavmeshTiles reads the baked tiles.
+        if (pPatherService.TriangleWorld == null)
+        {
+            chunkEventArgs.Clear();
+
+            if (!loggedNoGeometry)
+            {
+                loggedNoGeometry = true;
+                await SendLog(
+                    "3D geometry is unavailable: no game archives for this continent " +
+                    "(disk-only navmesh). Routes and navmesh tiles still render.", token);
+            }
+
+            return;
+        }
 
         while (CurrentGeometryMode != GeometryMode.Off &&
             !token.IsCancellationRequested &&
@@ -457,6 +482,14 @@
 
     private /*async*/ void OnChunkAdded(ChunkEventArgs e)
     {
+        // Only the Babylon view consumes these. The Leaflet page hosts this component
+        // with BabylonJs="false", where DrawGeometry returns before draining, so
+        // enqueueing there grows the queue for the lifetime of the page.
+        if (!BabylonJs || CurrentGeometryMode == GeometryMode.Off)
+        {
+            return;
+        }
+
         chunkEventArgs.Enqueue(e);
         //_ = DequeueChunkEvent(e);
     }

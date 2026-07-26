@@ -37,14 +37,25 @@ Existing `.editorconfig` defines style rules. Key conventions:
 - Prefer braces for control statements
 
 ## Project Structure
-- `BlazorServer/` - Main web application entry point
-- `Core/` - Core business logic
-- `Game/` - Game interaction layer
-- `Frontend/` - Blazor UI components
-- `PPather/` - Pathfinding implementation
-- `Benchmarks/` - BenchmarkDotNet performance tests
-- `SharedLib/` - Shared utilities
-- `WinAPI/` - Windows API interop
+Directories marked ✎ have their own `CLAUDE.md` with the gotchas that live there - read it
+before working in one.
+
+- `BlazorServer/` ✎ - Main entry point: bot + web UI on :5000
+- `HeadlessServer/` ✎ - Same bot, CLI only; benchmarks chdir here
+- `Core/` ✎ - Core business logic (GOAP, goals, requirements, input)
+- `Game/` ✎ - WoW process, input (stateful - read before touching), screen contracts
+- `Frontend/` ✎ - Blazor UI shared by BlazorServer and PathingAPI
+- `PPather/` ✎ - Pathfinding (DotRecast navmesh + legacy spot A*, MPQ reading)
+- `PathingAPI/` ✎ - Standalone pathing server, bake host, Leaflet map
+- `DataConfig/` ✎ - Every on-disk path; era vs client partitioning
+- `Benchmarks/` ✎ - BenchmarkDotNet + the `--bake-profile` byte-identity gate
+- `CoreTests/` ✎ - Integration test suites
+- `Utilities/` ✎ - Offline data tools (BakeTool, ReadDBC_CSV, ...) - **not in the .sln**
+- `scripts/` ✎ - Data generation and CDN upload/download
+- `Addons/DataToColor/` ✎ - The in-game Lua addon
+- `SharedLib/` ✎ - Shared bottom layer (ClientVersion, startup options, DBC models)
+- `WowheadDB/` ✎ - Zone data model (Area/NPC/Node); field names are the wire format
+- `WinAPI/` ✎ - Win32 interop; the only Windows-only dependency, keep it isolated
 
 ## Dependencies
 Central package management via `Directory.Packages.props`:

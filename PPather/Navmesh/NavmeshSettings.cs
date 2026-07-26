@@ -117,7 +117,8 @@ public sealed class NavmeshSettings
     /// a client that has no geometry for a tile simply never bakes it - the
     /// "this tile is empty" marker is per-session, never written to disk, so it
     /// cannot leak from one client to another. Cataclysm rewrote the old world,
-    /// which is also where the storage changes to CASC, so it starts a new era.
+    /// so it starts a new era, and Mists starts another: its old world is close
+    /// to Cataclysm's but not identical, and it adds Pandaria outright.
     ///
     /// An unrecognised client gets an era of its own: silently handing it
     /// another client's mesh is the one failure that would be hard to notice.

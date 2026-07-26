@@ -49,6 +49,7 @@ internal static class ChunkReader
     public const uint MOVI = 0b_01001101_01001111_01010110_01001001;
     public const uint MOVT = 0b_01001101_01001111_01010110_01010100;
     public const uint MCIN = 0b_01001101_01000011_01001001_01001110;
+    public const uint MCNK = 0b_01001101_01000011_01001110_01001011;
     public const uint MMDX = 0b_01001101_01001101_01000100_01011000;
     public const uint MDDF = 0b_01001101_01000100_01000100_01000110;
     public const uint MCNR = 0b_01001101_01000011_01001110_01010010;

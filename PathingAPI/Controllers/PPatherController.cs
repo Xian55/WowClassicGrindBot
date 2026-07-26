@@ -383,11 +383,16 @@ public sealed class PPatherController : ControllerBase
     /// Returns true to indicate that the server is listening.
     /// </summary>
     /// <returns></returns>
+    /// <summary>
+    /// Whether this server can actually answer route requests, and why. For the navmesh
+    /// engine that means baked tiles for the active era - game archives are optional, so
+    /// the old MPQ-only check reported a failure on every tiles-only or CASC install.
+    /// </summary>
     [HttpGet("SelfTest")]
-    [ProducesResponseType(typeof(bool), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(typeof(PPatherService.SelfTestReport), StatusCodes.Status200OK, "application/json")]
     public JsonResult SelfTest()
     {
-        return new JsonResult(service.MPQSelfTest());
+        return new JsonResult(service.SelfTest(), options);
     }
 
     /// <summary>
@@ -494,11 +499,22 @@ public sealed class PPatherController : ControllerBase
     /// <param name="mapid" example="0">ContientID ["Azeroth=0", "Kalimdor=1", "Outland/Expansion01=530", "Northrend=571"]</param>
     [HttpGet("BakeTile")]
     [ProducesResponseType(typeof(BakeTileResponse), StatusCodes.Status200OK, "application/json")]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     [RateLimit]
-    public JsonResult BakeTile(float x, float y, float mapid)
+    public IActionResult BakeTile(float x, float y, float mapid)
     {
         // Ensures the continent (Search/PathGraph/triangle world) is initialised.
         service.SetLocations(new(x, y, 0, mapid), new(x, y, 0, mapid));
+
+        // Returned directly, not wrapped in a JsonResult: wrapping serialises the
+        // ProblemDetails into a 200 body instead of setting the status code.
+        if (service.TriangleWorld == null)
+        {
+            return Problem(
+                "This continent has no geometry loaded - the client archives are absent or do not " +
+                "contain it. Tile baking needs them; path and height queries do not.",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
 
         NavmeshCoords.GetTileIndex(x, y, out int tileX, out int tileZ);
 

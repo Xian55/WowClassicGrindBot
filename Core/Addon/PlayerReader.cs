@@ -136,6 +136,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
         UnitRace.Troll => PlayerFaction.Horde,
         UnitRace.BloodElf => PlayerFaction.Horde,
         UnitRace.Goblin => PlayerFaction.Horde,
+        UnitRace.PandarenA => PlayerFaction.Alliance,
+        UnitRace.PandarenH => PlayerFaction.Horde,
         _ => throw new ArgumentNullException(nameof(Faction)),
     };
 

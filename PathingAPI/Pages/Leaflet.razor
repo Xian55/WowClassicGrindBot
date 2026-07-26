@@ -6,6 +6,7 @@
 @inject IHubContext<WatchHub> hubContext
 
 @inject PPatherService pPatherService
+@inject DataConfig dataConfig
 
 <Watch PathColour="@pathColour" Name="@name" BabylonJs="false" />
 
@@ -87,7 +88,10 @@
 </style>
 
 @code {
-    [Parameter] public string expansion { get; set; } = "som";
+    // No default era here on purpose: it is overwritten from DataConfig.Exp in
+    // OnAfterRenderAsync. A literal default ("som") is what made a bare
+    // /Leaflet URL misreport the era on every non-vanilla server.
+    [Parameter] public string expansion { get; set; }
     [Parameter] public string continent { get; set; } = "Azeroth";
     [Parameter] public int zoom { get; set; } = 4;
     [Parameter] public float x { get; set; } = 0;
@@ -104,8 +108,28 @@
             // From/To autocomplete. See leaflet-poi.js.
             dotNetRef = DotNetObjectReference.Create(this);
 
+            // The URL's expansion segment is advisory only - the server decides.
+            // Every data source this map reads is resolved server-side from
+            // DataConfig.Exp (set by --exp): /dbc/* is DataConfig.ExpDbc, /tiles
+            // is DataConfig.Leaflet, and the navmesh cache is per era. Honouring a
+            // different value from the URL renders one era's minimap art and
+            // continent list against another era's areas and navmesh - and since
+            // the route segment is optional with a "som" default, /Leaflet on a
+            // cata server silently claimed to be vanilla.
+            string serverExp = dataConfig.Exp;
+
+            if (!string.IsNullOrEmpty(expansion) &&
+                !expansion.Equals(serverExp, StringComparison.OrdinalIgnoreCase))
+            {
+                await jsRuntime.InvokeVoidAsync("log",
+                    $"URL expansion '{expansion}' ignored: this server runs '{serverExp}' " +
+                    $"(--exp). Showing '{serverExp}'.");
+            }
+
+            expansion = serverExp;
+
             await jsRuntime.InvokeVoidAsync("init",
-                expansion ?? "som", continent ?? "Azeroth",
+                expansion, continent ?? "Azeroth",
                 zoom, x, y, true,
                 NpcFlagsExtensions.ToDictionary(),
                 dotNetRef);
