@@ -25,8 +25,35 @@ ReadDBC_CSV [options] [extractors...]
 | `tbc` | 2.5.4.44833 | TBC Classic |
 | `wrath` | 3.4.5.63697 | WotLK Classic |
 | `cata` | 4.4.2.60895 | Cataclysm Classic |
-| `mop` | 5.5.1.63698 | MoP Remix |
+| `mop` | 5.5.4.68806 | MoP Classic |
 | `legacy_cata` | 8.1.0.27826 | Legacy Cataclysm data |
+| `legacy_mop` | 5.5.4.68806 | Legacy MoP data (sourced from MoP Classic) |
+
+### Why the `legacy_*` builds point at a re-release
+
+wago.tools does not carry the original 2010/2012 clients. The addons are written against the
+modern Classic clients and bridge the gap for legacy ones through
+`Addons/DataToColor/Legacy/WorldMapAreaIDToUiMapID.lua`, which maps a legacy client's
+`WorldMapAreaID` onto a modern `UiMapID`. So the generated `worldmaparea.json` has to be keyed
+by **UiMapIDs that agree with that table**, which means sourcing it from a build that has
+`UiMap` at all.
+
+`legacy_mop` uses the MoP Classic build rather than following `legacy_cata`'s 8.1.0: it is the
+same expansion's content, and it verifies clean against the mapping table (261 zone names
+match, 2 cosmetic differences - `Tol Barad`/`Battle for Tol Barad`,
+`Scarlet Monastery`/`Forlorn Cloister`). All Pandaria zones come through on map 870
+(`HawaiiMainLand`) with real bounds. Of the 179 mapped UiMapIDs it does not cover, 176 are
+Warlords-or-later zones a 5.4.8 client cannot reach; the three that predate Warlords are
+`Undercity` (90), `Outland` (101) and `Dire Maul` (234) - the last is missing from
+`legacy_cata` as well.
+
+> **`legacy_cata`'s 8.1.0.27826 no longer regenerates cleanly.** wago.tools now answers `200`
+> with an **empty body** for `Map`, `SpellName` and `ManifestInterfaceData` at that build, and
+> `404`s `TalentTab`, which silently guts the worldmap, spell, icon and talent output. The
+> committed `Json/dbc/legacy_cata/` data predates that. If it ever needs refreshing, switch it
+> to the Cata Classic build (`4.4.2.60895`) and re-check the ids against the mapping table.
+> The downloader now refuses to cache an empty response instead of failing later with
+> `The given key 'ID' was not present in the dictionary`.
 
 ### Extractors
 
