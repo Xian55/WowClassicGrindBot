@@ -315,3 +315,8 @@ PathingAPI/data_config.json
 Json/PathInfo/navmesh/
 # Local-only working files (benchmark reports, scratch) - never committed
 local/
+
+# Locally built StormLib for macOS/Linux (scripts/build-stormlib-unix.sh).
+# Host-specific native binary; the Windows DLLs are committed, these are not.
+PPather/MPQ/libstorm.dylib
+PPather/MPQ/libstorm.so

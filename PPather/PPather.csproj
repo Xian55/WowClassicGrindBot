@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- See DataConfig.csproj for why this overrides the solution-wide
+       net10.0-windows TFM. The bake's only native dependency is StormLib, which
+       StormDll resolves per-OS (libstorm.dylib / .so / StormLib_*.dll). -->
   <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <Nullable>annotations</Nullable>
   </PropertyGroup>
@@ -30,6 +34,21 @@
     </None>
     <None Update="MPQ\StormLib_arm64.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- macOS/Linux StormLib, built locally by scripts/build-stormlib-unix.sh and
+       not committed (it is host-specific). Conditioned on existence so a Windows
+       build, or a checkout that has not built it, is unaffected. StormDll.Resolve
+       probes <output>/MPQ for these names. -->
+  <ItemGroup>
+    <None Include="MPQ\libstorm.dylib" Condition="Exists('MPQ\libstorm.dylib')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>MPQ\libstorm.dylib</Link>
+    </None>
+    <None Include="MPQ\libstorm.so" Condition="Exists('MPQ\libstorm.so')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>MPQ\libstorm.so</Link>
     </None>
   </ItemGroup>
 

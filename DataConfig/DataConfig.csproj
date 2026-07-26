@@ -1,5 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Plain net10.0, overriding the solution-wide net10.0-windows TFM: that TFM
+       exists for the bot's Windows Graphics Capture, which the pathing chain
+       never touches. Keeping this chain OS-neutral is what lets the navmesh be
+       baked/queried on macOS and Linux. A net10.0-windows project can reference
+       a net10.0 one, so the bot is unaffected.
+       See docs/headless-pathing-server-design.md §2 and §12. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
