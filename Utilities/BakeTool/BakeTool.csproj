@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Cross-platform navmesh bake CLI.
+
+    Every other way to drive a bake (Benchmarks, PathingAPI, CoreTests) is
+    net10.0-windows, so none of them can run on macOS or Linux. This is a plain
+    net10.0 console over the same PPatherService.StartBake the API uses, so a
+    spare Apple-silicon or Linux box can be used as a bake host.
+    See docs/headless-pathing-server-design.md §12.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AssemblyName>BakeTool</AssemblyName>
+    <RootNamespace>BakeTool</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\PPather\PPather.csproj" />
+    <ProjectReference Include="..\..\SharedLib\SharedLib.csproj" />
+    <ProjectReference Include="..\..\DataConfig\DataConfig.csproj" />
+  </ItemGroup>
+
+  <!-- Only what Central Package Management already declares; a console logger
+       provider is not worth adding to Directory.Packages.props for one tool, so
+       ConsoleLogger below implements ILogger directly. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+</Project>
