@@ -13,5 +13,10 @@ SOUNDKIT = {
     IG_SPELLBOOK_CLOSE        = "igSpellBookClose",
     IG_BACKPACK_OPEN          = "igBackPackOpen",
     IG_BACKPACK_CLOSE         = "igBackPackClose",
-    -- add any other ones BindPad uses here
+
+    -- BindPad references these two and they were missing, so PlaySound received nil:
+    -- BindPad.lua:607 (GS_TITLE_OPTION_OK), :963 and :1491 (IG_ABILITY_ICON_DROP).
+    -- Keep this list in step with `grep -ohE "SOUNDKIT\.[A-Z_]+" Addons/BindPad/*.lua`.
+    GS_TITLE_OPTION_OK        = "gsTitleOptionOK",
+    IG_ABILITY_ICON_DROP      = "igAbilityIconDrop",
 }
