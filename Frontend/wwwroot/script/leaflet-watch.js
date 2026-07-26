@@ -42,6 +42,169 @@ const Configs = {
             }
         }
     },
+    // Cataclysm re-terraformed the old world and added zones, so the cata era
+    // has its own art with a different extent/offset than precata - Azeroth is
+    // 839 minimap blocks here against precata's 687.
+    // Generate with: LEAFLET_ERA=cata WOW_MPQ=<cata client>\Data
+    //                python scripts/extract-minimap.py
+    'cata': {
+        'Azeroth': {
+            resX: 14848,
+            resY: 21504,
+            maxZoom: 6,
+            MapID: 0,
+            offset: {
+                min: { x: 20, y: 17 },
+            }
+        },
+        'Kalimdor': {
+            resX: 29184,
+            resY: 28672,
+            maxZoom: 6,
+            MapID: 1,
+            offset: {
+                min: { x: 0, y: 0 },
+            }
+        },
+        // Standalone maps Cataclysm added. They are not zones of Azeroth/Kalimdor -
+        // each has its own MapID - which is why they were missing until now.
+        'Deephome': {           // Deepholm
+            resX: 5120,
+            resY: 5120,
+            maxZoom: 6,
+            MapID: 646,
+            offset: {
+                min: { x: 25, y: 26 },
+            }
+        },
+        'LostIsles': {          // The Lost Isles + Kezan (goblin start)
+            resX: 5120,
+            resY: 14336,
+            maxZoom: 6,
+            MapID: 648,
+            offset: {
+                min: { x: 24, y: 23 },
+            }
+        },
+        'Gilneas2': {           // Gilneas (worgen start)
+            resX: 4608,
+            resY: 3584,
+            maxZoom: 6,
+            MapID: 654,
+            offset: {
+                min: { x: 31, y: 24 },
+            }
+        },
+        'MaelstromZone': {      // The Maelstrom
+            resX: 2560,
+            resY: 2560,
+            maxZoom: 6,
+            MapID: 730,
+            offset: {
+                min: { x: 28, y: 28 },
+            }
+        }
+        // Expansion01 and Northrend are intentionally absent: their art is
+        // inherited from precata via TILE_SHARED_CONTINENTS below.
+    },
+    // Mists has its own era (see clientEra). HawaiiMainLand is Pandaria, which
+    // exists only here - no earlier era has art for it.
+    // Generated with:
+    //   LEAFLET_ERA=mop WOW_MPQ=<mop client>\Data python scripts/extract-minimap.py
+    'mop': {
+        'Azeroth': {
+            resX: 14848,
+            resY: 21504,
+            maxZoom: 6,
+            MapID: 0,
+            offset: {
+                min: { x: 20, y: 17 },
+            }
+        },
+        'Kalimdor': {
+            resX: 29184,
+            resY: 28672,
+            maxZoom: 6,
+            MapID: 1,
+            offset: {
+                min: { x: 0, y: 0 },
+            }
+        },
+        'Expansion01': {
+            resX: 25088,
+            resY: 19968,
+            maxZoom: 6,
+            MapID: 530,
+            offset: {
+                min: { x: 6, y: 12 },
+            }
+        },
+        'Northrend': {
+            resX: 19968,
+            resY: 14848,
+            maxZoom: 6,
+            MapID: 571,
+            offset: {
+                min: { x: 9, y: 11 },
+            }
+        },
+        'HawaiiMainLand': {
+            resX: 15360,
+            resY: 12288,
+            maxZoom: 6,
+            MapID: 870,
+            offset: {
+                min: { x: 18, y: 16 },
+            }
+        },
+        // Carried over from Cataclysm - Mists ships the same art for these, so the
+        // values match the cata block above.
+        'Deephome': {           // Deepholm
+            resX: 5120,
+            resY: 5120,
+            maxZoom: 6,
+            MapID: 646,
+            offset: {
+                min: { x: 25, y: 26 },
+            }
+        },
+        'LostIsles': {          // The Lost Isles + Kezan (goblin start)
+            resX: 5120,
+            resY: 14336,
+            maxZoom: 6,
+            MapID: 648,
+            offset: {
+                min: { x: 24, y: 23 },
+            }
+        },
+        'Gilneas2': {           // Gilneas (worgen start)
+            resX: 4608,
+            resY: 3584,
+            maxZoom: 6,
+            MapID: 654,
+            offset: {
+                min: { x: 31, y: 24 },
+            }
+        },
+        'MaelstromZone': {      // The Maelstrom
+            resX: 2560,
+            resY: 2560,
+            maxZoom: 6,
+            MapID: 730,
+            offset: {
+                min: { x: 28, y: 28 },
+            }
+        },
+        'NewRaceStartZone': {   // The Wandering Isle (pandaren start) - Mists only
+            resX: 5120,
+            resY: 5120,
+            maxZoom: 6,
+            MapID: 860,
+            offset: {
+                min: { x: 26, y: 20 },
+            }
+        }
+    },
 };
 
 // Mirrors DataConfig.ClientEra: which tile/config era a client uses.
@@ -49,12 +212,46 @@ function clientEra(expansion) {
     switch ((expansion || '').toLowerCase()) {
         case 'vanilla': case 'classic': case 'som':
         case 'tbc': case 'bcc': case 'wrath': case 'wotlk':
+        case 'legacy_vanilla': case 'legacy_tbc': case 'legacy_wrath':
             return 'precata';
-        case 'cata': case 'mop':
+        case 'cata': case 'legacy_cata':
             return 'cata';
+        // Mists is its own era, not Cataclysm's: the two worlds are close but
+        // not equal, and Mists adds Pandaria, which Cataclysm has no art for.
+        case 'mop': case 'legacy_mop':
+            return 'mop';
         default:
             return (expansion || '').toLowerCase();
     }
+}
+
+// Mirrors DataConfig.TileSharedContinents / TileEra: Cataclysm rebuilt the old
+// world but left Northrend and Outland essentially alone, so those two keep
+// reading the precata tiles instead of duplicating ~1950 minimap blocks. Tiles
+// only - the navmesh is always baked per era, because the near-identical art
+// hides real geometry drift (see the C# doc comment).
+const TILE_SHARED_CONTINENTS = ['Northrend', 'Expansion01'];
+
+function tileEra(expansion, continent) {
+    const era = clientEra(expansion);
+    return era === 'cata' && TILE_SHARED_CONTINENTS.includes(continent) ? 'precata' : era;
+}
+
+// The continent's tile config, following the shared-art fallback above.
+function continentConfig(expansion, continent) {
+    const cfgs = Configs[tileEra(expansion, continent)];
+    return cfgs ? cfgs[continent] : undefined;
+}
+
+// Every continent this client can show, including the ones it inherits.
+function eraContinents(expansion) {
+    const names = Object.keys(Configs[clientEra(expansion)] || {});
+    for (const c of TILE_SHARED_CONTINENTS) {
+        if (!names.includes(c) && continentConfig(expansion, c)) {
+            names.push(c);
+        }
+    }
+    return names;
 }
 
 const aSize = 32;
@@ -151,11 +348,18 @@ var baseUrl = "https://www.wowhead.com/classic";
 // CDN. Decided once per continent by probing a known low-zoom tile, so a remote
 // user does not 404 on every tile. `leafletTilesLocal=0` in localStorage forces
 // the CDN even when local tiles exist.
-const R2_TILE_BASE = 'https://bot.tortoiseclothing.org/precata';
+const R2_TILE_ROOT = 'https://bot.tortoiseclothing.org';
+
+// The CDN is laid out per era, the same as the local /tiles route, so the base
+// has to follow the era this continent's tiles actually come from - which for
+// Northrend/Outland on a cata client is still precata.
+function r2TileBase(c) {
+    return R2_TILE_ROOT + '/' + tileEra(expansion, c);
+}
 
 async function resolveTileBase(c) {
     if (localStorage.getItem('leafletTilesLocal') === '0') {
-        return R2_TILE_BASE;
+        return r2TileBase(c);
     }
 
     // If any of these local tiles is present the full set was downloaded. The
@@ -169,7 +373,7 @@ async function resolveTileBase(c) {
         } catch { /* fall through to CDN */ }
     }
 
-    return R2_TILE_BASE;
+    return r2TileBase(c);
 }
 
 var config;
@@ -596,10 +800,9 @@ async function init(e, c, z, x, y, urlEdit, flags, dotNetRef) {
     expansion = e;
     enableUrlEdit = urlEdit;
 
-    // Supported when the client's era has a config for this continent
-    // (precata: Azeroth/Kalimdor/Expansion01/Northrend). Cata+ not yet.
-    const era = clientEra(expansion);
-    if (!Configs[era] || !Configs[era][c]) {
+    // Supported when the client's era has a config for this continent, either
+    // its own or one inherited via the shared-art fallback (Northrend/Outland).
+    if (!continentConfig(expansion, c)) {
         return;
     }
 
@@ -608,7 +811,7 @@ async function init(e, c, z, x, y, urlEdit, flags, dotNetRef) {
     continent = c;
     startZoom = z;
 
-    config = Configs[era][continent];
+    config = continentConfig(expansion, continent);
 
     maxSize = Math.max(config.resX, config.resY);
     const multi = 17066.66666666667 / maxSize;
@@ -700,22 +903,40 @@ async function init(e, c, z, x, y, urlEdit, flags, dotNetRef) {
         noWrap: true
     }).addTo(LeafletMap);
 
-    WMADB = await getDBC("WorldMapArea");
-    WMADB = WMADB.sort((a, b) => a.AreaID - b.AreaID);
+    const wmaRaw = await getDBC("WorldMapArea");
+
+    // areaId -> name + parent, built from the FULL response before the
+    // per-continent filter below. WorldMapArea already carries subzone rows
+    // (name, ParentAreaId and bounds, extended from the baked area grids by
+    // ReadDBC_CSV's worldmap extractor), so it answers what AreaTable.json used
+    // to and there is no reason to fetch a second file for the same data.
+    AreaTableById = {};
+    let subZoneRows = 0;
+    if (Array.isArray(wmaRaw)) {
+        for (const a of wmaRaw) {
+            if (!a.AreaID) continue;          // continent/instance maps carry no areaId
+            AreaTableById[a.AreaID] = a;
+            if (!a.UIMapId) subZoneRows++;    // no UI map of its own => a subzone row
+        }
+    }
+
+    // An era whose worldmaparea was generated before the subzone extension (or
+    // without Json/subzones/<exp> present) has UI-map rows only, and then the
+    // parent walk has nothing to climb. Fall back to AreaTable.json for those
+    // rather than silently losing every subzone label.
+    if (subZoneRows === 0) {
+        const areaTableRaw = await getDBC("AreaTable");
+        if (Array.isArray(areaTableRaw)) {
+            for (const a of areaTableRaw) {
+                AreaTableById[a.AreaID] = a;
+            }
+        }
+    }
+
+    WMADB = wmaRaw.sort((a, b) => a.AreaID - b.AreaID);
     WMADB = filterContientsAndInvalid(WMADB, config.MapID);
     Zones = createZoneLookup(WMADB);
     SubZones = createSubZoneLookup(WMADB);
-
-    // Full AreaTable (all continents) so subzone areaIds with no WorldMapArea
-    // row can be named and walked up to their parent zone. Optional - if the
-    // file is absent the map falls back to spatial zone resolution.
-    const areaTableRaw = await getDBC("AreaTable");
-    AreaTableById = {};
-    if (Array.isArray(areaTableRaw)) {
-        for (const a of areaTableRaw) {
-            AreaTableById[a.AreaID] = a;
-        }
-    }
 
     let creaturesFile = await getDBC("creatures");
     creatures = createCreaturesLookup(creaturesFile);
@@ -1770,8 +1991,10 @@ function worldToPercentage(p, areaId) {
             bestParentArea = Zones[wmaSub.ParentAreaId];
         }
         else {
-            // Walk the AreaTable parent chain up to a WorldMapArea zone. This is
-            // what resolves TBC/WotLK terrain subzones (e.g. 4254 -> Borean).
+            // Walk the areaId parent chain up to a zone that has its own map.
+            // This is what resolves TBC/WotLK terrain subzones (e.g. 4254 ->
+            // Borean). Source is AreaTableById, itself built from the subzone
+            // rows in WorldMapArea.
             let cur = areaId, guard = 0;
             while (cur && guard++ < 32) {
                 if (Zones[cur] != null) {
@@ -1797,7 +2020,7 @@ function worldToPercentage(p, areaId) {
         return { p: new L.Point(0, 0), name: "not found", subZoneName: '' };
     }
 
-    // Subzone label: prefer the fine AreaTable name for the clicked areaId,
+    // Subzone label: prefer the fine-grained name for the clicked areaId,
     // then any WMA subzone, else the zone itself.
     const leaf = AreaTableById[areaId];
     const bestSubZone = leaf != null
@@ -2189,7 +2412,16 @@ async function addNpcSpawns(npcId, groupName = 'Spawn', iconName = 'red') {
     const spawns = spawnLocations[npcId];
     if (!spawns) return;
 
+    // A spawn can outlive its creature entry: the two files are generated separately,
+    // so an npcspawnlocations built from a newer dump than creatures.json references
+    // ids that are simply absent. Unguarded, that threw out of the whole layer and the
+    // zone rendered nothing - which reads as "the area json is broken" when it is not.
     const creature = creatures[npcId];
+    if (!creature) {
+        console.warn(`addNpcSpawns: no creature entry for ${npcId} - regenerate creatures.json`);
+        return;
+    }
+
     const npcName = creature.Name || npcId;
     const toggleControlName = `${npcName} - ${npcId} (${spawns.length})`;
     //var groupLayer = addGroupLayer(groupName, toggleControlName);
@@ -2953,7 +3185,7 @@ function createSidebar() {
                 continentLabel.textContent = 'Continent:';
                 const continentSelect = L.DomUtil.create('select', '', continentRow);
                 const continentNames = { 'Expansion01': 'Outland' };
-                for (const key of Object.keys(Configs[clientEra(expansion)] || {})) {
+                for (const key of eraContinents(expansion)) {
                     const opt = L.DomUtil.create('option', '', continentSelect);
                     opt.value = key;
                     opt.textContent = continentNames[key] || key;
