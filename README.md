@@ -9,7 +9,7 @@
 The project current goal is to support the following client versions
 
 Legacy
-* 4.3.4 Cataclysm (2011) Work in progress - [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [704](https://github.com/Xian55/WowClassicGrindBot/issues/704)
+* 4.3.4 Cataclysm (2011) Work in progress - navmesh pathfinding **supported** (MPQ-based, see [Pathfinders](#pathfinders)) - [704](https://github.com/Xian55/WowClassicGrindBot/issues/704)
 
 Classic (Since 2019)
 * 1.13.x Vanilla Classic
@@ -56,7 +56,13 @@ For experienced users, here's the minimal setup:
    git clone --recurse-submodules https://github.com/Xian55/WowClassicGrindBot.git
    ```
    Already cloned without it? Run `git submodule update --init --recursive`.
-3. **MPQ Files**: Download [MPQ files](#using-v1-localremote-pathing) and place in `Json\MPQ\`
+3. **Navigation data**: download the pre-baked navmesh for your client's era - no WoW
+   client or MPQ files needed (see [Pathfinders](#setting-up-navigation--the-short-version)):
+   ```powershell
+   .\scripts\download-navmesh.ps1 -Era precata   # precata | cata | mop
+   ```
+   Only needed if you intend to **bake** tiles yourself or run `SpotAStar`:
+   [MPQ files](#using-v1-localremote-pathing) in `Json\MPQ\`.
 4. **Build**: Run `BlazorServer\build.bat` or open solution in Visual Studio
 5. **Configure**: Start WoW, run `BlazorServer\run.bat`, configure addon in browser
 6. **Play**: Load a class profile, press Start
@@ -168,12 +174,12 @@ The host and pathfinder are independently composable — pick one from each colu
 
 | Host | Pathfinder | Notes |
 |------|-----------|-------|
-| **BlazorServer** | Navmesh (in-process) | **Recommended** - DotRecast navmesh, no external services (Vanilla-Wrath) |
+| **BlazorServer** | Navmesh (in-process) | **Recommended** - DotRecast navmesh, no external services, every client |
 | **BlazorServer** | PathingAPI (out-of-process) | Offloads pathfinding to a dedicated service |
-| **BlazorServer** | AmeisenNavigation (external) | Required for Cataclysm+ (CASC) |
+| **BlazorServer** | AmeisenNavigation (external) | Legacy; superseded by the in-process navmesh |
 | **HeadlessServer** | Navmesh (in-process) | **Recommended** - fully headless, single process |
 | **HeadlessServer** | PathingAPI (out-of-process) | Headless with remote pathfinding |
-| **HeadlessServer** | AmeisenNavigation (external) | Headless, required for Cataclysm+ |
+| **HeadlessServer** | AmeisenNavigation (external) | Legacy; superseded by the in-process navmesh |
 
 **Multi-instance support** — Using Windows Graphics Capture (WGC), each instance captures a specific window rather than the entire desktop. This allows running multiple bot instances on a single machine, each attached to a different game client, with no additional configuration needed.
 
@@ -323,30 +329,131 @@ The BlazorServer frontend provides deep runtime observability beyond basic UI co
 
 Pathfinding allows the bot to navigate the game world - walking around obstacles, across terrain, and to your defined routes.
 
+### Setting up navigation — the short version
+
+**For every supported client there is one answer: the built-in navmesh engine, with
+tiles downloaded from the CDN.** It is already the default, so setup is a single
+command:
+
+```powershell
+.\scripts\download-navmesh.ps1 -Era precata     # use your client's era from the table
+```
+
+**You do not need the WoW client, `Json\MPQ`, or any external service to navigate.**
+The engine answers from the downloaded tiles alone.
+
+| Your client | Era | What to run | Engine |
+|---|---|---|---|
+| Vanilla / SoM 1.13–1.15 | `precata` | `download-navmesh.ps1 -Era precata` | Navmesh (default) |
+| TBC 2.5.x | `precata` | `download-navmesh.ps1 -Era precata` | Navmesh (default) |
+| Wrath 3.3.5 | `precata` | `download-navmesh.ps1 -Era precata` | Navmesh (default) |
+| Cataclysm **4.3.4** | `cata` | `download-navmesh.ps1 -Era cata` | Navmesh (default) |
+| Cataclysm **Classic 4.4.x** | `cata` | `download-navmesh.ps1 -Era cata` | Navmesh (default) |
+| Mists **5.4.8** | `mop` | `download-navmesh.ps1 -Era mop` | Navmesh (default) |
+| MoP **Classic 5.5.x** | `mop` | `download-navmesh.ps1 -Era mop` | Navmesh (default) |
+
+**The CASC re-releases are included.** `DataConfig.ClientEra` folds `cata`/`legacy_cata`
+into the `cata` era and `mop`/`legacy_mop` into `mop`, so a mesh baked from the original
+4.3.4 / 5.4.8 MPQ client **is** the artifact Cataclysm Classic and MoP Classic consume —
+it is the same world. CASC only blocks *reading game files*, which downloaded tiles make
+unnecessary. Verified with a `cata` install holding zero game files: Elwynn→Stormwind 410
+points, Ratchet→Crossroads 569, the log reporting `disk-only, no game files`.
+
+Each era bundle is **self-contained**: `-Era cata` includes all four continents,
+`-Era mop` all five. Unlike the minimap art, navmesh tiles are **never** shared
+between eras — a stale mesh would route the bot through walls that exist in your
+world, so you download exactly one era and that is all you need.
+
+You only need the game archives in `Json\MPQ` if you want to **bake tiles yourself**
+(a custom agent config, or an era with no published bundle) or run the legacy
+`Pathing:Engine=SpotAStar` — and on a CASC client the MPQ reader cannot supply those, so
+use pre-baked tiles or bake from the matching original MPQ client. Details below.
+
+### Running multiple bots
+
+**Give every instance its own in-process navmesh engine** - the default. Point each
+BlazorServer / HeadlessServer at the same downloaded tiles (a shared `data_config.json`
+`Root` is fine, the tile cache is read-only) and run them independently. No pathing
+server, no MPQ, nothing shared at runtime.
+
+**Do not point several bots at one `PathingAPI` (V1 Remote).** It serves one search at
+a time: the `RateLimit` filter answers a concurrent request with **HTTP 429**, which the
+V1 client turns into an empty route - indistinguishable from "no path exists", so the
+second bot silently fails to navigate. Measured with two simultaneous `WorldRoute`
+calls: one 200 in 555 ms, the other 429 in 8 ms. V1 Remote is meant for a single client
+plus the route visualiser, not as a shared service.
+
+That limit dates from the `SpotAStar` era, when a search cost seconds and serialising
+made sense; a warm navmesh query is 1-8 ms. Serving N bots from one process is worth
+doing and the per-continent pathfinder cache is already in place, but it needs the
+search made re-entrant first (today it is `SetLocations` then `DoSearch` on singleton
+state, and switching continent disposes the engine). **Until then, one navmesh per bot
+is the supported setup.**
+
+Cost of running them separately is small: with disk-only pathing there is **no ADT
+geometry in memory at all**, just the navmesh tile cache - tiles average ~16 KB and only
+the tens-to-hundreds around the active route stay resident.
+
 ### Navmesh engine (default, recommended)
 
 The bot ships an in-process **[DotRecast](https://github.com/Xian55/DotRecast) navmesh** engine, now the default (`Pathing:Engine=Navmesh`). It runs from small **pre-baked navmesh tiles** and produces smooth, high-quality routes - the basis for the WASD spline follower. Versus the older backends it needs **no external service** and **no MPQ at query time**; the runtime query is pure managed, cross-platform code, and the tile data is tiny enough to distribute. Tiles are baked once from the game's MPQ files (or downloaded pre-baked).
 
-Recommended for **Vanilla through Wrath**, where it supersedes the legacy in-process grid pathfinder and removes the need for the external navigation service.
+Recommended for **Vanilla through Wrath**, and for the **original 4.3.4 Cataclysm** client, where it supersedes the legacy in-process grid pathfinder and removes the need for the external navigation service.
 
 **Get the tiles — download pre-baked (no client/MPQ needed):**
 ```powershell
 .\scripts\download-navmesh.ps1 -Force
 ```
-Pulls the pre-baked tiles from the CDN into `Json\PathInfo\navmesh\<era>\` (destination honors your `data_config.json` `Root`). Options: `-Continent Northrend`, `-Era precata`. If you run a custom agent config (different settings hash), bake instead (see [navmesh bake skill](.claude/skills/navmesh-bake-upload/SKILL.md)).
+Pulls the pre-baked tiles from the CDN into `Json\PathInfo\navmesh\<era>\` (destination honors your `data_config.json` `Root`). Options: `-Continent Northrend`, `-Era precata` / `-Era cata` / `-Era mop`. If you run a custom agent config (different settings hash), bake instead (see [navmesh bake skill](.claude/skills/navmesh-bake-upload/SKILL.md)).
 
-> **Cataclysm Classic and above** still require **V3 Remote** (below): the navmesh is baked from MPQ, so it does not cover CASC-based clients.
+Downloaded tiles are enough on their own: with no `Json\MPQ\` at all, the navmesh
+engine runs **disk-only** - it answers path and height queries from the baked tiles
+and logs `disk-only, no game files` per continent. This matters most from Cataclysm
+onward, where a client is tens of GB and there is no reason to keep one installed
+just to walk over tiles that are already baked. Two things still need the archives,
+and say so plainly rather than failing obscurely:
+
+* **Baking** tiles (`POST api/PPather/Bake`, `BakeTile`, area-grid extraction) - it reads ADT geometry.
+* **`Pathing:Engine=SpotAStar`** - it walks the triangle world directly and has no tile cache to fall back to.
+
+> Bake settings feed the tile cache directory name, so a disk-only install must be
+> configured the same as whatever baked the tiles or it computes a different hash and
+> sees none of them. Outland is the live example: it only resolves with
+> `Navmesh:Bake:MinWorldZ: { "Expansion01": -700 }`, which is already the shipped default.
+
+Tiles are published per **geometry era**, each complete on its own:
+
+| era | clients | continents | tiles |
+|---|---|---|---|
+| `precata` | Vanilla, TBC, Wrath (`som`/`tbc`/`wrath`, `legacy_*`) | 4 | 51,113 |
+| `cata` | Cataclysm 4.3.4 **and Cata Classic 4.4.x** (`cata`, `legacy_cata`) | 8 | 58,537 |
+| `mop` | Mists 5.4.8 **and MoP Classic 5.5.x** (`mop`, `legacy_mop`) | 10 | 70,363 |
+
+> Cataclysm and Mists ship maps that are **not** zones of the four originals and have
+> their own MapID, so they need their own bake: Deepholm (646), the Lost Isles + Kezan
+> (648), Gilneas (654) and the Maelstrom (730), plus the Wandering Isle (860) on Mists.
+> Vashj'ir, Uldum, Mount Hyjal and Twilight Highlands are *not* among them - those are
+> zones on Azeroth/Kalimdor and come with the main continents.
+
+> The split matters: Cataclysm's Shattering rebuilt Azeroth and Kalimdor, so the eras are
+> genuinely different worlds and never share navmesh tiles. Mists is separate from Cataclysm
+> for the same reason - their old worlds are close but not identical, and Mists adds Pandaria.
+
+> **Cataclysm *Classic* (4.4.x) and MoP Classic (5.5.x) use the same bundles** as their
+> original counterparts, because `ClientEra` maps them to the same era and the world is
+> the same. Those re-releases ship **CASC**, which the MPQ reader cannot open, but that
+> only prevents *baking from your own client* — downloading tiles sidesteps it entirely.
 
 **Which should you use?**
-- **Vanilla-Wrath (most users)**: the default in-process **navmesh** engine - high quality, no external service. Provide navmesh tiles (bake from MPQ, or download pre-baked).
-- **Cataclysm+**: **V3 Remote** (AmeisenNavigation) - the only backend that reads CASC.
-- **Legacy fallbacks**: the MPQ grid engine (`Pathing:Engine=SpotAStar`) and V1 Remote remain available.
+- **Everyone (including the CASC re-releases)**: the default in-process **navmesh** engine - high quality, no external service. Download pre-baked tiles for your era.
+- **Baking your own tiles**: needs an **MPQ** client (Vanilla-Wrath, 4.3.4, 5.4.8). On a CASC client, bake from the matching original client or use the published bundles.
+- **Legacy fallbacks**: the MPQ grid engine (`Pathing:Engine=SpotAStar`) and V1/V3 Remote remain available; V3 (AmeisenNavigation) is no longer required for anything.
 
 ### Legacy / alternative backends
 
 Different backends exist because WoW's map data format changed over time (MPQ to CASC). Outdoors the app can discover an available service in this order:
 
-* **V3 Remote**: Out of process [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord) - external service; **required for Cataclysm+** (CASC). For Vanilla-Wrath it is superseded by the in-process navmesh engine.
+* **V3 Remote**: Out of process [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord) - external service, superseded by the in-process navmesh engine on **every** client including the CASC re-releases. Kept for compatibility; `PathingAPI` can also [answer its protocol directly](#serving-v3-clients-from-pathingapi-antcp) if you want the wire format without the external binary.
 * **V1 Remote**: Out of process [PathingAPI](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PathingAPI) more info [here](#v1-remote-pathing---pathingapi) - MPQ-based; can host either engine.
 * **V1 Local**: In process [PPather](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PPather) - MPQ-based. Its legacy spot-grid A* engine (`Pathing:Engine=SpotAStar`) is superseded by the navmesh engine.
 * World map - Indoors pathfinder only works properly if `PathFilename` exists.
@@ -354,9 +461,42 @@ Different backends exist because WoW's map data format changed over time (MPQ to
 
 ## Supporting Cataclysm Classic and Above Limitations
 
-With Cataclysm (MoP, and above), the navigation will be limited. Only V3 Remote will be supported for now.
+The dividing line is the **archive container**, and it only limits **baking** — not
+pathfinding. StormLib opens **MPQ** but not **CASC**, so a CASC client cannot have tiles
+generated *from itself*. Since tiles are published per era and a downloaded set needs no
+game files at all, that limitation no longer reaches the user.
 
-V1 Local and V1 Remote does not have the capability as of this moment to read the CASC files only works with MPQs.
+| client | container | pathfinding | can bake its own tiles |
+|---|---|---|---|
+| Vanilla … Wrath | MPQ | in-process navmesh (default) | yes |
+| **4.3.4 Cataclysm (2011)** | **MPQ** | in-process navmesh | yes |
+| **5.4.8 MoP (2012)** | **MPQ** | in-process navmesh | yes |
+| Cataclysm Classic 4.4.x | CASC | in-process navmesh, `-Era cata` | no — download, or bake from 4.3.4 |
+| MoP Classic 5.5.x | CASC | in-process navmesh, `-Era mop` | no — download, or bake from 5.4.8 |
+
+The re-releases are the *same world* as their originals, and `DataConfig.ClientEra` maps
+both onto one era, so the bundle baked from 4.3.4 is exactly what Cata Classic loads.
+Verified against a `cata` install with no game files present at all: full routes on
+Azeroth and Kalimdor, the engine logging `disk-only, no game files`.
+
+CASC support (`CascLib`) would still be worth having — it would let a re-release user
+bake a custom agent config from their own install rather than relying on published
+bundles — but it is no longer a prerequisite for navigating.
+
+**5.4.8 MoP is supported end to end.** Its chunk formats match 4.3.4 (same split ADT, MCNK
+header, M2 v272, WMO v17). The client-level differences are handled: it ships a 5.0.x
+`world.MPQ` plus 23 `wow-update-base-*.MPQ` **incremental patch archives** carrying updated
+terrain for **37% of root ADTs**, which the MPQ layer chains through StormLib's patch API,
+and its `holes_high_res` terrain holes are read. Mists is its own geometry era (`mop`), so it
+never shares tiles with Cataclysm.
+
+Data is published: 26,972 leaflet tiles across all ten continents and a 70,363-tile navmesh
+bake (`download-leaflet.ps1 -Era mop`, `download-navmesh.ps1 -Era mop`). The DBC data is
+generated (`ReadDBC_CSV -v legacy_mop`, sourced from MoP Classic so its UiMapIDs line up with
+the addon's legacy `WorldMapAreaID` mapping).
+
+Design notes and the measured format differences are in
+[`docs/mpq-casc-storage-abstraction.md`](docs/mpq-casc-storage-abstraction.md).
 
 ## Features
 
@@ -499,6 +639,15 @@ Put the contents of the repo into a folder, e.g., `C:\WowClassicGrindBot`. I am 
 [**lichking.MPQ**](https://mega.nz/file/vDYWSTrK#fvaiuHpd-FTVsQT4ghGLK6QJLZyA87c1rlBEeu1_Btk) (2.5Gb)
 
 Copy these files under the **\Json\MPQ** folder (e.g., `C:\WowClassicGrindBot\Json\MPQ`)
+
+**Cataclysm 4.3.4 (2011):** no separate download — copy the archives from your own client's
+`Data\` folder (`world.MPQ`, `world2.MPQ`, `art.MPQ`, `expansion1-3.MPQ`, `alternate.MPQ`).
+`Data\enUS\*.MPQ` holds locale data only and is not needed for geometry. Only one client's
+archives may sit in `Json\MPQ` at a time — mixing eras makes ADT lookups resolve against
+whichever archive sorts first.
+
+> Most users can skip the archives entirely and just run `download-navmesh.ps1` — the MPQs
+> are only needed to *bake* tiles or to run the legacy `SpotAStar` engine.
 
 Technical details about **V1:**
 - Precompiled x86, x64 and arm64 [Stormlib](https://github.com/ladislav-zezula/StormLib)
@@ -3425,13 +3574,45 @@ Pathed routes are shown in Green.
 
 ### Leaflet
 
-**Supported:** `som` (1.13–1.15), `tbc` (2.5.x) and `wrath` (3.3.5). All three
-share one tile set because the old world is unchanged pre-Cataclysm.
+**Supported:** every era the bot supports — `precata` (`som` 1.13–1.15, `tbc`
+2.5.x, `wrath` 3.3.5), `cata` (4.3.4) and `mop` (5.4.8). Clients inside one era
+share a tile set, because the world art only changed between them.
 
-Map tiles are generated locally from your client's minimap art rather than
-downloaded. Tiles are stored per **mesh era** (`precata` = vanilla…wotlk) as
-`webp`, so a single run against a Wrath 3.3.5 client produces every continent:
+**Nothing is required to see the map.** With no tiles on disk the page streams them
+straight from the CDN: `resolveTileBase()` in `leaflet-watch.js` probes a few known
+low-zoom tiles on the local `/tiles` route per continent, and falls back to
+`https://bot.tortoiseclothing.org/<era>/<Continent>/...` when they are missing. So
+downloading is an **optimization** - worth it for offline use or to avoid per-tile
+latency - not a prerequisite.
 
+* The fallback is decided **once per continent at map load**, so a CDN that is
+  unreachable at that moment yields a blank map rather than a retry.
+* `localStorage.leafletTilesLocal = '0'` forces the CDN even when local tiles exist
+  (handy for checking what a fresh user sees).
+
+**Download them for offline use:**
+```powershell
+.\scripts\download-leaflet.ps1               # every published era
+.\scripts\download-leaflet.ps1 -Era mop
+```
+Pulls one `<era>-tiles.zip` per era into `<Root>/leaflet/<era>` (destination
+honors your `data_config.json` `Root`). `.bat\download-leaflet.bat` is a
+double-click wrapper. There is no `-Continent` switch: unlike the navmesh, which
+is bundled per continent and settings-hash, leaflet art has no bake parameters,
+so an era is a single object.
+
+| era | clients | tiles | bundle |
+|---|---|---|---|
+| `precata` | `som`, `tbc`, `wrath`, `legacy_*` | 19,562 | 77 MB |
+| `cata` | `cata`, `legacy_cata` | 12,262 | 53 MB |
+| `mop` | `mop`, `legacy_mop` | 26,972 | 101 MB |
+
+> The `cata` bundle holds only Azeroth and Kalimdor. Northrend and Outland are
+> served from `precata` (`DataConfig.TileEra`) because their minimap art is
+> effectively unchanged, so pair `-Era cata` with `-Era precata` for full
+> coverage. `mop` ships all five continents, Pandaria included.
+
+**Or generate them from your own client:**
 ```
 python scripts/extract-minimap.py
 ```
@@ -3439,8 +3620,8 @@ python scripts/extract-minimap.py
 * Requires `pip install Pillow` (decodes BLP, writes webp).
 * Reads the client archives from `Json\MPQ` by default (override with the
   `WOW_MPQ` env var); uses the bundled `PPather\MPQ\StormLib_x64.dll`.
-* Writes `Json\leaflet\precata\<Continent>\z{z}x{x}y{y}.webp` for Azeroth,
-  Kalimdor, Expansion01 (Outland) and Northrend.
+* Writes `Json\leaflet\<era>\<Continent>\z{z}x{x}y{y}.webp`; pick the era with
+  `LEAFLET_ERA` (default `precata`).
 * Prints the `Configs` entry (resX/resY/offset) for each continent, matching
   `Frontend\wwwroot\script\leaflet-watch.js`.
 
@@ -3596,7 +3777,44 @@ The best places to grind are:
 
 # V1 Remote Pathing - PathingAPI
 
-Pathing is built into the bot so you don't need to do anything special except download the MPQ files. You can though run it on its own server to visualise routes as they are created by the bot, or to play with route finding.
+Pathing is built into the bot, so you don't need to do anything special except provide
+navmesh tiles - `download-navmesh.ps1`, no MPQ files required (see
+[Setting up navigation](#setting-up-navigation--the-short-version)). You can though run
+it on its own server to visualise routes as they are created by the bot, or to play with
+route finding.
+
+> **One client at a time.** The `RateLimit` filter answers a concurrent request with
+> HTTP 429, so this is not a shared service for several bots - see
+> [Running multiple bots](#running-multiple-bots).
+
+### Serving V3 clients from PathingAPI (AnTCP)
+
+PathingAPI can also speak **AmeisenNavigation's binary AnTCP protocol**, so a bot
+configured for `RemoteV3` talks to this server and gets routes from this project's
+era-aware navmesh - no AmeisenNavigation binary, no MMAP files, no second process.
+
+Off by default (it opens a socket); enable in `PathingAPI\appsettings.json`:
+
+```json
+"Pathing": { "AnTcp": { "Enabled": true, "Ip": "127.0.0.1", "Port": 47110 } }
+```
+
+Then point the bot at it as usual - `Pathing:Mode=RemoteV3`, `hostv3`/`portv3`. Port
+47110 is AmeisenNavigation's own default, so existing config needs no change.
+
+Only the **PATH** message is implemented, because it is the only one the bot ever
+sends (`RemotePathingAPIV3` hardcodes it; its other traffic is the TCP connect used as
+a ping). Other message types get an explicit empty reply rather than hanging. Unlike
+the HTTP API, concurrent clients **queue** rather than receive 429 - a warm query is
+single-digit milliseconds, so several bots share it comfortably even though the search
+still serializes.
+
+> One deliberate difference from AmeisenNavigation: when the client has no z it sends
+> `area.LocTop / 2`, and `LocTop` is a world **Y** bound rather than a height - for
+> Elwynn that is -3969 against terrain at 82. AmeisenNavigation absorbs it with a very
+> tall poly-search extent; this engine uses tight vertical extents so multi-floor
+> buildings resolve correctly, so the server instead snaps any z further than 128 yd
+> from the walkable surface onto it. A bot that genuinely knows its height keeps it.
 
 The bot will try to calculate a path in the following situations:
 
