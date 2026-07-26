@@ -49,9 +49,27 @@ internal readonly struct MapChunk
         0x8888 & 0x000F, 0x8888 & 0x00F0, 0x8888 & 0x0F00, 0x8888 & 0xF000
     ];
 
+    /// <summary>
+    /// Mists-era 8x8 hole mask, one bit per unit cell (bit index j*8+i), taken
+    /// from the MCNK header when <c>MCNK_FLAG_HIGH_RES_HOLES</c> is set. That
+    /// flag repurposes the header bytes that normally hold ofsHeight/ofsNormal,
+    /// and leaves the legacy 4x4 <see cref="holes"/> field meaningless - so a
+    /// reader that only knows the low-res field floors over real gaps. 0 when
+    /// the chunk uses the legacy field, which is every pre-Mists client.
+    /// </summary>
+    public readonly ulong holesHighRes;
+
     // 0 ..3, 0 ..3
     public bool IsHole(int i, int j)
     {
+        if (holesHighRes != 0)
+        {
+            if ((uint)i > 7 || (uint)j > 7)
+                return false;
+
+            return (holesHighRes & (1UL << ((j << 3) | i))) != 0;
+        }
+
         if (!hasholes)
             return false;
 
@@ -68,7 +86,7 @@ internal readonly struct MapChunk
 
 
     public MapChunk(float xbase, float ybase, float zbase,
-        uint areaID, bool haswater, uint holes, float[] vertices,
+        uint areaID, bool haswater, uint holes, ulong holesHighRes, float[] vertices,
         float water_height1, float water_height2, float[] water_height, byte[] water_flags, bool legacyWater)
     {
         this.xbase = xbase;
@@ -78,6 +96,7 @@ internal readonly struct MapChunk
         this.haswater = haswater;
         this.holes = holes;
         this.hasholes = holes != 0;
+        this.holesHighRes = holesHighRes;
         this.vertices = vertices;
 
         this.water_height1 = water_height1;

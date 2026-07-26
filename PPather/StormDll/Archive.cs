@@ -22,39 +22,60 @@ internal sealed class Archive
         if (!open)
             return;
 
-        using MpqFileStream mpq = GetStream("(listfile)".AsSpan());
-        int length = (int)mpq.Length;
-
         // MPQ paths are ASCII; Ordinal avoids ICU-backed hashing on every lookup.
         HashSet<string> fileList = new(StringComparer.OrdinalIgnoreCase);
 
-        if (length <= MpqFileStream.MaxStackLimit)
+        // A stub archive can carry an empty or missing (listfile) - Cataclysm
+        // ships a 1 KB OldWorld.MPQ placeholder like this. That is not a failure:
+        // the archive simply contributes no files, and ArchiveSet drops it. Only
+        // an archive that opens AND lists something is worth searching.
+        try
         {
-            Span<byte> stackBytes = stackalloc byte[length];
-            mpq.Read(stackBytes);
-            ParseFileLines(stackBytes, fileList);
-        }
-        else
-        {
-            var pooler = ArrayPool<byte>.Shared;
-            byte[] array = pooler.Rent(length);
-            try
-            {
-                Span<byte> spanBytes = array.AsSpan(0, length);
-                mpq.Read(spanBytes);
-                ParseFileLines(spanBytes, fileList);
-            }
-            finally
-            {
-                pooler.Return(array);
-            }
-        }
+            using MpqFileStream mpq = GetStream("(listfile)".AsSpan());
+            int length = (int)mpq.Length;
 
-        if (fileList.Count == 0)
-            throw new InvalidOperationException($"{nameof(fileList)} contains no elements!");
+            if (length <= MpqFileStream.MaxStackLimit)
+            {
+                Span<byte> stackBytes = stackalloc byte[length];
+                mpq.Read(stackBytes);
+                ParseFileLines(stackBytes, fileList);
+            }
+            else
+            {
+                var pooler = ArrayPool<byte>.Shared;
+                byte[] array = pooler.Rent(length);
+                try
+                {
+                    Span<byte> spanBytes = array.AsSpan(0, length);
+                    mpq.Read(spanBytes);
+                    ParseFileLines(spanBytes, fileList);
+                }
+                finally
+                {
+                    pooler.Return(array);
+                }
+            }
+        }
+        catch (IOException)
+        {
+            // No (listfile) at all - same as an empty one.
+        }
 
         this.fileList = fileList.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
+
+    /// <summary>Number of files this archive lists; 0 means it holds nothing searchable.</summary>
+    public int FileCount => fileList.Count;
+
+    /// <summary>The names this archive lists, for overlap tests against patch archives.</summary>
+    public FrozenSet<string> Files => fileList;
+
+    /// <summary>
+    /// Chains a patch archive onto this one, so reads through this handle return
+    /// the patched content. Patches must be attached in ascending build order.
+    /// </summary>
+    public bool AttachPatch(string patchFile) =>
+        StormDll.SFileOpenPatchArchive(handle, patchFile, nint.Zero, 0);
 
     public static void ParseFileLines(ReadOnlySpan<byte> data, HashSet<string> fileList)
     {
@@ -76,9 +97,6 @@ internal sealed class Archive
 
             start += end + 1;
         }
-
-        if (fileList.Count == 0)
-            throw new InvalidOperationException("File contains no lines.");
     }
 
 
