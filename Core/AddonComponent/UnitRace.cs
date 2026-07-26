@@ -14,5 +14,9 @@ public enum UnitRace
     Goblin,
     BloodElf,
     Draenei,
-    Worgen = 22
+    Worgen = 22,
+    Gilnean = 23,
+    Pandaren = 24,
+    PandarenA = 25,
+    PandarenH = 26
 }
