@@ -111,7 +111,9 @@ public sealed class Startup
             string anTcpIp = configuration["Pathing:AnTcp:Ip"] ?? "127.0.0.1";
             int anTcpPort = int.TryParse(configuration["Pathing:AnTcp:Port"], out int p)
                 ? p
-                : 47110;   // AmeisenNavigation's default, so existing hostv3/portv3 config just works
+                : 47111;   // matches the bot's shipped Pathing:portv3, so enabling AnTcp is
+                           // the only step. AmeisenNavigation's own default is 47110 - point
+                           // hostv3/portv3 at that if you are replacing an existing install.
 
             services.AddSingleton<Microsoft.Extensions.Hosting.IHostedService>(sp =>
                 new PathingAPI.AnTcp.AnTcpPathServer(

@@ -70,8 +70,18 @@ Speaks AmeisenNavigation's protocol so a `RemoteV3`-configured bot can use this 
 instead of the external binary. Enable in `appsettings.json`:
 
 ```json
-"Pathing": { "AnTcp": { "Enabled": true, "Ip": "127.0.0.1", "Port": 47110 } }
+"Pathing": { "AnTcp": { "Enabled": true, "Ip": "127.0.0.1", "Port": 47111 } }
 ```
+
+**Port 47111 is deliberate — it matches the bot's shipped `portv3`** so enabling the
+listener is the only step. It used to default to 47110 (AmeisenNavigation's default),
+which meant the two shipped configs never connected out of the box. Changed 2026-07-27;
+if you are pointing at a real AmeisenNavigation install instead, that one still uses
+47110.
+
+**A port mismatch fails silently.** `PingServer` fails, `GetPather` falls through to
+`RemoteV1`/`Local`, and the bot walks perfectly well — so "the remote server is being
+ignored" is the symptom, not an error. Check the `Using {Type}` log line.
 
 Wire format, little-endian:
 
