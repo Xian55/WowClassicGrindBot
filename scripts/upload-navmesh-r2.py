@@ -26,6 +26,7 @@ import os, sys, json, argparse, zipfile, tempfile
 try:
     import boto3
     from botocore.config import Config
+    from botocore.exceptions import ClientError
 except ImportError:
     sys.exit("boto3 required: pip install boto3")
 
@@ -86,11 +87,47 @@ def find_bundles(continent, era):
     return out
 
 
+def fetch_index(client, bucket, key):
+    """The index describes EVERY bundle in the bucket, not just this run's. An
+    era- or continent-scoped upload must merge into it rather than replace it -
+    publishing only `--era cata` over a full index would strip the precata
+    entries and break download-navmesh.ps1 for everyone already using them."""
+    try:
+        body = client.get_object(Bucket=bucket, Key=key)["Body"].read()
+        existing = json.loads(body.decode("utf-8")).get("continents", [])
+        print(f"merging into existing {key} ({len(existing)} entries)")
+        return existing
+    except ClientError:
+        print(f"no existing {key}; writing a fresh one")
+        return []
+    except (ValueError, KeyError) as e:
+        sys.exit(f"existing {key} is unreadable ({e}) - refusing to overwrite it blindly")
+
+
+def write_index(client, bucket, ikey, entries):
+    index = {"continents": [entries[k]
+                            for k in sorted(entries, key=lambda k: tuple(p or "" for p in k))]}
+    client.put_object(
+        Bucket=bucket, Key=ikey,
+        Body=json.dumps(index, indent=2).encode("utf-8"),
+        ContentType="application/json", CacheControl="public, max-age=300",
+    )
+    print(f"uploaded {ikey} ({len(index['continents'])} entries total)")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--continent", default="", help="only this continent (e.g. Northrend)")
     ap.add_argument("--era", default="", help="only this era (e.g. precata)")
+    ap.add_argument("--skip-unchanged", action="store_true",
+                    help="skip bundles already in index.json with the same tile count; "
+                         "use when adding continents to an era that is already published")
+    ap.add_argument("--index-only", action="store_true",
+                    help="rebuild index.json from the bundles already in the bucket; "
+                         "uploads no zips. Use after losing the index - a normal run "
+                         "only records what it uploads, so rebuilding it any other way "
+                         "means re-pushing every bundle.")
     args = ap.parse_args()
 
     prefix = os.environ.get("R2_PREFIX", "navmesh").strip("/")
@@ -107,9 +144,44 @@ def main():
 
     bucket = env("R2_BUCKET")
     client = make_client()
-    index = {"continents": []}
+
+    ikey = f"{prefix}/index.json"
+    entries = {(x.get("era"), x.get("name"), x.get("hash")): x
+               for x in fetch_index(client, bucket, ikey)}
+
+    if args.index_only:
+        # Describe what is already in the bucket. Tile counts come from the local
+        # bundle dirs, sizes from the objects themselves, so the published numbers
+        # match what a downloader actually receives.
+        for e, c, h, _, tiles in bundles:
+            key = f"{prefix}/{e}/{c}/{h}.zip"
+            try:
+                size = client.head_object(Bucket=bucket, Key=key)["ContentLength"]
+            except ClientError:
+                print(f"  {e}/{c}/{h}: {key} not in the bucket, skipping "
+                      f"(upload it with --era {e} --continent {c})")
+                continue
+
+            entries[(e, c, h)] = {
+                "era": e, "name": c, "hash": h, "zip": key,
+                "tiles": len(tiles), "bytes": size,
+            }
+            print(f"  {e}/{c}/{h}: {len(tiles)} tiles, {size / 1048576:.0f} MB")
+
+        write_index(client, bucket, ikey, entries)
+        return
 
     for e, c, h, hdir, tiles in bundles:
+        # Adding a continent to a published era otherwise re-zips and re-uploads every
+        # unchanged bundle - gigabytes for no gain, and it resets the CDN cache on keys
+        # whose contents did not change. Tile count is the check: the hash already
+        # covers the bake parameters, so same hash + same count means same bundle.
+        if args.skip_unchanged:
+            prev = entries.get((e, c, h))
+            if prev is not None and prev.get("tiles") == len(tiles):
+                print(f"  {e}/{c}/{h}: unchanged ({len(tiles)} tiles), skipping")
+                continue
+
         zpath = os.path.join(tempfile.gettempdir(), f"navmesh-{e}-{c}-{h}.zip")
         print(f"zipping {e}/{c}/{h} ({len(tiles)} tiles)...")
         with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
@@ -125,17 +197,11 @@ def main():
         })
         os.remove(zpath)
 
-        index["continents"].append({
+        entries[(e, c, h)] = {
             "era": e, "name": c, "hash": h, "zip": key, "tiles": len(tiles), "bytes": size,
-        })
+        }
 
-    ikey = f"{prefix}/index.json"
-    client.put_object(
-        Bucket=bucket, Key=ikey,
-        Body=json.dumps(index, indent=2).encode("utf-8"),
-        ContentType="application/json", CacheControl="public, max-age=300",
-    )
-    print(f"uploaded {ikey}")
+    write_index(client, bucket, ikey, entries)
     print("done")
 
 

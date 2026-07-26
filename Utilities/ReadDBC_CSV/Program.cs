@@ -16,16 +16,43 @@ internal sealed class Program
     // Default version if not specified
     private const ClientVersion DefaultVersion = ClientVersion.SoM;
 
-    // Map ClientVersion to wago.tools build strings
+    // Map ClientVersion to wago.tools build strings.
+    //
+    // wago.tools does not carry the original 2010/2012 clients, so the legacy_*
+    // entries source their data from the closest re-release that does. Prefer the
+    // matching Classic build over a far-future one: at 8.1.0.27826 wago answers
+    // 200 with an EMPTY body for Map, SpellName and ManifestInterfaceData and
+    // 404s TalentTab, which silently guts the worldmap/spell/icon/talent output.
     private static readonly Dictionary<ClientVersion, string> VersionBuilds = new()
     {
         { ClientVersion.SoM, "1.15.8.63829" },      // Season of Discovery / SoM
         { ClientVersion.TBC, "2.5.4.44833" },       // TBC Classic
         { ClientVersion.Wrath, "3.4.5.63697" },     // WotLK Classic
         { ClientVersion.Cata, "4.4.2.60895" },      // Cataclysm Classic
-        { ClientVersion.Mop, "5.5.1.63698" },       // MoP Remix
+        { ClientVersion.Mop, "5.5.4.68806" },       // MoP Classic
 
-        { ClientVersion.Legacy_Cata, "8.1.0.27826" }, // Legacy Cata data
+        // Legacy Cata (4.3.4). 8.1.0 is BfA, NOT a typo and NOT "the closest
+        // re-release" - it is chosen for UiMap COVERAGE. The addon bridges a legacy
+        // client's WorldMapAreaID to a modern UiMapID through
+        // Addons/DataToColor/Legacy/WorldMapAreaIDToUiMapID.lua, and that table
+        // references 444 distinct UiMapIDs. Measured:
+        //     8.1.0.27826  1021 rows, 1021 uimaps -> covers 439/444
+        //     4.4.2.60895  2553 rows,  326 uimaps -> covers 133/444
+        // Cata Classic only ships the maps its own UI uses, so switching to it drops
+        // Durotar, Mulgore, Kalimdor, Eastern Kingdoms and 300 more. BfA carries every
+        // map ever, which is the point.
+        //
+        // The cost is that this build no longer serves Map/SpellName/ManifestInterfaceData
+        // (200 with an empty body) and 404s TalentTab, so a full regeneration here
+        // produces less than the committed json. It fails safe - the extractor writes
+        // nothing rather than truncating - but do not "fix" this by changing the build.
+        // talent.json/talenttab.json are copied from the cata client instead (same
+        // expansion, same point-based trees).
+        { ClientVersion.Legacy_Cata, "8.1.0.27826" },
+
+        // Legacy MoP (5.4.8) sourced from MoP Classic - verified against the same Lua
+        // table: 261 zone names match and every UiMapID it lacks is WoD-or-later.
+        { ClientVersion.Legacy_Mop, "5.5.4.68806" },
     };
 
     // Available extractors with their names
@@ -102,7 +129,10 @@ internal sealed class Program
             generatedFiles.AddRange(await RunExtractor(
                 new FactionTemplateExtractor(dataPath),
                 dataPath, build,
-                ["factiontemplate.json"]));
+                // Must match what FactionTemplateExtractor writes ("factiontemplates",
+                // plural). A name nothing produces copies nothing, silently - the run
+                // still prints "Copying N files" and "Done!".
+                ["factiontemplates.json"]));
         }
 
         if (runAll || extractorsToRun.Contains("item"))
@@ -147,7 +177,9 @@ internal sealed class Program
             generatedFiles.AddRange(await RunExtractor(
                 new TalentExtractor(dataPath),
                 dataPath, build,
-                ["talents.json"]));
+                // TalentExtractor writes two files, neither of them "talents.json" -
+                // which is why no client ever received talent data from a scoped run.
+                ["talenttab.json", "talent.json"]));
         }
 
         if (runAll || extractorsToRun.Contains("worldmap"))
@@ -155,7 +187,11 @@ internal sealed class Program
             generatedFiles.AddRange(await RunExtractor(
                 new WorldMapAreaExtractor(dataPath, subzonesPath),
                 dataPath, build,
-                ["worldmaparea.json"]));
+                // Casing must match what the extractor writes and what the
+                // frontend requests (/dbc/WorldMapArea.json). Windows hides a
+                // mismatch; on Linux/macOS the copy source is simply not found
+                // and the era silently ends up with no worldmaparea at all.
+                ["WorldMapArea.json"]));
         }
 
         if (runAll || extractorsToRun.Contains("areatable"))
@@ -376,6 +412,19 @@ internal sealed class Program
             {
                 string url = DownloadURL(build, file);
                 byte[] bytes = await client.GetByteArrayAsync(url);
+
+                // wago.tools answers 200 with a ZERO-BYTE body for a table it has
+                // no data for at that build, rather than 404ing. Caching that is
+                // doubly bad: the extractor later dies on a cryptic
+                // "key 'ID' was not present in the dictionary", and the empty file
+                // is then reused by every subsequent run until --clean.
+                if (bytes.Length == 0)
+                {
+                    Console.WriteLine(
+                        $"  {file} - EMPTY at build {build} (wago has no data for this table); not cached");
+                    continue;
+                }
+
                 File.WriteAllBytes(output, bytes);
 
                 Console.WriteLine($"  {file} - downloaded");

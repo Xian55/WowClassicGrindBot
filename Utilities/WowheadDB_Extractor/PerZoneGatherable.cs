@@ -58,8 +58,20 @@ namespace WowheadDB_Extractor
 
         private async Task<string> LoadPage()
         {
-            HttpClient client = new();
-            var response = await client.GetAsync(url);
+            // Share ZoneExtractor's configured client. A bare HttpClient sends no
+            // browser headers and CloudFront answers it 403 - and these gatherable
+            // queries are four of the five requests each zone makes, so using one
+            // here would fail the majority of the run.
+            await ZoneExtractor.ThrottleAsync();
+            using HttpResponseMessage response = await ZoneExtractor.Http.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException(
+                    $"{(int)response.StatusCode} {response.StatusCode} from {url}",
+                    null, response.StatusCode);
+            }
+
             return await response.Content.ReadAsStringAsync();
         }
 
