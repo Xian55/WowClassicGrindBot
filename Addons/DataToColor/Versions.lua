@@ -259,23 +259,42 @@ DataToColor.ContainerIDToInventoryID = ContainerIDToInventoryID or C_Container.C
 DataToColor.GetGossipOptions = GetGossipOptions or C_GossipInfo.GetOptions
 
 --------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- TALENT POINTS API COMPATIBILITY
 -- Legacy Cataclysm 4.3.4 lacks UnitCharacterPoints
 -- Polyfill uses GetUnspentTalentPoints which exists in that client
 --------------------------------------------------------------------------------
 
 if not UnitCharacterPoints then
+    -- Which replacement exists depends on the client, so feature-detect rather than
+    -- branch on build number:
+    --   Cata 4.3.4 and earlier  GetUnspentTalentPoints(isInspect, isPet)
+    --   MoP 5.x                 GetNumUnspentTalents() - 5.0 deleted the point-based
+    --                           trees for six tiers of one pick each, and removed pet
+    --                           talents outright
+    -- Captured once here because DataToColor:Bits1 calls this every frame: on a 5.4.8
+    -- client the old body raised "attempt to call global 'GetUnspentTalentPoints'"
+    -- thousands of times, which then drowned Blizzard_DebugTools itself.
+    local GetUnspentTalentPoints = GetUnspentTalentPoints
+    local GetNumUnspentTalents = GetNumUnspentTalents
+
     UnitCharacterPoints = function(unit)
         if not UnitExists(unit) then
             return 0
         end
+
         if UnitIsUnit(unit, "pet") then
-            return GetUnspentTalentPoints(false, true)
+            -- No pet talents after 5.0, so nothing is ever unspent.
+            return GetUnspentTalentPoints and GetUnspentTalentPoints(false, true) or 0
         elseif UnitIsUnit(unit, "player") then
-            return GetUnspentTalentPoints(false)
-        else
-            return 0
+            if GetUnspentTalentPoints then
+                return GetUnspentTalentPoints(false)
+            elseif GetNumUnspentTalents then
+                return GetNumUnspentTalents()
+            end
         end
+
+        return 0
     end
 end
 
