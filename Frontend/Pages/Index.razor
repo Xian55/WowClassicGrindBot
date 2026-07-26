@@ -54,7 +54,7 @@
                 </div>
 
                 <div class="bottom-section">
-                    @if (client.Version is ClientVersion.SoM or ClientVersion.TBC)
+                    @if (DataConfig.HasLeaflet(client.Version.ToString()))
                     {
                         <LeafletComponent Size="400px" />
                     }
