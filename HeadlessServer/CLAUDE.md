@@ -17,17 +17,23 @@ run.bat / rundev.bat / build.bat / install.bat / loadall.bat
 
 ```powershell
 .\build.bat
-.\run.bat -c Warrior_1.json -m Local -p <wow-pid>
+.\run.bat Warrior_1.json -m Local -p <wow-pid>
 ```
+
+**The class profile is positional, not an option.** There is no `-c`/`--classconfig`;
+it is `[Value(0)]` and `Required`, so it comes first and bare. Passing `-c Warrior_1.json`
+fails to parse.
 
 `run.bat` passes `--no-build --no-restore`, so **build first** or you run a stale binary.
 
 ## Options
 
+Long forms take two dashes (`--mode`); `CommandLineParser` rejects `-mode`.
+
 | flag | meaning |
 |---|---|
-| `-c, --classconfig` | class profile from `Json\class\` (e.g. `Warrior_1.json`) |
-| `-m, --mode` | `Local` / `RemoteV1` / `RemoteV3` |
+| *(positional, arg 0)* | class profile from `Json\class\` (e.g. `Warrior_1.json`) — required |
+| `-m, --mode` | `Local` (default) / `RemoteV1` / `RemoteV3` |
 | `-p, --pid` | WoW process id — needed when several clients run |
 | `-r, --reader` | screen reader backend |
 | `--hostv1/--portv1`, `--hostv3/--portv3` | remote pathing endpoints |

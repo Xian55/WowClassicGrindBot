@@ -92,7 +92,8 @@ public sealed class RunOptions
     [Option('n', "viz",
         Required = false,
         Default = false,
-        HelpText = $"Disable PathVisualization in RemoteV1")]
+        HelpText = $"Show path visualization while RemoteV1 is available. " +
+        $"Can render RemoteV3 paths as well.")]
     public bool PathVisualizer { get; set; }
 
     [Option('g', "gpu",

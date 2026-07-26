@@ -65,17 +65,28 @@ public sealed class Program
                 $"{DateTimeOffset.Now}");
         }
 
+        // --help and --version come back as NotParsed too, but they are a satisfied
+        // request rather than a failure and must not report one.
+        bool helpOrVersion = false;
+
         ParserResult<RunOptions> options =
             Parser.Default.ParseArguments<RunOptions>(args).WithNotParsed(errors =>
         {
             foreach (Error? e in errors)
             {
+                if (e is HelpRequestedError or HelpVerbRequestedError or VersionRequestedError)
+                {
+                    helpOrVersion = true;
+                    continue;
+                }
+
                 log.LogError($"{e}");
             }
         });
 
         if (options.Tag == ParserResultType.NotParsed)
         {
+            Environment.ExitCode = helpOrVersion ? 0 : 1;
             goto Exit;
         }
 
@@ -134,7 +145,22 @@ public sealed class Program
         }
 
     Exit:
-        Console.ReadKey();
+        // Keeps the window open when launched by double-click. Guarded because
+        // ReadKey throws InvalidOperationException when stdin is redirected or no
+        // console is attached, which turned `--help` and every parse error into an
+        // unhandled crash instead of a clean exit. run.bat already ends with `pause`,
+        // so nothing is lost when this is skipped.
+        if (!Console.IsInputRedirected)
+        {
+            try
+            {
+                Console.ReadKey(intercept: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // No console to read from - exit quietly.
+            }
+        }
     }
 
     private static bool ConfigureServices(
