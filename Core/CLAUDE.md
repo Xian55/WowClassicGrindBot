@@ -48,10 +48,19 @@ will gut it. Check the capability, not the engine type.
 
 ## Pathing backends
 
-`DependencyInjection` picks one at startup: `RemoteV3` (AmeisenNavigation over AnTCP) →
-`RemoteV1` (PathingAPI over HTTP) → `Local` (in-process `PPatherService`). Local +
-`Pathing:Engine=Navmesh` is the default and needs no game archives — see
-`PPather/CLAUDE.md`.
+`GetPather` picks one at startup by **probing, not by config alone**. `Pathing:Mode`
+ships as `Local` on both hosts (`BlazorServer/appsettings.json`, and `RunOptions`'
+`Default` for HeadlessServer) = in-process `PPatherService` with
+`Pathing:Engine=Navmesh`, which needs no game archives — see `PPather/CLAUDE.md`.
+
+The remote modes are opt-in and degrade rather than fail: `RemoteV3` (AmeisenNavigation
+over AnTCP) falls through to `RemoteV1` (PathingAPI over HTTP) and then to `Local` when
+`PingServer` fails. That fallback is silent apart from a log line, so a wrong `hostv3`/
+`portv3` presents as "the remote server is being ignored" rather than as an error —
+check the `Using {Type}` line before assuming the remote is broken.
+
+`appsettings.json` shipped `RemoteV3` until 2026-07-27; anything asserting that is
+stale.
 
 **Do not gate behaviour on a hardcoded `ClientVersion` list.** `WApi.cs` and the Leaflet
 UI both went stale that way. Pair each modern Classic version with its `Legacy_*` twin,
