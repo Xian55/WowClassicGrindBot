@@ -36,7 +36,7 @@ project, that's entirely fair — the measurements below stand on their own and
 you're welcome to use them without any attribution or connection.
 
 Diffs, if useful: <https://github.com/Xian55/DotRecast/tree/wow-mods>
-Full write-up with methodology: **<WIKI_URL>**
+Full write-up with methodology: **https://github.com/Xian55/DotRecast/wiki/Why-WowClassicGrindBot-forks-DotRecast**
 
 ## Correctness
 

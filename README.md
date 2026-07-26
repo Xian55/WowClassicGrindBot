@@ -9,7 +9,8 @@
 The project current goal is to support the following client versions
 
 Legacy
-* 4.3.4 Cataclysm (2011) Work in progress - navmesh pathfinding **supported** (MPQ-based, see [Pathfinders](#pathfinders)) - [704](https://github.com/Xian55/WowClassicGrindBot/issues/704)
+* 4.3.4 Cataclysm (2011) — **supported**
+* 5.4.8 Mist of Pandaria (2013) — **not yet playable.** Pathing, navmesh, map and game data are all in place and the addon loads, but the addon still needs Mists-specific work. [702](https://github.com/Xian55/WowClassicGrindBot/issues/702)
 
 Classic (Since 2019)
 * 1.13.x Vanilla Classic
@@ -18,18 +19,21 @@ Classic (Since 2019)
     * **Note**: Season of Discovery: New abilities and runes not implemented, workaround [559](https://github.com/Xian55/WowClassicGrindBot/issues/559)
 * 2.5.x - Burning Crusade 
 * 3.4.x - Wrath of the Lich King 
-* 4.4.x - Cataclysm [Limitations](#supporting-cataclysm-classic-and-above-limitations)
-* 5.5.x - Mist of Pandaria [Limitations](#supporting-cataclysm-classic-and-above-limitations) - [TODO 702](https://github.com/Xian55/WowClassicGrindBot/issues/702)
+* 4.4.x - Cataclysm — **supported**
+* 5.5.x - Mist of Pandaria — **not yet playable**, same as 5.4.8 above. [702](https://github.com/Xian55/WowClassicGrindBot/issues/702)
+
+Wrath 3.3.5 is **not** planned: the bot depends on *interact with target*, which that client
+does not have, and adding it needs client modification. [704](https://github.com/Xian55/WowClassicGrindBot/issues/704)
 
 ## Table of Contents
 
 - [Quick Start](#quick-start)
 - [Overview](#overview)
   - [Components](#components)
-  - [Architecture](#architecture)
-  - [Technical Challenges](#technical-challenges)
+  - [Architecture](#architecture) — full detail in [`docs/architecture.md`](docs/architecture.md)
+  - [Technical Challenges](#technical-challenges) — full detail in [`docs/technical-challenges.md`](docs/technical-challenges.md)
   - [Pathfinders](#pathfinders)
-  - [Supporting Cataclysm Classic and Above Limitations](#supporting-cataclysm-classic-and-above-limitations)
+  - [Cataclysm and Mists of Pandaria support](#cataclysm-and-mists-of-pandaria-support)
   - [Features](#features)
   - [Media](#media)
 - [Issues, Ideas & Contributing](#issues-ideas--contributing)
@@ -62,7 +66,7 @@ For experienced users, here's the minimal setup:
    .\scripts\download-navmesh.ps1 -Era precata   # precata | cata | mop
    ```
    Only needed if you intend to **bake** tiles yourself or run `SpotAStar`:
-   [MPQ files](#using-v1-localremote-pathing) in `Json\MPQ\`.
+   [game archives](docs/legacy-pathing-setup.md) in `Json\MPQ\`.
 4. **Build**: Run `BlazorServer\build.bat` or open solution in Visual Studio
 5. **Configure**: Start WoW, run `BlazorServer\run.bat`, configure addon in browser
 6. **Play**: Load a class profile, press Start
@@ -76,254 +80,45 @@ For detailed instructions, continue reading below.
 The system is composed of two main layers that communicate through pixel color encoding — no memory tampering or DLL injection.
 
 - **Lua Addon** (`Addons/DataToColor/`) — Runs inside the game client. Reads game state (player, target, buffs, equipment, action bars, etc.) and encodes it into pixel colors on hidden UI frames. Originally based on [Happy-Pixels](https://github.com/FreeHongKongMMO/Happy-Pixels), heavily rewritten for performance with event-driven caching.
-- **C# Backend** (13 .NET 10 projects) — Reads the encoded pixels via screen capture, decodes game state, makes decisions, and sends input back to the game via simulated keyboard/mouse messages. Runs as a web application ([BlazorServer](./BlazorServer/)), a CLI tool ([HeadlessServer](./HeadlessServer/)), or a standalone pathfinding service ([PathingAPI](./PathingAPI/)). See [Architecture](#architecture) for the full project breakdown.
+- **C# Backend** (13 .NET 10 projects) — Reads the encoded pixels via screen capture, decodes game state, makes decisions, and sends input back to the game via simulated keyboard/mouse messages. Runs as a web application ([BlazorServer](./BlazorServer/)), a CLI tool ([HeadlessServer](./HeadlessServer/)), or a standalone pathfinding service ([PathingAPI](./PathingAPI/)). See [`docs/architecture.md`](docs/architecture.md) for the full project breakdown.
+- **DotRecast fork** (`external/DotRecast`, git submodule) — [`Xian55/DotRecast @ wow-mods`](https://github.com/Xian55/DotRecast/tree/wow-mods), the navmesh library the whole navigation system is built on. Recast's usual workload is "bake offline on a build server, ship the result"; here a 34,000-yard world is baked **on the user's own machine, on first visit to an area, while the game client runs on the same box**, which is what the fork exists to make viable. Clone with `--recurse-submodules`.
+
+The fork carries two kinds of change: `RcVec3f` is aliased to `System.Numerics.Vector3`
+so geometry crosses the boundary without conversion, and a measured bake-performance
+campaign narrowed the hot data structures (`areas` to `byte[]`, `RcCompactSpan` packed
+16→8 bytes like the C++ original). Every commit is gated on the baked output staying
+**byte-identical** — a per-tile SHA-256 over a 6-tile corpus — so none of it can change
+where the bot walks.
+
+📖 **[Why WowClassicGrindBot forks DotRecast](https://github.com/Xian55/DotRecast/wiki/Why-WowClassicGrindBot-forks-DotRecast)**
+— the write-up of what was changed and why, with the numbers. Worth reading if you use
+DotRecast yourself: the findings are about DotRecast, not about this bot, and several
+apply to any C# Recast workload. It covers where the C# port pays a penalty against the
+C++ original (the memory-bound sweeps, ranked by how much wider the storage is), the
+benchmarking protocol that made the numbers trustworthy — interleaved A/B on an idle
+box, because run-to-run spread on a dev machine is ±10–15% and a single before/after
+pair proves nothing — and the two optimisations that looked obvious, were measured, and
+were **reverted for being slower**.
+
+The same material, commit by commit, is in
+[`docs/dotrecast-fork.md`](docs/dotrecast-fork.md).
 
 ## Architecture
 
-Further detail about the early architecture can be found in [Blog post](http://www.codesin.net/post/wowbot/). The project has evolved significantly since then.
+The bot is a Lua addon that encodes game state into pixel colors, and a .NET solution
+that reads those pixels, decides what to do, and sends simulated input back. Thirteen
+projects, layered so each host composes only what it needs.
 
-### Solution Structure (13 projects)
-
-```
-MasterOfPuppets.sln
-│
-├── Hosts ─────────────────────────────────────────────────────────
-│   ├── BlazorServer/       ASP.NET Core Blazor Server — primary web UI
-│   ├── HeadlessServer/     Console app — CLI automation, no UI
-│   └── PathingAPI/         ASP.NET Core Web API — standalone pathfinding microservice
-│
-├── Libraries ─────────────────────────────────────────────────────
-│   ├── Core/               Business logic, bot control, addon readers, databases,
-│   │                       DI orchestration, screen analysis, GPU/CPU NPC detection
-│   ├── Frontend/           Razor component library shared across hosts
-│   │                       (Leaflet maps, keyboard overlay, path recorder, mail UI)
-│   ├── Game/               Windows-specific game interaction
-│   │                       (process management, DXGI & WGC screen capture, input)
-│   ├── SharedLib/          Cross-project utilities, NPC finder algorithms,
-│   │                       image processing, logging, configuration models
-│   ├── PPather/            In-process pathfinding engine (MPQ-based triangle meshes)
-│   ├── DataConfig/         Expansion-aware data path resolution
-│   ├── WowheadDB/          External game database integration
-│   └── WinAPI/             P/Invoke bindings (user32, gdi32, dwmapi, kernel32)
-│
-├── Tools ─────────────────────────────────────────────────────────
-│   ├── Benchmarks/         BenchmarkDotNet performance suite
-│   ├── CoreTests/          Integration tests (NPC finder, cursor, minimap, input)
-│   └── Utilities/          DBC extraction, data processing helpers
-│
-└── Addons ────────────────────────────────────────────────────────
-    └── Addons/DataToColor/ Lua addon — game state → pixel color encoding
-```
-
-### Dependency Flow
-
-```
-┌─────────────┐  ┌───────────────┐  ┌────────────┐
-│ BlazorServer│  │ HeadlessServer│  │ PathingAPI │
-└──────┬───┬──┘  └───────┬───────┘  └─────┬──────┘
-       │   │             │                 │
-       │   └──────┬──────┘                 │
-       │          ▼                        │
-       │     ┌──────────┐                  │
-       └────►│ Frontend │                  │
-             └────┬─────┘                  │
-                  ▼                        │
-             ┌──────────┐                  │
-             │   Core   │◄─────────────────┘
-             └┬───┬───┬─┘
-              │   │   │
-     ┌────────┘   │   └────────┐
-     ▼            ▼            ▼
-┌────────┐  ┌──────────┐  ┌─────────┐
-│  Game  │  │  PPather │  │WowheadDB│
-└───┬────┘  └────┬─────┘  └─────┬───┘
-    │            │              │
-    ▼            ▼              ▼
-┌────────┐  ┌──────────┐  ┌──────────┐
-│ WinAPI │  │DataConfig│  │ SharedLib│
-└────────┘  └──────────┘  └──────────┘
-```
-
-### Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Runtime** | .NET 10 (C# 14 preview) with nullable reference types |
-| **Web** | ASP.NET Core Blazor Server, SignalR (MessagePack + LZ4) |
-| **UI** | Blazor Bootstrap, MatBlazor, Leaflet.js, Pixi.js (WebGL) |
-| **Graphics** | DirectX 11 via Vortice (DXGI Desktop Duplication, Windows Graphics Capture, Compute Shaders) |
-| **Pathfinding** | DotRecast navmesh (in-process, default) with pre-baked tiles; legacy spot-grid A* and out-of-process/AmeisenNavigation backends |
-| **Native Interop** | `[LibraryImport]` P/Invoke with `DisableRuntimeMarshalling` (user32, gdi32, dwmapi, StormLib) |
-| **Serialization** | Newtonsoft.Json, MessagePack, MemoryPack |
-| **Logging** | Serilog (structured, multi-sink: console, file, debug, in-memory circular buffer) |
-| **Image Processing** | SixLabors.ImageSharp |
-| **Benchmarking** | BenchmarkDotNet |
-| **Networking** | mDNS (Makaretu.Dns.Multicast) for zero-config `wowbot.local` discovery |
-| **Build** | Central package management (`Directory.Packages.props`), `global.json` SDK pinning |
-
-### Key Design Decisions
-
-- **No memory tampering** — Pure screen analysis via pixel reading and simulated input (PostMessage). The Lua addon encodes game state into pixel colors; C# decodes them
-- **Graceful fallback chains** — Screen capture (WGC &rarr; DXGI), pathfinding (RemoteV3 &rarr; RemoteV1 &rarr; Local), NPC detection (GPU &rarr; CPU)
-- **Dependency injection layering** — `Core/DependencyInjection.cs` provides 5 registration modes (LoadOnly, Base, Normal, Configuration, Frontend) so each host composes only what it needs
-- **Expansion-agnostic core** — Version-specific behavior is driven by `DataConfig` path resolution and `ClientVersion` enum, keeping the core logic shared across all 11 supported client versions
-
-### Deployment Configurations
-
-The host and pathfinder are independently composable — pick one from each column:
-
-| Host | Pathfinder | Notes |
-|------|-----------|-------|
-| **BlazorServer** | Navmesh (in-process) | **Recommended** - DotRecast navmesh, no external services, every client |
-| **BlazorServer** | PathingAPI (out-of-process) | Offloads pathfinding to a dedicated service |
-| **BlazorServer** | AmeisenNavigation (external) | Legacy; superseded by the in-process navmesh |
-| **HeadlessServer** | Navmesh (in-process) | **Recommended** - fully headless, single process |
-| **HeadlessServer** | PathingAPI (out-of-process) | Headless with remote pathfinding |
-| **HeadlessServer** | AmeisenNavigation (external) | Legacy; superseded by the in-process navmesh |
-
-**Multi-instance support** — Using Windows Graphics Capture (WGC), each instance captures a specific window rather than the entire desktop. This allows running multiple bot instances on a single machine, each attached to a different game client, with no additional configuration needed.
+**Full details — project layout, dependency flow, technology stack and design
+decisions — are in [`docs/architecture.md`](docs/architecture.md).**
 
 ## Technical Challenges
 
-This project serves as a technical sandbox for exploring advanced .NET features and solving real-world engineering problems. The game automation domain provides a rich problem space that spans multiple software engineering disciplines. Below is an overview of the key technical challenges addressed.
+The game automation domain spans a lot of engineering ground: real-time screen capture,
+GPU compute, native interop, pathfinding, and a small expression language for class
+profiles. Each problem and how it was solved is written up separately.
 
-<details>
-<summary><strong>Data Pipeline</strong> — Heterogeneous source ingestion and transformation</summary>
-
-Multiple data formats are parsed, transformed, and unified into runtime-optimized structures:
-
-- **MPQ archives** — Binary game archives read through native StormLib via P/Invoke (`PPather/StormDll/`), extracting map geometry (triangles, vertices) for pathfinding
-- **DBC (Database Client) files** — Game database extraction via high-performance CSV parsing (`Utilities/ReadDBC_CSV/`) for items, spells, talents, factions, consumables, and world map areas
-- **ClassConfig / FrameConfig JSON** — Hierarchical behavior profiles and pixel-coordinate mappings between the Lua addon and the C# screen reader, with version-tracked integrity validation
-- **Runtime databases** — `FrozenDictionary<int, T>` and `FrozenSet<T>` for immutable, zero-allocation lookups after initialization
-</details>
-
-<details>
-<summary><strong>Multi-Version Support</strong> — 11 client versions through a single codebase</summary>
-
-A `ClientVersion` enum drives version-specific behavior across the entire stack: data loading paths, Leaflet map tile configurations, addon compatibility, and pathfinder backend selection. Expansion-specific data (DBC, area polygons, NPC spawns, mailbox locations) is segregated by version while sharing core logic.
-</details>
-
-<details>
-<summary><strong>Multi-Threaded Architecture</strong> — Dedicated threads with priority management</summary>
-
-- Dedicated threads for addon reading (AboveNormal priority), screen capture (200ms tick), and remote pathing (500ms tick) in `Core/BotController.cs`
-- `ManualResetEventSlim` for data-ready signaling across AddonReader, Navigation, CastingHandler, and ScreenCapture
-- Modern `Lock` type (C# 13) for fine-grained synchronization
-- `[ThreadStatic]` storage for per-thread element buffers to avoid allocation contention
-</details>
-
-<details>
-<summary><strong>Parallel Processing</strong> — Lock-free spatial algorithms</summary>
-
-`Parallel.For` with `ThreadLocal<T>` storage for spatial binning in `PPather/Triangles/TriangleMatrix.cs`:
-- Thread-local dictionaries merged post-parallel to avoid lock contention
-- Batched processing with `stackalloc` scratch buffers
-- A* pathfinding over triangle meshes with model avoidance heuristics
-</details>
-
-<details>
-<summary><strong>External Service Communication</strong> — Three interop paradigms</summary>
-
-- **REST API** — `PathingAPI` runs as a standalone ASP.NET Core service with Swagger documentation and rate-limited route calculation endpoints
-- **Native DLL Interop** — Modern `[LibraryImport]` with `[assembly: DisableRuntimeMarshalling]` for Windows API calls (input simulation, DWM-aware window management, keyboard layout translation) and StormLib MPQ archive access with architecture-aware (x86/x64/arm64) `NativeLibrary.SetDllImportResolver` selection
-- **SignalR + MessagePack** — Binary protocol with LZ4 compression for real-time pathfinding visualization, reducing bandwidth ~70% vs JSON
-</details>
-
-<details>
-<summary><strong>GPU/CPU Dual Implementation</strong> — DirectX 11 Compute Shaders with managed fallback</summary>
-
-The NPC detection system has both GPU and CPU implementations behind a common interface:
-- **GPU path** — HLSL compute shader (`Core/WoWScreen/Shaders/NpcColorMatch.hlsl`) with 256 threads per group, atomic counters, and `groupshared` memory. Resource management via constant buffers and staging readback buffers with `[StructLayout]` matching the HLSL layout exactly
-- **CPU path** — Identical algorithm in managed C# with `Span<T>` optimization (`SharedLib/NpcFinder/CpuLineSegmentProvider.cs`)
-- **Graceful degradation** — Permanent fallback on GPU init failure, 100-frame cooldown on dispatch failure, device removal detection
-</details>
-
-<details>
-<summary><strong>Dual Hosting Models</strong> — Same core across three deployment targets</summary>
-
-| Host | UI | Use Case |
-|------|------|----------|
-| **BlazorServer** | Full Blazor Server web UI | Primary interactive application |
-| **HeadlessServer** | Console with CommandLineParser | Automation |
-| **PathingAPI** | Swagger UI | Standalone pathfinding microservice |
-
-Shared `Core` and `Frontend` libraries via dependency injection layering with 5 distinct registration modes (LoadOnly, Base, Normal, Configuration, Frontend).
-</details>
-
-<details>
-<summary><strong>Cross-Language Data Bridge</strong> — Lua to C# via pixel color encoding</summary>
-
-With no direct memory access, the Lua addon and C# communicate through pixel color encoding:
-- 32-bit integers packed into RGB components: `B | (G << 8) | (R << 16)`
-- Fixed-point math for sub-meter precision coordinates
-- UTF-8 text encoded as color values (3 characters per pixel)
-- Sentinel pixels for frame integrity validation
-- Event-driven Lua caching reduces API calls from 56/frame to 5/frame
-</details>
-
-<details>
-<summary><strong>Memory Optimization</strong> — Systematic GC pressure reduction</summary>
-
-- `stackalloc` + `Span<T>` for zero-allocation hot paths (pathfinding, image hashing, color encoding)
-- `ArrayPool<T>.Shared` for variable-length buffers (MPQ reading, GPU readback, path simplification)
-- `[SkipLocalsInit]` on hot methods where locals are immediately overwritten
-- `FrozenDictionary` / `FrozenSet` for immutable runtime lookups
-- Struct-based records with `[StructLayout(Pack = 1)]` for binary-compatible game data structures
-- Circular buffer logging with bitwise AND indexing
-</details>
-
-<details>
-<summary><strong>Configuration-Driven Architecture</strong> — Runtime-flexible behavior</summary>
-
-- **ClassConfig modes**: Grind, CorpseRun, AttendedGather, AttendedGrind, AssistFocus, AutoGather — each with distinct behavior trees
-- **Pathfinder selection**: Automatic discovery with fallback chain (RemoteV3 &rarr; RemoteV1 &rarr; Local PPather)
-- **Screen capture strategy**: Windows Graphics Capture vs DXGI fallback based on OS version
-- **Per-path overrides**: `PathSettings[]` array allows different behavior per route segment
-</details>
-
-<details>
-<summary><strong>Domain-Specific Language</strong> — Expression parser and evaluator for combat behavior</summary>
-
-The ClassConfig system defines combat behavior through a custom DSL with a full **Pratt parser (precedence climbing)** implementation (`Core/RPN/ExpressionParser.cs`). `RequirementFactory` (~14,500 lines) maps 50+ variables to runtime evaluators, each producing both a `Func<bool>` check and a `Func<string>` log message for observability.
-
-**Variable types:**
-- **Boolean** — `InCombat`, `HasTarget`, `TargetsMe`, `Mounted`, `Swimming`, `BagFull`, `Casting`, `AutoAttacking`, ...
-- **Integer** — `Health%`, `Mana%`, `TargetHealth%`, `PetHealth%`, `ComboPoint`, `BagCount`, `MobCount`, `Level`, ...
-- **Parameterized** — `Spell:Name`, `Talent:Name:Rank`, `BagItem:Variable`, `Form:Name`, `Race:Name`, `npcID:Id`, `Trigger:Bit:Text`, ...
-
-**Operators** (with precedence levels):
-- Logical: `&&`, `||`, `!`
-- Comparison: `==`, `!=`, `<`, `>`, `<=`, `>=`
-- Arithmetic: `+`, `-`, `*`, `/`, `%`
-- Grouping: `(` `)`
-
-**Example expressions from class profiles:**
-```
-Health% < 45
-!Immolate && TargetHealth% > 20
-(TargetHealth% < 95 && TargetsMe) || TargetCastingSpell
-Talent:Improved Corruption:5 && Mana% > 30
-!BagItem:Item_Soul_Shard:3
-!InMeleeRange && LastAutoShotMs < 500
-CD_Heroic_Strike > 1500 || Rage > 60
-```
-</details>
-
-<details>
-<summary><strong>Observability & Visualization</strong> — Real-time state inspection across all system layers</summary>
-
-The BlazorServer frontend provides deep runtime observability beyond basic UI controls:
-
-- **GOAP planner view** — Visualizes the goal queue, available goals with cost values, precondition state badges (GoapKey satisfied/unsatisfied), and per-action requirement satisfaction with color-coded indicators
-- **Player & target state** — Real-time display of health, mana, class-specific resources (rage, energy, runes, combo points, holy power), buffs/debuffs, casting status, equipment durability, and target information linked to Wowhead
-- **Action bar inspection** — Keyboard layout component (1,600+ lines) rendering spell icons, cooldown timers, usability status, and keybinding validation with mismatch warnings
-- **Session statistics** — Kill/death counters, session duration, XP rate, time-to-level estimates, bot update latency, and NPC latency
-- **Structured log viewer** — Circular buffer (256 entries) with severity color-coding, powered by a custom Serilog sink with `OnLogChanged` event for real-time Blazor updates
-- **Raw debug view** — Direct inspection of all addon data readers: AddonBits, PlayerReader, SpellInRange, CombatLog, ActionBarCost, and individual buff/debuff tracking
-- **Leaflet map** — Multi-expansion, multi-continent tile system with NPC spawn markers, mailbox locations, zone polygons, real-time player position tracking, and route polyline rendering via Pixi.js WebGL overlay
-- **PathingAPI visualization** — Debug overlays for pathfinding (DrawLines, DrawSphere) streamed via SignalR
-</details>
+**See [`docs/technical-challenges.md`](docs/technical-challenges.md).**
 
 ## Pathfinders
 
@@ -352,12 +147,11 @@ The engine answers from the downloaded tiles alone.
 | Mists **5.4.8** | `mop` | `download-navmesh.ps1 -Era mop` | Navmesh (default) |
 | MoP **Classic 5.5.x** | `mop` | `download-navmesh.ps1 -Era mop` | Navmesh (default) |
 
-**The CASC re-releases are included.** `DataConfig.ClientEra` folds `cata`/`legacy_cata`
-into the `cata` era and `mop`/`legacy_mop` into `mop`, so a mesh baked from the original
-4.3.4 / 5.4.8 MPQ client **is** the artifact Cataclysm Classic and MoP Classic consume —
-it is the same world. CASC only blocks *reading game files*, which downloaded tiles make
-unnecessary. Verified with a `cata` install holding zero game files: Elwynn→Stormwind 410
-points, Ratchet→Crossroads 569, the log reporting `disk-only, no game files`.
+**Every client uses the same navmesh engine.** An original client and its modern
+re-release are the same world, so they share one era and one set of tiles: `cata` covers
+4.3.4 and Cata Classic 4.4.x, `mop` covers 5.4.8 and MoP Classic 5.5.x. Verified with a
+`cata` install holding zero game files: Elwynn→Stormwind 410 points, Ratchet→Crossroads
+569, the log reporting `disk-only, no game files`.
 
 Each era bundle is **self-contained**: `-Era cata` includes all four continents,
 `-Era mop` all five. Unlike the minimap art, navmesh tiles are **never** shared
@@ -366,8 +160,7 @@ world, so you download exactly one era and that is all you need.
 
 You only need the game archives in `Json\MPQ` if you want to **bake tiles yourself**
 (a custom agent config, or an era with no published bundle) or run the legacy
-`Pathing:Engine=SpotAStar` — and on a CASC client the MPQ reader cannot supply those, so
-use pre-baked tiles or bake from the matching original MPQ client. Details below.
+`Pathing:Engine=SpotAStar`. Details below.
 
 ### Running multiple bots
 
@@ -398,7 +191,7 @@ the tens-to-hundreds around the active route stay resident.
 
 The bot ships an in-process **[DotRecast](https://github.com/Xian55/DotRecast) navmesh** engine, now the default (`Pathing:Engine=Navmesh`). It runs from small **pre-baked navmesh tiles** and produces smooth, high-quality routes - the basis for the WASD spline follower. Versus the older backends it needs **no external service** and **no MPQ at query time**; the runtime query is pure managed, cross-platform code, and the tile data is tiny enough to distribute. Tiles are baked once from the game's MPQ files (or downloaded pre-baked).
 
-Recommended for **Vanilla through Wrath**, and for the **original 4.3.4 Cataclysm** client, where it supersedes the legacy in-process grid pathfinder and removes the need for the external navigation service.
+Recommended for **every supported client**, Vanilla through Mists. It supersedes both the legacy in-process grid pathfinder and the external navigation service.
 
 **Get the tiles — download pre-baked (no client/MPQ needed):**
 ```powershell
@@ -440,63 +233,68 @@ Tiles are published per **geometry era**, each complete on its own:
 > for the same reason - their old worlds are close but not identical, and Mists adds Pandaria.
 
 > **Cataclysm *Classic* (4.4.x) and MoP Classic (5.5.x) use the same bundles** as their
-> original counterparts, because `ClientEra` maps them to the same era and the world is
-> the same. Those re-releases ship **CASC**, which the MPQ reader cannot open, but that
-> only prevents *baking from your own client* — downloading tiles sidesteps it entirely.
+> original counterparts — `ClientEra` maps them to the same era and the world is the same.
 
 **Which should you use?**
-- **Everyone (including the CASC re-releases)**: the default in-process **navmesh** engine - high quality, no external service. Download pre-baked tiles for your era.
-- **Baking your own tiles**: needs an **MPQ** client (Vanilla-Wrath, 4.3.4, 5.4.8). On a CASC client, bake from the matching original client or use the published bundles.
-- **Legacy fallbacks**: the MPQ grid engine (`Pathing:Engine=SpotAStar`) and V1/V3 Remote remain available; V3 (AmeisenNavigation) is no longer required for anything.
+- **Everyone**: the default in-process **navmesh** engine - high quality, no external service. Download pre-baked tiles for your era.
+- **Baking your own tiles**: needs the original game archives (Vanilla-Wrath, 4.3.4, 5.4.8). The modern re-releases cannot bake from their own install — download the published bundles, or bake from the matching original client.
+- **Legacy fallbacks**: the grid engine (`Pathing:Engine=SpotAStar`) and V1/V3 Remote remain available; V3 (AmeisenNavigation) is no longer required for anything.
 
 ### Legacy / alternative backends
 
-Different backends exist because WoW's map data format changed over time (MPQ to CASC). Outdoors the app can discover an available service in this order:
+These predate the navmesh engine and are kept for compatibility. Outdoors the app can discover an available service in this order:
 
-* **V3 Remote**: Out of process [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord) - external service, superseded by the in-process navmesh engine on **every** client including the CASC re-releases. Kept for compatibility; `PathingAPI` can also [answer its protocol directly](#serving-v3-clients-from-pathingapi-antcp) if you want the wire format without the external binary.
+* **V3 Remote**: Out of process [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord) - external service, superseded by the in-process navmesh engine on **every** client. Kept for compatibility; `PathingAPI` can also [answer its protocol directly](#serving-v3-clients-from-pathingapi-antcp) if you want the wire format without the external binary.
 * **V1 Remote**: Out of process [PathingAPI](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PathingAPI) more info [here](#v1-remote-pathing---pathingapi) - MPQ-based; can host either engine.
 * **V1 Local**: In process [PPather](https://github.com/Xian55/WowClassicGrindBot/tree/dev/PPather) - MPQ-based. Its legacy spot-grid A* engine (`Pathing:Engine=SpotAStar`) is superseded by the navmesh engine.
 * World map - Indoors pathfinder only works properly if `PathFilename` exists.
 * Dungeons / instances **not** supported!
 
-## Supporting Cataclysm Classic and Above Limitations
+## Cataclysm and Mists of Pandaria support
 
-The dividing line is the **archive container**, and it only limits **baking** — not
-pathfinding. StormLib opens **MPQ** but not **CASC**, so a CASC client cannot have tiles
-generated *from itself*. Since tiles are published per era and a downloaded set needs no
-game files at all, that limitation no longer reaches the user.
+**Pathfinding is uniform.** Every client from Vanilla to Mists uses the same in-process
+navmesh engine, running from pre-baked tiles. Nothing about Cataclysm or Mists needs a
+different pathfinder, an external service, or a game client on disk.
 
-| client | container | pathfinding | can bake its own tiles |
-|---|---|---|---|
-| Vanilla … Wrath | MPQ | in-process navmesh (default) | yes |
-| **4.3.4 Cataclysm (2011)** | **MPQ** | in-process navmesh | yes |
-| **5.4.8 MoP (2012)** | **MPQ** | in-process navmesh | yes |
-| Cataclysm Classic 4.4.x | CASC | in-process navmesh, `-Era cata` | no — download, or bake from 4.3.4 |
-| MoP Classic 5.5.x | CASC | in-process navmesh, `-Era mop` | no — download, or bake from 5.4.8 |
+| client | status | tiles |
+|---|---|---|
+| **4.3.4 Cataclysm (2011)** | supported | `-Era cata` |
+| **Cataclysm Classic 4.4.x** | supported | `-Era cata` |
+| **5.4.8 Mists (2013)** | not yet playable — addon work outstanding | `-Era mop` |
+| **MoP Classic 5.5.x** | not yet playable — addon work outstanding | `-Era mop` |
 
-The re-releases are the *same world* as their originals, and `DataConfig.ClientEra` maps
-both onto one era, so the bundle baked from 4.3.4 is exactly what Cata Classic loads.
-Verified against a `cata` install with no game files present at all: full routes on
-Azeroth and Kalimdor, the engine logging `disk-only, no game files`.
+### What "not yet playable" means for Mists
 
-CASC support (`CascLib`) would still be worth having — it would let a re-release user
-bake a custom agent config from their own install rather than relying on published
-bundles — but it is no longer a prerequisite for navigating.
+Everything below the addon is done — navmesh, Leaflet maps, DBC, creature, area, spawn
+and teleport data are all generated and published for both Mists clients, and the addon
+loads and runs without errors. What remains is Mists-specific addon work, tracked in
+[702](https://github.com/Xian55/WowClassicGrindBot/issues/702). Cataclysm, by contrast,
+is complete end to end including the addon.
 
-**5.4.8 MoP is supported end to end.** Its chunk formats match 4.3.4 (same split ADT, MCNK
-header, M2 v272, WMO v17). The client-level differences are handled: it ships a 5.0.x
-`world.MPQ` plus 23 `wow-update-base-*.MPQ` **incremental patch archives** carrying updated
-terrain for **37% of root ADTs**, which the MPQ layer chains through StormLib's patch API,
-and its `holes_high_res` terrain holes are read. Mists is its own geometry era (`mop`), so it
-never shares tiles with Cataclysm.
+The game-data side was the harder half and is finished: Mists chunk formats match 4.3.4
+(same split ADT, MCNK header, M2 v272, WMO v17), and the two client-level differences are
+handled — it ships a 5.0.x `world.MPQ` plus 23 `wow-update-base-*.MPQ` **incremental patch
+archives** carrying updated terrain for **37% of root ADTs**, which the archive layer
+chains in build order, and its `holes_high_res` terrain holes are read. Mists is its own
+geometry era (`mop`) and never shares tiles with Cataclysm.
 
-Data is published: 26,972 leaflet tiles across all ten continents and a 70,363-tile navmesh
-bake (`download-leaflet.ps1 -Era mop`, `download-navmesh.ps1 -Era mop`). The DBC data is
-generated (`ReadDBC_CSV -v legacy_mop`, sourced from MoP Classic so its UiMapIDs line up with
-the addon's legacy `WorldMapAreaID` mapping).
+Published: 26,972 Leaflet tiles across all ten continents and a 70,363-tile navmesh bake
+(`download-leaflet.ps1 -Era mop`, `download-navmesh.ps1 -Era mop`).
 
-Design notes and the measured format differences are in
-[`docs/mpq-casc-storage-abstraction.md`](docs/mpq-casc-storage-abstraction.md).
+### Baking your own tiles
+
+Only relevant if you want a custom agent config — otherwise download the published
+bundles and skip this.
+
+Baking reads terrain out of the game's own archives, so it needs an original client:
+Vanilla through Wrath, 4.3.4 Cataclysm, or 5.4.8 Mists. The modern re-releases
+(4.4.x, 5.5.x) store their data in a format the reader does not open, so they cannot bake
+from their own install — download the published tiles, or bake from the matching original
+client. The result is identical either way, because the re-release and its original are
+the same world.
+
+Developers: the measured per-client format differences and the storage design notes are in
+[the storage abstraction doc](docs/mpq-casc-storage-abstraction.md).
 
 ## Features
 
@@ -624,71 +422,20 @@ Put the contents of the repo into a folder, e.g., `C:\WowClassicGrindBot`. I am 
 > ```
 > Downloading the repo as a ZIP does **not** include submodule contents — use `git clone --recurse-submodules`.
 
-## Using V1 Local/Remote Pathing
+## Pathing setup
 
-- Download the MPQ route files.
-- These files are required to start the application!
+Nothing to do — the in-process navmesh engine is the default and the tiles come from
+the CDN. If you have not already:
 
-**Vanilla:**
-[**common-2.MPQ**](https://mega.nz/file/vXQCBCha#m7COhB9HQd86a5iNAT0-fMLsc-BtoTRO1eIBJNrdTH8) (1.7Gb)
+```powershell
+.\scripts\download-navmesh.ps1 -Era precata     # or cata / mop
+```
 
-**TBC:**
-[**expansion.MPQ**](https://mega.nz/file/Of4i2YQS#egDGj-SXi9RigG-_8kPITihFsLom2L1IFF-ltnB3wmU) (1.8Gb)
-
-**WOTLK:**
-[**lichking.MPQ**](https://mega.nz/file/vDYWSTrK#fvaiuHpd-FTVsQT4ghGLK6QJLZyA87c1rlBEeu1_Btk) (2.5Gb)
-
-Copy these files under the **\Json\MPQ** folder (e.g., `C:\WowClassicGrindBot\Json\MPQ`)
-
-**Cataclysm 4.3.4 (2011):** no separate download — copy the archives from your own client's
-`Data\` folder (`world.MPQ`, `world2.MPQ`, `art.MPQ`, `expansion1-3.MPQ`, `alternate.MPQ`).
-`Data\enUS\*.MPQ` holds locale data only and is not needed for geometry. Only one client's
-archives may sit in `Json\MPQ` at a time — mixing eras makes ADT lookups resolve against
-whichever archive sorts first.
-
-> Most users can skip the archives entirely and just run `download-navmesh.ps1` — the MPQs
-> are only needed to *bake* tiles or to run the legacy `SpotAStar` engine.
-
-Technical details about **V1:**
-- Precompiled x86, x64 and arm64 [Stormlib](https://github.com/ladislav-zezula/StormLib)
-- Source code accessible, written in **C#**
-- Uses `*.mpq` files as source
-- Extracts the geometry on demand during runtime
-- Loads those `*.adt` files which are in use. Lower memory usage compared to V3
-- After calculating a path successfully, caches it under `Json\PathInfo\_CONTINENT_NAME_\`
-- Easy to visualize path steps and development iteratively
-
-## Optional - Using V3 Remote Pathing
-
-Since [PR 585](https://github.com/Xian55/WowClassicGrindBot/issues/585) using a different branch!
-
-- Download the navmesh files.
-
-[**Vanilla + TBC**](https://mega.nz/file/7HgkHIyA#c_gzUeTadecWY0JDY3KT39ktfPGLs2vzt_90bMvhszk)
-
-[**Vanilla + TBC + Wrath**](https://mega.nz/file/zWQ2XIKI#9EKWOPyyTMfY1LACkcP_wioZ0poVIuaGh2xcRh4V9dw)
-
-[**Vanilla + TBC + Wrath + Cataclysm** - work in progress](https://mega.nz/file/7Og32TDA#5HpxZ8Sh1XvDNCmWbI8H-cOFEJzDmh97Z6FGrO2p3X4)
-
-1. Extract the `mmaps` and copy anywhere you want, like `C:\mmaps`
-1. Get the [multi-version-guess-z-coord branch](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord)
-1. Open the solution file.
-1. Unload **AmeisenNavigation.Exporter** project(right click -> unload project)
-1. ![image](https://github.com/Xian55/WowClassicGrindBot/assets/367101/df443648-bb57-4200-ac99-ee26e723f120)
-1. Select **AmeisenNavigation.Server** Press rebuild.
-1. Navigate to the `AmeisenNavigation.Server` build(ex. `AmeisenNavigation.Server\build\x64\Release`) location and find `config.cfg`
-1. Edit the last line of the file to look like `sMmapsPath=C:\mmaps`
-1. Start `AmeisenNavigation.Server.exe`
-
-Technical details about **V3:**
-- Uses another project called [AmeisenNavigation](https://github.com/Xian55/AmeisenNavigation/tree/feature/multi-version-guess-z-coord)
-- Under the hood uses [Recast and Detour](https://github.com/recastnavigation/recastnavigation)
-- Source code is written in **C++**
-- Uses `*.mmap` files as source
-- Loads the whole continent navmesh data into memory. Higher base memory usage, at least around *~600mb*
-- It's super fast path calculations
-- Not always suitable for player movement.
-- Requires a considerable amount of time to tweak the navmesh config, then bake it
+The older backends (V1 Local/Remote with MPQ archives, and the external V3
+AmeisenNavigation server) are **deprecated** and no longer needed by anything. Their
+setup instructions, and where to get the game archives if you want to *bake* your own
+tiles, live in
+[`docs/legacy-pathing-setup.md`](docs/legacy-pathing-setup.md).
 
 ## System / Video Requirements
 
@@ -778,27 +525,9 @@ or look at the `BlazorServer\build.bat`, or look at the `HeadlessServer\build.ba
 
 ## Windows on ARM64 (Apple Silicon)
 
-The bot runs inside a **Windows 11 ARM64** guest (for example a Parallels/VMware VM on an Apple Silicon Mac). A default `AnyCPU` build runs as a **native ARM64** process, so the correct native `StormLib` is selected automatically at runtime (`x64` / `x86` / `arm64`) by `NativeLibrary.SetDllImportResolver`.
-
-**Native ARM64 (recommended):**
-1. Build (or obtain from a trusted source) `StormLib.dll` for ARM64 from the official [StormLib](https://github.com/ladislav-zezula/StormLib) source and place it as `PPather\MPQ\StormLib_arm64.dll`:
-   ```
-   git clone https://github.com/ladislav-zezula/StormLib
-   cmake -S StormLib -B build -A ARM64 -DBUILD_SHARED_LIBS=ON
-   cmake --build build --config Release
-   ```
-   Verify it is an ARM64 binary (`dumpbin /headers StormLib_arm64.dll` → `machine (AA64)`).
-2. Build/run as usual (`dotnet run --project BlazorServer -c Release`). The bot drives a natively ARM64 WoW client (`WowClassic-arm64.exe`) — it reads the screen and sends input, so guest/client architecture do not need to match.
-
-**x64 emulation fallback** (if you cannot build the ARM64 `StormLib` yet):
-* Install the **x64** .NET 10 Desktop + ASP.NET Core runtimes (they run under the built-in x64 emulation).
-* Run x64 explicitly so the existing `StormLib_x64.dll` is used:
-  ```
-  dotnet run --project BlazorServer -c Release --arch x64
-  ```
-* Do **not** hard-code `<PlatformTarget>x64</PlatformTarget>` in the `.csproj` — that would override the native ARM64 path for everyone.
-
-> ⚠️ Do not run prebuilt `StormLib`/DLL patches attached to forum/issue posts by unknown accounts — build the native binary yourself from the official source above.
+The bot runs on Apple silicon through a Windows 11 ARM64 VM — the ARM64 StormLib build
+ships with the repo and is selected automatically. Setup steps are in
+[`docs/windows-arm64.md`](docs/windows-arm64.md).
 
 # Configuration
 
@@ -847,8 +576,8 @@ run.bat --Reader:Type=WGC --Pathing:Mode=Local --Reader:UseGpu=true
 | `Process` | `Id` | int | `-1` | Any process ID | WoW process ID. `-1` for auto-detect |
 | `Reader` | `Type` | string | `DXGI` | `DXGI`, `WGC` | Screen reader type. `WGC` = Windows Graphics Capture (supports background window) |
 | `Reader` | `UseGpu` | bool | `false` | `true`, `false` | Use GPU acceleration for screen reading |
-| `Pathing` | `Mode` | string | `RemoteV3` | `Local`, `RemoteV1`, `RemoteV3` | Pathfinding mode |
-| `Pathing` | `Engine` | string | `Navmesh` | `Navmesh`, `SpotAStar` | In-process engine for `Local` mode (and PathingAPI). `Navmesh` (default) answers queries from pre-baked DotRecast tiles under `Json/PathInfo/navmesh/`, baking on demand from your MPQ files on a cache miss. `SpotAStar` is the legacy spot-grid A* |
+| `Pathing` | `Mode` | string | `Local` | `Local`, `RemoteV1`, `RemoteV3` | Pathfinding mode. `Local` uses the in-process navmesh — no external service, nothing to start. The remote modes are **probed, not required**: if `RemoteV3` gets no answer the bot falls back to `RemoteV1`, then to `Local`, so a misconfigured remote degrades rather than fails. The log line `Using Local(LocalPathingApi) engine Navmesh` confirms what was picked |
+| `Pathing` | `Engine` | string | `Navmesh` | `Navmesh`, `SpotAStar` | In-process engine for `Local` mode (and PathingAPI). `Navmesh` (default) answers queries from pre-baked DotRecast tiles under `Json/PathInfo/navmesh/<era>/`. With `Json\MPQ` present it also bakes missing tiles on demand; without it the engine runs **disk-only** and answers from the downloaded tiles alone. `SpotAStar` is the legacy spot-grid A* and always needs the archives |
 | `Pathing` | `hostv1` | string | `localhost` | hostname/IP | RemoteV1 pathing server host |
 | `Pathing` | `portv1` | int | `5001` | port number | RemoteV1 pathing server port |
 | `Pathing` | `hostv3` | string | `127.0.0.1` | hostname/IP | RemoteV3 pathing server host |
@@ -893,23 +622,29 @@ For normal quick startup of `HeadlessServer` please look at the `HeadlessServer\
 
 **Optional** cli parameters:
 
+Long forms take **two** dashes (`--mode`), short forms one (`-m`).
+
 | cli | Description | Default Value | Possible Values |
 | ---- | ---- | ---- | ---- |
-| `-m`<br>`-mode` | Pathfinder type | `RemoteV3` | `Local` or `RemoteV1` or `RemoteV3` |
-| `-p`<br>`-pid` | World of Warcraft process id | `-1` | open up task manager to find PID |
-| `-r`<br>`-reader` | Addon data screen reader backend | `DXGI` | `DXGI` or `WGC`. See [Screen Capture Methods](#screen-capture-methods) |
-| `hostv1` | Navigation Remote V1 host | `localhost` | - |
-| `portv1` | Navigation Remote V1 port | `5001` | - |
-| `hostv3` | Navigation Remote V3 host | `127.0.0.1` | - |
-| `portv3` | Navigation Remote V3 port | `47111` | - |
-| `-n`<br>`-viz` | While Remote V1 is available, show Path Visualization<br>Can display Remote V3 Paths as well. | `false` | - |
-| `-d`<br>`-diag` | Diagnostics, when set, takes screen captures under `Json\cap\*.jpg` | - | - |
-| `-o`<br>`-overlay` | Show NpcNameFinder Overlay | `false` | - |
-| `-t`<br>`-otargeting` | While overlay enabled, show Targeting points | `false` | - |
-| `-s`<br>`-oskinning` | While overlay enabled, show Skinning points | `false` | - |
-| `-v`<br>`-otargetvsadd` | While overlay enabled, show Target vs Add points | `false` | - |
-| `-g`<br>`--gpu` | Use GPU compute shader for NPC name finding | `true` | `true` or `false` |
+| `-m`<br>`--mode` | Pathfinder type | `Local` | `Local` or `RemoteV1` or `RemoteV3` |
+| `-p`<br>`--pid` | World of Warcraft process id | `-1` | open up task manager to find PID |
+| `-r`<br>`--reader` | Addon data screen reader backend | `DXGI` | `DXGI` or `WGC`. See [Screen Capture Methods](#screen-capture-methods) |
+| `--hostv1` | Navigation Remote V1 host | `localhost` | - |
+| `--portv1` | Navigation Remote V1 port | `5001` | - |
+| `--hostv3` | Navigation Remote V3 host | `127.0.0.1` | - |
+| `--portv3` | Navigation Remote V3 port | `47111` | - |
+| `-n`<br>`--viz` | While Remote V1 is available, show Path Visualization<br>Can display Remote V3 Paths as well. | `false` | - |
+| `-d`<br>`--diag` | Diagnostics, when set, takes screen captures under `Json\cap\*.jpg` | `false` | - |
+| `-o`<br>`--overlay` | Show NpcNameFinder Overlay | `false` | - |
+| `-t`<br>`--otargeting` | While overlay enabled, show Targeting points | `false` | - |
+| `-s`<br>`--oskinning` | While overlay enabled, show Skinning points | `false` | - |
+| `-v`<br>`--otargetvsadd` | While overlay enabled, show Target vs Add points | `false` | - |
+| `-g`<br>`--gpu` | Use GPU compute shader for NPC name finding | `false` | `true` or `false` |
 | `--loadonly` | Loads the given class profile then exits | `false` | - |
+
+> Both hosts default to `Local` — the in-process navmesh, nothing external to start.
+> Pass `--mode RemoteV1` / `--mode RemoteV3` only if you actually run one of those
+> services.
 
 e.g. run from Powershell without any optional parameter
 ```ps
@@ -1019,6 +754,7 @@ Movement keys are still configured in the [Class Configuration](#class-configura
 | Move Backward | BackwardKey | `DownArrow` |
 | Turn Left | TurnLeftKey | `LeftArrow` |
 | Turn Right | TurnRightKey | `RightArrow` |
+| Toggle Run/Walk | WalkKey | *unset* |
 
 To use `WASD` movement, add to your class profile (or see `Json\class\Warrior_1_MovementKeys.json`):
 ```json
@@ -1027,6 +763,25 @@ To use `WASD` movement, add to your class profile (or see `Json\class\Warrior_1_
 "TurnLeftKey": 65,  // A
 "TurnRightKey": 68, // D
 ```
+
+#### Toggle Run/Walk (`WalkKey`)
+
+Optional, and **off by default**. When set, the WASD spline follower drops to walk speed
+on the approach to a hairpin instead of arriving at full run, braking and pivoting —
+which is what makes tight switchbacks (tower spirals, the Goldshire hairpin) look and
+behave sanely.
+
+Two things are required, and it silently does nothing if either is missing:
+
+1. Bind the key **in game** under `Key Bindings → Movement → Toggle Run/Walk`.
+2. Set the same key in your class profile:
+   ```json
+   "WalkKey": 145   // Scroll Lock, for example
+   ```
+
+Leaving it unset is supported — the follower just brakes and pivots instead. If you see
+run-speed hairpin approaches, this is the setting that is missing; the log warns once
+when the follower asks for walk speed and there is no key to honour it.
 
 ### Manual Binding Setup (Optional)
 
@@ -1489,7 +1244,7 @@ Can specify conditions with [Requirement(s)](#requirement) in order to create a 
 | `"Charge"` | How many consequent key press should happen before setting Cooldown | `1` |
 | `"School"` | Indicate what type of [SchoolMask](#npcschoolimmunity) element the spell will do.  | `None` |
 | `"MacroText"` | You can specify a macro text or macro template which can hold variables. make sure the MacroText is no longer then 255 characters. | `""` |
-| `"BaseAction"` | Bypasses CastingHandler guard rails (GCD waiting, spell queue checks, cast verification). Use for actions that execute instantly without cast bars or cooldowns. See [BaseActions](#baseactionkeys). | `false` |
+| `"BaseAction"` | Bypasses CastingHandler guard rails (GCD waiting, spell queue checks, cast verification). Use for actions that execute instantly without cast bars or cooldowns. See the `BaseActionKeys` table under [Understanding Class Configuration](#understanding-class-configuration). | `false` |
 | --- | --- | --- |
 | `"WhenUsable"` | Mapped to [IsUsableAction](https://wowwiki-archive.fandom.com/wiki/API_IsUsableAction) | `false` |
 | `"UseWhenTargetIsCasting"` | Checks for the target casting/channeling.<br>Accepted values:<br>* `null` -> ignore<br>* `false` -> when enemy not casting<br>* `true` -> when enemy casting | `null` |
@@ -3644,7 +3399,48 @@ Which allows the draw shapes
 * circle with custom radius
 * single point
 
-TODO: These shapes can be used for the V1 navigation system.
+#### Roads and danger zones — steering the navmesh
+
+Drawn shapes are not just annotations: they **price the navmesh query**, so the routes
+the bot actually walks change to match what you draw.
+
+| You draw | Effect on routing |
+| ---- | ---- |
+| **Polyline** = a road (safe corridor) | Routes are pulled onto it. A road costs **0.6×** what the same distance costs off-road, so the pathfinder prefers the long way round on a road over a short scramble across open ground. |
+| **Rectangle** = danger zone | The enclosed area is priced up (`Avoid`) or made impassable (`Block`). |
+| **Circle** = danger zone | Same, as a centre plus radius — the natural shape for "stay this far away from that elite camp". |
+
+Each danger zone carries a **`Penalty`** multiplier and a **`Mode`**:
+
+* **`Avoid`** — multiplies the cost of crossing, capped at 25× so one zone cannot swamp
+  the search. The bot crosses anyway if there is no reasonable alternative.
+* **`Block`** — impassable. This can genuinely leave a destination unreachable, which is
+  the point, but draw it carefully.
+
+**Query-time, no rebake.** Zones are rasterized onto the 33.33 yd terrain-chunk grid and
+consulted by the Detour query filter as a single lookup. Editing a road or a zone takes
+effect on the **next path request** — the navmesh cache is untouched and nothing is
+invalidated. The files are watched and hot-reloaded; a partial read (the watcher firing
+mid-save) is discarded rather than applied, so a half-written file will not drop your
+roads.
+
+Saved per **era**, continent and UI map (`DataConfig.Road`, which is era-partitioned like
+the navmesh and tiles — clients that share a world share their roads):
+
+```
+Json\road\<era>\<Continent>\<uiMapId>.json               roads
+Json\road\<era>\<Continent>\dangerzone\<uiMapId>.json    danger zones
+```
+
+Both are plain JSON and hand-editable. Tuning knobs live under `Navmesh:Query` —
+`RoadCore` (default `8`) is the half-width in yards that still routes at full road cost,
+the carriageway itself; beyond it the cost ramps back up to open ground.
+
+> A road is priced as the **1.0 baseline** and open ground made dearer, rather than
+> pricing roads below 1.0. Detour's A* heuristic assumes no traversal is ever cheaper
+> than ~1.0 per unit distance, so a sub-1.0 road made it overestimate the remaining cost
+> and long routes came back truncated — Moonbrook to Goldshire reached 628 yd of 2417 yd.
+> The relative preference is identical either way.
 
 After clicking on any zone, that zone will be the currentArea.
 
@@ -3796,11 +3592,16 @@ era-aware navmesh - no AmeisenNavigation binary, no MMAP files, no second proces
 Off by default (it opens a socket); enable in `PathingAPI\appsettings.json`:
 
 ```json
-"Pathing": { "AnTcp": { "Enabled": true, "Ip": "127.0.0.1", "Port": 47110 } }
+"Pathing": { "AnTcp": { "Enabled": true, "Ip": "127.0.0.1", "Port": 47111 } }
 ```
 
-Then point the bot at it as usual - `Pathing:Mode=RemoteV3`, `hostv3`/`portv3`. Port
-47110 is AmeisenNavigation's own default, so existing config needs no change.
+Then set `Pathing:Mode=RemoteV3` on the bot. Port **47111** is the shipped `portv3`, so
+`hostv3`/`portv3` need no change — enabling the listener is the only step.
+
+> **Replacing an existing AmeisenNavigation install?** Its own default is **47110**, so
+> either set `"Port": 47110` here or leave the bot's `portv3` pointing at whatever your
+> old setup used. A port mismatch fails quietly: the ping fails and the bot falls back
+> to `RemoteV1`/`Local`, so it still walks and nothing says the remote was ignored.
 
 Only the **PATH** message is implemented, because it is the only one the bot ever
 sends (`RemotePathingAPIV3` hardcodes it; its other traffic is the TCP connect used as
@@ -3836,6 +3637,31 @@ dotnet run --configuration Release
 ```
 
 Then in a browser go to http://localhost:5001
+
+**Startup arguments**
+
+| argument | Description | Default |
+| ---- | ---- | ---- |
+| `--exp=<client>` | Which client's data to serve. Decides `/dbc`, `/tiles` and the navmesh era | `som` |
+| `--Pathing:Engine=` | `Navmesh` or `SpotAStar` | `Navmesh` |
+| `--bake=<continent>` | Kick a background navmesh bake as the server starts; `all` for every continent. The API serves immediately — progress is on `GET api/PPather/Bake/Status` | off |
+| `--bake-area=<continent>` | One-time area-id grid extraction, so area lookups answer without game files; `all` for every continent | off |
+| `--urls http://…` | Override the listen address | `http://localhost:5001` |
+
+```ps
+dotnet run -c Release -- --exp=cata
+dotnet run -c Release -- --exp=legacy_mop --bake=all
+```
+
+Baking needs the game archives in `Json\MPQ`; everything else does not. **`Json\MPQ` is
+not era-aware** — it is one directory for whichever client you point it at, so running
+`--exp=cata` with Wrath archives in there loads Wrath geometry silently and only fails
+on a continent Wrath does not have.
+
+`GET api/PPather/SelfTest` reports what the **active engine** actually needs: for
+`Navmesh` it counts baked tiles per continent for the current era; for `SpotAStar` it
+falls back to checking the archives. It used to check the archives unconditionally and
+so reported failure on every tiles-only install even though pathing worked.
 
 There are 3 pages:
 
@@ -3973,8 +3799,10 @@ Melee weapon enchant:
 - If running multiple WoW clients, use the `-p` parameter to specify the process ID
 
 **Q: Path not found / navigation errors**
-- Ensure MPQ files are downloaded and placed in `Json\MPQ\`
-- For Cataclysm+, you need V3 Remote pathing (AmeisenNavigation)
+- Download the navmesh tiles for your era: `.\scripts\download-navmesh.ps1 -Era precata` (or `cata` / `mop`). This is all that is needed — no game files, no external service.
+- Check the startup log for `disk-only, no game files` per continent. If a continent is missing entirely, its tiles were not downloaded.
+- If you baked your own tiles, the bot must run with the **same** bake settings that produced them. Bake settings name the cache directory, so a mismatch makes every baked tile invisible rather than wrong. Outland is the usual case: it needs `Navmesh:Bake:MinWorldZ: { "Expansion01": -700 }`, which is the shipped default.
+- `Json\MPQ` is only needed to *bake* tiles yourself or to run the legacy `Pathing:Engine=SpotAStar`.
 
 **Q: Class profile won't load**
 - Check JSON syntax - use a JSON validator
