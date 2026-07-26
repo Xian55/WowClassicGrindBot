@@ -1,5 +1,6 @@
 ## Interface: 40300
 ## Title: cTimerBackport
-## Notes: Cataclysm 4.3.4 cTimer backport
+## Notes: C_Timer backport for legacy clients (Cataclysm 4.3.4, MoP 5.4.8)
+## Version: 1.0.1
 
 cTimerBackport.lua
