@@ -83,6 +83,25 @@ public sealed class AreaDB : IDisposable
         resetEvent.Set();
     }
 
+    /// <summary>
+    /// Reads an optional json file. Absent is a normal state here, not an error, so it
+    /// is reported once at Debug rather than raised - the caller substitutes a default.
+    /// </summary>
+    private T? ReadJsonOrNull<T>(string path, JsonSerializerSettings? settings = null)
+    {
+        if (!System.IO.File.Exists(path))
+        {
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("AreaDB: no {Path}", path);
+
+            return default;
+        }
+
+        return settings is null
+            ? JsonConvert.DeserializeObject<T>(ReadAllText(path))
+            : JsonConvert.DeserializeObject<T>(ReadAllText(path), settings);
+    }
+
     private void ReadArea()
     {
         resetEvent.Wait();
@@ -91,19 +110,32 @@ public sealed class AreaDB : IDisposable
         {
             try
             {
-                CurrentArea = JsonConvert.DeserializeObject<Area>(
-                    ReadAllText(Join(dataConfig.ExpArea, $"{areaId}.json")));
+                // Both files are optional enrichment and both are generated per client,
+                // so a zone or a whole map legitimately has none - Json/area/<exp> is
+                // scraped from Wowhead, npcspawnlocations from an emulator dump, and
+                // neither covers every map of every client. Previously a miss threw out
+                // of the whole block, so Changed never fired and the area data silently
+                // stopped updating for that map (hit on Kezan, map 648, which had no
+                // npcspawnlocations file).
+                CurrentArea = ReadJsonOrNull<Area>(Join(dataConfig.ExpArea, $"{areaId}.json"));
 
                 CurrentWorldMapArea = worldMapAreaDB.GetByAreaId(areaId);
 
                 Hitbox = worldMapAreaDB.GetByAreaIdHit(areaId);
 
-                var data = JsonConvert.DeserializeObject<Dictionary<int, Vector3[]>>(
-                    ReadAllText(Join(dataConfig.NpcSpawnLocations, $"{CurrentWorldMapArea.Value.MapID}.json")), npcJsonSettings);
+                NpcWorldLocations = FrozenDictionary<int, Vector3[]>.Empty;
 
-                NpcWorldLocations = data != null
-                    ? data.ToFrozenDictionary()
-                    : FrozenDictionary<int, Vector3[]>.Empty;
+                if (CurrentWorldMapArea.HasValue)
+                {
+                    var data = ReadJsonOrNull<Dictionary<int, Vector3[]>>(
+                        Join(dataConfig.NpcSpawnLocations, $"{CurrentWorldMapArea.Value.MapID}.json"),
+                        npcJsonSettings);
+
+                    if (data != null)
+                    {
+                        NpcWorldLocations = data.ToFrozenDictionary();
+                    }
+                }
 
                 Changed?.Invoke();
             }
