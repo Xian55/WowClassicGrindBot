@@ -66,7 +66,11 @@ DataToColor.C.CHARACTER_RACE_MAP = {
     ["Goblin"] = 9,
     ["BloodElf"] = 10,
     ["Draenei"] = 11,
-    ["Worgen"] = 22
+    ["Worgen"] = 22,
+    ["Gilnean"] = 23,
+    ["Pandaren"] = 24,
+    ["PandarenA"] = 25,
+    ["PandarenH"] = 26
 }
 
 -- Character info — wrapped so it can be re-detected from OnEnteringWorld.

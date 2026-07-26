@@ -786,6 +786,17 @@ function DataToColor:InitSpellBookQueue()
 end
 
 function DataToColor:InitTalentQueue()
+    -- MoP 5.0 replaced the tab/tier/column/rank talent trees with six tiers of a single
+    -- pick each, and deleted GetNumTalentTabs/GetNumTalents with them (GetTalentInfo
+    -- survives but with a different signature, so it is not a usable probe). Without
+    -- them there is nothing to enumerate in this shape; bail rather than raise, which is
+    -- what took out InitUpdateQueues on a 5.4.8 client and left every later queue
+    -- uninitialised. The C# TalentReader already copes with an empty queue - TalentDB
+    -- loads talent.json through LoadJsonSafe, and legacy clients ship none.
+    if not GetNumTalentTabs or not GetNumTalents then
+        return
+    end
+
     for tab = 1, GetNumTalentTabs(false, false) do
         for i = 1, GetNumTalents(tab) do
             local _, _, tier, column, currentRank = GetTalentInfo(tab, i)
