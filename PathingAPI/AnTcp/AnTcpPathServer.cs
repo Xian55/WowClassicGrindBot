@@ -86,7 +86,8 @@ public sealed class AnTcpPathServer : BackgroundService
         TcpListener listener = new(endpoint);
         listener.Start();
 
-        logger.LogInformation("AnTCP path server listening on {Endpoint} (PATH only)", endpoint);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("AnTCP path server listening on {Endpoint} (PATH only)", endpoint);
 
         try
         {
@@ -110,7 +111,8 @@ public sealed class AnTcpPathServer : BackgroundService
     private async Task ServeAsync(TcpClient client, CancellationToken token)
     {
         EndPoint? remote = client.Client.RemoteEndPoint;
-        logger.LogInformation("AnTCP client connected: {Remote}", remote);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("AnTCP client connected: {Remote}", remote);
 
         try
         {
@@ -151,7 +153,8 @@ public sealed class AnTcpPathServer : BackgroundService
         catch (Exception e) when (e is IOException or SocketException or OperationCanceledException)
         {
             // Client vanished or shutdown - not worth a stack trace.
-            logger.LogInformation("AnTCP client disconnected: {Remote}", remote);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("AnTCP client disconnected: {Remote}", remote);
         }
         catch (Exception e)
         {
