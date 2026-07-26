@@ -103,6 +103,18 @@ public sealed class MPQTriangleSupplier
 
     public static string[] GetArchiveNames(DataConfig dataConfig)
     {
+        // No MPQ directory is a normal install now, not an error: the navmesh answers
+        // from baked tiles and needs no game files, so a user who only downloaded
+        // tiles has nothing here. Directory.GetFiles would throw
+        // DirectoryNotFoundException, and because PPatherService calls this from its
+        // constructor (via MPQSelfTest) that failure takes the whole service down -
+        // every request 500s rather than falling back to disk-only. Callers already
+        // treat an empty result as "no archives".
+        if (!Directory.Exists(dataConfig.MPQ))
+        {
+            return [];
+        }
+
         return Directory.GetFiles(dataConfig.MPQ, "*.MPQ");
     }
 
