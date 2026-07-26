@@ -2,16 +2,26 @@
 """Extract seamless continent minimaps (Leaflet tile pyramids) from a WoW client.
 
 The client stores minimap art as one BLP per ADT block (map<col>_<row>.blp) under
-World\\Minimaps\\<MapDir>\\, md5-renamed and listed in textures\\Minimap\\
-md5translate.trs. This stitches the blocks of each continent into the tile
+World\\Minimaps\\<MapDir>\\. Two client generations, both handled:
+
+  * vanilla..WotLK - the blocks are md5-renamed into textures\\Minimap\\ and
+    indexed by textures\\Minimap\\md5translate.trs.
+  * Cataclysm+     - no .trs and no md5 renaming; the blocks sit at their real
+    World\\Minimaps\\<MapDir>\\map<col>_<row>.blp paths and are discovered by
+    scanning the archive listfiles.
+
+Which one is used is detected from the client (presence of md5translate.trs),
+not configured. This stitches the blocks of each continent into the tile
 pyramid the PathingAPI/BlazorServer Leaflet map expects:
 
     Json/leaflet/<era>/<Continent>/z{z}x{x}y{y}.webp
 
 where a native block is 512px, Leaflet tiles are 256px (so each block is a 2x2
 group of z6 tiles), y-down, NW origin. Tiles are shared by mesh ERA (precata =
-vanilla..wotlk), so one run against a Wrath 3.3.5 client produces the whole
-precata set: Azeroth, Kalimdor, Expansion01 (Outland) and Northrend.
+vanilla..wotlk, cata = cata/mop), so one run against a Wrath 3.3.5 client
+produces the whole precata set: Azeroth, Kalimdor, Expansion01 (Outland) and
+Northrend. A Cataclysm 4.3.4 client produces the cata set (run it with
+LEAFLET_ERA=cata).
 
 The placement is the exact inverse of leaflet-watch.js screenToAdt/worldTolatLng,
 so the generated tiles line up with the frontend's world<->pixel transform. For
@@ -30,7 +40,7 @@ USAGE         python scripts/extract-minimap.py               # all continents f
               python scripts/extract-minimap.py --maps 571    # only Northrend
               python scripts/extract-minimap.py --preview      # also dump flat PNGs
 """
-import os, sys, io, json, argparse, glob, ctypes as C
+import os, sys, io, json, re, argparse, glob, ctypes as C
 
 try:
     from PIL import Image
@@ -56,7 +66,23 @@ CONTINENTS = {
     "Kalimdor": 1,
     "Expansion01": 530,
     "Northrend": 571,
+    # Standalone maps, not part of the four originals. A client that predates one
+    # simply reports "no minimap blocks" and skips it, so this single list serves
+    # every era. Mirrors PPatherService.WorldContinents - keep them in step.
+    "HawaiiMainLand": 870,     # Pandaria               - Mists
+    "Deephome": 646,           # Deepholm               - Cataclysm
+    "LostIsles": 648,          # Lost Isles + Kezan     - Cataclysm (goblin start)
+    "Gilneas2": 654,           # Gilneas                - Cataclysm (worgen start)
+    "MaelstromZone": 730,      # The Maelstrom          - Cataclysm
+    "NewRaceStartZone": 860,   # The Wandering Isle     - Mists (pandaren start)
 }
+
+# Blizzard's incremental update archives, from Cataclysm on. Their entries are
+# PTCH deltas rather than whole files, so they must be chained onto a base
+# archive - read standalone they decode as garbage. Mists ships 23 of them and
+# patches most of Pandaria's minimap, so ignoring this silently drops blocks.
+UPDATE_RE = re.compile(r"^wow-update-.*?(\d+)\.mpq$", re.IGNORECASE)
+
 
 # Load order: later archives override earlier (highest precedence last).
 def archive_sort_key(path):
@@ -84,23 +110,69 @@ class Storm:
         d.SFileReadFile.restype = C.c_int
         d.SFileCloseFile.argtypes = [C.c_void_p]
         d.SFileCloseArchive.argtypes = [C.c_void_p]
+        d.SFileOpenPatchArchive.argtypes = [C.c_void_p, C.c_wchar_p, C.c_char_p, C.c_uint32]
+        d.SFileOpenPatchArchive.restype = C.c_int
         self.d = d
         self.handles = []
-        archives = sorted(
-            glob.glob(os.path.join(mpq_dir, "*.MPQ")) + glob.glob(os.path.join(mpq_dir, "*.mpq")),
-            key=archive_sort_key,
+        # dict.fromkeys dedups while keeping order: glob is case-insensitive on
+        # Windows, so *.MPQ and *.mpq return the same files and every archive
+        # would otherwise be opened (and searched) twice.
+        found = dict.fromkeys(
+            glob.glob(os.path.join(mpq_dir, "*.MPQ")) + glob.glob(os.path.join(mpq_dir, "*.mpq"))
         )
-        for p in archives:
+
+        bases, updates = [], []
+        for p in found:
+            m = UPDATE_RE.match(os.path.basename(p))
+            if m:
+                updates.append((int(m.group(1)), p))
+            else:
+                bases.append(p)
+
+        bases.sort(key=archive_sort_key)
+        updates.sort()                      # ascending build = apply order
+
+        base_handles = []
+        for p in bases:
             h = C.c_void_p()
             if d.SFileOpenArchive(p, 0, 0x100, C.byref(h)):
-                self.handles.append(h)
+                base_handles.append(h)
                 print(f"  opened {os.path.basename(p)}")
+
+        # Bases first (they resolve to patched content); update archives last, so
+        # a file an update introduces outright is still reachable.
+        update_handles = []
+        for _, p in updates:
+            h = C.c_void_p()
+            if d.SFileOpenArchive(p, 0, 0x100, C.byref(h)):
+                update_handles.append(h)
+
+        self.handles = base_handles
+        self.tail = update_handles
+
+        # Index the names BEFORE chaining. (listfile) is itself a file inside the
+        # archive, so once a patch is attached a base's (listfile) resolves to the
+        # PATCH's list - a few dozen names instead of the base's tens of thousands.
+        self.names = self._read_listfiles()
+
+        # Chain every update onto every base, ascending. StormLib then applies the
+        # deltas transparently on read.
+        if updates:
+            attached = 0
+            for h in base_handles:
+                for _, p in updates:
+                    if d.SFileOpenPatchArchive(h, p, None, 0):
+                        attached += 1
+            print(f"  chained {len(updates)} update archive(s) onto {len(base_handles)} base(s)"
+                  f" ({attached} attachments)")
+
         if not self.handles:
             sys.exit(f"No MPQ archives opened from {mpq_dir}\nSet WOW_MPQ env var.")
 
     def read(self, name):
         b = name.encode("latin1")
-        for h in reversed(self.handles):   # highest precedence first
+        # Highest-precedence base first, then the update archives as a fallback.
+        for h in list(reversed(self.handles)) + self.tail:
             hf = C.c_void_p()
             if not self.d.SFileOpenFileEx(h, b, 0, C.byref(hf)):
                 continue
@@ -115,17 +187,47 @@ class Storm:
             return bytes(buf[: rd.value])
         return None
 
+    def listfile(self):
+        """Union of every archive's internal (listfile). Needed by the Cataclysm+
+        path form, which has no index file to walk. Captured before patch chaining
+        (see __init__), so this just returns it."""
+        return self.names
+
+    def _read_listfiles(self):
+        names = set()
+        for h in self.handles + self.tail:
+            hf = C.c_void_p()
+            if not self.d.SFileOpenFileEx(h, b"(listfile)", 0, C.byref(hf)):
+                continue
+            sz = self.d.SFileGetFileSize(hf, None)
+            if sz in (0, 0xFFFFFFFF):
+                self.d.SFileCloseFile(hf)
+                continue
+            buf = (C.c_char * sz)()
+            rd = C.c_uint32()
+            self.d.SFileReadFile(hf, buf, sz, C.byref(rd), None)
+            self.d.SFileCloseFile(hf)
+            for ln in bytes(buf[: rd.value]).decode("latin1", "replace").splitlines():
+                s = ln.strip()
+                if s:
+                    names.add(s)
+        return names
+
     def close(self):
-        for h in self.handles:
+        for h in self.handles + self.tail:
             self.d.SFileCloseArchive(h)
 
 
+MINIMAP_BLOCK_RE = re.compile(r"^map(-?\d+)_(-?\d+)\.blp$", re.IGNORECASE)
+
+
 def parse_trs(storm):
-    """md5translate.trs -> {MapDir: {(col,row): md5name}}. Handles both the
-    `dir <name>` header form and the flat `<dir>\\map..blp` path form."""
+    """md5translate.trs -> {MapDir: {(col,row): archive path}}, or None when the
+    client has no .trs (Cataclysm+). Handles both the `dir <name>` header form
+    and the flat `<dir>\\map..blp` path form."""
     raw = storm.read("textures\\Minimap\\md5translate.trs")
     if not raw:
-        sys.exit("md5translate.trs not found in the client archives")
+        return None
     grid = {}
     cur = None
     for ln in raw.decode("latin1", "replace").splitlines():
@@ -149,18 +251,35 @@ def parse_trs(storm):
             col, row = int(col), int(row)
         except ValueError:
             continue
-        grid.setdefault(d, {})[(col, row)] = md5.strip()
+        grid.setdefault(d, {})[(col, row)] = "textures\\Minimap\\" + md5.strip()
+    return grid
+
+
+def scan_minimap_paths(storm):
+    """Cataclysm+ form: no index file, so discover
+    World\\Minimaps\\<MapDir>\\map<col>_<row>.blp from the archive listfiles.
+    Returns the same {MapDir: {(col,row): archive path}} shape as parse_trs."""
+    grid = {}
+    for name in storm.listfile():
+        parts = name.replace("/", "\\").split("\\")
+        if len(parts) < 3 or parts[0].lower() != "world" or parts[1].lower() != "minimaps":
+            continue
+        m = MINIMAP_BLOCK_RE.match(parts[-1])
+        if not m:
+            continue
+        grid.setdefault(parts[-2], {})[(int(m.group(1)), int(m.group(2)))] = name
     return grid
 
 
 def load_native(storm, tiles):
-    """{(col,row): md5} -> {(col,row): PIL.Image RGB(A) BLPxBLP}. md5-cached
-    (ocean/blank blocks share one md5 across many positions)."""
+    """{(col,row): archive path} -> {(col,row): PIL.Image RGB(A) BLPxBLP}. Cached
+    by path (under the md5 form, ocean/blank blocks share one file across many
+    positions, so this collapses them to a single decode)."""
     cache, out = {}, {}
-    for (col, row), md5 in tiles.items():
-        img = cache.get(md5)
+    for (col, row), path in tiles.items():
+        img = cache.get(path)
         if img is None:
-            b = storm.read(f"textures\\Minimap\\{md5}")
+            b = storm.read(path)
             if not b:
                 continue
             try:
@@ -168,9 +287,9 @@ def load_native(storm, tiles):
                 if img.size != (BLP, BLP):
                     img = img.resize((BLP, BLP), Image.LANCZOS)
             except Exception as e:
-                print(f"  ! decode {md5}: {e}")
+                print(f"  ! decode {path}: {e}")
                 continue
-            cache[md5] = img
+            cache[path] = img
         out[(col, row)] = img
     return out
 
@@ -246,7 +365,18 @@ def main():
     print(f"client MPQ : {MPQ_DIR}")
     print(f"output     : {OUT_ROOT}  (era '{ERA}')")
     storm = Storm(STORMLIB, MPQ_DIR)
+
+    # Detected from the client, not configured: vanilla..WotLK ship an md5
+    # index, Cataclysm+ dropped it and keep the blocks at their real paths.
     grid = parse_trs(storm)
+    if grid:
+        print("minimap source: md5translate.trs (vanilla..wotlk form)")
+    else:
+        grid = scan_minimap_paths(storm)
+        print("minimap source: World\\Minimaps listfile scan (cataclysm+ form)")
+    if not grid:
+        sys.exit("No minimap blocks found: neither md5translate.trs nor "
+                 "World\\Minimaps\\<MapDir>\\map<col>_<row>.blp entries.")
 
     manifest = {}
     for dir_name, map_id in CONTINENTS.items():

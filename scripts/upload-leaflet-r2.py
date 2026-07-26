@@ -89,6 +89,46 @@ def collect(prefix, continent, src):
     return items
 
 
+INDEX_KEY = "leaflet/index.json"
+
+
+def fetch_index(client, bucket, key):
+    """The index describes EVERY era bundle in the bucket, not just this run's, so
+    an era-scoped upload must merge rather than replace - publishing only
+    `--era mop` over a full index would strip the precata and cata entries and
+    break download-leaflet.ps1 for everyone already using them. Same hazard the
+    navmesh uploader hit."""
+    import json
+
+    try:
+        body = client.get_object(Bucket=bucket, Key=key)["Body"].read()
+        existing = json.loads(body.decode("utf-8")).get("eras", [])
+        print(f"merging into existing {key} ({len(existing)} entries)")
+        return existing
+    except ClientError:
+        print(f"no existing {key}; writing a fresh one")
+        return []
+    except (ValueError, KeyError) as e:
+        sys.exit(f"existing {key} is unreadable ({e}) - refusing to overwrite it blindly")
+
+
+def write_index(client, bucket, era, zip_key, tiles, size):
+    """era -> zip/tiles/bytes, so download-leaflet.ps1 can tell which eras are
+    published and whether a local copy is complete instead of guessing."""
+    import json
+
+    entries = {x.get("era"): x for x in fetch_index(client, bucket, INDEX_KEY)}
+    entries[era] = {"era": era, "zip": zip_key, "tiles": tiles, "bytes": size}
+
+    index = {"eras": [entries[k] for k in sorted(entries, key=lambda k: k or "")]}
+    client.put_object(
+        Bucket=bucket, Key=INDEX_KEY,
+        Body=json.dumps(index, indent=2).encode("utf-8"),
+        ContentType="application/json", CacheControl="public, max-age=300",
+    )
+    print(f"uploaded {INDEX_KEY} ({len(index['eras'])} eras total)")
+
+
 def build_and_upload_zip(client, bucket, dry_run, src, zip_key):
     """Zip the whole tile set (arcnames <era>/<Continent>/...) and upload it as
     the single offline-download artifact. webp is already compressed, so store
@@ -108,11 +148,11 @@ def build_and_upload_zip(client, bucket, dry_run, src, zip_key):
                 full = os.path.join(dirpath, f)
                 z.write(full, os.path.relpath(full, base).replace(os.sep, "/"))
                 n += 1
-    size_mb = os.path.getsize(zip_path) / (1024 * 1024)
-    print(f"  {n} tiles, {size_mb:.0f} MB")
+    size = os.path.getsize(zip_path)
+    print(f"  {n} tiles, {size / (1024 * 1024):.0f} MB")
 
     if dry_run:
-        print(f"  (dry-run) would upload -> {zip_key}")
+        print(f"  (dry-run) would upload -> {zip_key} and update {INDEX_KEY}")
         return
 
     client.upload_file(zip_path, bucket, zip_key, ExtraArgs={
@@ -120,6 +160,68 @@ def build_and_upload_zip(client, bucket, dry_run, src, zip_key):
         "CacheControl": "public, max-age=86400",
     })
     print(f"  uploaded -> {zip_key}")
+
+    era = os.path.basename(src.rstrip(os.sep))
+    write_index(client, bucket, era, zip_key, n, size)
+
+
+def count_tiles(src):
+    return sum(1 for _, _, files in os.walk(src) for f in files if f.endswith(".webp"))
+
+
+def publish_index_only(client, bucket, dry_run, only_era):
+    """Write leaflet/index.json describing the bundles ALREADY in the bucket.
+
+    Separate from --zip on purpose: the index is a few hundred bytes, and
+    regenerating it should not mean re-uploading ~220 MB of unchanged tile zips.
+    Tile counts come from the local era dirs, sizes from the objects themselves,
+    so the published numbers describe what a downloader will actually receive.
+    """
+    import json
+
+    eras = [only_era] if only_era else sorted(
+        d for d in os.listdir(LEAFLET_DIR) if os.path.isdir(os.path.join(LEAFLET_DIR, d)))
+
+    entries = {} if dry_run else {x.get("era"): x for x in fetch_index(client, bucket, INDEX_KEY)}
+
+    for era in eras:
+        src = os.path.join(LEAFLET_DIR, era)
+        zip_key = f"{era}-tiles.zip"
+        tiles = count_tiles(src)
+        if not tiles:
+            print(f"  {era}: no local tiles, skipping")
+            continue
+
+        if dry_run:
+            local = os.path.join(LEAFLET_DIR, zip_key)
+            size = os.path.getsize(local) if os.path.isfile(local) else 0
+        else:
+            try:
+                size = client.head_object(Bucket=bucket, Key=zip_key)["ContentLength"]
+            except ClientError:
+                # No bundle in the bucket -> indexing it would advertise a 404.
+                print(f"  {era}: {zip_key} is not in the bucket, skipping "
+                      f"(upload it with --era {era} --zip)")
+                continue
+
+        entries[era] = {"era": era, "zip": zip_key, "tiles": tiles, "bytes": size}
+        print(f"  {era}: {tiles} tiles, {size / (1024 * 1024):.0f} MB -> {zip_key}")
+
+    if not entries:
+        sys.exit("nothing to index")
+
+    index = {"eras": [entries[k] for k in sorted(entries, key=lambda k: k or "")]}
+    if dry_run:
+        print(f"(dry-run) would upload {INDEX_KEY}:")
+        print(json.dumps(index, indent=2))
+        return
+
+    client.put_object(
+        Bucket=bucket, Key=INDEX_KEY,
+        Body=json.dumps(index, indent=2).encode("utf-8"),
+        ContentType="application/json", CacheControl="public, max-age=300",
+    )
+    print(f"uploaded {INDEX_KEY} ({len(index['eras'])} eras total)")
 
 
 def main():
@@ -129,8 +231,15 @@ def main():
     ap.add_argument("--continent", default="", help="only this continent dir (e.g. Northrend)")
     ap.add_argument("--era", default="", help="leaflet era folder (default: LEAFLET_ERA env or precata)")
     ap.add_argument("--zip", action="store_true", help="build + upload the offline .zip instead of per-tile")
+    ap.add_argument("--index-only", action="store_true",
+                    help="write leaflet/index.json for bundles already in the bucket; uploads no tiles")
     ap.add_argument("--workers", type=int, default=WORKERS)
     args = ap.parse_args()
+
+    if args.index_only:
+        client = None if args.dry_run else make_client()
+        publish_index_only(client, os.environ.get("R2_BUCKET"), args.dry_run, args.era)
+        return
 
     era = args.era or os.environ.get("LEAFLET_ERA", "precata")
     src = os.path.join(LEAFLET_DIR, era)
