@@ -13,6 +13,17 @@ namespace WowheadDB_Extractor
 
         async static Task MainAsync(string[] args)
         {
+            // Optional first argument selects the client, e.g. "legacy_mop".
+            // Output is per client (Json/area/<client>), so it must be explicit.
+            if (args.Length > 0 && !string.IsNullOrWhiteSpace(args[0]))
+            {
+                ZoneExtractor.EXP = args[0].ToLowerInvariant();
+            }
+
+            System.Console.WriteLine($"client : {ZoneExtractor.EXP}");
+            System.Console.WriteLine($"wowhead: {ZoneExtractor.BaseUrl()}");
+            System.Console.WriteLine();
+
             await ZoneExtractor.Run();
         }
 
