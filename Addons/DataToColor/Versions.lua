@@ -609,7 +609,7 @@ local strsplit = strsplit
 
 if DataToColor.IsLegacy() then
   -- ========================================
-  -- LEGACY CATACLYSM 4.3.4 IMPLEMENTATIONS
+  -- LEGACY 4.3.4 / 5.4.8 IMPLEMENTATIONS
   -- ========================================
 
   function DataToColor:GetActionTexture(slot)
@@ -617,19 +617,34 @@ if DataToColor.IsLegacy() then
     return DataToColor:NormalizeTexture(GetActionTexture(slot))
   end
 
+  ------------------------------------------------------------
+  -- Legacy hex GUID layout
+  --   0x | 3 nibbles high type | 5 nibbles entry | 8 nibbles spawn counter
+  --   0xF130C2CF0000355D -> F13 creature, entry 0C2CF = 49871
+  --   0xF130EB1729000001 -> F13 creature, entry 0EB17 = 60183
+  -- The entry is 20 bits wide, not the 16 that the familiar "0xF130" prefix
+  -- suggests: 5.4.8 ships ~2800 creatures above 0xFFFF (highest is 80674) and
+  -- those spill into the 4th nibble, turning the prefix into 0xF131 and up.
+  -- High types seen on units: F13 creature, F14 pet, F15 vehicle.
+  ------------------------------------------------------------
+  local LEGACY_ENTRY_PATTERN = "^0x[fF]1%x(%x%x%x%x%x)"
+  local LEGACY_SPAWN_LENGTH = 8
+
+  local function LegacyEntryId(guid)
+    local hex = guid and guid:match(LEGACY_ENTRY_PATTERN)
+    return hex and tonumber(hex, 16) or 0
+  end
+
+  -- Player GUIDs carry no entry and do not match the pattern above, so they
+  -- fall out as 0 the way the modern branch's "^Player" check does.
+  local function LegacySpawnId(guid)
+    local hex = guid and guid:match("^0x(%x+)$")
+    return hex and hex:sub(-LEGACY_SPAWN_LENGTH) or nil
+  end
+
   -- Extract NPC ID from GUID
-  -- Legacy Cataclysm format: Creature-0-X-Y-Z-NpcId-UniqueSpawnId
   function DataToColor:NpcId(unit)
-    local guid = UnitGUID(unit) or ""
-
-    -- Legacy format (hex)
-    -- pattern: 0xF13000C5000034D7 → extract 00C5
-    local npc_hex = guid:match("^0xF[0-9A-F]+00(%x%x%x%x)")
-    if npc_hex then
-        return tonumber(npc_hex, 16)
-    end
-
-    return 0
+    return LegacyEntryId(UnitGUID(unit))
   end
 
   -- Get unique GUID from unit
@@ -642,20 +657,10 @@ if DataToColor.IsLegacy() then
     local guid = UnitGUID(unit)
     if not guid then return 0 end
 
-    -- Legacy creature guid example: 0xF130C2CF0000355D
-    -- NPC ID is at position 5-8 (after 0xF130): C2CF = 49871
-    local npc_hex = guid:match("^0xF130(%x%x%x%x)")
-    local npcId = npc_hex and tonumber(npc_hex, 16) or 0
-
-    -- Spawn data is last 8 characters
-    local hex = guid:match("^0x(%x+)$")
-    local spawn = hex and hex:sub(-8) or nil
-
-    return DataToColor:uniqueGuid(npcId, spawn)
+    return DataToColor:uniqueGuid(LegacyEntryId(guid), LegacySpawnId(guid))
   end
 
   -- /dump DataToColor:getGuidFromUUID("0xF130C2CF0000355D")
-  -- returns: 63532
   -- Get unique GUID from UUID
   -- Legacy: Direct extraction without hash calculation
   function DataToColor:getGuidFromUUID(uuid)
@@ -663,26 +668,12 @@ if DataToColor.IsLegacy() then
       return 0
     end
 
-    -- Legacy creature guid example: 0xF130C2CF0000355D
-    -- NPC/Entry is always right after 0xF130
-    local npc_hex = uuid:match("^0xF130(%x%x%x%x)")
-    local hex = uuid:match("^0x(%x+)$")
-    local npcId = tonumber(npc_hex, 16)
-    local spawn = hex:sub(-8)  -- "0000355D"
-    return DataToColor:uniqueGuid(npcId, spawn)
+    return DataToColor:uniqueGuid(LegacyEntryId(uuid), LegacySpawnId(uuid))
   end
 
   -- Extract NPC ID from UUID
-  -- Legacy: Same extraction pattern as modern
   function DataToColor:getNpcIdFromUUID(uuid)
-    if not uuid then
-      return 0
-    end
-
-    local npc_hex = uuid:match("^0xF[0-9A-F]+00(%x%x%x%x)")
-    if npc_hex then return tonumber(npc_hex, 16) end
-
-    return 0
+    return LegacyEntryId(uuid)
   end
 
   -- Get unit type from UUID
