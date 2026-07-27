@@ -114,7 +114,16 @@ public static class BakeProfiler
                 p.WarmExtractMs = extractSum / iterations;
                 p.WarmBakeMs = bakeSum / iterations;
 
-                // --- Instrumented pass: recast stage timers + allocation counters.
+                // --- Instrumented passes: allocation counters, then stage timers.
+                //
+                // These deliberately do NOT share a pass. Allocation is
+                // deterministic, so a single bake measures it exactly. Stage timers
+                // are not: at n=1 the smaller stages are dominated by JIT tier state,
+                // which makes them depend on how many warm iterations happened to run
+                // before this point rather than on the code being measured. Measured
+                // across eight identical runs, that put BUILD_POLYMESH anywhere in
+                // 11-32ms and RASTERIZE_TRIANGLES in 62-111ms - wide enough to invent
+                // a regression that does not exist, which it did.
                 TileGeometry profGeom = TileGeometryExtractor.Extract(world, tx, tz);
 
                 int gen0 = GC.CollectionCount(0);
@@ -122,17 +131,27 @@ public static class BakeProfiler
                 int gen2 = GC.CollectionCount(2);
                 long allocated = GC.GetAllocatedBytesForCurrentThread();
 
-                RcContext ctx = new();
-                NavmeshTileBuilder.Bake(profGeom, tx, tz, ctx);
+                RcContext allocCtx = new();
+                NavmeshTileBuilder.Bake(profGeom, tx, tz, allocCtx);
 
                 p.AllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocated;
                 p.Gen0 = GC.CollectionCount(0) - gen0;
                 p.Gen1 = GC.CollectionCount(1) - gen1;
                 p.Gen2 = GC.CollectionCount(2) - gen2;
 
+                // RcContext accumulates into its timer dictionary across calls, so
+                // one context over N bakes yields a sum to divide.
+                int stageIterations = Math.Max(1, iterations);
+                RcContext ctx = new();
+                for (int i = 0; i < stageIterations; i++)
+                {
+                    NavmeshTileBuilder.Bake(profGeom, tx, tz, ctx);
+                }
+
                 foreach (RcTelemetryTick tick in ctx.ToList())
                 {
-                    p.Stages[tick.Key] = tick.Ticks / (double)TimeSpan.TicksPerMillisecond;
+                    p.Stages[tick.Key] =
+                        tick.Ticks / (double)TimeSpan.TicksPerMillisecond / stageIterations;
                 }
 
                 p.Success = true;
@@ -304,6 +323,10 @@ public static class BakeProfiler
         sb.AppendLine();
         sb.AppendLine("From DotRecast's built-in `RC_TIMER_*` counters. Nested labels overlap their parent;");
         sb.AppendLine("compare each against the tile's warm bake total rather than summing the column.");
+        sb.AppendLine();
+        sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
+            $"Averaged over {Math.Max(1, iterations)} bake(s) per tile. At one sample these numbers are"));
+        sb.AppendLine("dominated by JIT tier state, not by the code - do not compare single-sample runs.");
         sb.AppendLine();
 
         List<string> stageKeys = [.. profiles
