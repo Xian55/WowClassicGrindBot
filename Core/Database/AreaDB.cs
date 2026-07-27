@@ -240,6 +240,9 @@ public sealed class AreaDB : IDisposable
         {
             PlayerFaction.Alliance => (friendGroup & allianceOurMask) != 0,
             PlayerFaction.Horde => (friendGroup & hordeOurMask) != 0,
+            // A Neutral player (Pandaren before the Wandering Isle is finished)
+            // only counts NPCs friendly to every player as friendly.
+            PlayerFaction.Neutral => (friendGroup & AllPlayers) != 0,
             _ => false
         };
     }

@@ -8,6 +8,7 @@ local UnitLevel = UnitLevel
 
 local UnitChannelInfo = UnitChannelInfo
 local UnitCastingInfo = UnitCastingInfo
+local GetSpellInfo = GetSpellInfo
 
 local WOW_PROJECT_ID = WOW_PROJECT_ID or -1 -- -1 = Legacy client (old retail)
 local WOW_PROJECT_CLASSIC = WOW_PROJECT_CLASSIC
@@ -146,6 +147,141 @@ else
     return n1, n2, n3, n4, n5, n6, n7, n8
   end
 end
+
+------------------------------------------------------------
+-- GetSpellPowerCost (6.0+)
+-- Query.lua:populateActionbarCost walks the result with ipairs and reads
+-- .cost/.type, so every fallback must return an ARRAY of those entries -
+-- a flat { cost = , powerType = } table iterates zero times and every slot
+-- silently reports the zero-cost mana default.
+------------------------------------------------------------
+
+-- 4.0 dropped cost/isFunnel/powerType from GetSpellInfo, so only pre-Cata
+-- clients can answer this without scraping the tooltip.
+local COST_IN_SPELL_INFO_BELOW_BUILD = 40000
+
+if GetSpellPowerCost then
+    DataToColor.GetSpellPowerCost = GetSpellPowerCost
+elseif buildVersion < COST_IN_SPELL_INFO_BELOW_BUILD then
+    -- Reused across calls: this runs per action bar slot on every
+    -- ACTIONBAR_SLOT_CHANGED and the caller only reads it inside the loop.
+    local entry = { cost = 0, type = 0 }
+    local result = { entry }
+
+    DataToColor.GetSpellPowerCost = function(spellID)
+        -- name, rank, icon, cost, isFunnel, powerType, castTime, ...
+        local cost, _, powerType = select(4, GetSpellInfo(spellID))
+        if not cost then return nil end
+        entry.cost = cost
+        entry.type = powerType or 0
+        return result
+    end
+else
+    -- 4.3.4 / 5.4.8: no API carries the cost, the spell tooltip is the only
+    -- place it appears ("30 Energy" on the first right-hand line). Flat costs
+    -- resolve; "x% of base mana" does not match a power name and is left to
+    -- the zero-cost default, since base mana is not queryable either.
+    --
+    -- Power names come from the client's own global strings, so this works on
+    -- any locale. The numbers are what Core/AddonComponent/PowerType.cs
+    -- expects BEFORE offsetEnumPowerType is added.
+    local POWER_TYPE_BY_GLOBAL_STRING = {
+        MANA = 0,
+        RAGE = 1,
+        FOCUS = 2,
+        ENERGY = 3,
+        RUNES = 5,
+        RUNIC_POWER = 6,
+        SOUL_SHARDS = 7,
+        HOLY_POWER = 9,
+        CHI = 12,
+        COMBO_POINTS = 14,
+    }
+
+    -- Longest name first: a short name must never win over a longer one that
+    -- also matches the same line.
+    local powerNames = {}
+    for globalString, powerType in pairs(POWER_TYPE_BY_GLOBAL_STRING) do
+        local localized = _G[globalString]
+        if type(localized) == "string" and localized ~= "" then
+            powerNames[#powerNames + 1] = { name = localized, type = powerType }
+        end
+    end
+    table.sort(powerNames, function(a, b) return #a.name > #b.name end)
+
+    local SCANNER_NAME = "DataToColorCostScanner"
+    local scanner = CreateFrame("GameTooltip", SCANNER_NAME, nil, "GameTooltipTemplate")
+    scanner:SetOwner(UIParent, "ANCHOR_NONE")
+
+    -- The cost sits on the first line; a few more are scanned because some
+    -- spells push it down. Description text starts well below that, which is
+    -- what keeps a stray "mana" in flavour text out of the match.
+    -- Looked up per call, not captured: GameTooltipTemplate only ships line 1,
+    -- the rest are created the first time a tooltip is that tall.
+    local costLineNames = {
+        SCANNER_NAME .. "TextRight1",
+        SCANNER_NAME .. "TextLeft2",
+        SCANNER_NAME .. "TextRight2",
+    }
+
+    -- Memoized per spell: a full bar sweep is up to 120 tooltip builds, the same
+    -- spell often sits on several bars, and SPELLS_CHANGED arrives in bursts.
+    -- false = scanned, no flat cost (percentage or costless spell).
+    local costCache = {}
+
+    local function ScanSpellPowerCost(spellID)
+        scanner:SetOwner(UIParent, "ANCHOR_NONE")
+        scanner:ClearLines()
+
+        if scanner.SetSpellByID then
+            scanner:SetSpellByID(spellID)
+        else
+            scanner:SetHyperlink("spell:" .. spellID)
+        end
+
+        for i = 1, #costLineNames do
+            local line = _G[costLineNames[i]]
+            local text = line and line:GetText()
+            -- A percentage line ("4% of base mana") is not a flat cost, and
+            -- base mana is not queryable, so leave it to the zero default.
+            if text and not text:find("%%") then
+                for j = 1, #powerNames do
+                    local power = powerNames[j]
+                    if text:find(power.name, 1, true) then
+                        -- Digits only: locales group thousands differently
+                        -- ("1,200" / "1 200" / "1.200").
+                        local digits = text:match("%d[%d%s,%.]*")
+                        local cost = digits and tonumber((digits:gsub("[^%d]", "")))
+                        if cost then
+                            return { { cost = cost, type = power.type } }
+                        end
+                    end
+                end
+            end
+        end
+
+        return false
+    end
+
+    DataToColor.GetSpellPowerCost = function(spellID)
+        local cached = costCache[spellID]
+        if cached == nil then
+            cached = ScanSpellPowerCost(spellID)
+            costCache[spellID] = cached
+        end
+        return cached or nil
+    end
+
+    -- Talents, glyphs and specialisation swaps all change costs and all raise
+    -- SPELLS_CHANGED, which is where OnSpellsChanged calls this.
+    DataToColor.InvalidateSpellPowerCostCache = function()
+        wipe(costCache)
+    end
+end
+
+-- No cache to drop when the client answers costs directly.
+DataToColor.InvalidateSpellPowerCostCache =
+    DataToColor.InvalidateSpellPowerCostCache or function() end
 
 -- define your safe version under a different name
 local function UnitIsTapDenied_Fallback(unit)
@@ -473,7 +609,7 @@ local strsplit = strsplit
 
 if DataToColor.IsLegacy() then
   -- ========================================
-  -- LEGACY CATACLYSM 4.3.4 IMPLEMENTATIONS
+  -- LEGACY 4.3.4 / 5.4.8 IMPLEMENTATIONS
   -- ========================================
 
   function DataToColor:GetActionTexture(slot)
@@ -481,19 +617,34 @@ if DataToColor.IsLegacy() then
     return DataToColor:NormalizeTexture(GetActionTexture(slot))
   end
 
+  ------------------------------------------------------------
+  -- Legacy hex GUID layout
+  --   0x | 3 nibbles high type | 5 nibbles entry | 8 nibbles spawn counter
+  --   0xF130C2CF0000355D -> F13 creature, entry 0C2CF = 49871
+  --   0xF130EB1729000001 -> F13 creature, entry 0EB17 = 60183
+  -- The entry is 20 bits wide, not the 16 that the familiar "0xF130" prefix
+  -- suggests: 5.4.8 ships ~2800 creatures above 0xFFFF (highest is 80674) and
+  -- those spill into the 4th nibble, turning the prefix into 0xF131 and up.
+  -- High types seen on units: F13 creature, F14 pet, F15 vehicle.
+  ------------------------------------------------------------
+  local LEGACY_ENTRY_PATTERN = "^0x[fF]1%x(%x%x%x%x%x)"
+  local LEGACY_SPAWN_LENGTH = 8
+
+  local function LegacyEntryId(guid)
+    local hex = guid and guid:match(LEGACY_ENTRY_PATTERN)
+    return hex and tonumber(hex, 16) or 0
+  end
+
+  -- Player GUIDs carry no entry and do not match the pattern above, so they
+  -- fall out as 0 the way the modern branch's "^Player" check does.
+  local function LegacySpawnId(guid)
+    local hex = guid and guid:match("^0x(%x+)$")
+    return hex and hex:sub(-LEGACY_SPAWN_LENGTH) or nil
+  end
+
   -- Extract NPC ID from GUID
-  -- Legacy Cataclysm format: Creature-0-X-Y-Z-NpcId-UniqueSpawnId
   function DataToColor:NpcId(unit)
-    local guid = UnitGUID(unit) or ""
-
-    -- Legacy format (hex)
-    -- pattern: 0xF13000C5000034D7 → extract 00C5
-    local npc_hex = guid:match("^0xF[0-9A-F]+00(%x%x%x%x)")
-    if npc_hex then
-        return tonumber(npc_hex, 16)
-    end
-
-    return 0
+    return LegacyEntryId(UnitGUID(unit))
   end
 
   -- Get unique GUID from unit
@@ -506,20 +657,10 @@ if DataToColor.IsLegacy() then
     local guid = UnitGUID(unit)
     if not guid then return 0 end
 
-    -- Legacy creature guid example: 0xF130C2CF0000355D
-    -- NPC ID is at position 5-8 (after 0xF130): C2CF = 49871
-    local npc_hex = guid:match("^0xF130(%x%x%x%x)")
-    local npcId = npc_hex and tonumber(npc_hex, 16) or 0
-
-    -- Spawn data is last 8 characters
-    local hex = guid:match("^0x(%x+)$")
-    local spawn = hex and hex:sub(-8) or nil
-
-    return DataToColor:uniqueGuid(npcId, spawn)
+    return DataToColor:uniqueGuid(LegacyEntryId(guid), LegacySpawnId(guid))
   end
 
   -- /dump DataToColor:getGuidFromUUID("0xF130C2CF0000355D")
-  -- returns: 63532
   -- Get unique GUID from UUID
   -- Legacy: Direct extraction without hash calculation
   function DataToColor:getGuidFromUUID(uuid)
@@ -527,26 +668,12 @@ if DataToColor.IsLegacy() then
       return 0
     end
 
-    -- Legacy creature guid example: 0xF130C2CF0000355D
-    -- NPC/Entry is always right after 0xF130
-    local npc_hex = uuid:match("^0xF130(%x%x%x%x)")
-    local hex = uuid:match("^0x(%x+)$")
-    local npcId = tonumber(npc_hex, 16)
-    local spawn = hex:sub(-8)  -- "0000355D"
-    return DataToColor:uniqueGuid(npcId, spawn)
+    return DataToColor:uniqueGuid(LegacyEntryId(uuid), LegacySpawnId(uuid))
   end
 
   -- Extract NPC ID from UUID
-  -- Legacy: Same extraction pattern as modern
   function DataToColor:getNpcIdFromUUID(uuid)
-    if not uuid then
-      return 0
-    end
-
-    local npc_hex = uuid:match("^0xF[0-9A-F]+00(%x%x%x%x)")
-    if npc_hex then return tonumber(npc_hex, 16) end
-
-    return 0
+    return LegacyEntryId(uuid)
   end
 
   -- Get unit type from UUID

@@ -33,7 +33,10 @@
             {
                 <div class="col-12 col-lg-4">
                     <div class="talent-tree">
-                        @for (int tier = 0; tier <= tree.Max(t => t.TierID); tier++)
+                        @* A class tab with no rows renders empty rather than throwing out of
+                           Max(): the talent DBC of an era can carry tab ids that no talent
+                           row references, which is the case for 5.4.8. *@
+                        @for (int tier = 0; tier <= (tree.Length == 0 ? -1 : tree.Max(t => t.TierID)); tier++)
                         {
                             <div class="talent-tier d-flex justify-content-center gap-1">
                                 @for (int col = 0; col <= 3; col++)

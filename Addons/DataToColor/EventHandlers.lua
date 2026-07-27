@@ -47,8 +47,8 @@ local EVENT_CODE_CAST_SUCCESS = 253
 
 local function PushCastEvent(spellId, eventCode)
     if not DataToColor.castEventQueue then return end
-    spellId = (spellId or 0) % 65536
-    eventCode = (eventCode or 0) % 256
+    spellId = (tonumber(spellId) or 0) % 65536
+    eventCode = (tonumber(eventCode) or 0) % 256
     if eventCode == 0 then return end
     DataToColor.castEventQueue:push(spellId + eventCode * 65536)
 end
@@ -159,8 +159,16 @@ function DataToColor:RegisterEvents()
     -- allows to use the addon with older client version
     DataToColor:SafeRegisterEvent("PLAYER_SOFT_INTERACT_CHANGED", "OnPlayerSoftInteractChanged")
 
+    -- MoP: a Pandaren leaves Neutral at the end of the Wandering Isle. Cell 46
+    -- carries the faction, so re-detect the moment the choice lands instead of
+    -- waiting for the next PLAYER_ENTERING_WORLD.
+    DataToColor:SafeRegisterEvent("NEUTRAL_FACTION_SELECT_RESULT", "OnNeutralFactionSelect")
+
     -- Season of mastery / vanilla
-    if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+    -- Must go through IsClassic(): on a Legacy client (4.3.4, 5.4.8) both
+    -- WOW_PROJECT_ID and WOW_PROJECT_CLASSIC are nil, so a raw `==` compare is
+    -- nil == nil and these vanilla-only handlers would register there too.
+    if DataToColor.IsClassic() then
         DataToColor:RegisterEvent('UNIT_SPELLCAST_START', 'SoM_OnCastStart')
         DataToColor:RegisterEvent('UNIT_SPELLCAST_SUCCEEDED', 'SoM_OnCastSuccess')
         DataToColor:RegisterEvent('UNIT_SPELLCAST_FAILED', 'SoM_OnCastFailed')
@@ -753,10 +761,18 @@ function DataToColor:OnSpellsChanged(event)
     DataToColor:PopulateSpellBookInfo()
     DataToColor:InitTalentQueue()
     DataToColor:InitSpellBookQueue()
+    -- Talents/glyphs/spec changes land here and can move a spell's cost.
+    -- No-op unless the client needs the tooltip scraper (4.3.4 / 5.4.8).
+    DataToColor.InvalidateSpellPowerCostCache()
     DataToColor:InitActionBarCostQueue()
     DataToColor:InitActionBarCastTimeQueue()
     DataToColor:InvalidateCurrentActionCache()
     DataToColor:InvalidateActionUseableCache()
+end
+
+function DataToColor:OnNeutralFactionSelect(event)
+    -- Refreshes CHARACTER_FACTION_ID and with it cell 46.
+    DataToColor:DetectPlayerCharacter()
 end
 
 function DataToColor:ActionbarSlotChanged(event, slot)

@@ -3,7 +3,6 @@ using Core.Database;
 
 using SharedLib;
 
-using System;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Numerics;
@@ -118,28 +117,14 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public int Money => reader.GetInt(44) + (reader.GetInt(45) * 1000000);
 
-    // RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
-    public UnitRace Race => (UnitRace)(reader.GetInt(46) / 10000);
+    // FACTION_ID * 1000000 + RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
+    public UnitRace Race => (UnitRace)(reader.GetInt(46) / 10000 % 100);
     public UnitClass Class => (UnitClass)(reader.GetInt(46) / 100 % 100);
     public ClientVersion Version => (ClientVersion)(reader.GetInt(46) % 100);
 
-    public PlayerFaction Faction => Race switch {
-        UnitRace.Human => PlayerFaction.Alliance,
-        UnitRace.Dwarf => PlayerFaction.Alliance,
-        UnitRace.NightElf => PlayerFaction.Alliance,
-        UnitRace.Gnome => PlayerFaction.Alliance,
-        UnitRace.Draenei => PlayerFaction.Alliance,
-        UnitRace.Worgen => PlayerFaction.Alliance,
-        UnitRace.Orc => PlayerFaction.Horde,
-        UnitRace.Tauren => PlayerFaction.Horde,
-        UnitRace.Undead => PlayerFaction.Horde,
-        UnitRace.Troll => PlayerFaction.Horde,
-        UnitRace.BloodElf => PlayerFaction.Horde,
-        UnitRace.Goblin => PlayerFaction.Horde,
-        UnitRace.PandarenA => PlayerFaction.Alliance,
-        UnitRace.PandarenH => PlayerFaction.Horde,
-        _ => throw new ArgumentNullException(nameof(Faction)),
-    };
+    // Sent by the addon rather than derived from the race: a Pandaren is
+    // Neutral until the Wandering Isle is finished, then becomes either side.
+    public PlayerFaction Faction => (PlayerFaction)(reader.GetInt(46) / 1000000);
 
     // 47 empty
 

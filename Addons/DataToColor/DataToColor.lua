@@ -866,11 +866,6 @@ function DataToColor:CreateFrames()
         return 0
     end
 
-    -- Precomputed static value for cell 46 (race/class/version never change)
-    local raceClassVersionCell = DataToColor.C.CHARACTER_RACE_ID * 10000
-        + DataToColor.C.CHARACTER_CLASS_ID * 100
-        + DataToColor.ClientVersion
-
     -- MiniMap settings cache (cells 16-17), recomputed every ~200 ticks
     local miniMapCache1 = 0
     local miniMapCache2 = 0
@@ -1101,7 +1096,9 @@ function DataToColor:CreateFrames()
             Pixel(int, GetMoney() % 1000000, 44) -- Represents amount of money held (in copper)
             Pixel(int, floor(GetMoney() / 1000000), 45) -- Represents amount of money held (in gold) 
 
-            Pixel(int, raceClassVersionCell, 46)
+            -- Rebuilt by DetectPlayerCharacter, so a re-detect on
+            -- PLAYER_ENTERING_WORLD (or a Pandaren picking a faction) lands here.
+            Pixel(int, DataToColor.C.RACE_CLASS_VERSION_CELL, 46)
             Pixel(int, DataToColor.uiErrorMessageTime, 47)
             Pixel(int, DataToColor:shapeshiftForm(), 48) -- Shapeshift id https://wowwiki.fandom.com/wiki/API_GetShapeshiftForm
             Pixel(int, DataToColor:getRange(), 49) -- Represents minRange-maxRange ex. 0-5 5-15

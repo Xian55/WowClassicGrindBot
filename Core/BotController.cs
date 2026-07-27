@@ -135,7 +135,7 @@ public sealed partial class BotController : IBotController, IDisposable
             !Enum.IsDefined<UnitClass>(playerReader.Class) ||
             playerReader.Class == UnitClass.None);
 
-        LogPlayerInfo(logger, playerReader.Version, playerReader.Race, playerReader.Class);
+        LogPlayerInfo(logger, playerReader.Version, playerReader.Faction, playerReader.Race, playerReader.Class);
 
         screenshotThread = new(ScreenshotThread);
         screenshotThread.Start();
@@ -648,8 +648,8 @@ public sealed partial class BotController : IBotController, IDisposable
     [LoggerMessage(
         EventId = 1002,
         Level = LogLevel.Information,
-        Message = "{Version} {Race} {Class}!")]
-    static partial void LogPlayerInfo(ILogger logger, ClientVersion version, UnitRace race, UnitClass @class);
+        Message = "{Version} {Faction} {Race} {Class}!")]
+    static partial void LogPlayerInfo(ILogger logger, ClientVersion version, PlayerFaction faction, UnitRace race, UnitClass @class);
 
     #endregion
 }

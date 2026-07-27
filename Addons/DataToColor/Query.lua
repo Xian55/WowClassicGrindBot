@@ -28,10 +28,7 @@ local UnitGUID = UnitGUID
 
 local GetActionInfo = GetActionInfo
 local GetMacroSpell = GetMacroSpell
-local GetSpellPowerCost = GetSpellPowerCost or function(spellID)
-    local cost, powerType = select(4, GetSpellInfo(spellID)), select(5, GetSpellInfo(spellID))
-    return { cost = cost, powerType = powerType }
-end
+local GetSpellPowerCost = DataToColor.GetSpellPowerCost
 local GetSpellBaseCooldown = GetSpellBaseCooldown
 local GetInventoryItemLink = GetInventoryItemLink
 local IsSpellInRange = IsSpellInRange
@@ -376,7 +373,9 @@ function DataToColor:populateActionbarCost(slot)
 
     local found = false
 
-    if id and actionType == DataToColor.C.ActionType.Spell or actionType == DataToColor.C.ActionType.Macro then
+    -- Parenthesised: without them `and` binds tighter and a macro whose body has
+    -- no spell (id nil) still entered the branch.
+    if id and (actionType == DataToColor.C.ActionType.Spell or actionType == DataToColor.C.ActionType.Macro) then
         local costTable = GetSpellPowerCost(id)
         if costTable then
             for order, costInfo in ipairs(costTable) do
