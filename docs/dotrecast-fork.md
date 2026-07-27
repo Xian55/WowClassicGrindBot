@@ -91,6 +91,100 @@ protocol exists because the naive one lied to us repeatedly:
   provably cannot reach still moved by 4-6%. Non-overlapping samples are not
   proof of causation; a mechanism is required as well.
 
+### Re-measured on Apple silicon
+
+Everything above was measured on a Windows / Intel i7-6700K box whose run-to-run
+spread was ±10-15% - wider than most of the individual wins being claimed. The
+whole A/B was therefore repeated on a quieter machine: **Mac mini M4, 10 cores,
+macOS 26.5.2, arm64**, .NET 10.0.110, three samples per arm in the same
+drift-cancelling order, `ba16b1c` (the same baseline as above) against `eae9562`,
+five bake iterations per tile.
+
+> **`BakeProfiler` had to be fixed first, and this invalidates the per-stage
+> tables above.** The stage breakdown used to come from a *single* instrumented
+> bake, while only the warm-bake column was averaged. At n=1 the small stages are
+> dominated by JIT tier state, and because the instrumented pass runs *after* the
+> warm loop, its tier state depended on the `iterations` argument rather than on
+> the code. Across eight identical runs at the same commit, `BUILD_POLYMESH`
+> landed anywhere in 19.8-27.4 ms, and 11.0 ms at 20 iterations;
+> `RASTERIZE_TRIANGLES` ranged 61.9-110.7 ms (75% spread);
+> `BUILD_CONTOURS_SIMPLIFY` moved 102%. The profiler now averages stage timers
+> over N bakes after a separate allocation pass. Re-testing four identical runs at
+> the tip: `RASTERIZE_TRIANGLES` 75% → 5%, `BUILD_POLYMESH` 37% → 5%,
+> `BUILD_CONTOURS_WALK` 36% → 7%, `BUILD_REGIONS_EXPAND` 15% → 2%. Two stages are
+> still not trustworthy because they are simply too small -
+> `BUILD_CONTOURS_SIMPLIFY` (2-3 ms, 45%) and `BUILD_REGIONS_FLOOD` (4-6 ms, 30%);
+> ignore both unless a change targets them directly. **Every per-stage number in
+> the 6700K tables above was produced by the old n=1 path**, so treat those columns
+> as indicative only - the totals and the allocation figures were always sound.
+
+| stage | baseline | now | M4 change | 6700K change |
+|---|---|---|---|---|
+| `RASTERIZE_TRIANGLES` | 232.4 | 63.1 | **−73%** | −77% |
+| `BUILD_COMPACTHEIGHTFIELD` | 150.4 | 48.5 | **−68%** | −73% |
+| `MEDIAN_AREA` | 79.1 | 27.6 | **−65%** | −77% |
+| `BUILD_POLYMESHDETAIL` | 109.2 | 45.2 | −59% | −57% |
+| `BUILD_CONTOURS_TRACE` | 16.5 | 9.2 | −44% | −66% |
+| `BUILD_REGIONS_WATERSHED` | 127.1 | 84.9 | −33% | −47% |
+| `BUILD_REGIONS` | 153.9 | 104.4 | −32% | −46% |
+| `BUILD_CONTOURS` | 23.7 | 17.1 | −28% | −52% |
+| `BUILD_REGIONS_EXPAND` | 51.8 | 42.9 | −17% | −43% |
+| `BUILD_POLYMESH` | 17.1 | 14.7 | −14% | −29% |
+| `BUILD_DISTANCEFIELD` | 57.1 | 55.6 | −3% | −20% |
+| `ERODE_AREA` | 39.8 | 42.9 | +8% | −36% |
+| `BUILD_CONTOURS_SIMPLIFY` | 1.7 | 2.2 | +29% | - |
+| `FILTER_BORDER` | 60.9 | 89.2 | **+46%** | +29% |
+
+| overall | baseline | now | 6700K |
+|---|---|---|---|
+| total warm bake | 936 ms | **527 ms (−44%)** | −52% |
+| allocation | 708 MB | **84 MB (−88%)** | −89% |
+| gen0 collections | 72 | **8 (−89%)** | −90% |
+| run-to-run spread | 1.1% | **0.9%** | ±10-15% |
+
+Three things to take from this.
+
+**The variance is an order of magnitude tighter** - 1.1% and 0.9% against
+±10-15%. At ±10-15% the 6700K could not resolve a 5% win at all; here it can.
+
+**Allocation reproduces almost exactly** (708 vs 751 MB, 84 vs 85 MB) while
+wall-clock does not. That is the expected asymmetry - allocation is a property of
+the code, wall-clock is a property of the machine - and it is what confirms both
+arms really are the commits they claim to be.
+
+**Every win is directionally confirmed but smaller**, consistent with much of this
+fork's benefit being memory-bandwidth and GC-pressure relief: the M4 has less of
+both to reclaim. `ERODE_AREA` slipping from −36% to +8% is the one direction
+change big enough to be worth a look; `BUILD_CONTOURS_SIMPLIFY` at +29% is 0.5 ms
+on a 1.7 ms stage and not worth chasing.
+
+**`FILTER_BORDER` is the only real regression, and it is the documented one.**
++46% here against +29% on the 6700K - the deliberate trade from
+[`66300b0`](https://github.com/Xian55/DotRecast/commit/66300b0), reproduced on a
+second architecture. Nothing new is broken.
+
+Worth recording what this section originally claimed, because it was wrong: a
+**+75% `BUILD_POLYMESH` regression**, blamed on
+[`1b555ad`](https://github.com/Xian55/DotRecast/commit/1b555ad4374df307715e1e574b2a67d16daaa963)
+and [`a6c10b7`](https://github.com/Xian55/DotRecast/commit/a6c10b7) being x86-tuned.
+Bisecting all 28 commits found the stage flat throughout - 18.0, 18.3, 18.5, 17.7,
+17.9 ms - and the "regression" was the n=1 sampling artifact described above. With
+the profiler fixed it is a −14% *improvement*. The lesson is the one this page
+already makes elsewhere: a plausible mechanism plus a non-overlapping sample is
+still not evidence. Bisect before believing a regression, especially one whose
+stage is small enough to be JIT-tier noise.
+
+**The byte-identity gate does not port across architectures.** All six tiles are
+byte-identical *between the two arms* and stable across repeats, so the
+optimisation series is identity-preserving here too. But five of the six differ
+from the x64 hashes recorded in `Benchmarks/CLAUDE.md`, and the one that matches
+(`elwynn-open`) is the only tile with neither WMO placement nor liquid. Since the
+pre-optimisation baseline produces the same arm64 hashes, the cause is below this
+fork - most likely arm64 FMA contraction in the WMO/liquid transform chains.
+Treat the recorded hashes as an **x64-only** invariant; an arm64 bake host needs
+its own baseline, and arm64-baked tiles should not be assumed byte-interchangeable
+with x64-baked ones for distribution.
+
 ---
 
 ## The commits
@@ -419,11 +513,42 @@ diagnoses died during this work, including two of our own conclusions.
 
 ## What C++ actually says
 
-To stop guessing, we built a native harness (`native/rcbench`) that links
-recastnavigation directly and bakes the *same* geometry: the corpus tiles are
-dumped to a binary file with their full config, and the harness mirrors our bake
-step for step. Polygon counts come out identical on all six tiles
-(173/365/284/345/258/355), so the two pipelines are genuinely comparable.
+To stop guessing, we built a native harness that links recastnavigation directly
+and bakes the *same* geometry: `Benchmarks --dump-geometry` writes each corpus
+tile to a `.rcdump` with its full config, and the harness mirrors our bake step
+for step. Polygon counts come out identical on all six tiles, so the two
+pipelines are genuinely comparable.
+
+The harness is `rcbench`, kept **outside** this repo (it links recastnavigation
+and Detour directly, so it does not belong in the .NET solution). Point its
+`RECAST_DIR` at a recastnavigation checkout and give it the dump directory:
+
+```
+rcbench <dump-dir> [iterations=2] [--no-detail]
+```
+
+Two things about the recorded numbers below have to be flagged, because both
+quietly favour C++:
+
+**The poly counts have moved.** This page recorded `173/365/284/345/258/355`;
+today's corpus gives `198/398/287/380/262/338`. The config or the extractor
+changed in between, so the 6700K C++ column is **not** measured against the same
+corpus state as the C# column beside it. Absolute milliseconds across the two
+hosts mean nothing; only ratios within one host do.
+
+**`-ffast-math` changes the mesh.** `rcbench`'s CMakeLists builds with
+`-ffast-math` / `/fp:fast`, which the .NET JIT never gets. On the M4 that flag is
+worth only ~1.6% of wall-clock, so it explains no gap - but it does perturb the
+float math enough to change the output: the fast-math build produces
+`200/393/290/377/264/341` while a plain `-O2` build produces
+`198/398/287/380/262/338`, matching DotRecast exactly. So "polygon counts come out
+identical on all six tiles" holds for a plain build and **not** for the one the
+recorded numbers came from. Everything below uses plain `-O2`.
+
+**The two sides aggregate differently.** `rcbench` reports the *best* of N
+iterations after a warm-up; the C# profiler reports the *mean*
+(`bakeSum / iterations`). C++'s run-to-run spread on the M4 is under 1%, so the
+distortion is small there, but the asymmetry is real and always favours C++.
 
 DotRecast is a port of recastnavigation **and recast4j** - a port of a port - and
 the Java hop widened value types that C++ packs into bitfields:
@@ -493,22 +618,160 @@ stating: the harness is **single-threaded throughout**, so our wins in
 than per-core efficiency; and the working set is still 9.4 MB against C++'s
 7.4 MB, because two of the four narrowings were not worth taking.
 
+That "single-threaded throughout" claim does not survive scrutiny, incidentally:
+the tip has two `Parallel.For` sites ([`0d8641b`](https://github.com/Xian55/DotRecast/commit/0d8641bd9aedcf9742c7934a7f38332c1646eabe)
+and [`51b96e6`](https://github.com/Xian55/DotRecast/commit/51b96e602b803de7d1311a10463481e1dfe2435c))
+and there is no switch to disable them, so the C# column above was almost
+certainly the parallel build. The M4 numbers below quantify what that was worth.
+
+#### On the Mac mini M4
+
+`recastnavigation` at `9f4ce64` (v1.6.0-367), plain `-O2`, no `-ffast-math`, no
+`-march=native`, against DotRecast `eae9562`. Poly counts identical to the C#
+bake on all six tiles. C++ is single-threaded; the C# column is the shipping
+build, with a single-threaded row added underneath via `DOTNET_PROCESSOR_COUNT=1`.
+
+| stage | C++ ms | C# ms | C# ÷ C++ | 6700K ratio |
+|---|---|---|---|---|
+| `BUILD_REGIONS_FILTER` | 42.4 | 16.7 | **0.39×** | 0.41× |
+| `RASTERIZE_TRIANGLES` | 94.7 | 63.1 | **0.67×** | 0.82× |
+| `BUILD_REGIONS` | 142.5 | 104.4 | **0.73×** | 0.65× |
+| `BUILD_REGIONS_WATERSHED` | 99.7 | 84.9 | **0.85×** | 0.70× |
+| `BUILD_REGIONS_EXPAND` | 45.8 | 42.9 | **0.94×** | 0.77× |
+| `BUILD_POLYMESHDETAIL` | 44.8 | 45.2 | 1.01× | 0.67× |
+| `BUILD_REGIONS_FLOOD` | 4.0 | 5.9 | 1.48× | - |
+| `BUILD_CONTOURS_TRACE` | 6.0 | 9.2 | 1.53× | 0.79× |
+| `BUILD_CONTOURS` | 9.4 | 17.1 | 1.82× | 1.16× |
+| `BUILD_CONTOURS_SIMPLIFY` | 1.2 | 2.2 | 1.83× | - |
+| `FILTER_WALKABLE` | 2.6 | 5.1 | 1.96× | - |
+| `ERODE_AREA` | 21.2 | 42.9 | 2.02× | 1.10× |
+| `BUILD_COMPACTHEIGHTFIELD` | 23.8 | 48.5 | 2.04× | 1.00× |
+| `BUILD_DISTANCEFIELD_DIST` | 17.2 | 37.2 | 2.16× | 1.41× |
+| `MEDIAN_AREA` | 12.7 | 27.6 | 2.17× | 1.55× |
+| `BUILD_POLYMESH` | 6.5 | 14.7 | 2.26× | 1.49× |
+| `FILTER_LOW_OBSTACLES` | 2.5 | 5.7 | 2.28× | - |
+| `BUILD_DISTANCEFIELD` | 22.6 | 55.6 | 2.46× | - |
+| `FILTER_BORDER` | 33.8 | 89.2 | **2.64×** | 2.14× |
+| `BUILD_DISTANCEFIELD_BLUR` | 5.4 | 18.8 | **3.48×** | 1.61× |
+| **total** | **419.3** | **527.2** | **1.26×** | 1.02× |
+| total, C# forced single-threaded | 419.3 | 902.7 | **2.15×** | - |
+
+The C++ column was cross-checked against an independently written harness (no
+Detour, median rather than best, same `.rcdump` input) which totalled 422.9 ms -
+**0.8% apart**, so the native side is not the uncertain half of this table.
+
+The gap ordering is broadly the same as the 6700K's, with `FILTER_BORDER` and the
+distance field's blur pass at the bad end and the region stages comfortably ahead.
+The one genuine change is `BUILD_POLYMESHDETAIL` falling from 0.67× to parity:
+that stage is parallel here, so on ten cores it should have improved, and it did
+not. Worth a look.
+
+**Parity does not hold on arm64.** 1.26× with parallelism, **2.13× without**.
+Intra-tile parallelism is worth 1.69× on ten cores and is doing all the work of
+making the total look close; per-core, C++ is more than twice as fast. The 1.02×
+on the 6700K was a four-core box where the parallel stages had far less headroom
+*and* C++ had far less single-core throughput to exploit - the M4 rewards C++'s
+scalar code much more than it rewards ours.
+
+**The scalar stages moved against us**, while the parallel and pooled ones
+(`BUILD_REGIONS*`, `RASTERIZE_TRIANGLES`) held or improved. Nothing here is a new
+defect: the ordering matches the 6700K's, and the two stages at the bad end -
+`FILTER_BORDER` and the distance field's blur pass - are the two this page already
+tracks under "Still on the table".
+
+Per-tile, the gap is widest where there is least work to parallelise:
+
+| tile | C++ | C# | ratio |
+|---|---|---|---|
+| `elwynn-open` | 35.7 | 66.2 | 1.85× |
+| `durotar-water` | 49.3 | 63.7 | 1.29× |
+| `barrens-open` | 61.3 | 79.2 | 1.29× |
+| `dunmorogh-indoor` | 35.7 | 46.0 | 1.29× |
+| `orgrimmar-wmo` | 148.9 | 173.1 | 1.16× |
+| `stormwind-wmo` | 88.6 | 101.0 | 1.14× |
+
+The gap is widest on the smallest tiles and narrowest on `orgrimmar-wmo`, which is
+exactly the ordering intra-tile parallelism predicts: the more work there is per
+tile, the more the parallel stages can hide. These ratios are therefore limited by
+the C# arm's variance, not the harness's.
+
 ## Still on the table
 
-- **`FILTER_BORDER`**, at 2.14× the worst remaining gap and the one stage this
-  fork made *worse*. Two attempts have failed: a monotone cursor (50% slower,
-  see above) and copying the span struct into a local to cut the paged-store
-  load chain (no gain on the target, and both smaller filters got worse). The
-  remaining idea is flattening the span store into one column-ordered array
-  after rasterization, which would cost a multi-megabyte pooled allocation per
-  tile.
-- **`MEDIAN_AREA` at 1.55× and the distance field at ~1.5×.** Both are memory-
-  bound sweeps where the narrowing that would help is exactly the one measured
-  to lose.
-- **`BUILD_POLYMESH` at 1.49×.** The `BuildPolyMesh` merge loop re-scans all
+- **`FILTER_BORDER`**, at 2.14× on the 6700K and 2.64× on the M4, and the one
+  stage this fork made *worse* on both (+29% and +46%). **Five attempts have now
+  failed**, and between them they rule out the whole obvious family of causes.
+  `FilterLedgeSpans` is byte-for-byte the same algorithm as C++ with the same
+  early-outs, so the gap is per-span-access cost - and it turns out not to be any
+  of the three things that cost looks like:
+
+  | attempt | `FILTER_BORDER` | verdict |
+  |---|---|---|
+  | as-is | 89.1 | - |
+  | monotone cursor rewrite | ~134 | 50% slower, reverted |
+  | copy span struct to a local | no change | smaller filters got worse |
+  | `ref` locals + int `Math.Abs` | 86.9 | −2.5%; below the noise floor, not kept |
+  | one 1M-slot page (perfect locality) | 81.0 | −7%, but RASTERIZE 59→71 and allocation 3× - not viable |
+  | `Unsafe.Add`, no bounds checks | 86.0 | no change; `FILTER_LOW_OBSTACLES` 5.7→7.8, `FILTER_WALKABLE` 5.2→6.5 |
+
+  So the paged store's **indirection is worth ~2%, its locality ~7%, and its bounds
+  checks nothing** - the JIT was already eliding the redundant loads, and forcing
+  the issue by hand only disturbed inlining elsewhere.
+
+  **The profile settles it.** `/ppather-profile cpu` over a 60 s bake loop
+  (`dotnet-sampled-thread-time`, ~100 Hz; on macOS `cpu-sampling` is Linux-only):
+
+  - `FilterLedgeSpans` is **5.50% of CPU** (9087 ms of 165 s) and ~16% of wall.
+  - Its callee breakdown is **99.7% `CPU_TIME`**, 0.3% `RcContext.StopTimer`.
+    Nothing else. No allocation, no lock, no helper call.
+  - `RcSpanStore.get_Item` **does not appear in the frame table at all** - the
+    indexer is fully inlined, which is why removing "redundant" lookups and bounds
+    checks by hand bought nothing. There was never any overhead there to remove.
+
+  So the stage is one flat inlined scalar loop with no structural target left in
+  it. The remaining 2.6× against C++ is per-instruction codegen over identical
+  logic, not a layout or abstraction tax. Flattening into one column-ordered array
+  is still untried, but the 1M-page result caps what pure locality can pay at well
+  under 2×, and the profile shows nothing else to recover - so it is no longer
+  obviously worth its multi-megabyte per-tile allocation. **Treat this stage as
+  closed** unless someone wants to attack the codegen itself (SIMD over columns, or
+  a different span encoding); five plausible mechanisms have now died here.
+
+  **Nothing was kept.** The closest thing to a win was `ref RcSpan` locals replacing
+  nine repeated `store[i]` lookups per span, together with `MathF.Abs` → `Math.Abs`
+  on an `int` in the innermost loop - the same int→float round trip
+  [`99b2b15`](https://github.com/Xian55/DotRecast/commit/99b2b152b405f9ee5d7c960fed707637c4a66e8c)
+  removed elsewhere and missed here. It measured 89.1 → 86.9 ms with total bake
+  526.8 → 523.5 ms, hashes unchanged and 142 tests green, and it was still
+  abandoned: −2.5% on one stage and −0.6% overall sits inside the 0.7-1.5% run
+  spread, and paying for that with a `for`→`while` restructure of two loop headers
+  is a bad trade against a file upstream still touches. If someone revisits this,
+  the `Math.Abs` half is a one-token change with no rebase cost and is worth taking
+  on its own merits; the two halves were never measured separately, so how much of
+  the 2.5% it carries is unknown.
+- **`MEDIAN_AREA` at 1.55× and the distance field at ~1.5×** on the 6700K; 2.17×
+  and 2.16-2.46× on the M4, with `BUILD_DISTANCEFIELD_BLUR` the single worst ratio
+  anywhere at **3.48×** (5.4 ms against 18.8 ms - only ~13 ms to win, but the
+  cleanest ratio on the board). All are memory-bound sweeps where the narrowing
+  that would help is exactly the one measured to lose.
+- **`BUILD_POLYMESH` at 1.49× on the 6700K, 2.26× on the M4.** The `BuildPolyMesh` merge loop re-scans all
   polygon pairs after every merge, an O(npolys³) per contour; only the pairs
   touching the two merged polygons actually change. Caching merge values with
   row/column invalidation makes it O(npolys²), and stays byte-identical provided
   the ascending scan order and the strict `>` tie-break are preserved.
 - **`RemoveVertex`/`CanRemoveVertex`** make five full polygon passes per flagged
   vertex, and border tiles flag a whole perimeter's worth.
+- **`RcSpanStore.ClaimPage` lock contention - 3.12% of all CPU**, surfaced by the
+  same profile and previously unnoticed because it is invisible in the per-stage
+  table (it bills to `RASTERIZE_TRIANGLES`, which is parallel, so it costs CPU
+  rather than wall time). Called 100% from `AddSpan`; **87.4% of it is
+  `Lock.EnterAndGetCurrentThreadId` → `TryEnterSlow`**, i.e. the ten rasterization
+  band allocators genuinely serialising on `pageLock`, with another 12.2% in the
+  copy-on-write `Array.Copy` when the outer `pages` array grows.
+
+  Widening the page is *not* the fix: `PageShift` 11→14 did cut
+  `RASTERIZE_TRIANGLES` 65.3 → 58.2 ms (−11%) as predicted, but total bake moved
+  only −0.7% against a 0.8-1.5% spread, and 11→12 gave nothing at all. The real
+  fix is to remove the lock - pre-size the outer `pages` array and claim with
+  `Interlocked.Increment` plus a `Volatile.Write` of the new page - which keeps the
+  2048-span granularity and deletes both the contention and the `Array.Copy`.
+  Untested.
