@@ -435,8 +435,8 @@ public sealed partial class FrameConfigurator : IDisposable
 
         int value = reader.GetInt(46);
 
-        // RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
-        race = (UnitRace)(value / 10000);
+        // FACTION_ID * 1000000 + RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
+        race = (UnitRace)(value / 10000 % 100);
         @class = (UnitClass)(value / 100 % 100);
         version = (ClientVersion)(value % 100);
 

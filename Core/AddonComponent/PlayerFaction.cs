@@ -3,5 +3,6 @@
 public enum PlayerFaction
 {
     Alliance,
-    Horde
+    Horde,
+    Neutral
 }

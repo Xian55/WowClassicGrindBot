@@ -5,9 +5,7 @@ local UnitName = UnitName
 local UnitGUID = UnitGUID
 local UnitClass = UnitClass
 local UnitRace = UnitRace
-
-local WOW_PROJECT_ID = WOW_PROJECT_ID
-local WOW_PROJECT_CLASSIC = WOW_PROJECT_CLASSIC
+local UnitFactionGroup = UnitFactionGroup
 
 DataToColor.C.MAX_ACTIONBAR_SLOT = 120 -- up to moonkin form
 
@@ -20,7 +18,10 @@ DataToColor.C.unitPet = "pet"
 DataToColor.C.unitPartyNames = {}
 DataToColor.C.unitPartyPetNames = {}
 
-if WOW_PROJECT_ID == WOW_PROJECT_CLASSIC then
+-- Vanilla has no focus unit. IsClassic() and not a raw `WOW_PROJECT_ID ==
+-- WOW_PROJECT_CLASSIC`: on a Legacy client (4.3.4, 5.4.8) both globals are nil,
+-- so the raw compare is nil == nil and would strip focus support there.
+if DataToColor.IsClassic() then
     DataToColor.C.unitFocus = "party1"
     DataToColor.C.unitFocusTarget = "party1target"
 else
@@ -68,9 +69,18 @@ DataToColor.C.CHARACTER_RACE_MAP = {
     ["Draenei"] = 11,
     ["Worgen"] = 22,
     ["Gilnean"] = 23,
-    ["Pandaren"] = 24,
-    ["PandarenA"] = 25,
-    ["PandarenH"] = 26
+    ["Pandaren"] = 24
+}
+
+-- MoP gives a Pandaren a different race id per faction. The bot models a single
+-- Pandaren race plus the faction from FACTION_MAP, so these collapse onto 24.
+DataToColor.C.PANDAREN_ALLIANCE_RACE_ID = 25
+DataToColor.C.PANDAREN_HORDE_RACE_ID = 26
+
+DataToColor.C.FACTION_MAP = {
+    ["Alliance"] = 0,
+    ["Horde"] = 1,
+    ["Neutral"] = 2
 }
 
 -- Character info — wrapped so it can be re-detected from OnEnteringWorld.
@@ -90,6 +100,30 @@ function DataToColor:DetectPlayerCharacter()
     if DataToColor.C.CHARACTER_CLASS_ID == nil then
         DataToColor.C.CHARACTER_CLASS_ID = DataToColor.C.CHARACTER_CLASS_MAP[DataToColor.C.CHARACTER_CLASS_LOWER]
     end
+
+    if DataToColor.C.CHARACTER_RACE_ID == DataToColor.C.PANDAREN_ALLIANCE_RACE_ID
+        or DataToColor.C.CHARACTER_RACE_ID == DataToColor.C.PANDAREN_HORDE_RACE_ID then
+        DataToColor.C.CHARACTER_RACE_ID = DataToColor.C.CHARACTER_RACE_MAP.Pandaren
+    end
+
+    -- A Pandaren has no faction until the Wandering Isle is finished, and
+    -- UnitFactionGroup answers nil for that state on 5.4.8 rather than the
+    -- "Neutral" the modern API documents. Anything unrecognised is Neutral too:
+    -- guessing a side would make the bot walk up to hostile vendors.
+    DataToColor.C.CHARACTER_FACTION = UnitFactionGroup(DataToColor.C.unitPlayer) or "Neutral"
+    DataToColor.C.CHARACTER_FACTION_ID =
+        DataToColor.C.FACTION_MAP[DataToColor.C.CHARACTER_FACTION] or DataToColor.C.FACTION_MAP.Neutral
+
+    -- Cell 46 payload, decoded by Core/Addon/PlayerReader.cs:
+    --   FACTION_ID * 1000000 + RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
+    -- Highest possible value is 2241295, a pixel carries 0..16777215.
+    -- Race/class stay nil-safe: on a cold start the C# side reports "failed to
+    -- read UnitClass and UnitRace" instead of this erroring out mid-frame.
+    DataToColor.C.RACE_CLASS_VERSION_CELL =
+        DataToColor.C.CHARACTER_FACTION_ID * 1000000
+        + (DataToColor.C.CHARACTER_RACE_ID or 0) * 10000
+        + (DataToColor.C.CHARACTER_CLASS_ID or 0) * 100
+        + DataToColor.ClientVersion
 end
 
 DataToColor:DetectPlayerCharacter()

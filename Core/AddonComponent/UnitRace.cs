@@ -16,7 +16,5 @@ public enum UnitRace
     Draenei,
     Worgen = 22,
     Gilnean = 23,
-    Pandaren = 24,
-    PandarenA = 25,
-    PandarenH = 26
+    Pandaren = 24
 }
