@@ -47,8 +47,8 @@ local EVENT_CODE_CAST_SUCCESS = 253
 
 local function PushCastEvent(spellId, eventCode)
     if not DataToColor.castEventQueue then return end
-    spellId = (spellId or 0) % 65536
-    eventCode = (eventCode or 0) % 256
+    spellId = (tonumber(spellId) or 0) % 65536
+    eventCode = (tonumber(eventCode) or 0) % 256
     if eventCode == 0 then return end
     DataToColor.castEventQueue:push(spellId + eventCode * 65536)
 end
