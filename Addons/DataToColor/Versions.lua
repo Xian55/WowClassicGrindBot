@@ -93,7 +93,10 @@ if DataToColor.IsLegacy() then
     function DataToColor.UnitCastingInfo(unit)
         local n1, n2, n3, n4, n5, n6, n7, n8, n9 = UnitCastingInfo(unit)
         -- Legacy (e.g., 4.3.4) may not return spellId (n9)
-        if not n9 and n4 and S and S.playerSpellBookIconToId then
+        -- Neither legacy client returns a spellId. 4.3.4 stops at castID, while
+        -- 5.4.8 has a ninth value that is notInterruptible - a BOOLEAN, and a
+        -- `not n9` test lets a non-interruptible cast pass `true` on as the id.
+        if type(n9) ~= "number" and n4 and S and S.playerSpellBookIconToId then
           n4 = DataToColor:NormalizeTexture(n4)
           n9 = S.playerSpellBookIconToId[n4] or 0
         end
