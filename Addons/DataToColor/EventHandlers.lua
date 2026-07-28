@@ -7,6 +7,7 @@ local floor = math.floor
 local UIErrorsFrame = UIErrorsFrame
 local CombatLogGetCurrentEventInfo = CombatLogGetCurrentEventInfo
 local GetSpellInfo = GetSpellInfo
+local GetSpellCastTime = DataToColor.GetSpellCastTime
 local GetSpellBaseCooldown = GetSpellBaseCooldown
 local GetTime = GetTime
 local GetGossipOptions = DataToColor.GetGossipOptions
@@ -476,8 +477,7 @@ function DataToColor:OnCombatEvent(...)
                     hasGCD = false
                 end
 
-                local _, _, _, castTime = GetSpellInfo(spellId)
-                castTime = castTime or 0
+                local castTime = GetSpellCastTime(spellId)
 
                 if castTime > 0 then
                     hasGCD = false

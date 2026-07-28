@@ -29,6 +29,7 @@ local UnitGUID = UnitGUID
 local GetActionInfo = GetActionInfo
 local GetMacroSpell = GetMacroSpell
 local GetSpellPowerCost = DataToColor.GetSpellPowerCost
+local GetSpellCastTime = DataToColor.GetSpellCastTime
 local GetSpellBaseCooldown = GetSpellBaseCooldown
 local GetInventoryItemLink = GetInventoryItemLink
 local IsSpellInRange = IsSpellInRange
@@ -410,8 +411,7 @@ function DataToColor:populateActionbarCastTime(slot)
 
     if actionType == "spell" then
         if id then
-            local _, _, _, ct = GetSpellInfo(id)
-            castTime = ct or 0
+            castTime = GetSpellCastTime(id)
         end
 
     elseif actionType == "item" then
@@ -421,24 +421,21 @@ function DataToColor:populateActionbarCastTime(slot)
         if id then
             local _, spellId = GetItemSpell(id)
             if spellId then
-                local _, _, _, ct = GetSpellInfo(spellId)
-                castTime = ct or 0
+                castTime = GetSpellCastTime(spellId)
             end
         end
 
     elseif actionType == "macro" then
         local macroSpell = GetMacroSpell(id)
         if macroSpell then
-            local _, _, _, ct = GetSpellInfo(macroSpell)
-            castTime = ct or 0
+            castTime = GetSpellCastTime(macroSpell)
         else
             local macroItemName = GetMacroItem(id)
             if macroItemName then
                 isItem = true
                 local _, spellId = GetItemSpell(macroItemName)
                 if spellId then
-                    local _, _, _, ct = GetSpellInfo(spellId)
-                    castTime = ct or 0
+                    castTime = GetSpellCastTime(spellId)
                 end
             end
         end

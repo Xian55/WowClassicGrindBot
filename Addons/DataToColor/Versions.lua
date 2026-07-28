@@ -149,6 +149,35 @@ else
 end
 
 ------------------------------------------------------------
+-- GetSpellInfo return layout
+-- Long (vanilla through 5.4.8, nine values):
+--   name, rank, icon, cost, isFunnel, powerType, castTime, minRange, maxRange
+-- Short (4.x Classic re-releases onwards, six or seven):
+--   name, rank, icon, castTime, minRange, maxRange[, spellID]
+-- Probed, not derived from the build: 5.4.8 keeps the long shape even though it
+-- postdates the 4.0 that supposedly dropped it, and reading castTime at index 4
+-- there returns the cost instead - a 2000ms Steady Shot reported as 35.
+-- Attack (6603) exists on every client this addon supports.
+------------------------------------------------------------
+local SPELL_INFO_PROBE_SPELL_ID = 6603
+local LONG_SPELL_INFO_RETURNS = 9
+
+local hasLongSpellInfo =
+    select('#', GetSpellInfo(SPELL_INFO_PROBE_SPELL_ID)) >= LONG_SPELL_INFO_RETURNS
+
+if hasLongSpellInfo then
+    function DataToColor.GetSpellCastTime(spellID)
+        if not spellID then return 0 end
+        return (select(7, GetSpellInfo(spellID))) or 0
+    end
+else
+    function DataToColor.GetSpellCastTime(spellID)
+        if not spellID then return 0 end
+        return (select(4, GetSpellInfo(spellID))) or 0
+    end
+end
+
+------------------------------------------------------------
 -- GetSpellPowerCost (6.0+)
 -- Query.lua:populateActionbarCost walks the result with ipairs and reads
 -- .cost/.type, so every fallback must return an ARRAY of those entries -
@@ -156,13 +185,9 @@ end
 -- silently reports the zero-cost mana default.
 ------------------------------------------------------------
 
--- 4.0 dropped cost/isFunnel/powerType from GetSpellInfo, so only pre-Cata
--- clients can answer this without scraping the tooltip.
-local COST_IN_SPELL_INFO_BELOW_BUILD = 40000
-
 if GetSpellPowerCost then
     DataToColor.GetSpellPowerCost = GetSpellPowerCost
-elseif buildVersion < COST_IN_SPELL_INFO_BELOW_BUILD then
+elseif hasLongSpellInfo then
     -- Reused across calls: this runs per action bar slot on every
     -- ACTIONBAR_SLOT_CHANGED and the caller only reads it inside the loop.
     local entry = { cost = 0, type = 0 }
