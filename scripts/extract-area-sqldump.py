@@ -164,16 +164,21 @@ def main():
     wma = json.load(open(wma_path, encoding="utf-8-sig"))
 
     # Every AreaID, so the parent chain can be walked; and the subset that owns a map.
-    # The area grid stores the *innermost* area - "Cleft of Shadow", not Orgrimmar - but
-    # AreaDB only ever reads area/<id>.json for the id the addon reports, and the
-    # existing files are all top-level zones (82 of cata's 88). A subzone's WorldMapArea
-    # entry carries its own tiny bounds, so writing zone-wide content against one would
-    # push most of it outside 0..100. Roll spawns up to the root zone instead.
+    # The area grid stores the *innermost* area - "Cleft of Shadow", not Orgrimmar -
+    # while AreaDB reads area/<id>.json for whatever id the addon reports. Anything
+    # with a UIMapId counts as a zone: it is drawn on its own map, so its WorldMapArea
+    # rect is a real rectangle to convert against. A subzone without one carries tiny
+    # bounds that would push zone-wide content outside 0..100, so spawns roll up to the
+    # nearest *mapped* ancestor rather than all the way to the root.
+    #
+    # Requiring no ParentAreaId here instead is what left Cataclysm's map-owning child
+    # zones with no file at all: Coldridge Valley (6176, parent Dun Morogh) is what the
+    # addon reports standing in it, but its spawns were filed under 1.json. Same for
+    # Northshire and every racial starting valley.
     all_areas = {}
     for r in wma:
         all_areas.setdefault(r["AreaID"], r)
-    zones = {aid: r for aid, r in all_areas.items()
-             if not r.get("ParentAreaId") and r.get("UIMapId")}
+    zones = {aid: r for aid, r in all_areas.items() if r.get("UIMapId")}
 
     # Bounds always come from this client's own WorldMapArea, because that is what
     # AreaDB and the Leaflet page convert with at runtime.
@@ -198,10 +203,10 @@ def main():
         if added:
             print(f"  parent chain: +{added} areas from {sibling}/WorldMapArea.json")
 
-    print(f"  areas {len(parents)}, top-level zones with a map {len(zones)}")
+    print(f"  areas {len(parents)}, zones with a map {len(zones)}")
 
-    def root_of(area_id):
-        """Innermost area -> the zone that owns the map it is drawn on."""
+    def mapped_zone_of(area_id):
+        """Innermost area -> nearest ancestor (or itself) that owns a map."""
         seen_ids = set()
         while area_id and area_id not in seen_ids:
             if area_id in zones:
@@ -210,7 +215,7 @@ def main():
             area_id = parents.get(area_id, 0)
         return 0
 
-    resolved = {aid: root_of(aid) for aid in parents}
+    resolved = {aid: mapped_zone_of(aid) for aid in parents}
 
     grid_dir = os.path.join(ROOT, "Json", "area_grid", era)
     grids = {}
@@ -249,6 +254,7 @@ def main():
     # A zone's own WorldMapArea rect resolves both, and picking the smallest rect that
     # contains the point keeps a city from being swallowed by the zone around it.
     rects = {}
+    box = {}
     for aid, r in zones.items():
         x0, x1 = sorted((r["LocTop"], r["LocBottom"]))
         y0, y1 = sorted((r["LocLeft"], r["LocRight"]))
@@ -256,17 +262,55 @@ def main():
             continue
         rects.setdefault(r["MapID"], []).append((
             (x1 - x0) * (y1 - y0), aid, x0, x1, y0, y1))
+        box[aid] = (r["MapID"], x0, x1, y0, y1)
     for v in rects.values():
         v.sort()
 
+    # Which mapped zones sit wholly inside another one's rect. A city carved out of the
+    # zone around it nests exactly this way - Ironforge inside Dun Morogh, Undercity
+    # inside Tirisfal, Cleft of Shadow inside Orgrimmar - whereas two halves of a split
+    # zone do not: Northern Stranglethorn and the Cape overlap without either containing
+    # the other, which is what makes containment safe to act on where a plain
+    # smallest-containing-rect is not.
+    nested = {}
+    for outer, (omap, ox0, ox1, oy0, oy1) in box.items():
+        for inner, (imap, ix0, ix1, iy0, iy1) in box.items():
+            if inner == outer or imap != omap:
+                continue
+            if ix0 >= ox0 and ix1 <= ox1 and iy0 >= oy0 and iy1 <= oy1:
+                if (ix1 - ix0) * (iy1 - iy0) < (ox1 - ox0) * (oy1 - oy0):
+                    nested.setdefault(outer, []).append(inner)
+
     drops = {"no grid": 0, "no zone": 0}
-    stats = {"grid": 0, "rect only": 0}
+    stats = {"grid": 0, "rect only": 0, "interior": 0}
 
     def smallest_rect(map_id, wx, wy):
         for _, aid, x0, x1, y0, y1 in rects.get(map_id, ()):
             if x0 <= wx <= x1 and y0 <= wy <= y1:
                 return aid
         return 0
+
+    def descend(map_id, zone, wx, wy):
+        """Grid answer -> the nested zone actually holding the point, if unambiguous.
+
+        The grid is a top-down projection of outdoor terrain, so an interior has no
+        cells and reports whatever is above it: every Ironforge NPC came back as Dun
+        Morogh and converted against Dun Morogh's bounds, putting the Gryphon Master
+        at [67.2, 26.9] - inside the mountain - instead of [55.5, 47.7].
+
+        Only a single containing candidate is trusted. Where several nest in the same
+        parent and overlap - Stranglethorn's two halves inside 5339 - there is no way
+        to tell them apart by rectangle, so the grid keeps the call.
+        """
+        while True:
+            hits = [c for c in nested.get(zone, ())
+                    if box[c][0] == map_id
+                    and box[c][1] <= wx <= box[c][2]
+                    and box[c][3] <= wy <= box[c][4]]
+            if len(hits) != 1:
+                return zone
+            zone = hits[0]
+            stats["interior"] += 1
 
     def place(map_id, wx, wy):
         """-> (zone id, zone) for a world position, or (0, None)."""
@@ -276,24 +320,26 @@ def main():
             return 0, None
 
         aid = area_id_at(g, wx, wy)
-        root = resolved.get(aid, 0) if aid else 0
+        zone = resolved.get(aid, 0) if aid else 0
 
-        if root:
+        if zone:
             # The grid wins wherever it has an answer: it follows true zone borders and
             # a rectangle cannot. Northern Stranglethorn's rect and the Cape's overlap
             # heavily, so preferring the smaller containing rect would recreate exactly
-            # the cross-zone misplacement this script exists to fix.
+            # the cross-zone misplacement this script exists to fix. Nested rects are
+            # the one safe exception - see descend().
             stats["grid"] += 1
+            zone = descend(map_id, zone, wx, wy)
         else:
-            root = smallest_rect(map_id, wx, wy)
-            if root:
+            zone = smallest_rect(map_id, wx, wy)
+            if zone:
                 stats["rect only"] += 1
 
-        if not root:
+        if not zone:
             drops["no zone"] += 1
             return 0, None
 
-        return root, zones[root]
+        return zone, zones[zone]
 
     print("\n  reading gameobject (nodes) ...")
     node_hits = {"herb": 0, "vein": 0}
