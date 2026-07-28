@@ -10,8 +10,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Assembly reference, not ProjectReference: this project has its own
+         Directory.Packages.props and sln so it stays outside the repo's central
+         package versions, and a ProjectReference drags those back in (NU1605 on
+         Newtonsoft).
+         Requires `dotnet build SharedLib -c Release` first. The path was still
+         net10.0-windows10.0.19041.0, a TFM SharedLib no longer builds, so the
+         reference silently resolved to a months-old dll and new members looked
+         like they did not exist. -->
     <Reference Include="SharedLib">
-      <HintPath>..\..\SharedLib\bin\Release\net10.0-windows10.0.19041.0\SharedLib.dll</HintPath>
+      <HintPath>..\..\SharedLib\bin\Release\net10.0\SharedLib.dll</HintPath>
     </Reference>
   </ItemGroup>
 

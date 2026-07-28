@@ -7,6 +7,7 @@ local floor = math.floor
 local UIErrorsFrame = UIErrorsFrame
 local CombatLogGetCurrentEventInfo = CombatLogGetCurrentEventInfo
 local GetSpellInfo = GetSpellInfo
+local GetSpellCastTime = DataToColor.GetSpellCastTime
 local GetSpellBaseCooldown = GetSpellBaseCooldown
 local GetTime = GetTime
 local GetGossipOptions = DataToColor.GetGossipOptions
@@ -16,6 +17,9 @@ local GetRepairAllCost = GetRepairAllCost
 local GetMoney = GetMoney
 local RepairAllItems = RepairAllItems
 local UnitRangedDamage = UnitRangedDamage
+
+local GetNumLootItems = GetNumLootItems
+local LootSlot = LootSlot
 
 local DeclineGroup = DeclineGroup
 local AcceptGroup = AcceptGroup
@@ -476,8 +480,7 @@ function DataToColor:OnCombatEvent(...)
                     hasGCD = false
                 end
 
-                local _, _, _, castTime = GetSpellInfo(spellId)
-                castTime = castTime or 0
+                local castTime = GetSpellCastTime(spellId)
 
                 if castTime > 0 then
                     hasGCD = false
@@ -1121,9 +1124,26 @@ function DataToColor:OnMirrorTimer_BitCache(event)
     end
 end
 
-function DataToColor:OnLootOpened_BitCache(event)
+function DataToColor:OnLootOpened_BitCache(event, autoLoot)
     if DataToColor.BitCache and DataToColor.BitCache.bits3 then
         DataToColor.BitCache.bits3.lootFrameShown = true
+    end
+
+    -- LOOT_OPENED reports whether the client quick-looted this corpse, which is
+    -- not the same as the autoLootDefault CVar the addon sets: the Auto Loot Key
+    -- modifier (AUTOLOOTTOGGLE) INVERTS it while held, so an Interact binding
+    -- carrying that modifier - Alt-Home against an Alt toggle - asks for manual
+    -- loot on every corpse while right-clicking the same corpse quick-loots.
+    -- Nothing then takes the items and LootGoal times out waiting for the window
+    -- to close. Fixing the binding is the real answer; this keeps a misconfigured
+    -- one merely slow instead of stalling the bot on every kill.
+    if autoLoot == 1 or autoLoot == true then
+        return
+    end
+
+    -- Backwards: LootSlot shifts the remaining slots down.
+    for i = GetNumLootItems(), 1, -1 do
+        LootSlot(i)
     end
 end
 

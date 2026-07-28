@@ -225,6 +225,9 @@ public sealed partial class RequirementFactory
             { "Energy", playerReader.PTCurrent },
             { "Rage", playerReader.PTCurrent },
             { "RunicPower", playerReader.PTCurrent },
+            // Hunter primary resource from MoP on. Distinct from FocusHealth% and
+            // the F_ aura prefix, which are about the focus unit, not a resource.
+            { "Focus", playerReader.PTCurrent },
             { "BloodRune", playerReader.BloodRune },
             { "FrostRune", playerReader.FrostRune },
             { "UnholyRune", playerReader.UnholyRune },

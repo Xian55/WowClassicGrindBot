@@ -29,6 +29,7 @@ local UnitGUID = UnitGUID
 local GetActionInfo = GetActionInfo
 local GetMacroSpell = GetMacroSpell
 local GetSpellPowerCost = DataToColor.GetSpellPowerCost
+local GetSpellCastTime = DataToColor.GetSpellCastTime
 local GetSpellBaseCooldown = GetSpellBaseCooldown
 local GetInventoryItemLink = GetInventoryItemLink
 local IsSpellInRange = IsSpellInRange
@@ -335,6 +336,7 @@ function DataToColor:CastingInfoSpellId(unitId)
             DataToColor.lastCastStartTime = startTime
             DataToColor.lastCastEndTime = endTime
             DataToColor.CastNum = DataToColor.CastNum + 1
+            DataToColor.RebuildCastingActionCache(spellID)
         end
         return spellID
     end
@@ -345,12 +347,14 @@ function DataToColor:CastingInfoSpellId(unitId)
             DataToColor.lastCastStartTime = startTime
             DataToColor.lastCastEndTime = endTime
             DataToColor.CastNum = DataToColor.CastNum + 1
+            DataToColor.RebuildCastingActionCache(spellID)
         end
         return spellID
     end
 
     if unitId == DataToColor.C.unitPlayer then
         DataToColor.lastCastEndTime = 0
+        DataToColor.ClearCastingActionCache()
     end
 
     return 0
@@ -410,8 +414,7 @@ function DataToColor:populateActionbarCastTime(slot)
 
     if actionType == "spell" then
         if id then
-            local _, _, _, ct = GetSpellInfo(id)
-            castTime = ct or 0
+            castTime = GetSpellCastTime(id)
         end
 
     elseif actionType == "item" then
@@ -421,24 +424,21 @@ function DataToColor:populateActionbarCastTime(slot)
         if id then
             local _, spellId = GetItemSpell(id)
             if spellId then
-                local _, _, _, ct = GetSpellInfo(spellId)
-                castTime = ct or 0
+                castTime = GetSpellCastTime(spellId)
             end
         end
 
     elseif actionType == "macro" then
         local macroSpell = GetMacroSpell(id)
         if macroSpell then
-            local _, _, _, ct = GetSpellInfo(macroSpell)
-            castTime = ct or 0
+            castTime = GetSpellCastTime(macroSpell)
         else
             local macroItemName = GetMacroItem(id)
             if macroItemName then
                 isItem = true
                 local _, spellId = GetItemSpell(macroItemName)
                 if spellId then
-                    local _, _, _, ct = GetSpellInfo(spellId)
-                    castTime = ct or 0
+                    castTime = GetSpellCastTime(spellId)
                 end
             end
         end
@@ -638,8 +638,51 @@ function DataToColor:isCurrentAction(min, max)
 end
 
 -- isCurrentAction cache (cells 25-29)
+local CURRENT_ACTION_CHUNK = 24
+
 local currentActionCache = { 0, 0, 0, 0, 0 }
 local currentActionDirty = true
+
+-- 5.4.8 reports IsCurrentAction false for a spell that is mid-cast, where the
+-- Classic re-releases report true. That bit is how the bot confirms a keypress
+-- landed, so every cast-time spell failed with CurrentActionNotDetected while
+-- instants - which resolve through CAST_SENT before the combat log overwrites
+-- it with CAST_START - kept working. Fold the casting slots in ourselves.
+local castingActionCache = { 0, 0, 0, 0, 0 }
+
+local function ClearCastingActionCache()
+    for i = 1, #castingActionCache do
+        castingActionCache[i] = 0
+    end
+end
+
+-- Every slot holding the spell, not just the first: the same spell can sit on
+-- several bars and the bot checks the slot it actually pressed.
+-- Called once per cast, off the transition CastingInfoSpellId already detects,
+-- never per frame.
+local function RebuildCastingActionCache(spellId)
+    ClearCastingActionCache()
+
+    if not spellId or spellId == 0 then
+        return
+    end
+
+    for slot = 1, DataToColor.C.MAX_ACTIONBAR_SLOT do
+        local actionType, id = GetActionInfo(slot)
+        if actionType == DataToColor.C.ActionType.Macro then
+            id = GetMacroSpell(id)
+        end
+
+        if id == spellId then
+            local chunk = floor((slot - 1) / CURRENT_ACTION_CHUNK) + 1
+            local offset = slot - 1 - ((chunk - 1) * CURRENT_ACTION_CHUNK)
+            castingActionCache[chunk] = castingActionCache[chunk] + (2 ^ offset)
+        end
+    end
+end
+
+DataToColor.RebuildCastingActionCache = RebuildCastingActionCache
+DataToColor.ClearCastingActionCache = ClearCastingActionCache
 
 local function RebuildCurrentActionCache()
     currentActionCache[1] = DataToColor:isCurrentAction(1, 24)
@@ -654,7 +697,17 @@ function DataToColor:isCurrentActionCached(chunk)
     if currentActionDirty then
         RebuildCurrentActionCache()
     end
-    return currentActionCache[chunk]
+
+    local bits = currentActionCache[chunk]
+    local casting = castingActionCache[chunk]
+
+    -- band, not +: an instant that is both current and casting would otherwise
+    -- carry the same bit twice and corrupt every higher slot in the chunk.
+    if casting ~= 0 then
+        bits = bits + (casting - band(bits, casting))
+    end
+
+    return bits
 end
 
 function DataToColor:InvalidateCurrentActionCache()
