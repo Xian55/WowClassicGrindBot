@@ -2221,6 +2221,7 @@ Arithmetic operators can be used to build complex expressions:
 | `Mana` | Player current mana |
 | `Rage` | Player current rage |
 | `Energy` | Player current energy |
+| `Focus` | Player current focus (Hunter from Mists of Pandaria on) |
 | `RunicPower` | Player current runic power |
 | `BloodRune` | Player current blood runes |
 | `FrostRune` | Player current frost runes |
