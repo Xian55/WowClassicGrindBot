@@ -185,7 +185,13 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
         }
 
         if (playerReader.TargetGuid == initialTargetGuid &&
-            !playerReader.IsInMeleeRange())
+            !playerReader.IsInMeleeRange() &&
+            // Tab-targeting with an auto attack running engages whatever it lands
+            // on: Auto Shot fires the moment the new target is acquired, so even
+            // switching straight back leaves a second mob pulled and inbound.
+            // Only once something is in pull range though - out of range the swap
+            // costs nothing, and that is where a closer target is worth finding.
+            !(bits.Any_AutoAttack() && playerReader.WithInPullRange()))
         {
             int initialTargetMinRange = playerReader.MinRange();
             if (!input.TargetNearestTarget.OnCooldown())
