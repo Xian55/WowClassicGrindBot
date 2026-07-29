@@ -29,23 +29,21 @@
     </CardHeader>
     <CardBody>
         <div class="row g-2">
-            @foreach (var (tree, treeIndex) in talentTrees.Select((t, i) => (t, i)))
+            @for (int treeIndex = 0; treeIndex < talentTrees.Length; treeIndex++)
             {
+                TalentTreeElement[] tree = talentTrees[treeIndex];
                 <div class="col-12 col-lg-4">
                     <div class="talent-tree">
-                        @* A class tab with no rows renders empty rather than throwing out of
-                           Max(): the talent DBC of an era can carry tab ids that no talent
-                           row references, which is the case for 5.4.8. *@
-                        @for (int tier = 0; tier <= (tree.Length == 0 ? -1 : tree.Max(t => t.TierID)); tier++)
+                        @for (int tier = 0; tier <= treeMaxTier[treeIndex]; tier++)
                         {
                             <div class="talent-tier d-flex justify-content-center gap-1">
-                                @for (int col = 0; col <= 3; col++)
+                                @for (int col = 0; col < MaxTalentColumns; col++)
                                 {
-                                    var talent = tree.FirstOrDefault(t => t.TierID == tier && t.ColumnIndex == col);
+                                    TalentTreeElement talent = FindTalent(tree, tier, col);
                                     @if (talent.SpellIds != null && talent.SpellIds.Length > 0 && talent.SpellIds[0] != 0)
                                     {
-                                        var spellId = talent.SpellIds[0];
-                                        var spentRank = GetSpentRank(treeIndex + 1, tier + 1, col + 1);
+                                        int spellId = talent.SpellIds[0];
+                                        int spentRank = GetSpentRank(treeIndex + 1, tier + 1, col + 1);
                                         var isSpent = spentRank > 0;
 
                                         <div class="talent-icon-wrapper @(isSpent ? "" : "talent-unspent")">
@@ -120,14 +118,56 @@
 @code {
     private TalentTreeElement[][] talentTrees = [];
 
+    // Highest tier per tree, resolved once when the trees load. Doing it inline
+    // meant a Max() over every tree on every render, and it threw on a tree with
+    // no rows - which is every tree on 5.4.8, where the talent DBC carries tab
+    // ids that no talent row references.
+    private int[] treeMaxTier = [];
+
+    // Widest talent grid across the eras this renders: pre-5.0 trees are 4 columns.
+    private const int MaxTalentColumns = 4;
+
+    // Plain scan instead of FirstOrDefault: the predicate captured tier/col, so
+    // every cell of every tree allocated a closure on every render.
+    private static TalentTreeElement FindTalent(TalentTreeElement[] tree, int tier, int col)
+    {
+        for (int i = 0; i < tree.Length; i++)
+        {
+            if (tree[i].TierID == tier && tree[i].ColumnIndex == col)
+                return tree[i];
+        }
+
+        return default;
+    }
+
     protected override void OnInitialized()
     {
         if (playerReader.Class != UnitClass.None)
         {
-            talentTrees = talentDB.GetTalentTreesForClass(playerReader.Class);
+            LoadTalentTrees();
         }
 
         addonReader.AddonDataChanged += OnDataChanged;
+    }
+
+    private void LoadTalentTrees()
+    {
+        talentTrees = talentDB.GetTalentTreesForClass(playerReader.Class);
+        treeMaxTier = new int[talentTrees.Length];
+
+        for (int i = 0; i < talentTrees.Length; i++)
+        {
+            TalentTreeElement[] tree = talentTrees[i];
+            int max = -1;
+
+            for (int j = 0; j < tree.Length; j++)
+            {
+                if (tree[j].TierID > max)
+                    max = tree[j].TierID;
+            }
+
+            treeMaxTier[i] = max;
+        }
     }
 
     public void Dispose()
@@ -139,7 +179,7 @@
     {
         if (talentTrees.Length == 0 && playerReader.Class != UnitClass.None)
         {
-            talentTrees = talentDB.GetTalentTreesForClass(playerReader.Class);
+            LoadTalentTrees();
         }
         InvokeAsync(StateHasChanged);
     }
