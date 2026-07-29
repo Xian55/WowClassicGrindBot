@@ -81,6 +81,7 @@ local GetSpellBookItemName = GetSpellBookItemName
 local GetNumTalentTabs = GetNumTalentTabs
 local GetNumTalents = GetNumTalents
 local GetTalentInfo = GetTalentInfo
+local GetTalentRowSelectionInfo = GetTalentRowSelectionInfo -- 5.0+ only, nil before
 local GetNumSpellTabs = GetNumSpellTabs
 local IsSpellKnown = IsSpellKnown
 
@@ -785,28 +786,76 @@ function DataToColor:InitSpellBookQueue()
     end
 end
 
-function DataToColor:InitTalentQueue()
-    -- MoP 5.0 replaced the tab/tier/column/rank talent trees with six tiers of a single
-    -- pick each, and deleted GetNumTalentTabs/GetNumTalents with them (GetTalentInfo
-    -- survives but with a different signature, so it is not a usable probe). Without
-    -- them there is nothing to enumerate in this shape; bail rather than raise, which is
-    -- what took out InitUpdateQueues on a 5.4.8 client and left every later queue
-    -- uninitialised. The C# TalentReader already copes with an empty queue - TalentDB
-    -- loads talent.json through LoadJsonSafe, and legacy clients ship none.
-    if not GetNumTalentTabs or not GetNumTalents then
-        return
-    end
+-- MoP 5.0 replaced the tab/tier/column/rank trees with six tiers of a single pick
+-- each and deleted GetNumTalentTabs/GetNumTalents with them. GetTalentInfo survives
+-- with a different signature, so it is not a usable probe - GetTalentRowSelectionInfo
+-- is, and it reports which talent of a tier is taken.
+local MOP_TALENT_TIERS = 6      -- MAX_TALENT_TIERS is nil until Blizzard_TalentUI loads
+local MOP_TALENT_COLUMNS = 3
+local MOP_TALENT_TAB = 1        -- 5.0 has no tabs, but the wire format still carries one
+local MOP_TALENT_RANK = 1       -- one pick per tier, so a taken talent is always rank 1
 
-    for tab = 1, GetNumTalentTabs(false, false) do
-        for i = 1, GetNumTalents(tab) do
-            local _, _, tier, column, currentRank = GetTalentInfo(tab, i)
-            if currentRank > 0 then
-                --                     1-3 +         1-11 +          1-4 +         1-5
-                local hash = tab * 1000000 + tier * 10000 + column * 10 + currentRank
-                DataToColor.talentQueue:push(hash)
-                --DataToColor:Print("talentQueue tab: ", tab, " | tier: ", tier, " | column: ", column, " | rank: ", currentRank, " | hash: ", hash)
+-- Collected before anything is pushed so the batch can be headed by its count.
+-- Reused across calls; only ever read back up to the count of the current batch.
+local talentHashes = {}
+
+function DataToColor:InitTalentQueue()
+    -- The C# TalentReader copes with an empty batch - TalentDB loads talent.json
+    -- through LoadJsonSafe, and some clients ship none. Bailing rather than raising
+    -- matters here: an error took out InitUpdateQueues on 5.4.8 and left every
+    -- later queue uninitialised.
+    local count = 0
+
+    if GetNumTalentTabs and GetNumTalents then
+        for tab = 1, GetNumTalentTabs(false, false) do
+            for i = 1, GetNumTalents(tab) do
+                local _, _, tier, column, currentRank = GetTalentInfo(tab, i)
+                if currentRank > 0 then
+                    count = count + 1
+                    --                              1-3 +         1-11 +          1-4 +         1-5
+                    talentHashes[count] = tab * 1000000 + tier * 10000 + column * 10 + currentRank
+                    --DataToColor:Print("talentQueue tab: ", tab, " | tier: ", tier, " | column: ", column, " | rank: ", currentRank)
+                end
             end
         end
+    elseif GetTalentRowSelectionInfo then
+        -- GetTalentInfo(index) over the flat grid answers
+        --   name, texture, tier, column, selected, available
+        -- with tier and column already 1-based, which is what the hash wants.
+        --
+        -- Taking them from here rather than from GetTalentRowSelectionInfo, whose
+        -- second return is the talent's INDEX and not its column: on a level 90 with
+        -- every tier taken it reports 1, 4, 8, 10, 13, 18. Using those as columns put
+        -- 13 into the hash, which decoded as column 3 and rendered the wrong talent,
+        -- while 4, 8, 10 and 18 matched no talent at all - and tier 1 looked correct
+        -- only because index 1 happens to equal column 1.
+        --
+        -- tonumber guards the pair, so a client answering a different shape yields no
+        -- talents instead of raising: raising here aborts InitUpdateQueues and leaves
+        -- every later queue dead.
+        for index = 1, MOP_TALENT_TIERS * MOP_TALENT_COLUMNS do
+            local _, _, tier, column, selected = GetTalentInfo(index)
+
+            tier = tonumber(tier)
+            column = tonumber(column)
+
+            if selected and tier and column then
+                count = count + 1
+                talentHashes[count] = MOP_TALENT_TAB * 1000000 + tier * 10000 + column * 10 + MOP_TALENT_RANK
+                --DataToColor:Print("talentQueue tier: ", tier, " | column: ", column)
+            end
+        end
+    end
+
+    -- Batch header, the same convention the spellbook and binding queues use. The
+    -- bot replaces its talent set on receiving it instead of merging into what it
+    -- already had: a respec picks different talents, and the hashes of the old ones
+    -- are never sent again, so nothing else would ever retire them. Sent even when
+    -- the count is zero - unlearning every talent has to clear the set too.
+    DataToColor.talentQueue:push(QUEUE_COUNT_MARKER + count)
+
+    for i = 1, count do
+        DataToColor.talentQueue:push(talentHashes[i])
     end
 end
 
