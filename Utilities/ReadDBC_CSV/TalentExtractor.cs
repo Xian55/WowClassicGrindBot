@@ -60,6 +60,18 @@ internal sealed class TalentExtractor : IExtractor
         return talenttabs;
     }
 
+    // 5.0 replaced the ranked per-tab trees with six tiers of a single pick each.
+    // Those rows identify their class on ClassID and carry the spell on SpellID,
+    // leaving SpellRank_* at zero - reading only the ranks dropped the spell of
+    // every 5.x talent. Pre-5.0 rows are the mirror image: ranks are filled,
+    // ClassID and SpellID are zero.
+    private const int MOP_TALENT_COLUMNS = 3;
+
+    // Column 4 of the 5.x grid is filler pointing at spell 102052 "Dummy 5.0
+    // Talent" for warrior, paladin and mage. It is not a talent and must not
+    // reach the UI.
+    private const int DUMMY_TALENT_SPELL_ID = 102052;
+
     public static List<TalentTreeElement> ExtractTalentTrees(string path)
     {
         using var reader = Sep.Reader(o => o with
@@ -73,6 +85,10 @@ internal sealed class TalentExtractor : IExtractor
         int columnIndex = reader.Header.IndexOf("ColumnIndex");
         int tabID = reader.Header.IndexOf("TabID");
 
+        // Absent from old enough exports, so both are optional.
+        bool hasClassID = reader.Header.TryIndexOf("ClassID", out int classID);
+        bool hasSpellID = reader.Header.TryIndexOf("SpellID", out int spellID);
+
         int spellRank0 = reader.Header.IndexOf("SpellRank_0", "SpellRank[0]");
         int spellRank1 = reader.Header.IndexOf("SpellRank_1", "SpellRank[1]");
         int spellRank2 = reader.Header.IndexOf("SpellRank_2", "SpellRank[2]");
@@ -83,19 +99,33 @@ internal sealed class TalentExtractor : IExtractor
         foreach (SepReader.Row row in reader)
         {
             //Console.WriteLine($"{values[entryIndex]} - {values[nameIndex]}");
+            int rowClassID = hasClassID ? row[classID].Parse<int>() : 0;
+            int rowColumnIndex = row[columnIndex].Parse<int>();
+            int rowSpellID = hasSpellID ? row[spellID].Parse<int>() : 0;
+
+            if (rowClassID != 0 &&
+                (rowColumnIndex >= MOP_TALENT_COLUMNS || rowSpellID == DUMMY_TALENT_SPELL_ID))
+                continue;
+
+            int[] spellIds =
+            [
+                row[spellRank0].Parse<int>(),
+                row[spellRank1].Parse<int>(),
+                row[spellRank2].Parse<int>(),
+                row[spellRank3].Parse<int>(),
+                row[spellRank4].Parse<int>()
+            ];
+
+            if (spellIds[0] == 0 && rowSpellID != 0)
+                spellIds[0] = rowSpellID;
+
             talents.Add(new TalentTreeElement
             {
                 TierID = row[tierID].Parse<int>(),
-                ColumnIndex = row[columnIndex].Parse<int>(),
+                ColumnIndex = rowColumnIndex,
                 TabID = row[tabID].Parse<int>(),
-                SpellIds =
-                [
-                    row[spellRank0].Parse<int>(),
-                    row[spellRank1].Parse<int>(),
-                    row[spellRank2].Parse<int>(),
-                    row[spellRank3].Parse<int>(),
-                    row[spellRank4].Parse<int>()
-                ]
+                ClassID = rowClassID,
+                SpellIds = spellIds
             });
         }
 
