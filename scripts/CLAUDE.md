@@ -66,6 +66,10 @@ the zone renders nothing, because `addNpcSpawns` looked up a skinnable id that
 `creatures.json` did not have. **These files are read once at host startup** - a
 regenerated `creatures.json` does nothing until the server is restarted.
 
+**Six zones still have no area data on `legacy_mop`/`mop`** - Feralas, Felwood, Searing
+Gorge, Un'Goro, Mount Hyjal, Silithus. Cause and the half-finished `--fill-from` fix are
+written up in [`docs/area-data-mop-gap.md`](../docs/area-data-mop-gap.md).
+
 **Use the dump of the client's own era for `area/`, whatever `creatures.json` shares.**
 `cata`/`legacy_cata` come from TrinityCore 4.3.4 (`TDB_full_world_434`), the Mists pair
 from SkyFire 5.4.8. SkyFire's old-world Kalimdor is thin - Feralas holds 1575 spawns and
