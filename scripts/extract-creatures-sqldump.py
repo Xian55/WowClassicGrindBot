@@ -164,10 +164,21 @@ def decode(raw):
 
 
 def rows(path, table, wanted):
-    """Yield dicts of the wanted columns for every INSERTed row of a table."""
+    """Yield dicts of the wanted columns for every INSERTed row of a table.
+
+    Column names are matched case-insensitively: cores disagree on the casing of
+    the same column, and only on the casing. TrinityCore 4.3.4 writes
+    gameobject_template.Data0 where SkyFire 5.4.8 writes data0, which aborted the
+    area extractor on a dump that had the column all along.
+    """
     cols = columns_of(path, table)
     idx = {c: i for i, c in enumerate(cols)}
-    missing = [c for c in wanted if c not in idx]
+    fold = {c.lower(): i for i, c in enumerate(cols)}
+
+    # Exact match wins, so a table carrying both spellings is unambiguous.
+    picked = {c: idx.get(c, fold.get(c.lower())) for c in wanted}
+
+    missing = [c for c, i in picked.items() if i is None]
     if missing:
         sys.exit(f"`{table}` has no column(s) {missing}; available: {', '.join(cols)}")
 
@@ -179,7 +190,7 @@ def rows(path, table, wanted):
             for values in split_tuples(line[len(prefix):]):
                 if len(values) != len(cols):
                     continue
-                yield {c: decode(values[idx[c]]) for c in wanted}
+                yield {c: decode(values[picked[c]]) for c in wanted}
 
 
 def resolve(cols, candidates, table):
