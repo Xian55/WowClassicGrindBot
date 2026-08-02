@@ -66,6 +66,25 @@ the zone renders nothing, because `addNpcSpawns` looked up a skinnable id that
 `creatures.json` did not have. **These files are read once at host startup** - a
 regenerated `creatures.json` does nothing until the server is restarted.
 
+**Use the dump of the client's own era for `area/`, whatever `creatures.json` shares.**
+`cata`/`legacy_cata` come from TrinityCore 4.3.4 (`TDB_full_world_434`), the Mists pair
+from SkyFire 5.4.8. SkyFire's old-world Kalimdor is thin - Feralas holds 1575 spawns and
+13 flagged NPCs there against 4721 and 74 in the 4.3.4 dump - which silently produced no
+`357.json`, `361.json` or `51.json` at all. A zone quietly missing its file is the
+symptom to watch for; compare the written zone count against the client's mapped zones.
+
+**A `legacy_` client's zone-hood comes from its non-legacy sibling, not its own
+WorldMapArea.** `legacy_cata` is built from 8.1.0.27826, so it reports Cataclysm's
+starting valleys as zones owning their own map. A 4.3.4 client does not - standing in
+Coldridge Valley it reports Dun Morogh - so writing `6176.json` creates a file nothing
+opens *and* strips those NPCs out of `1.json`. 4.4.2 has no Coldridge row at all and
+5.5.4 does, exactly matching what each client reports, so the sibling decides what counts
+as a zone while bounds stay with the client's own file.
+
+**Emulator column names differ only by case between cores.** TrinityCore writes
+`gameobject_template.Data0`, SkyFire `data0`. `rows()` folds case (exact spelling still
+wins) - before that it aborted on a dump that had the column all along.
+
 **Wowhead node coordinates are percentages of the map its *zone page* uses, which is
 not always the zone whose id names the file.** Cataclysm split Stranglethorn Vale (5339)
 into Northern Stranglethorn (33) and the Cape (5287); wowhead's zone=5339 data is
