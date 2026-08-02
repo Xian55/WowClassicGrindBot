@@ -171,14 +171,36 @@ def main():
     # bounds that would push zone-wide content outside 0..100, so spawns roll up to the
     # nearest *mapped* ancestor rather than all the way to the root.
     #
-    # Requiring no ParentAreaId here instead is what left Cataclysm's map-owning child
-    # zones with no file at all: Coldridge Valley (6176, parent Dun Morogh) is what the
-    # addon reports standing in it, but its spawns were filed under 1.json. Same for
+    # Requiring no ParentAreaId here instead is what left Mists' map-owning child zones
+    # with no file at all: Coldridge Valley (6176, parent Dun Morogh) is what a 5.4.8
+    # client reports standing in it, but its spawns were filed under 1.json. Same for
     # Northshire and every racial starting valley.
     all_areas = {}
     for r in wma:
         all_areas.setdefault(r["AreaID"], r)
     zones = {aid: r for aid, r in all_areas.items() if r.get("UIMapId")}
+
+    # Zone-hood is per era, and one client's WorldMapArea is not from its own.
+    # legacy_cata is built from 8.1.0.27826 (see Utilities/CLAUDE.md - 4.4.2 shifts the
+    # UiMapId space the addon's Lua table maps against), so it calls Cataclysm's
+    # starting valleys zones with their own maps. A 4.3.4 client does not: standing in
+    # Coldridge Valley it reports Dun Morogh, so 6176.json is a file nothing ever opens
+    # while 1.json is missing those NPCs. The non-legacy sibling IS era-correct - 4.4.2
+    # has no Coldridge row at all, 5.5.4 does, which matches what each client reports -
+    # so let it decide what counts as a zone. Bounds still come from this client's own
+    # file, since that is what AreaDB and the Leaflet page convert with. No-op for
+    # legacy_mop, whose 188 mapped zones are already the same set as mop's.
+    sibling_era = {"legacy_cata": "cata", "legacy_mop": "mop"}.get(args.client)
+    sibling_wma = os.path.join(ROOT, "Json", "dbc", sibling_era or "", "WorldMapArea.json")
+
+    if sibling_era and os.path.isfile(sibling_wma):
+        era_zones = {r["AreaID"] for r in json.load(open(sibling_wma, encoding="utf-8-sig"))
+                     if r.get("UIMapId")}
+        dropped = [aid for aid in zones if aid not in era_zones]
+        if dropped:
+            zones = {aid: r for aid, r in zones.items() if aid in era_zones}
+            print(f"  zone-hood from {sibling_era}: dropped {len(dropped)} area(s) "
+                  f"this client does not map")
 
     # Bounds always come from this client's own WorldMapArea, because that is what
     # AreaDB and the Leaflet page convert with at runtime.
