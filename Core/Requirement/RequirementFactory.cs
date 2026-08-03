@@ -658,7 +658,7 @@ public sealed partial class RequirementFactory
                 return false;
 
             // Must have at least 30 copper to pay mail fee
-            if (playerReader.Money < MailGoal.MIN_MAIL_FEE)
+            if (playerReader.Money.Value < MailGoal.MIN_MAIL_FEE)
                 return false;
 
             return bagReader.HasMailableItems(mail.MinimumItemQuality, classConfig.GetEffectiveExcludedItemIdSet());
@@ -679,7 +679,7 @@ public sealed partial class RequirementFactory
 
             // Must have more than threshold + fee to have any excess after fees
             // (30 copper minimum fee, even for gold-only mail)
-            return playerReader.Money > mail.MinimumGoldToKeep + MailGoal.MIN_MAIL_FEE;
+            return playerReader.Money.Value > mail.MinimumGoldToKeep + MailGoal.MIN_MAIL_FEE;
         }
         boolVariables.TryAdd(HasExcessGold, _HasExcessGold);
 
