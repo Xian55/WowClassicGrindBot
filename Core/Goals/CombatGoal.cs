@@ -26,6 +26,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
     private readonly IMountHandler mountHandler;
     private readonly CombatLog combatLog;
     private readonly ActionBarCastTimeReader castTimeReader;
+    private readonly ThreatFinder threatFinder;
 
     private float lastDirection;
     private float lastMinDistance;
@@ -36,9 +37,12 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
         ClassConfiguration classConfiguration, ClassConfiguration classConfig,
         CastingHandler castingHandler, CombatLog combatLog,
         IMountHandler mountHandler,
-        ActionBarCastTimeReader castTimeReader)
+        ActionBarCastTimeReader castTimeReader,
+        ThreatFinder threatFinder)
         : base(nameof(CombatGoal))
     {
+        this.threatFinder = threatFinder;
+
         this.logger = logger;
         this.input = input;
 
@@ -76,20 +80,6 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
             float distance = (lastMaxDistance + lastMinDistance) / 2f;
             int packedGuid = combatLog.DeadGuid.Value;
             SendGoapEvent(new CorpseEvent(GetCorpseLocation(distance), distance, playerReader.Direction, playerReader.MapPos, packedGuid));
-        }
-    }
-
-    private void ResetCooldowns()
-    {
-        ReadOnlySpan<KeyAction> span = Keys;
-        for (int i = 0; i < span.Length; i++)
-        {
-            KeyAction keyAction = span[i];
-            if (keyAction.ResetOnNewTarget)
-            {
-                keyAction.ResetCooldown();
-                keyAction.ResetCharges();
-            }
         }
     }
 
@@ -133,7 +123,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
 
         if (bits.SoftInteract_Enabled())
         {
-            UnstuckDeadSoftTargetLock();
+            threatFinder.UnstuckDeadSoftTargetLock();
         }
 
         if (classConfig.AutoPetAttack &&
@@ -190,7 +180,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
                 logger.LogWarning("Search Possible Threats!");
                 stopMoving.Stop();
 
-                FindPossibleThreats();
+                threatFinder.FindPossibleThreats(Keys);
             }
             else
             {
@@ -200,121 +190,8 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
         }
     }
 
-    private void FindPossibleThreats()
-    {
-        if (bits.Pet_Defensive())
-        {
-            float elapsedPetFoundTarget = wait.Until(CastingHandler.GCD,
-                () => playerReader.PetTarget() && bits.PetTarget_Alive());
-
-            if (elapsedPetFoundTarget < 0)
-            {
-                logger.LogWarning("Pet not found target!");
-                input.PressClearTarget();
-                return;
-            }
-
-            ResetCooldowns();
-
-            input.PressTargetPet();
-            wait.Update();
-            input.PressTargetOfTarget();
-            wait.Update();
-
-            logger.LogWarning("Found new target by pet. {ElapsedMs}ms", elapsedPetFoundTarget);
-
-            return;
-        }
-
-        logger.LogInformation("Checking target in front...");
-        input.PressNearestTarget();
-        wait.Update();
-
-        if (bits.Target() && !bits.Target_Dead() && bits.Target_Hostile())
-        {
-            if (!bits.Target_Combat())
-            {
-                logger.LogWarning("Dont pull non-hostile target!");
-                input.PressClearTarget();
-                wait.Update();
-                return;
-            }
-
-            if (bits.TargetTarget_PlayerOrPet() || combatLog.DamageTaken.Contains(playerReader.TargetGuid))
-            {
-                ResetCooldowns();
-
-                logger.LogWarning("Found new target!");
-                wait.Update();
-                return;
-            }
-        }
-
-        logger.LogWarning("Possible threats {DamageTakenCount}!", combatLog.DamageTakenCount());
-
-        if (bits.SoftInteract_Enabled())
-        {
-            UnstuckDeadSoftTargetLock();
-        }
-    }
-
     private Vector3 GetCorpseLocation(float distance)
     {
         return PointEstimator.GetMapPos(playerReader.WorldMapArea, playerReader.WorldPos, playerReader.Direction, distance);
-    }
-
-    private void UnstuckDeadSoftTargetLock()
-    {
-        if (!bits.SoftInteract() ||
-            !bits.SoftInteract_Dead() ||
-            !bits.Auto_Attack() ||
-            combatLog.LastDamageDoneTime.ElapsedMs() < playerReader.MainHandSpeedMs() * 2 ||
-            combatLog.DamageTakenCount() == 0)
-        {
-            return;
-        }
-
-        logger.LogWarning("Turn away from dead softTarget due locking current target interaction!");
-
-        float startDirection = playerReader.Direction;
-        float totalRotation = 0f;
-
-        ConsoleKey turnKey = Random.Shared.Next(2) == 0
-            ? input.TurnLeftKey
-            : input.TurnRightKey;
-
-        input.SetKeyState(turnKey, true, false);
-
-        while (bits.SoftInteract() && bits.SoftInteract_Dead())
-        {
-            wait.Update();
-
-            float currentDirection = playerReader.Direction;
-            float delta = Abs(currentDirection - startDirection);
-            if (delta > PI)
-                delta = Tau - delta;
-
-            totalRotation = delta;
-
-            // Safety: if we've turned nearly 360°, soft target is everywhere - strafe instead
-            if (totalRotation >= Tau - 0.2f)
-            {
-                input.SetKeyState(turnKey, false, false);
-                logger.LogWarning("Full rotation without clearing soft target - strafe!");
-
-                KeyAction strafeAction = Random.Shared.Next(2) == 0
-                    ? input.StrafeLeft
-                    : input.StrafeRight;
-
-                input.PressFixed(strafeAction.ConsoleKey, 500, default);
-                wait.Update();
-
-                return;
-            }
-        }
-
-        input.SetKeyState(turnKey, false, false);
-        if (logger.IsEnabled(LogLevel.Information))
-            logger.LogInformation("Cleared dead soft target after {TurnDegrees:F0} degree turn", totalRotation * 180f / PI);
     }
 }

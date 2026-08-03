@@ -40,9 +40,15 @@ public static class GoalFactory
         services.AddScoped<IGrindSessionHandler, GrindSessionHandler>();
 
         if (classConfig.LogBagChanges)
+        {
             services.AddScoped<IBagChangeTracker, BagChangeTracker>();
+            services.AddScoped<IMoneyChangeTracker, MoneyChangeTracker>();
+        }
         else
+        {
             services.AddScoped<IBagChangeTracker, NoBagChangeTracker>();
+            services.AddScoped<IMoneyChangeTracker, NoMoneyChangeTracker>();
+        }
 
 
         if (classConfig.Mode != Mode.Grind)
@@ -80,6 +86,7 @@ public static class GoalFactory
         services.AddScoped<StuckDetector>();
         services.AddScoped<CombatTracker>();
         services.AddScoped<SafeSpotCollector>();
+        services.AddScoped<ThreatFinder>();
 
         var playerReader = sp.GetRequiredService<PlayerReader>();
 
@@ -144,6 +151,7 @@ public static class GoalFactory
             services.AddScoped<GoapGoal, ApproachTargetGoal>();
             services.AddScoped<GoapGoal, AssistFocusGoal>();
             services.AddScoped<GoapGoal, CombatGoal>();
+            services.AddScoped<GoapGoal, FindThreatGoal>();
 
             ResolveLootAndSkin(services, classConfig);
 
@@ -173,6 +181,7 @@ public static class GoalFactory
             services.AddScoped<GoapGoal, ApproachTargetGoal>();
             AddFleeGoal(services, classConfig);
             services.AddScoped<GoapGoal, CombatGoal>();
+            services.AddScoped<GoapGoal, FindThreatGoal>();
 
             if (classConfig.WrongZone.ZoneId > 0)
             {

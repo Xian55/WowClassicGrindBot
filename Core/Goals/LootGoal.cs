@@ -44,6 +44,16 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
     private bool canGather;
     private int targetId;
 
+    // Whether OnEnter managed to park the loot state machine at CORPSE before
+    // interacting. Only then can a later CLOSED be attributed to this corpse
+    // rather than being left over from the previous one. See LootWindowOpen.
+    private bool lootStateReset;
+
+    // Snapshot taken before the interact press, so anything that lands during
+    // it still counts. See LootWindowOpen.
+    private int bagHashBeforeLoot;
+    private int moneyBeforeLoot;
+
     public LootGoal(ILogger<LootGoal> logger,
         ConfigurableInput input, Wait wait,
         PlayerReader playerReader, AreaDB areaDb, BagReader bagReader,
@@ -80,6 +90,7 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
         stopMoving.StopForward();
 
         float e = wait.UntilCount(Loot.RESET_UPDATE_COUNT, LootReset);
+        lootStateReset = e >= 0;
         if (e < 0)
         {
             LogWarnWindowStillOpen(logger, playerReader.LootWindowCount.Value, e);
@@ -92,6 +103,13 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
         }
 
         CheckInventoryFull();
+
+        // Baseline before the interact press, not after: the corpse can be
+        // emptied by the first press inside LootKeyboard, long before
+        // HandleSuccessfulLoot starts watching. Money covers the coin-only
+        // corpses that leave the bags untouched.
+        bagHashBeforeLoot = bagReader.HashNewOrStackGain;
+        moneyBeforeLoot = playerReader.Money.Value;
 
         if (TryLoot())
         {
@@ -303,10 +321,49 @@ public sealed partial class LootGoal : GoapGoal, IGoapEventListener
         (config.Mine && area.minable.AsSpan().BinarySearch(npcId) >= 0) ||
         (config.Salvage && area.salvegable.AsSpan().BinarySearch(npcId) >= 0);
 
+    /// <summary>
+    /// "A loot transaction happened", not literally "the frame is open right now".
+    ///
+    /// <para>
+    /// Cell 97 (<c>GetNumLootItems() * 10 + lastLoot</c>) is written once per addon
+    /// frame, so it can only report a state that outlives one frame. Looting does
+    /// not: the items are taken during <c>LOOT_OPENED</c> - by the client on quick
+    /// loot, or by the addon's own <c>LootSlot</c> loop when the client declines it -
+    /// so by the next write <c>GetNumLootItems()</c> is back to 0 and lastLoot has
+    /// already run READY -> CLOSED. Sampling for READY alone therefore misses every
+    /// such corpse and the caller's wait always expires, reporting a failure for
+    /// loot that is already in the bags.
+    /// </para>
+    ///
+    /// <para>
+    /// CLOSED is the one part of that sequence that survives sampling - the addon
+    /// holds it for LOOT_RESET_RATE frames before reverting to CORPSE - and OnEnter
+    /// has already parked the state at CORPSE, so seeing CLOSED here means the
+    /// window came and went between two reads.
+    /// </para>
+    ///
+    /// <para>
+    /// CLOSED still reverts after LOOT_RESET_RATE though, so a corpse emptied by
+    /// the first interact press can have run the whole cycle before this is first
+    /// called. The bag hash and the coin count are levels rather than pulses -
+    /// they never revert - so comparing them against the snapshot OnEnter took
+    /// before pressing catches that case regardless of timing. Coin-only loot
+    /// leaves the bags untouched, which is why money is checked too.
+    /// </para>
+    /// </summary>
     private bool LootWindowOpen()
     {
-        return playerReader.LootWindowCount.Value > 0 ||
-            (LootStatus)playerReader.LootEvent.Value is LootStatus.READY;
+        if (playerReader.LootWindowCount.Value > 0 ||
+            bagHashBeforeLoot != bagReader.HashNewOrStackGain ||
+            moneyBeforeLoot != playerReader.Money.Value)
+        {
+            return true;
+        }
+
+        LootStatus status = (LootStatus)playerReader.LootEvent.Value;
+
+        return status is LootStatus.READY ||
+            (lootStateReset && status is LootStatus.CLOSED);
     }
 
     private bool LootWindowClosed() => !bits.LootFrameShown();

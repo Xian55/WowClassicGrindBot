@@ -19,6 +19,14 @@ public static class GoapPlanner
     private static readonly PriorityQueue<Node, float> leaves = new();
     private static readonly Stack<GoapGoal> result = new();
 
+    /// <summary>
+    /// The goals whose <see cref="GoapGoal.CanRun"/> returned true during the
+    /// last <see cref="Plan"/> call. Exposed so the NO PLAN diagnostic can
+    /// report why nothing was runnable without invoking CanRun a second time -
+    /// some implementations (Blacklist) mutate their own dedup state.
+    /// </summary>
+    public static IReadOnlySet<GoapGoal> LastUsable => usable;
+
     /**
     * Plan what sequence of actions can fulfill the goal.
     * Returns null if a plan could not be found, or a list of the actions

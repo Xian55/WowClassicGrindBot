@@ -115,7 +115,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
     public bool TargetIsElite() => TargetClassification == UnitClassification.Elite;
 
-    public int Money => reader.GetInt(44) + (reader.GetInt(45) * 1000000);
+    // Copper, split across two cells because one cannot hold a full purse.
+    public RecordInt Money { get; } = new(44, 45, 1000000);
 
     // FACTION_ID * 1000000 + RACE_ID * 10000 + CLASS_ID * 100 + ClientVersion
     public UnitRace Race => (UnitRace)(reader.GetInt(46) / 10000 % 100);
@@ -279,6 +280,8 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
 
         LootEvent.UpdateIncludeLeastSignificantDigit(reader, 10);
         LootWindowCount.UpdateExcludingLeastSignificantDigits(reader, 10);
+
+        Money.Update(reader);
 
         GCD.Update(reader);
 

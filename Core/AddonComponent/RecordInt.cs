@@ -6,7 +6,12 @@ namespace Core;
 
 public sealed class RecordInt
 {
+    private const int NO_HIGH_CELL = -1;
+
     private readonly int cell;
+
+    private readonly int highCell;
+    private readonly int highMultiplier;
 
     public int Value { private set; get; }
 
@@ -21,12 +26,30 @@ public sealed class RecordInt
     public RecordInt(int cell)
     {
         this.cell = cell;
+        this.highCell = NO_HIGH_CELL;
     }
+
+    /// <summary>
+    /// For a value the addon has to split across two cells because one cannot
+    /// hold it - the purse, for one. Reassembled on every read so the rest of
+    /// the type, and every caller, stays unaware of the split.
+    /// </summary>
+    public RecordInt(int lowCell, int highCell, int highMultiplier)
+    {
+        this.cell = lowCell;
+        this.highCell = highCell;
+        this.highMultiplier = highMultiplier;
+    }
+
+    private int Read(IAddonDataProvider reader) =>
+        highCell == NO_HIGH_CELL
+            ? reader.GetInt(cell)
+            : reader.GetInt(cell) + (reader.GetInt(highCell) * highMultiplier);
 
     public bool Updated(IAddonDataProvider reader)
     {
         int temp = Value;
-        Value = reader.GetInt(cell);
+        Value = Read(reader);
 
         if (temp == Value)
         {
@@ -41,7 +64,7 @@ public sealed class RecordInt
     public void Update(IAddonDataProvider reader)
     {
         int temp = Value;
-        Value = reader.GetInt(cell);
+        Value = Read(reader);
 
         if (temp == Value)
         {
