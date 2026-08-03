@@ -17,14 +17,42 @@ public sealed class SpellBookReader : IReader
 
     private int expectedCount = -1;
     private int receivedCount;
+    private bool snapshotDirty;
 
     public SpellDB SpellDB { get; }
     public int Count => spells.Count;
     public int ExpectedCount => expectedCount;
     public int ReceivedCount => receivedCount;
+
+    /// <summary>
+    /// True once the highest rank of every spell has arrived. Deliberately not tied to
+    /// the lower ranks that follow: AddonReader withholds DataReady until this flips, so
+    /// waiting for the full set would pause the agent for hundreds of extra ticks after
+    /// every /dcflush and on every SPELLS_CHANGED resend.
+    /// </summary>
     public bool IsInitialized => expectedCount >= 0 && receivedCount >= expectedCount;
+
+    /// <summary>
+    /// True once every rank has arrived, not just the highest of each. Only then can
+    /// <see cref="HasExact"/> answer which rank is known.
+    /// </summary>
+    public bool AllRanksReceived { get; private set; }
+
     public int Hash { get; private set; }
-    public int[] SpellIds => spellIdsSnapshot;
+
+    public int[] SpellIds
+    {
+        get
+        {
+            if (snapshotDirty)
+            {
+                spellIdsSnapshot = [.. spells];
+                snapshotDirty = false;
+            }
+
+            return spellIdsSnapshot;
+        }
+    }
 
     public SpellBookReader(SpellDB spellDB)
     {
@@ -43,6 +71,14 @@ public sealed class SpellBookReader : IReader
         {
             expectedCount = spellId - AddonTicks.QUEUE_COUNT_MARKER;
             receivedCount = 0;
+            AllRanksReceived = false;
+            return;
+        }
+
+        // Closes the lower-rank block that follows the counted one.
+        if (spellId == AddonTicks.SPELLBOOK_ALL_RANKS_END)
+        {
+            AllRanksReceived = true;
             return;
         }
 
@@ -52,7 +88,7 @@ public sealed class SpellBookReader : IReader
             return;
 
         Hash++;
-        spellIdsSnapshot = [.. spells];
+        snapshotDirty = true;
         if (TryGetValue(spellId, out Spell spell))
         {
             spellNames.Add(spell.Name);
@@ -64,15 +100,29 @@ public sealed class SpellBookReader : IReader
         spells.Clear();
         spellNames.Clear();
         spellIdsSnapshot = [];
+        snapshotDirty = false;
         expectedCount = -1;
         receivedCount = 0;
+        AllRanksReceived = false;
         Hash++;
     }
 
+    /// <summary>
+    /// Rank-blind: true when any rank of the spell is known, because the name fallback
+    /// matches every rank of a spell against one another. This is what the Spell:
+    /// requirement wants - "can I cast this at all".
+    /// </summary>
     public bool Has(int id)
     {
         return spells.Contains(id) || (SpellDB.Spells.TryGetValue(id, out Spell spell) && spellNames.Contains(spell.Name));
     }
+
+    /// <summary>
+    /// True only for the exact rank. Meaningful once <see cref="AllRanksReceived"/> is
+    /// set - before that the lower ranks simply have not arrived yet and this reports
+    /// false for ranks the player does own.
+    /// </summary>
+    public bool HasExact(int id) => spells.Contains(id);
 
     public bool TryGetValue(int id, out Spell spell)
     {

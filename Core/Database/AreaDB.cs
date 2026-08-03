@@ -169,7 +169,8 @@ public sealed class AreaDB : IDisposable
         string[] allowedNames,
         Span<NpcSearchResult> destination, // caller-provided buffer
         out int written,
-        bool crossZoneSearch = false)
+        bool crossZoneSearch = false,
+        string? subNameContains = null)
     {
         written = 0;
 
@@ -183,6 +184,14 @@ public sealed class AreaDB : IDisposable
             foreach (var n in npcs)
             {
                 if (allowedNames.Length != 0 && !allowedNames.Contains(n.Name))
+                    continue;
+
+                // NpcFlags.ClassTrainer marks every class's trainer alike, so without
+                // this the nearest few are usually the wrong class - and the caller's
+                // buffer fills with them before the right one is ever considered.
+                if (subNameContains != null &&
+                    (n.SubName == null ||
+                    !n.SubName.Contains(subNameContains, StringComparison.OrdinalIgnoreCase)))
                     continue;
 
                 if (!NpcWorldLocations.TryGetValue(n.Entry, out Vector3[]? worldPos))

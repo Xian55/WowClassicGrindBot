@@ -24,4 +24,6 @@ public static class ActionMask
     public const int CancelOnInterrupt = 1 << 17;
 
     public const int UseMount = 1 << 18;
+
+    public const int TrainAll = 1 << 19;
 }

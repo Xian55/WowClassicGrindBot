@@ -140,6 +140,46 @@ public sealed class ActionBarPopulator
     }
 
     /// <summary>
+    /// Re-places every slotted KeyAction whose Name is one of <paramref name="spellNames"/>.
+    /// <para>
+    /// Learning a new rank does not touch the action bar - the button keeps pointing at
+    /// the rank that was dragged onto it - so a freshly trained spell has to be put back.
+    /// The addon's PS() picks the last spellbook match for a name, which is the highest
+    /// rank, so re-placing is what promotes the button.
+    /// </para>
+    /// </summary>
+    /// <returns>How many slots were re-placed.</returns>
+    public int PlaceByNames(IReadOnlyCollection<string> spellNames)
+    {
+        if (spellNames.Count == 0)
+            return 0;
+
+        int placed = 0;
+
+        foreach ((string _, KeyActions keyActions) in config.GetByType<KeyActions>())
+        {
+            foreach (KeyAction keyAction in keyActions.Sequence)
+            {
+                if (keyAction.Slot == 0 || string.IsNullOrEmpty(keyAction.Name))
+                    continue;
+
+                foreach (string spellName in spellNames)
+                {
+                    if (!keyAction.Name.Equals(spellName, System.StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (Place(keyAction))
+                        placed++;
+
+                    break;
+                }
+            }
+        }
+
+        return placed;
+    }
+
+    /// <summary>
     /// Places a single KeyAction on the action bar.
     /// Handles spells, macros, items, food, drink, and trinkets.
     /// </summary>

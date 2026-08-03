@@ -50,7 +50,10 @@ public sealed partial class WaitKeyActions : KeyActions
         {
             Cost = FoodDrinkCost,
             Name = newActionName,
-            Requirement = requirement
+            Requirement = requirement,
+            // Appended after InitBinds has already run for this section, so it never
+            // picks the flag up from KeyRequired the way the declared entries do.
+            KeyOptional = true
         };
 
         KeyAction[] keyActions = Sequence;

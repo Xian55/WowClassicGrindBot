@@ -8,6 +8,9 @@
 @inject IconDB iconDB
 @inject WApi api
 @inject IAddonReader addonReader
+@inject IBotController botController
+@inject PlayerReader playerReader
+@inject SpellDB spellDB
 
 @implements IDisposable
 
@@ -172,6 +175,125 @@
     </div>
 </div>
 
+@* ===================== Class Trainer (whitelist progress) ===================== *@
+<div class="card mt-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Class Trainer (@trainableCount ready to learn)</span>
+        <div class="d-flex align-items-center">
+            <div class="form-check form-switch me-3 mb-0">
+                <input class="form-check-input" type="checkbox" role="switch"
+                       id="trainerShowAll" @bind="showAllRanks" />
+                <label class="form-check-label" for="trainerShowAll" style="font-size: 0.85rem;">
+                    Show all ranks
+                </label>
+            </div>
+            <span class="badge bg-success me-1">@trainableCount Trainable</span>
+            <span class="badge bg-secondary me-1">@knownCount Known</span>
+            <span class="badge bg-dark me-1">@lockedCount Level locked</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (trainerGroups.Count == 0)
+        {
+            <div class="p-3 text-muted">
+                No <code>SPELL_</code> prefixed entries in the loaded profile's <code>IntVariables</code>,
+                so there is no class trainer whitelist.
+                <br />
+                <small>Every <code>IntVariables</code> key starting with <code>SPELL_</code> is treated as a
+                whitelist, its array being that spell's ranks in ascending order.</small>
+            </div>
+        }
+        else
+        {
+            @if (!spellBookReader.AllRanksReceived)
+            {
+                <div class="p-2 text-muted border-bottom">
+                    <small>Waiting for the addon to send the lower spell ranks — until then a rank you
+                    already own can still show as trainable.</small>
+                </div>
+            }
+            @if (visibleGroups.Count == 0)
+            {
+                <div class="p-3 text-muted">
+                    Nothing to learn right now — every whitelisted rank is either already known or
+                    above your level. Flip <em>Show all ranks</em> to see the full whitelist.
+                </div>
+            }
+            else
+            {
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover mb-0">
+                    <thead class="sticky-top bg-dark">
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>Spell</th>
+                            <th style="width: 200px;">Variable</th>
+                            <th style="width: 80px;">Req. Level</th>
+                            <th style="width: 80px;">Spell ID</th>
+                            <th style="width: 130px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (TrainerGroup group in visibleGroups)
+                        {
+                            @foreach (TrainerEntry entry in VisibleEntries(group))
+                            {
+                                <tr>
+                                    <td class="align-middle">
+                                        @if (!string.IsNullOrEmpty(entry.IconUrl))
+                                        {
+                                            <img src="@entry.IconUrl" alt="@entry.Name"
+                                                 style="width: 24px; height: 24px; border-radius: 4px;" />
+                                        }
+                                        else
+                                        {
+                                            <div style="width: 24px; height: 24px; background: #333; border-radius: 4px;"></div>
+                                        }
+                                    </td>
+                                    <td class="align-middle">
+                                        <a href="@($"{api.SpellId}{entry.SpellId}")"
+                                           target="_blank"
+                                           data-wowhead="spell=@entry.SpellId"
+                                           style="text-decoration: none;">
+                                            @entry.Name
+                                        </a>
+                                    </td>
+                                    <td class="align-middle text-muted" style="font-size: 0.8rem;">@group.Variable</td>
+                                    <td class="align-middle text-muted">
+                                        @(entry.RequiredLevel > 0 ? entry.RequiredLevel.ToString() : "—")
+                                    </td>
+                                    <td class="align-middle text-muted">@entry.SpellId</td>
+                                    <td class="align-middle">
+                                        @switch (entry.State)
+                                        {
+                                            case TrainableState.Trainable:
+                                                <span class="badge bg-success">Trainable</span>
+                                                break;
+                                            case TrainableState.Known:
+                                                <span class="badge bg-secondary">Known</span>
+                                                break;
+                                            case TrainableState.LevelLocked:
+                                                <span class="badge bg-dark">Level @entry.RequiredLevel</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-warning text-dark"
+                                                      title="This id is not in the running client's spells.json">
+                                                    Not in client
+                                                </span>
+                                                break;
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            }
+        }
+    </div>
+</div>
+
 @code {
     private const int totalSlots = ActionBar.CELL_COUNT * ActionBar.BIT_PER_CELL;
 
@@ -189,6 +311,32 @@
     private List<SpellDisplayEntry> cachedSpells = [];
     private int lastSpellbookHash;
 
+    // ---------- Class trainer ----------
+    private record TrainerEntry(int SpellId, string Name, int RequiredLevel,
+        TrainableState State, string? IconUrl);
+
+    private record TrainerGroup(string Variable, List<TrainerEntry> Entries);
+
+    private List<TrainerGroup> trainerGroups = [];
+    private int trainableCount;
+    private int knownCount;
+    private int lockedCount;
+    private int lastTrainerLevel = -1;
+
+    // Default to the actionable view - the whole whitelist is mostly ranks that are
+    // already known or many levels away. The badges still report the full totals.
+    private bool showAllRanks;
+
+    private IEnumerable<TrainerEntry> VisibleEntries(TrainerGroup group) =>
+        showAllRanks
+            ? group.Entries
+            : group.Entries.Where(e => e.State == TrainableState.Trainable);
+
+    private List<TrainerGroup> visibleGroups =>
+        showAllRanks
+            ? trainerGroups
+            : trainerGroups.Where(g => VisibleEntries(g).Any()).ToList();
+
     protected override void OnInitialized()
     {
         addonReader.AddonDataChanged += OnAddonDataChanged;
@@ -196,6 +344,7 @@
 
         RebuildActionBar();
         RebuildSpellbook();
+        RebuildTrainer();
     }
 
     public void Dispose()
@@ -211,13 +360,22 @@
             int beforePopulated = populatedCount;
             int beforeCastbar = castbarCount;
             int beforeSpellHash = lastSpellbookHash;
+            int beforeTrainable = trainableCount;
 
             RebuildActionBar();
             RebuildSpellbook();
 
+            // Levelling changes what is trainable without touching the spellbook hash.
+            if (beforeSpellHash != lastSpellbookHash
+                || lastTrainerLevel != playerReader.Level.Value)
+            {
+                RebuildTrainer();
+            }
+
             if (beforePopulated != populatedCount
                 || beforeCastbar != castbarCount
-                || beforeSpellHash != lastSpellbookHash)
+                || beforeSpellHash != lastSpellbookHash
+                || beforeTrainable != trainableCount)
             {
                 StateHasChanged();
             }
@@ -351,6 +509,62 @@
         }
 
         return lookup;
+    }
+
+    // -------------------------------------------------------------
+    //  Class trainer: one row per whitelisted rank, with the same
+    //  verdict the bot uses - both go through TrainerSpells, so the
+    //  page cannot claim something the trainer goal disagrees with.
+    // -------------------------------------------------------------
+    private void RebuildTrainer()
+    {
+        trainerGroups = [];
+        trainableCount = 0;
+        knownCount = 0;
+        lockedCount = 0;
+
+        int playerLevel = playerReader.Level.Value;
+        lastTrainerLevel = playerLevel;
+
+        ClassConfiguration? classConfig = botController.ClassConfig;
+        if (classConfig is null)
+            return;
+
+        foreach ((string variable, int[] ids) in classConfig.IntVariables)
+        {
+            if (!variable.StartsWith(TrainerSpells.VAR_PREFIX, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            List<TrainerEntry> entries = new(ids.Length);
+
+            foreach (int id in ids)
+            {
+                TrainableState state = TrainerSpells.GetState(
+                    id, spellBookReader, spellDB, playerLevel, out Spell spell);
+
+                switch (state)
+                {
+                    case TrainableState.Trainable: trainableCount++; break;
+                    case TrainableState.Known: knownCount++; break;
+                    case TrainableState.LevelLocked: lockedCount++; break;
+                }
+
+                string name = string.IsNullOrEmpty(spell.Name) ? $"#{id}" : spell.Name;
+
+                entries.Add(new TrainerEntry(
+                    id, name, spell.Level, state, iconDB.GetIconUrlForSpell(id, 18)));
+            }
+
+            if (entries.Count > 0)
+                trainerGroups.Add(new TrainerGroup(variable, entries));
+        }
+
+        // Anything with something to learn first, then alphabetically, so the
+        // actionable rows are at the top rather than buried among learnt ranks.
+        trainerGroups = trainerGroups
+            .OrderByDescending(g => g.Entries.Any(e => e.State == TrainableState.Trainable))
+            .ThenBy(g => g.Variable)
+            .ToList();
     }
 
     private static string GetBaseSpellName(string name)

@@ -16,6 +16,7 @@ using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using System.Threading;
 
 #pragma warning disable 162
@@ -42,9 +43,17 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
     private const int MAX_TIME_TO_REACH_MELEE = 10000;
     private const int TIMEOUT = 5000;
+
+    // The addon buys one service per timer tick and rescans between them, so a full
+    // whitelist takes noticeably longer than a merchant interaction.
+    private const int TRAIN_TIMEOUT = 30000;
     private const int MAX_SELL_NOTHING_RETRIES = 2;
 
-    private readonly FrozenDictionary<NpcFlags, SearchValues<string>> npcSearchPatterns;
+    // Ordered longest flag name first, so a name is matched against the most specific
+    // flag that fits it. Enum order would test Trainer (1<<4) before ClassTrainer
+    // (1<<5) and "ClassTrainer" contains "Trainer", which sent a class trainer entry
+    // searching the generic superset - and every Vendor* subtype to plain Vendor.
+    private readonly (NpcFlags Flag, SearchValues<string> Pattern)[] npcSearchPatterns;
 
     public override float Cost => key.Cost;
 
@@ -65,9 +74,15 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
     private readonly AreaDB areaDB;
     private readonly BagReader bagReader;
     private readonly SessionStat sessionStat;
+    private readonly TrainerReader trainerReader;
+    private readonly TrainerPlanner trainerPlanner;
+    private readonly AddonConfigurator addonConfigurator;
+    private readonly ActionBarPopulator actionBarPopulator;
 
     private PathState pathState = PathState.Finished;
 
+    private readonly NpcFlags npcFlag;
+    private readonly string[] allowedNames;
     private readonly bool tryFindClosestNPC;
     private Creature npc;
     private NpcSearchResult[] searchResult = [];
@@ -106,6 +121,8 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         Navigation navigation, StopMoving stopMoving, AreaDB areaDB,
         NpcNameTargeting npcNameTargeting, ClassConfiguration classConfig,
         BagReader bagReader, SessionStat sessionStat,
+        TrainerReader trainerReader, TrainerPlanner trainerPlanner,
+        AddonConfigurator addonConfigurator, ActionBarPopulator actionBarPopulator,
         IMountHandler mountHandler, ExecGameCommand exec, CancellationTokenSource cts)
         : base(nameof(AdhocNPCGoal))
     {
@@ -121,6 +138,10 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         this.classConfig = classConfig;
         this.bagReader = bagReader;
         this.sessionStat = sessionStat;
+        this.trainerReader = trainerReader;
+        this.trainerPlanner = trainerPlanner;
+        this.addonConfigurator = addonConfigurator;
+        this.actionBarPopulator = actionBarPopulator;
         this.mountHandler = mountHandler;
         token = cts.Token;
         this.execGameCommand = exec;
@@ -141,19 +162,56 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
         Keys = [key];
 
-        npcSearchPatterns = Enum.GetValues<NpcFlags>().Select(static flag =>
-        {
-            string[] strings = flag switch
+        npcSearchPatterns = Enum.GetValues<NpcFlags>()
+            .OrderByDescending(static flag => flag.ToString().Length)
+            .Select(static flag =>
             {
-                NpcFlags.Vendor => [flag.ToString(), "Sell"],
-                _ => [flag.ToString()]
-            };
+                string[] strings = flag switch
+                {
+                    NpcFlags.Vendor => [flag.ToString(), "Sell"],
+                    _ => [flag.ToString()]
+                };
 
-            return new KeyValuePair<NpcFlags, SearchValues<string>>(flag, SearchValues.Create(strings, StringComparison.OrdinalIgnoreCase));
-        })
-        .ToFrozenDictionary(pair => pair.Key, pair => pair.Value);
+                return (flag, SearchValues.Create(strings, StringComparison.OrdinalIgnoreCase));
+            })
+            .ToArray();
+
+        npcFlag = ResolveNpcFlag(key.Name);
+        allowedNames = ResolveAllowedNames(key.Name);
+
+        if (allowedNames.Length > 0 && logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Search for {NpcFlag} like {AllowedNames}", npcFlag, string.Join(',', allowedNames));
 
         tryFindClosestNPC = key.Path.Length == 0;
+    }
+
+    /// <summary>
+    /// Resolved once from the KeyAction name rather than per search, so it is known even
+    /// for an entry that ships a PathFilename and never runs the closest-NPC search.
+    /// </summary>
+    private NpcFlags ResolveNpcFlag(ReadOnlySpan<char> name)
+    {
+        for (int i = 0; i < npcSearchPatterns.Length; i++)
+        {
+            if (name.ContainsAny(npcSearchPatterns[i].Pattern))
+                return npcSearchPatterns[i].Flag;
+        }
+
+        return NpcFlags.None;
+    }
+
+    // TODO: faction specific filter?
+    // try to detect pattern
+    // [TYPE][ ][npc1 | npc2 | npc3]
+    private static string[] ResolveAllowedNames(ReadOnlySpan<char> name)
+    {
+        int separator = name.IndexOf(' ');
+        if (separator == -1)
+            return [];
+
+        return name[(separator + 1)..]
+            .ToString()
+            .Split('|', options: StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
     }
 
     public void Dispose()
@@ -161,7 +219,16 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         navigation.Dispose();
     }
 
-    public override bool CanRun() => key.CanRun();
+    /// <summary>
+    /// A trainer entry additionally answers to the planner. The profile can say
+    /// HasTrainableSpell, but not "every trainer near me already turned out to teach
+    /// none of them" or "the price was more than I have" - that is session state, and
+    /// without it the goal walks back to the same trainers forever.
+    /// </summary>
+    public override bool CanRun() =>
+        key.CanRun() &&
+        (npcFlag != NpcFlags.ClassTrainer ||
+         (key.TrainAll ? trainerPlanner.CanVisitAll : trainerPlanner.CanVisit));
 
     public void OnGoapEvent(GoapEventArgs e)
     {
@@ -182,6 +249,12 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         {
             pathState = PathState.Finished;
             LogWarn("No NPC with the criteria!");
+
+            // Guarded on the area being loaded: a null CurrentArea is a transient
+            // startup state, not evidence that the zone has no trainer.
+            if (npcFlag == NpcFlags.ClassTrainer && areaDB.CurrentArea != null)
+                trainerPlanner.OnNoTrainerFound();
+
             return;
         }
 
@@ -396,10 +469,23 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         }
 
         Log($"Found Target!");
-        input.PressInteract();
-        wait.Update();
 
-        MerchantResult merchantResult = OpenMerchantWindow();
+        // Interacting again on an open window closes it. The soft-interact branch above
+        // can already have opened the merchant - and the grey items can already be sold
+        // by the time it returns - at which point this press would shut it and the wait
+        // below would time out on a visit that had in fact succeeded.
+        if (!bits.MerchantFrameShown() && !bits.TrainerFrameShown())
+        {
+            input.PressInteract();
+            wait.Update();
+        }
+
+        bool training = npcFlag == NpcFlags.ClassTrainer;
+
+        MerchantResult merchantResult = training
+            ? OpenTrainerWindow()
+            : OpenMerchantWindow();
+
         if (merchantResult == MerchantResult.TryNextNPC && tryFindClosestNPC)
         {
             input.PressClearTarget();
@@ -408,11 +494,22 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         }
 
         if (merchantResult != MerchantResult.Success)
+        {
+            // Only the success path used to clean up, so a failed interaction walked away
+            // still targeting the NPC. Observed: a vendor whose window had in fact opened
+            // and sold, was toggled shut by the second interact, timed out, and stayed
+            // targeted for minutes while FollowRouteGoal tab-hunted around it.
+            input.PressRandom(ConsoleKey.Escape, InputDuration.DefaultPress);
+            input.PressClearTarget();
+            wait.Update();
             return;
+        }
 
         // Signal that vendor/repair completed successfully
-        // MailGoal uses this to know it can run
-        sessionStat.VendoredOrRepairedRecently = true;
+        // MailGoal uses this to know it can run. Training moves no items and costs
+        // rather than earns, so it is not what MailGoal is waiting for.
+        if (!training)
+            sessionStat.OnVendored();
 
         input.PressRandom(ConsoleKey.Escape, InputDuration.DefaultPress);
         input.PressClearTarget();
@@ -483,14 +580,20 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
 
     private MerchantResult OpenMerchantWindow()
     {
-        float e = wait.Until(TIMEOUT, gossipReader.GossipStartOrMerchantWindowOpened);
+        // Watches GossipEnd rather than GossipStart, for the reason spelled out in
+        // OpenTrainerWindow: the gossip cell latches its last value, so by the time this
+        // polls, the queue has already run past 69 to GOSSIP_END. Hunting the start value
+        // missed it every time and burned the whole timeout, then the second wait found
+        // the end value already sitting there - two waits, one of them always wasted.
+        float e = wait.Until(TIMEOUT,
+            () => gossipReader.GossipEnd() || gossipReader.MerchantWindowOpened());
+
         if (gossipReader.MerchantWindowOpened())
         {
             LogWarn($"Gossip no options! {e}ms");
         }
         else
         {
-            e = wait.Until(TIMEOUT, gossipReader.GossipEnd);
             if (e < 0)
             {
                 LogWarn($"Gossip - {nameof(gossipReader.GossipEnd)} not fired after {e}ms");
@@ -558,6 +661,222 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         return MerchantResult.Success;
     }
 
+    /// <summary>
+    /// Opens the class trainer and hands the addon the spells worth buying. The addon
+    /// owns the purchase: it is the only side that can see what this trainer actually
+    /// offers and what each service costs.
+    /// </summary>
+    private MerchantResult OpenTrainerWindow()
+    {
+        int npcId = playerReader.TargetId;
+
+        // Waits on GossipEnd rather than GossipStart: the gossip cell latches its last
+        // value, and by the time this runs the queue has usually already drained through
+        // 69 (start) and the option hashes to GOSSIP_END. Watching for the start value
+        // therefore missed it every time and burned the full timeout before the end
+        // value - which was already sitting there - was checked.
+        float e = wait.Until(TIMEOUT,
+            () => gossipReader.GossipEnd() || bits.TrainerFrameShown());
+
+        // A trainer that greets with a menu has to be told which service to open. One
+        // that opens the trainer frame outright has already answered.
+        if (!bits.TrainerFrameShown())
+        {
+            if (e < 0)
+            {
+                LogWarn($"Gossip - {nameof(gossipReader.GossipEnd)} not fired after {e}ms");
+                return MerchantResult.Failed;
+            }
+
+            if (!gossipReader.Gossips.TryGetValue(Gossip.Trainer, out int orderNum))
+            {
+                LogWarn($"Target({playerReader.TargetId}) has no {Gossip.Trainer.ToString()} option!");
+                trainerPlanner.OnNothingToTrain(npcId);
+                return MerchantResult.TryNextNPC;
+            }
+
+            Log($"Picked {orderNum}th for {Gossip.Trainer.ToString()}");
+            execGameCommand.Run($"/run SelectGossipOption({orderNum})--");
+
+            e = wait.Until(TIMEOUT, bits.TrainerFrameShown);
+            if (e < 0)
+            {
+                LogWarn($"Trainer window did not open after {e}ms");
+                return MerchantResult.Failed;
+            }
+        }
+
+        Log($"Trainer window opened after {e}ms");
+
+        Span<int> buffer = stackalloc int[trainerPlanner.MaxTrainable];
+        bool trainAll = key.TrainAll;
+        int count = 0;
+
+        if (!trainAll && !trainerPlanner.TryGetTrainable(buffer, out count))
+        {
+            // Nothing eligible any more - levelled past it, or another visit got it.
+            // Not the trainer's fault, so it is not blacklisted.
+            Log("Nothing left to train.");
+            return MerchantResult.Success;
+        }
+
+        string addonName = addonConfigurator.Config.Title;
+
+        ReadOnlySpan<int> wanted = buffer[..count];
+        int walletBefore = playerReader.Money.Value;
+
+        // Locals, not inline arguments: CA1873 does not track the guard for
+        // source-generated log methods, only local variable access.
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            string wantedNames = trainAll ? "everything offered" : trainerPlanner.Describe(wanted);
+            string wallet = Coin.Format(walletBefore);
+            LogTrainerWanted(logger, npcId, count, wantedNames, wallet);
+        }
+
+        trainerReader.Reset();
+        execGameCommand.Run($"/run {addonName}:TC()--");
+        wait.Update();
+
+        if (!trainAll)
+            SendTrainSpellIdsBatched(addonName, wanted);
+
+        // TGo(1) tells the addon to ignore the whitelist and buy whatever it can afford.
+        execGameCommand.Run($"/run {addonName}:TGo({(trainAll ? "1" : "")})--");
+
+        e = wait.Until(TRAIN_TIMEOUT, () => trainerReader.Completed);
+        if (e < 0)
+        {
+            LogWarn($"Training did not report back after {e}ms");
+            return MerchantResult.Failed;
+        }
+
+        if (trainerReader.NoMoney)
+        {
+            trainerPlanner.OnNotEnoughMoney();
+        }
+        else if (trainerReader.NoMatch)
+        {
+            LogWarn($"Target({npcId}) teaches none of the wanted spells!");
+
+            // Train-all asked for everything, so an empty answer is about the player's
+            // level, not this trainer - blacklisting it and walking to the next one
+            // would just repeat the same trip.
+            if (trainAll)
+            {
+                trainerPlanner.OnNothingTrainedAtThisLevel();
+                return MerchantResult.Success;
+            }
+
+            trainerPlanner.OnNothingToTrain(npcId);
+            return MerchantResult.TryNextNPC;
+        }
+
+        int bought = trainerReader.Bought.Count;
+
+        // The addon reports what it bought one id per addon tick. Seeing none of them
+        // while the trainer clearly sold something means the batch was not decoded, not
+        // that nothing happened - worth saying out loud rather than logging "trained 0".
+        if (bought == 0 && !trainerReader.NoMoney)
+        {
+            if (trainAll)
+            {
+                trainerPlanner.OnNothingTrainedAtThisLevel();
+            }
+            else
+            {
+                LogWarn($"Trainer reported no purchases for the {count} spell(s) offered - " +
+                    $"the report may have been missed. Check the spellbook.");
+            }
+        }
+        else
+        {
+            Span<int> boughtIds = stackalloc int[bought];
+            for (int i = 0; i < bought; i++)
+                boughtIds[i] = trainerReader.Bought[i];
+
+            sessionStat.OnTrained(bought);
+
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                int walletAfter = playerReader.Money.Value;
+
+                string boughtNames = trainerPlanner.Describe(boughtIds);
+                // Derived from the two snapshots rather than reported by the trainer, so
+                // clamped - anything else that moved the wallet mid-visit lands here too.
+                string spent = Coin.Format(Math.Max(0, walletBefore - walletAfter));
+                string wallet = Coin.Format(walletAfter);
+
+                LogTrained(logger, bought, boughtNames, spent, wallet, e);
+            }
+
+            PlaceTrainedOnActionBar(boughtIds);
+        }
+
+        return MerchantResult.Success;
+    }
+
+    /// <summary>
+    /// Puts the freshly learnt spells back on their action bar slots. Learning a rank
+    /// leaves the button pointing at the rank that was dragged onto it, so without this
+    /// the bot keeps casting the old one.
+    /// <para>
+    /// Only the slots holding a spell that was just bought are touched - re-placing the
+    /// whole bar would be a chat command per slot and would disturb entries that are
+    /// resolved from live state, such as Food, Drink and the trinkets.
+    /// </para>
+    /// </summary>
+    private void PlaceTrainedOnActionBar(ReadOnlySpan<int> boughtIds)
+    {
+        List<string> names = [];
+        trainerPlanner.CollectNames(boughtIds, names);
+
+        if (names.Count == 0)
+            return;
+
+        int placed = actionBarPopulator.PlaceByNames(names);
+        wait.Update();
+
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            string joined = string.Join(", ", names);
+            LogActionBarPlaced(logger, placed, joined);
+        }
+    }
+
+    /// <summary>
+    /// The chat box truncates past 255 characters, so the id list is paginated the same
+    /// way MailGoal paginates its excluded items.
+    /// </summary>
+    private void SendTrainSpellIdsBatched(string addonName, ReadOnlySpan<int> ids)
+    {
+        const int MAX_CMD_LENGTH = 250;  // Leave margin for safety (WoW limit is 255)
+        string prefix = $"/run {addonName}:TAdd(\"";
+        const string suffix = "\")--";
+        int overhead = prefix.Length + suffix.Length;
+
+        StringBuilder batch = new();
+        for (int i = 0; i < ids.Length; i++)
+        {
+            string idStr = ids[i].ToString();
+            if (batch.Length > 0 && batch.Length + 1 + idStr.Length + overhead > MAX_CMD_LENGTH)
+            {
+                execGameCommand.Run($"{prefix}{batch}{suffix}");
+                wait.Update();
+                batch.Clear();
+            }
+
+            if (batch.Length > 0) batch.Append(',');
+            batch.Append(idStr);
+        }
+
+        if (batch.Length > 0)
+        {
+            execGameCommand.Run($"{prefix}{batch}{suffix}");
+            wait.Update();
+        }
+    }
+
     private bool TryAutoSelectNPCAndSetPath()
     {
         if (areaDB.CurrentArea == null)
@@ -565,39 +884,21 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             return false;
         }
 
-        ReadOnlySpan<char> name = key.Name;
+        // Read live rather than cached in the constructor: the addon may not have
+        // reported the class yet when the goal is built. Empty for UnitClass.None,
+        // which filters nothing rather than filtering everything out.
+        string? subNameContains = npcFlag == NpcFlags.ClassTrainer
+            ? playerReader.Class.TrainerSubName()
+            : null;
 
-        NpcFlags npcFlag = NpcFlags.None;
-        foreach ((NpcFlags type, SearchValues<string> pattern) in npcSearchPatterns)
-        {
-            if (name.ContainsAny(pattern))
-            {
-                npcFlag = type;
-                break;
-            }
-        }
-
-        string[] allowedNames = [];
-
-        // TODO: faction specific filter?
-        // try to detect pattern
-        // [TYPE][ ][npc1 | npc2 | npc3]
-        int separator = name.IndexOf(' ');
-        if (separator != -1)
-        {
-            allowedNames = name[(separator + 1)..]
-                .ToString()
-                .Split('|', options: StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-
-            if (allowedNames.Length > 0 && logger.IsEnabled(LogLevel.Information))
-                logger.LogInformation("Search for {NpcFlag} like {AllowedNames}", npcFlag, string.Join(',', allowedNames));
-        }
+        if (string.IsNullOrEmpty(subNameContains))
+            subNameContains = null;
 
         if (searchResult.Length == 0)
         {
             searchResult = new NpcSearchResult[8];
 
-            int found = areaDB.GetNearestNpcs(playerReader.Faction, npcFlag, playerReader.WorldPos, allowedNames, searchResult.AsSpan(), out searchCount, classConfig.CrossZoneSearch);
+            int found = areaDB.GetNearestNpcs(playerReader.Faction, npcFlag, playerReader.WorldPos, allowedNames, searchResult.AsSpan(), out searchCount, classConfig.CrossZoneSearch, subNameContains);
             if (found == 0 || searchCount == 0)
             {
                 return false;
@@ -607,6 +908,14 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             searchIndex = 0;
         }
         else
+        {
+            searchIndex++;
+        }
+
+        // A trainer that turned out to teach nothing on the whitelist is not worth
+        // walking to a second time. Empty for every other NPC type.
+        while (searchIndex < searchCount &&
+            trainerPlanner.IsUseless(searchResult[searchIndex].Creature.Entry))
         {
             searchIndex++;
         }
@@ -661,6 +970,24 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         Level = LogLevel.Information,
         Message = "Found {count} potential {type} NPC.")]
     static partial void LogFoundPotentialNPCByType(ILogger logger, int count, NpcFlags type);
+
+    [LoggerMessage(
+        EventId = 0302,
+        Level = LogLevel.Information,
+        Message = "Trainer({npcId}): offering {count} spell(s) to learn - {spells}. Wallet {wallet}")]
+    static partial void LogTrainerWanted(ILogger logger, int npcId, int count, string spells, string wallet);
+
+    [LoggerMessage(
+        EventId = 0303,
+        Level = LogLevel.Information,
+        Message = "Trained {count} spell(s): {spells}. Spent {spent}, wallet now {wallet}, took {elapsedMs}ms")]
+    static partial void LogTrained(ILogger logger, int count, string spells, string spent, string wallet, float elapsedMs);
+
+    [LoggerMessage(
+        EventId = 0304,
+        Level = LogLevel.Information,
+        Message = "Action bar: re-placed {placed} slot(s) for the newly trained {spells}")]
+    static partial void LogActionBarPlaced(ILogger logger, int placed, string spells);
 
 
     #endregion

@@ -212,6 +212,8 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('LOOT_OPENED', 'OnLootOpened_BitCache')
     DataToColor:RegisterEvent('MAIL_SHOW', 'OnMailShow_BitCache')
     DataToColor:RegisterEvent('MAIL_CLOSED', 'OnMailClosed_BitCache')
+    DataToColor:RegisterEvent('TRAINER_SHOW', 'OnTrainerShow_BitCache')
+    DataToColor:RegisterEvent('TRAINER_CLOSED', 'OnTrainerClosed_BitCache')
     DataToColor:RegisterEvent('BAG_OPEN', 'OnBagOpen_BitCache')
 
     ---------------------------------------------------------------------------
@@ -1162,6 +1164,20 @@ end
 function DataToColor:OnMailClosed_BitCache(event)
     if DataToColor.BitCache and DataToColor.BitCache.bits3 then
         DataToColor.BitCache.bits3.mailFrameShown = false
+    end
+end
+
+-- Tracked off the events rather than an OnShow hook: Blizzard_TrainerUI is loaded on
+-- demand, so ClassTrainerFrame does not exist yet when HookFrameVisibility runs.
+function DataToColor:OnTrainerShow_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits3 then
+        DataToColor.BitCache.bits3.trainerFrameShown = true
+    end
+end
+
+function DataToColor:OnTrainerClosed_BitCache(event)
+    if DataToColor.BitCache and DataToColor.BitCache.bits3 then
+        DataToColor.BitCache.bits3.trainerFrameShown = false
     end
 end
 

@@ -117,6 +117,8 @@ local bits3Cache = {
     characterFrameOpen = false,     -- bit 13 (hooked)
     spellBookFrameOpen = false,     -- bit 14 (hooked)
     friendsFrameOpen = false,       -- bit 15 (hooked)
+    trainerFrameShown = false,      -- bit 16 (event-driven: TRAINER_SHOW/TRAINER_CLOSED)
+    merchantFrameShown = false,     -- bit 17 (polled)
 }
 
 -- Track if cache has been initialized
@@ -368,6 +370,13 @@ local function UpdateMailFrameCache()
     bits3Cache.mailFrameShown = MailFrame:IsShown() or false
 end
 
+-- Update merchant frame state. Polled rather than driven off MERCHANT_SHOW/CLOSED so it
+-- reports what is on screen right now: the bot uses it to decide whether interacting
+-- again would close a window that is already open.
+local function UpdateMerchantFrameCache()
+    bits3Cache.merchantFrameShown = MerchantFrame:IsShown() or false
+end
+
 --------------------------------------------------------------------------------
 -- Polled Values (called every frame)
 -- These values cannot be reliably event-driven but are few enough
@@ -386,6 +395,7 @@ local function UpdatePolledValues()
     bits2Cache.gameMenuShown = GameMenuFrame:IsShown() or false
     bits3Cache.chatInputActive = DataToColor:IsChatInputActive() or false
     UpdateMailFrameCache()
+    UpdateMerchantFrameCache()
 
     -- Focus target combat state - UNIT_FLAGS doesn't fire for derived units
     -- like "focustarget" / "party1target", so we must poll
@@ -421,6 +431,7 @@ local function InitializeCache()
     UpdateSoftInteractCache()
     UpdateLootFrameCache()
     UpdateMailFrameCache()
+    UpdateMerchantFrameCache()
 
     bits3Cache.anyBagOpen = DataToColor:AnyBagOpen()
     bits3Cache.characterFrameOpen = DataToColor:CharacterFrameOpen()
@@ -525,7 +536,9 @@ function DataToColor:Bits3Cached()
         (bits3Cache.anyBagOpen and 2 or 0) ^ 12 +
         (bits3Cache.characterFrameOpen and 2 or 0) ^ 13 +
         (bits3Cache.spellBookFrameOpen and 2 or 0) ^ 14 +
-        (bits3Cache.friendsFrameOpen and 2 or 0) ^ 15
+        (bits3Cache.friendsFrameOpen and 2 or 0) ^ 15 +
+        (bits3Cache.trainerFrameShown and 2 or 0) ^ 16 +
+        (bits3Cache.merchantFrameShown and 2 or 0) ^ 17
 end
 
 --------------------------------------------------------------------------------

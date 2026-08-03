@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 
 using System;
-using System.Text;
 
 namespace Core;
 
@@ -16,14 +15,6 @@ public sealed class NoMoneyChangeTracker : IMoneyChangeTracker { }
 /// </summary>
 public sealed partial class MoneyChangeTracker : IDisposable, IMoneyChangeTracker
 {
-    private const int COPPER_PER_GOLD = 10000;
-    private const int COPPER_PER_SILVER = 100;
-
-    // The purse is capped by int copper, so the longest possible string is
-    // "214748g 36s 47c" - 15 chars. Rounded up to leave the builder room rather
-    // than have it grow on the one value that sits right on the boundary.
-    private const int MAX_FORMATTED_LENGTH = 32;
-
     private readonly ILogger<MoneyChangeTracker> logger;
     private readonly PlayerReader playerReader;
 
@@ -72,39 +63,9 @@ public sealed partial class MoneyChangeTracker : IDisposable, IMoneyChangeTracke
         // Locals, not inline arguments: CA1873 does not track the guard above
         // for source-generated log methods, only local variable access.
         char sign = delta > 0 ? '+' : '-';
-        string amount = Format(Math.Abs(delta));
+        string amount = Coin.Format(Math.Abs(delta));
 
         LogMoneyChange(logger, sign, amount);
-    }
-
-    /// <summary>
-    /// Only the units that carry a value, so a clean gold drop reads "2g"
-    /// rather than "2g 0s 0c".
-    /// </summary>
-    private static string Format(int copper)
-    {
-        StringBuilder sb = new(MAX_FORMATTED_LENGTH);
-
-        Append(sb, copper / COPPER_PER_GOLD, 'g');
-        Append(sb, copper / COPPER_PER_SILVER % COPPER_PER_SILVER, 's');
-        Append(sb, copper % COPPER_PER_SILVER, 'c');
-
-        return sb.ToString();
-
-        static void Append(StringBuilder sb, int value, char unit)
-        {
-            if (value == 0)
-            {
-                return;
-            }
-
-            if (sb.Length > 0)
-            {
-                sb.Append(' ');
-            }
-
-            sb.Append(value).Append(unit);
-        }
     }
 
     #region Logging
