@@ -15,10 +15,17 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 
+using static System.Diagnostics.Stopwatch;
+
 namespace Core.GOAP;
 
 public sealed partial class GoapAgent : IDisposable
 {
+    // The empty-plan state can flap at addon tick rate. The bare warning still
+    // logs every transition; the full report is rate limited so an oscillating
+    // state cannot flood the file users attach to issues.
+    private const double NO_PLAN_REPORT_INTERVAL_MS = 1000;
+
     private readonly ILogger logger;
     private readonly ILogger globalLogger;
 
@@ -41,7 +48,12 @@ public sealed partial class GoapAgent : IDisposable
     private readonly ManualResetEventSlim sessionPauseEvent;
 
     private readonly IScreenCapture screenCapture;
+    // Resolved only so the container constructs them - both subscribe in their
+    // own ctor and nothing else asks for them.
     private readonly IBagChangeTracker bagChangeTracker;
+    private readonly IMoneyChangeTracker moneyChangeTracker;
+
+    private long lastNoPlanReport;
 
     private bool active;
     public bool Active
@@ -122,6 +134,7 @@ public sealed partial class GoapAgent : IDisposable
         CombatLog combatLog,
         CorpseTracker corpseTracker,
         IBagChangeTracker bagChangeTracker,
+        IMoneyChangeTracker moneyChangeTracker,
         SessionStat sessionStat,
         StopMoving stopMoving,
         IGrindSessionHandler sessionHandler,
@@ -150,6 +163,7 @@ public sealed partial class GoapAgent : IDisposable
         this.combatLog = combatLog;
         this.corpseTracker = corpseTracker;
         this.bagChangeTracker = bagChangeTracker;
+        this.moneyChangeTracker = moneyChangeTracker;
 
         SessionStat = sessionStat;
 
@@ -234,6 +248,7 @@ public sealed partial class GoapAgent : IDisposable
             else if (!wasEmpty)
             {
                 LogNewEmptyGoal(logger);
+                ReportNoPlan();
                 CurrentGoal?.OnExit();
                 CurrentGoal = null;
                 wasEmpty = true;
@@ -270,6 +285,30 @@ public sealed partial class GoapAgent : IDisposable
         }
 
         return Plan.Count > 0 ? Plan.Pop() : null;
+    }
+
+    /// <summary>
+    /// Dumps why nothing was runnable. Reuses <see cref="GoapPlanner.LastUsable"/>
+    /// rather than calling <see cref="GoapGoal.CanRun"/> again - Blacklist keeps
+    /// dedup state inside its check.
+    /// </summary>
+    private void ReportNoPlan()
+    {
+        if (!logger.IsEnabled(LogLevel.Warning))
+        {
+            return;
+        }
+
+        if (GetElapsedTime(lastNoPlanReport).TotalMilliseconds < NO_PLAN_REPORT_INTERVAL_MS)
+        {
+            return;
+        }
+
+        lastNoPlanReport = GetTimestamp();
+
+        LogNoPlanReport(logger,
+            NoPlanReport.Build(AvailableGoals, GoapPlanner.LastUsable,
+                WorldState, playerReader, bits, combatLog, State));
     }
 
     private void UpdateWorldState()
@@ -449,6 +488,12 @@ public sealed partial class GoapAgent : IDisposable
         Level = LogLevel.Warning,
         Message = "New Plan= NO PLAN")]
     static partial void LogNewEmptyGoal(ILogger logger);
+
+    [LoggerMessage(
+        EventId = 0054,
+        Level = LogLevel.Warning,
+        Message = "{report}")]
+    static partial void LogNoPlanReport(ILogger logger, string report);
 
     #endregion
 }

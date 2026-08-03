@@ -31,8 +31,15 @@ public sealed partial class CorpseConsumedGoal : GoapGoal
             AddPrecondition(GoapKey.consumablecorpsenearby, true);
         }
         AddPrecondition(GoapKey.pulled, false);
+
+        // Deliberately NOT gated on incombat. The player's combat flag lingers
+        // for seconds after the last mob dies, and consumecorpse is only ever
+        // cleared here - so an incombat gate latches the whole plan until the
+        // flag drops, with nothing else runnable in the meantime (issue #823).
+        // dangercombat (incombat && CombatLog.DamageTaken non-empty) is the real
+        // question: if nothing is hitting us, finishing the corpse bookkeeping
+        // is safe. OnEnter only moves counters, it presses no keys.
         AddPrecondition(GoapKey.dangercombat, false);
-        AddPrecondition(GoapKey.incombat, false);
 
         AddPrecondition(GoapKey.consumecorpse, true);
 

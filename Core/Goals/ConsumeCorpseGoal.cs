@@ -24,7 +24,16 @@ public sealed partial class ConsumeCorpseGoal : GoapGoal
         {
             AddPrecondition(GoapKey.consumablecorpsenearby, true);
         }
-        AddPrecondition(GoapKey.damagedone, false);
+        // Deliberately NOT gated on damagedone. CombatLog.DamageDone keeps a
+        // GUID until the mob dies or we leave combat, so an AoE that clips
+        // something we never finish - a rabbit caught by Thunder Clap - holds
+        // the flag for the rest of the fight. This goal heads the loot chain,
+        // setting consumecorpse and shouldloot, so blocking it strands Loot and
+        // CorpseConsumed behind it and FollowRoute alongside: NO PLAN until the
+        // combat flag happens to drop.
+        // damagetaken is the question that matters - whether something is
+        // attacking us - and LootGoal keeps its own dangercombat guard, so a
+        // real fight still stops the looting.
         AddPrecondition(GoapKey.damagetaken, false);
 
         AddPrecondition(GoapKey.producedcorpse, true);
