@@ -52,6 +52,9 @@ public sealed partial class GoapAgent : IDisposable
     // own ctor and nothing else asks for them.
     private readonly IBagChangeTracker bagChangeTracker;
     private readonly IMoneyChangeTracker moneyChangeTracker;
+    // Not behind the LogBagChanges toggle the other two share - a level-up is one line
+    // every few hours, not the per-item chatter that toggle exists to silence.
+    private readonly LevelChangeTracker levelChangeTracker;
 
     private long lastNoPlanReport;
 
@@ -135,6 +138,7 @@ public sealed partial class GoapAgent : IDisposable
         CorpseTracker corpseTracker,
         IBagChangeTracker bagChangeTracker,
         IMoneyChangeTracker moneyChangeTracker,
+        LevelChangeTracker levelChangeTracker,
         SessionStat sessionStat,
         StopMoving stopMoving,
         IGrindSessionHandler sessionHandler,
@@ -164,6 +168,7 @@ public sealed partial class GoapAgent : IDisposable
         this.corpseTracker = corpseTracker;
         this.bagChangeTracker = bagChangeTracker;
         this.moneyChangeTracker = moneyChangeTracker;
+        this.levelChangeTracker = levelChangeTracker;
 
         SessionStat = sessionStat;
 

@@ -85,13 +85,13 @@ public sealed partial class ClassConfiguration
     public Dictionary<string, string> StringVariables { get; } = [];
 
     public KeyActions Pull { get; } = new();
-    public KeyActions Flee { get; } = new();
+    public KeyActions Flee { get; } = new() { KeyRequired = false };
     public KeyActions Combat { get; } = new();
     public KeyActions Adhoc { get; } = new();
     public KeyActions Parallel { get; } = new();
-    public KeyActions NPC { get; } = new();
+    public KeyActions NPC { get; } = new() { KeyRequired = false };
     public KeyActions AssistFocus { get; } = new();
-    public WaitKeyActions Wait { get; } = new();
+    public WaitKeyActions Wait { get; } = new() { KeyRequired = false };
     public FormKeyActions Form { get; } = new();
 
     /// <summary>
@@ -472,94 +472,4 @@ public sealed partial class ClassConfiguration
         Message = "Loaded mail config from {MailPath}")]
     static partial void LogLoadedMailConfig(ILogger logger, string mailPath);
 
-}
-
-/// <summary>
-/// Deserializes IntVariables where each value can be either a scalar int or an int[].
-/// Scalars are normalized to single-element arrays for uniform handling.
-/// </summary>
-public sealed class IntOrIntArrayDictionaryConverter : JsonConverter<Dictionary<string, int[]>>
-{
-    public override Dictionary<string, int[]>? ReadJson(
-        JsonReader reader, Type objectType,
-        Dictionary<string, int[]>? existingValue, bool hasExistingValue,
-        JsonSerializer serializer)
-    {
-        Dictionary<string, int[]> result = existingValue ?? [];
-
-        if (reader.TokenType == JsonToken.Null)
-            return result;
-
-        if (reader.TokenType != JsonToken.StartObject)
-            throw new JsonSerializationException(
-                $"Expected StartObject for IntVariables, got {reader.TokenType}.");
-
-        while (reader.Read())
-        {
-            if (reader.TokenType == JsonToken.EndObject)
-                return result;
-
-            if (reader.TokenType != JsonToken.PropertyName)
-                throw new JsonSerializationException(
-                    $"Expected PropertyName, got {reader.TokenType}.");
-
-            string key = (string)reader.Value!;
-            reader.Read();
-
-            int[] values = reader.TokenType switch
-            {
-                JsonToken.Integer => [(int)(long)reader.Value!],
-                JsonToken.StartArray => ReadIntArray(reader),
-                _ => throw new JsonSerializationException(
-                    $"IntVariables['{key}']: expected integer or array, got {reader.TokenType}.")
-            };
-
-            result[key] = values;
-        }
-
-        return result;
-    }
-
-    private static int[] ReadIntArray(JsonReader reader)
-    {
-        List<int> list = [];
-        while (reader.Read())
-        {
-            if (reader.TokenType == JsonToken.EndArray)
-                return [.. list];
-
-            if (reader.TokenType != JsonToken.Integer)
-                throw new JsonSerializationException(
-                    $"IntVariables array element: expected integer, got {reader.TokenType}.");
-
-            list.Add((int)(long)reader.Value!);
-        }
-
-        throw new JsonSerializationException("Unexpected end of JSON in IntVariables array.");
-    }
-
-    public override void WriteJson(
-        JsonWriter writer, Dictionary<string, int[]>? value, JsonSerializer serializer)
-    {
-        writer.WriteStartObject();
-        if (value != null)
-        {
-            foreach ((string key, int[] values) in value)
-            {
-                writer.WritePropertyName(key);
-                if (values.Length == 1)
-                {
-                    writer.WriteValue(values[0]);
-                }
-                else
-                {
-                    writer.WriteStartArray();
-                    for (int i = 0; i < values.Length; i++)
-                        writer.WriteValue(values[i]);
-                    writer.WriteEndArray();
-                }
-            }
-        }
-        writer.WriteEndObject();
-    }
 }

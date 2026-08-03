@@ -199,7 +199,15 @@ function DataToColor:Bits3()
         (DataToColor:AnyBagOpen() and 2 or 0) ^ 12 +
         (DataToColor:CharacterFrameOpen() and 2 or 0) ^ 13 +
         (DataToColor:SpellBookFrameOpen() and 2 or 0) ^ 14 +
-        (DataToColor:FriendsFrameOpen() and 2 or 0) ^ 15
+        (DataToColor:FriendsFrameOpen() and 2 or 0) ^ 15 +
+        (DataToColor:TrainerFrameShown() and 2 or 0) ^ 16 +
+        (MerchantFrame:IsShown() and 2 or 0) ^ 17
+end
+
+-- Blizzard_TrainerUI is loaded on demand, so the frame does not exist until the player
+-- has opened a trainer once - hence the existence check rather than a bare IsShown.
+function DataToColor:TrainerFrameShown()
+    return ClassTrainerFrame ~= nil and ClassTrainerFrame:IsShown()
 end
 
 function DataToColor:CustomTrigger(t)

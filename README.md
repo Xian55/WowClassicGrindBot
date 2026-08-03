@@ -1256,6 +1256,7 @@ Can specify conditions with [Requirement(s)](#requirement) in order to create a 
 | `"ResetOnNewTarget"` | Reset the Cooldown if the target changes | `false` |
 | `"Log"` | Related events should appear in the logs | `true` |
 | `"UseMount"` | Should use mount ? <br/>Limited to [AdhocNpcGoals](#npc-goals) such as `Repair`, `Sell`, `Vendor` routes. | `false` |
+| `"TrainAll"` | Buy every spell the trainer offers and can be afforded, instead of only the ones whitelisted via `SPELL_` variables. <br/>Limited to [`ClassTrainer`](#class-trainer) NPC entries. **Do not pair with the `HasTrainableSpell` requirement** - see [Class Trainer](#class-trainer). | `false` |
 | --- | Before keypress cast, ... | --- |
 | `"BeforeCastFaceTarget"` | Attempt to look directly at target.<br>**Note**: it may not work for every scenario. | `false` |
 | `"BeforeCastDelay"` | Delay in milliseconds. | `0` |
@@ -1994,6 +1995,139 @@ examples of full automatic npc detection or multiple whitelisted names:
 }
 ```
 
+#### Class Trainer
+
+A `ClassTrainer` entry walks to the trainer and **learns spells**, instead of opening a
+merchant window.
+
+There is no new syntax for saying which spells to learn. Every `IntVariables` key whose
+name starts with `SPELL_` is the whitelist, and its array is that spell's **ranks in
+ascending order** - the same arrays a profile already writes for `Spell:` requirements:
+
+```json
+"IntVariables": {
+    "SPELL_CHARGE": [100, 6178, 11578],       // Charge rank 1, 2, 3
+    "SPELL_REND":   [772, 6546, 6547],        // Rend rank 1, 2, 3
+    "SPELL_BLOODRAGE": 2687,                  // a single rank is fine too
+    "WAIT_CHARGE_MS": 4000                    // ignored, no SPELL_ prefix
+},
+"NPC": {
+    "Sequence": [
+        {
+            "Cost": 5,
+            "Name": "ClassTrainer",
+            "Requirements": [
+                "HasTrainableSpell",
+                "Money > 100"
+            ]
+        }
+    ]
+}
+```
+
+##### Two modes: whitelist, or `TrainAll`
+
+The whitelist above is the default. `"TrainAll": true` on the entry instead buys
+**everything the trainer offers that you can afford**, ignoring `SPELL_` entirely:
+
+```json
+{ "Cost": 5, "Name": "ClassTrainer", "TrainAll": true, "Requirements": ["Money > 5000"] }
+```
+
+|  | whitelist *(default)* | `"TrainAll": true` |
+| --- | --- | --- |
+| What it buys | only ids listed in `SPELL_*` `IntVariables` | everything offered and affordable |
+| Who decides | the bot, before setting off | the trainer's own list, on arrival |
+| Gate to use | `HasTrainableSpell` | `Money` and/or `SecondsSinceTrained` |
+| Goes quiet when | nothing whitelisted is learnable | a visit buys nothing, until you next level |
+| Best for | a curated levelling profile | "just teach me everything" |
+
+> **Do not combine `TrainAll` with `HasTrainableSpell`.** That requirement only reads the
+> `SPELL_` whitelist, so both gates have to pass and the trip stays locked to whitelist
+> eligibility. Once those spells are all known it turns false permanently and the trainer
+> is never visited again - even though `TrainAll` would happily have bought everything
+> else. Gate `TrainAll` on `Money` and a cooldown instead.
+
+`TrainAll` cannot use `HasTrainableSpell` because what a trainer sells is only knowable
+once its window is open - there is nothing to check beforehand. That is also why it needs
+its own stopping rule: after a visit that buys nothing it goes quiet until your next
+level-up, since levelling is the only thing that changes what is on offer.
+
+In the log a `TrainAll` visit reads `offering 0 spell(s) to learn - everything offered`.
+The zero is expected: no id list is sent, the addon does the choosing. It reports back
+what it actually bought, so `Trained N spell(s)` and the action bar placement still name
+real spells.
+
+One limitation: to report a purchase the addon has to resolve the service to a spell id,
+which it does through the tooltip. A service whose id will not resolve is **skipped
+rather than bought**, so the bot never claims a purchase it cannot account for. If a
+trainer visibly has spells but nothing is bought, that is the case to suspect.
+
+How it decides *(whitelist mode)*:
+* Only **your own class's** trainer is considered. `ClassTrainer` is a single NPC flag
+  shared by every class, so the search additionally requires the NPC's subtitle to name
+  your class - a Warrior goes to a "Warrior Trainer" and never to the Mage one standing
+  next to it. *(Death Knight and Demon Hunter are not wired up for this yet.)*
+* A spell is **trainable** when the player does not know that exact rank and is at or
+  above the level the spell requires. Both come from data the bot already has - the
+  in-game spellbook and `Json/dbc/<client>/spells.json`.
+* At the trainer, the addon matches the whitelist against what that trainer actually
+  offers, checks each price against your purse, and buys what it can afford - cheapest
+  rank first, since lower ranks are prerequisites for higher ones.
+* `HasTrainableSpell` turns false once there is nothing left to learn, which is what
+  stops the bot walking back. **Include it in the requirements** or the entry will keep
+  firing.
+
+**Gating it further.** `HasTrainableSpell` on its own is usually enough - it is true
+exactly while something is learnable, goes false once it is learnt, and becomes true
+again on the level-up that unlocks the next rank. The bot also stops asking by itself
+when a trainer quotes a price it cannot pay, and when no trainer of your class is
+reachable in the zone.
+
+If you want more control, prefer facts that **do not decay while the bot walks**:
+
+```json
+// only bother when there is plausibly enough coin
+{ "Name": "ClassTrainer", "Requirements": ["HasTrainableSpell", "Money > 1000"] }
+
+// at most one trainer trip every ten minutes
+{ "Name": "ClassTrainer", "Requirements": ["HasTrainableSpell", "SecondsSinceTrained > 600"] }
+```
+
+> **A requirement is re-checked while the goal runs, not just when it starts.** A
+> narrowing window such as `SecondsSinceVendored < 120` therefore expires *during* the
+> walk to the trainer: the goal is dropped part-way and, since that number only grows,
+> it never re-opens until the next vendor trip. Use a widening test
+> (`SecondsSinceTrained > 600`) or a state one (`Money > 1000`) for anything the bot has
+> to travel for. `SecondsSinceVendored` is fine for a check made on the spot.
+
+Likewise `SpellsTrained == 0` means "once per bot run", which is not what a levelling
+profile wants - a 1-10 profile trains repeatedly as it levels. It is there for
+reporting, not for gating.
+
+`VendoredOrRepairedRecently` is a different thing again: a flag latched by a vendor
+visit and cleared only by a successful **mail** run, so without mail enabled it stays
+true forever after the first sale.
+
+Notes:
+* Ids the running client does not have are skipped with a warning, so a profile shared
+  between expansions does not break - e.g. `Victory Rush` does not exist in Classic Era.
+* If the trainer teaches nothing on the whitelist (wrong class, or a profile listing
+  spells it does not sell) that NPC is skipped from then on and the search moves to the
+  next one.
+* If a wanted spell is offered but unaffordable, the entry goes quiet until the wallet
+  grows, rather than walking back and forth.
+* The NPC search obeys [`CrossZoneSearch`](#classconfiguration) like every other NPC
+  entry, so by default only trainers in the **current zone** are considered. If none is
+  found there, the entry goes quiet until you move to another zone - otherwise it would
+  keep being chosen and keep finding nothing, since `HasTrainableSpell` can stay true
+  for a whole zone's worth of levels.
+* **Mists of Pandaria (5.4.8) grants class spells on level up** and its trainers do not
+  sell them, so a `ClassTrainer` entry has nothing to do there. It reports "teaches
+  nothing" and stops rather than failing.
+
+---
+
 #### Safe Path Transitions
 
 **Problem:** When bags are full or repairs are needed, the bot immediately abandons the grind path and uses pathfinding to navigate directly to the vendor path start. This direct route may pass through dangerous mob-dense areas, which is especially risky for Hardcore players.
@@ -2267,6 +2401,11 @@ Arithmetic operators can be used to build complex expressions:
 | `SessionMinutes` | Returns with the elapsed time in Minutes since the Session started.<br>The Session starts when the `Start Bot` button is pressed! |
 | `SessionHours` | Returns with the elapsed time in Hours since the Session started.<br>The Session starts when the `Start Bot` button is pressed! |
 | `ExpPerc` | Returns with the player experience as percentage to hit next level. |
+| `SecondsSinceVendored` | Seconds since the last successful vendor/repair visit. A very large number until the first one, so "it has been a while" reads true from the start. **Only grows** - see the warning under [Class Trainer](#class-trainer) before using it as an upper bound on a goal that has to travel. |
+| `SecondsSinceTrained` | Seconds since the last successful [class trainer](#class-trainer) visit, same convention. Safe as a cooldown (`> N`). |
+| `SpellsTrained` | How many spells have been learnt from a trainer this session. Intended for reporting - as a gate it only expresses "once per bot run". |
+| `Money` | Returns the player's purse in **copper** - the unit every price in the game is quoted in. e.g. `Money > 5000` is "more than 50 silver". |
+| `Gold` | Returns the player's purse in whole **gold**, the copper and silver remainder dropped. e.g. `Gold >= 10`. |
 | `UIMapId` | Returns with the player current [UIMapId](https://github.com/Xian55/WowClassicGrindBot/blob/9bea201760babc0f6670df2bd5c071c9c3f1220d/Json/dbc/som/WorldMapArea.json#L3C6-L3C11) |
 | `PathDist` | Returns the context [PathSettings](#pathsettings) of closest distance (in yards) from the player location to the Path. |
 | `PathDist_{PathSettings.Id}` | Returns the closest distance (in yards) from the player location to the Path. |
@@ -2837,6 +2976,7 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"Items Broken"` | Has any broken(red) worn item |
 | `"HasRangedWeapon"` | Has equipped ranged weapon (wand/crossbow/bow/gun) |
 | `"HasAmmo"` | AmmoSlot has equipped ammo and count is greater than zero |
+| `"HasTrainableSpell"` | There is at least one spell on the [class trainer whitelist](#class-trainer) the player does not know yet and is high enough level to learn. Also false while the spellbook is still loading. Note the bot applies two further checks of its own that this variable does not expose - see the [Class Trainer](#class-trainer) notes. |
 | `"Casting"` | The player is currently casting any spell. |
 | `"HasTarget"` | The player currently has a target. |
 | `"TargetAlive"` | The player currently has an alive target. |

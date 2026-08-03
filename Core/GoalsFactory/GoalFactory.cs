@@ -39,6 +39,10 @@ public static class GoalFactory
         services.AddScoped<CancellationTokenSource<GoapAgent>>();
         services.AddScoped<IGrindSessionHandler, GrindSessionHandler>();
 
+        // Always on, unlike the bag and coin trackers below: a level-up is one line every
+        // few hours, not the per-item chatter LogBagChanges exists to silence.
+        services.AddScoped<LevelChangeTracker>();
+
         if (classConfig.LogBagChanges)
         {
             services.AddScoped<IBagChangeTracker, BagChangeTracker>();
@@ -87,6 +91,8 @@ public static class GoalFactory
         services.AddScoped<CombatTracker>();
         services.AddScoped<SafeSpotCollector>();
         services.AddScoped<ThreatFinder>();
+        services.AddScoped<TrainerPlanner>();
+        services.AddScoped<ActionBarPopulator>();
 
         var playerReader = sp.GetRequiredService<PlayerReader>();
 

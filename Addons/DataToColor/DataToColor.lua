@@ -5,7 +5,7 @@
 -- Trigger between emitting game data and frame location data
 local SETUP_SEQUENCE = false
 -- Total number of data frames generated
-local NUMBER_OF_FRAMES = 117
+local NUMBER_OF_FRAMES = 118
 -- Set number of pixel rows
 local FRAME_ROWS = 1
 -- Size of data squares in px. Varies based on rounding errors as well as dimension size. Use as a guideline, but not 100% accurate.
@@ -187,6 +187,14 @@ local initPhase = 2 * FRAME_CHANGE_RATE
 local QUEUE_COUNT_MARKER = 16777000
 DataToColor.QUEUE_COUNT_MARKER = QUEUE_COUNT_MARKER
 
+-- Terminates the lower-rank half of the spellbook batch (must match
+-- AddonTicks.SPELLBOOK_ALL_RANKS_END in C#). A count header cannot be used there:
+-- a cell tops out at 16,777,215, so QUEUE_COUNT_MARKER + n saturates at n = 215 and a
+-- level 60+ spellbook holds more ranks than that. Only ever read on the spellbook cell,
+-- so it cannot collide with the binding queue, whose encoding does span the full 24 bits.
+local SPELLBOOK_ALL_RANKS_END = 16776999
+DataToColor.SPELLBOOK_ALL_RANKS_END = SPELLBOOK_ALL_RANKS_END
+
 -- How often item frames change
 local ITEM_ITERATION_FRAME_CHANGE_RATE = FRAME_CHANGE_RATE
 -- How often the actionbar frames change
@@ -251,6 +259,7 @@ DataToColor.inventoryQueue = DataToColor.TimedQueue:new(ITEM_ITERATION_FRAME_CHA
 DataToColor.gossipQueue = DataToColor.TimedQueue:new(GOSSIP_ITERATION_FRAME_CHANGE_RATE, 0)
 DataToColor.spellBookQueue = DataToColor.TimedQueue:new(SPELLBOOK_ITERATION_FRAME_CHANGE_RATE, nil)
 DataToColor.talentQueue = DataToColor.TimedQueue:new(TALENT_ITERATION_FRAME_CHANGE_RATE, nil)
+DataToColor.trainerQueue = DataToColor.TimedQueue:new(GOSSIP_ITERATION_FRAME_CHANGE_RATE, nil)
 
 DataToColor.actionBarCostQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
 DataToColor.actionBarCooldownQueue = DataToColor.struct:new(ACTION_BAR_ITERATION_FRAME_CHANGE_RATE)
@@ -572,6 +581,7 @@ function DataToColor:ClearAllQueues()
     DataToColor.gossipQueue:clear()
     DataToColor.spellBookQueue:clear()
     DataToColor.talentQueue:clear()
+    DataToColor.trainerQueue:clear()
     DataToColor.CombatDamageDoneQueue:clear()
     DataToColor.CombatDamageTakenQueue:clear()
     DataToColor.CombatCreatureDiedQueue:clear()
@@ -775,15 +785,42 @@ function DataToColor:PopulateSpellBookInfo()
     DataToColor:PopulateSpellInRangeNames()
 end
 
+-- Set of the ids sent in the first block, so the second one can skip them.
+-- Reused across calls; fully cleared on entry.
+local spellBookHighestSent = {}
+
 function DataToColor:InitSpellBookQueue()
+    local S = DataToColor.S
+
+    -- First block: the highest rank of each spell, headed by its count. This is what the
+    -- bot gates DataReady on, so it stays exactly as small and as fast as it was - the
+    -- lower ranks below are not worth stalling the agent for after a /dcflush.
     local count = 0
-    for _ in pairs(DataToColor.S.playerSpellBookIdHighest) do
-        count = count + 1
+    for id in pairs(spellBookHighestSent) do
+        spellBookHighestSent[id] = nil
     end
+
+    for _, id in pairs(S.playerSpellBookIdHighest) do
+        count = count + 1
+        spellBookHighestSent[id] = true
+    end
+
     DataToColor.spellBookQueue:push(QUEUE_COUNT_MARKER + count)
-    for _, id in pairs(DataToColor.S.playerSpellBookIdHighest) do
+    for _, id in pairs(S.playerSpellBookIdHighest) do
         DataToColor.spellBookQueue:push(id)
     end
+
+    -- Second block: every remaining rank, so the bot can tell rank 2 from rank 7 - it
+    -- otherwise only ever sees the highest and cannot work out which rank to train next.
+    -- Terminated by a sentinel instead of counted, see SPELLBOOK_ALL_RANKS_END.
+    -- Cata and MoP dropped ranks entirely, so there this block is simply empty.
+    for id in pairs(S.playerSpellBookId) do
+        if not spellBookHighestSent[id] then
+            DataToColor.spellBookQueue:push(id)
+        end
+    end
+
+    DataToColor.spellBookQueue:push(SPELLBOOK_ALL_RANKS_END)
 end
 
 -- MoP 5.0 replaced the tab/tier/column/rank trees with six tiers of a single pick
@@ -1212,6 +1249,8 @@ function DataToColor:CreateFrames()
                 Pixel(int, gossipNum, 73)
             end
 
+            Pixel(int, DataToColor.trainerQueue:shift(globalTick) or 0, 115)
+
             Pixel(int, DataToColor:CustomTrigger(DataToColor.customTrigger1), 74)
             Pixel(int, DataToColor:getMeleeAttackSpeed(DataToColor.C.unitPlayer), 75)
 
@@ -1390,9 +1429,17 @@ function DataToColor:CreateFrames()
 
             Pixel(int, DataToColor:Bits3Cached(), 100)
 
-            Pixel(int, DataToColor:getGuidFromUUID(DataToColor.softInteractGuid), 101)
-            Pixel(int, DataToColor:getNpcIdFromUUID(DataToColor.softInteractGuid), 102)
-            Pixel(int, DataToColor:getTypeFromUUID(DataToColor.softInteractGuid), 103)
+            -- Falls back to a live read when the cached guid is nil. The cache is only
+            -- ever filled by PLAYER_SOFT_INTERACT_CHANGED, while the bit the bot gates
+            -- on comes from UnitExists polled every frame - so before that event has
+            -- fired the bot saw "a unit is there" alongside an id of 0, and interacted
+            -- with something it could not identify.
+            local softGuid = DataToColor.softInteractGuid or
+                UnitGUID(DataToColor.C.unitSoftInteract)
+
+            Pixel(int, DataToColor:getGuidFromUUID(softGuid), 101)
+            Pixel(int, DataToColor:getNpcIdFromUUID(softGuid), 102)
+            Pixel(int, DataToColor:getTypeFromUUID(softGuid), 103)
 
             -- player debuff
             textureId, expireTime = DataToColor.playerDebuffTime:getTimed(globalTick)

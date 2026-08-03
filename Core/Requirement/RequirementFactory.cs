@@ -104,6 +104,13 @@ public sealed partial class RequirementFactory
         corpseTracker = sp.GetRequiredService<CorpseTracker>();
         TotemDetector totemDetector = sp.GetRequiredService<TotemDetector>();
 
+        // Built here rather than taken from TrainerPlanner: the planner is a session
+        // scoped goal component and this factory runs from the root provider while the
+        // profile is still loading, before that scope exists. Both read the same rule
+        // out of TrainerSpells, so they cannot drift.
+        int[][] trainWhitelist = TrainerSpells.BuildWhitelist(classConfig);
+        SpellDB spellDB = sp.GetRequiredService<SpellDB>();
+
         var playerBuff = sp.GetRequiredService<AuraTimeReader<IPlayerBuffTimeReader>>();
         var playerDebuff = sp.GetRequiredService<AuraTimeReader<IPlayerDebuffTimeReader>>();
         var targetDebuff = sp.GetRequiredService<AuraTimeReader<ITargetDebuffTimeReader>>();
@@ -174,6 +181,13 @@ public sealed partial class RequirementFactory
             { "BagGreyItem", bagReader.AnyGreyItem },
             { "HasRangedWeapon", equipmentReader.RangedWeapon },
             { "HasAmmo", bits.Ammo },
+
+            // Class trainer - false once there is nothing left to learn, so a
+            // ClassTrainer NPC entry stops asking. The goal additionally declines to
+            // run when a visit would be pointless for a reason only it can see, such
+            // as not affording the price the trainer quoted.
+            { "HasTrainableSpell", () => TrainerSpells.Any(
+                trainWhitelist, spellBookReader, spellDB, playerReader.Level.Value) },
 
             { "Casting", playerReader.IsCasting },
             { "HasTarget", bits.Target },
@@ -269,9 +283,21 @@ public sealed partial class RequirementFactory
             { "SessionMinutes", sessionStat._Minutes },
             { "SessionHours", sessionStat._Hours },
 
+            // NPC visit history. Elapsed seconds rather than another "recently" flag, so
+            // a profile picks its own window and nothing has to clear anything.
+            // int.MaxValue until the event happens, so a "has it been a while" test is
+            // true from the start.
+            { "SecondsSinceVendored", sessionStat._SecondsSinceVendored },
+            { "SecondsSinceTrained", sessionStat._SecondsSinceTrained },
+            { "SpellsTrained", sessionStat._SpellsTrained },
+
             { "Level", playerReader.Level._Value },
             { "ExpPerc", playerReader._PlayerXpPercent },
             { "UIMapId", playerReader.UIMapId._Value },
+
+            // Copper, the unit every cost in the game is quoted in.
+            { "Money", playerReader.Money._Value },
+            { "Gold", () => playerReader.Money.Value / 10000 },
 
             { "SpellQueueWindow", playerReader._SpellQueueTimeMs },
             { "-SpellQueueWindow", playerReader._SpellQueueTimeMsNegative },

@@ -2,7 +2,7 @@
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Classic Wrath)
-## Version: 1.11.4
+## Version: 1.12.0
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:
@@ -35,3 +35,4 @@ DataToColor.lua
 
 SellJunk.lua
 Mail.lua
+Trainer.lua
