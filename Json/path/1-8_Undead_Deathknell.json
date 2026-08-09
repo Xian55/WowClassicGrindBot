@@ -1,0 +1,49 @@
+// PathSettings group - Undead starting zone (Tirisfal Glades), level 1-8.
+// Referenced from a class profile via "PathsFilenames".
+//
+// Deathknell has buildings, and route generation flags several stops as "possible roof".
+// If the bot ends up on the chapel or a cottage, tighten MaxVerticalDelta on that entry.
+[
+  {
+    "Requirements": [
+      "Level < 3",
+      "Race:Undead"
+    ],
+    "Generate": {
+      "Subzone": "Deathknell",
+      "Mobs": "(Name:Young Scavenger || Name:Duskbat) && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 5",
+      "Race:Undead"
+    ],
+    "Generate": {
+      "Subzone": "Deathknell",
+      "Mobs": "(Name:Rattlecage Skeleton || Name:Ragged Scavenger) && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 8",
+      "Race:Undead"
+    ],
+    "Generate": {
+      "Subzone": "Deathknell",
+      "Mobs": "Level <= PlayerLevel + 3 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  }
+]

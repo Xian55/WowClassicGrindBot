@@ -1,0 +1,49 @@
+// PathSettings group - Blood Elf starting zone (Eversong Woods), level 1-8.
+// Referenced from a class profile via "PathsFilenames".
+//
+// Sunstrider Isle sits on map 530 (Expansion01), not Eastern Kingdoms - it needs that
+// continent's navmesh baked, same as Ammen Vale.
+[
+  {
+    "Requirements": [
+      "Level < 3",
+      "Race:BloodElf"
+    ],
+    "Generate": {
+      "Subzone": "Sunstrider Isle",
+      "Mobs": "(Name:Mana Wyrm || Name:Springpaw Cub) && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 5",
+      "Race:BloodElf"
+    ],
+    "Generate": {
+      "Subzone": "Sunstrider Isle",
+      "Mobs": "(Name:Springpaw Lynx || Name:Feral Tender) && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 8",
+      "Race:BloodElf"
+    ],
+    "Generate": {
+      "Subzone": "Sunstrider Isle",
+      "Mobs": "Level <= PlayerLevel + 3 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  }
+]

@@ -1,0 +1,50 @@
+// PathSettings group - Draenei starting zone, level 1-8.
+// Referenced from a class profile via "PathsFilenames".
+[
+  {
+    "Requirements": [
+      "Level < 3",
+      "Race:Draenei"
+    ],
+    "Generate": {
+      "Subzone": "Ammen Vale",
+      "Mobs": "Name:Vale Moth || Name:Volatile Mutation",
+      "Focus": "Balanced",
+      "Stops": 100,
+      //"Mode": "Wander"
+      "Mode": "Loop"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 5",
+      "Race:Draenei"
+    ],
+    "Generate": {
+      "Subzone": "Ammen Vale",
+      "Mobs": "Name:Volatile Mutation || Name:Mutated Root Lasher",
+      "Focus": "Balanced",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 8",
+      "Race:Draenei"
+    ],
+    "Generate": {
+      "Subzone": "Ammen Vale",
+      "Mobs": "Level <= PlayerLevel + 3 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  }
+]
