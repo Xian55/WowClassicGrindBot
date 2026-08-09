@@ -1300,7 +1300,7 @@ function isMap(p) {
     return p.x > 0 && p.x < 100;
 }
 
-function setPolyPath(name, path) {
+function setPolyPath(name, path, force = false) {
     if (!LeafletMap) return;
 
     let polyline = layerNames[name];
@@ -1329,12 +1329,30 @@ function setPolyPath(name, path) {
         scheduleGroupedLayerControlUpdate();
     }
     else {
-        if (polyline.getLatLngs().length != latlngs.length) {
+        // The length comparison is an optimization for the live route, which only ever
+        // shrinks as waypoints are consumed. It silently drops any update that happens to
+        // keep the same point count - so re-rolling a generated route of N stops never
+        // redrew, and switching to a different query with the same N left the old line on
+        // the map. Callers that replace a path wholesale pass force.
+        if (force || polyline.getLatLngs().length != latlngs.length) {
             polyline.setLatLngs(latlngs);
 
             polyline.bringToFront();
         }
     }
+}
+
+/// Removes a polyline previously added by setPolyPath, so a page can clear what it drew
+/// instead of leaving a stale line behind.
+function clearPolyPath(name) {
+    const polyline = layerNames[name];
+    if (!polyline) return;
+
+    editableLayers.removeLayer(polyline);
+    delete layerNames[name];
+
+    schedulePixiRedraw();
+    scheduleGroupedLayerControlUpdate();
 }
 
 function atlasImg(p) {
