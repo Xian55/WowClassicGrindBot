@@ -1,0 +1,226 @@
+{
+  // Shaman 1-10, starting-zone grind. Amalgamated from Shaman_1 / Shaman_4 / Shaman_8.
+  //
+  // Everything learned after level 1 is gated on "Spell:SPELL_x" - do I know it - NOT on
+  // "WhenUsable" alone. WhenUsable only reads the usable bit of the slot the key maps to;
+  // it cannot tell that the slot holds a different spell, so a racial or any other usable
+  // ability sitting on that key makes the gate pass and the bot casts the wrong thing,
+  // forever. WhenUsable is kept as a second check for genuinely empty slots.
+  //
+  // This cannot save an ability known at level 1 from a wrong binding - bind the bars to
+  // match, see the Sync Actionbar button and the ActionBarSlotValidator lines at startup.
+  //
+  // Shaman_8 pulled with Lightning Bolt above 60-70% mana. That is a fine opener but it
+  // drains a level-1 mana pool fast, so the thresholds are lower here and melee is the
+  // default once mana runs out.
+  //
+  // Bars: 2 Lightning Bolt | 3 Healing Wave | 4 Gift of the Naaru | 5 Rockbiter Weapon
+  //       6 Earth Shock | 7 Lightning Shield | F2 Stoneskin Totem | = Food | - Drink
+  "Loot": true,
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
+  "IntVariables": {
+    "Item_Earth_Totem": 5175,
+    "MIN_HP_EAT%": 40,
+    "MIN_MANA_DRINK%": 30,
+    "MIN_MANA_SPELL%": 35,
+
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
+    // Rank chains, verified against Json/dbc/wrath/spells.json. IDs rather than names:
+    // names drift between expansions, ids do not.
+    "SPELL_LIGHTNING_BOLT": [403, 529, 548, 943, 6041, 10391],
+    "SPELL_HEALING_WAVE": [331, 332, 547, 913, 939, 959, 8005],
+    "SPELL_EARTH_SHOCK": [8042, 8044, 8045, 8046, 10412],
+    "SPELL_STONESKIN_TOTEM": [8071, 8154, 8155, 10406],
+    "SPELL_ROCKBITER_WEAPON": [8017, 8018, 8019, 10399],
+    "SPELL_LIGHTNING_SHIELD": [324, 325, 905, 945, 8134]
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Lightning Bolt",
+        "Key": "2",
+        "HasCastBar": true,
+        "AfterCastWaitMeleeRange": true,
+        "Requirements": [
+          "Spell:SPELL_LIGHTNING_BOLT",
+          "!InMeleeRange",
+          "SpellInRange:0",
+          "Mana% > MIN_MANA_SPELL%"
+        ]
+      },
+      {
+        // Out of mana - walk in and melee it rather than stand still.
+        "Name": "Approach",
+        "Requirements": [
+          "!Casting",
+          "!SoftTargetDead"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Gift of the Naaru",
+        "Key": "4",
+        "HasCastBar": true,
+        "WhenUsable": true,
+        "Requirements": [
+          "Race:Draenei",
+          "Health% < 50"
+        ]
+      },
+      {
+        "Name": "Healing Wave",
+        "Key": "3",
+        "HasCastBar": true,
+        "WhenUsable": true,
+        "Cooldown": 5000,
+        "Requirements": [
+          "Spell:SPELL_HEALING_WAVE",
+          "Health% < 40",
+          "Mana% > MIN_MANA_SPELL%"
+        ]
+      },
+      {
+        // Learned at 4.
+        "Name": "Earth Shock",
+        "Key": "6",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_EARTH_SHOCK",
+          "SpellInRange:1",
+          "Mana% > MIN_MANA_SPELL%",
+          "TargetHealth% > 20"
+        ]
+      },
+      {
+        // Learned at 4. Needs the totem item in the bags.
+        "Name": "Stoneskin Totem",
+        "Key": "F2",
+        "WhenUsable": true,
+        "Cooldown": 30000,
+        "Requirements": [
+          "Spell:SPELL_STONESKIN_TOTEM",
+          "InMeleeRange",
+          "TargetHealth% > 50",
+          "Mana% > MIN_MANA_SPELL%",
+          "BagItem:Item_Earth_Totem",
+          "!Stoneskin"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "InMeleeRange",
+          "!Casting"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Casting",
+          "AutoAttacking && !MeleeSwinging",
+          "!SoftTargetDead"
+        ]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Rockbiter Weapon",
+        "Key": "5",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_ROCKBITER_WEAPON",
+          "!HasMainHandEnchant"
+        ],
+        "AfterCastAuraExpected": true
+      },
+      {
+        // Learned at 8.
+        "Name": "Lightning Shield",
+        "Key": "7",
+        "WhenUsable": true,
+        "Cooldown": 10000,
+        "Requirements": [
+          "Spell:SPELL_LIGHTNING_SHIELD",
+          "!Lightning Shield",
+          "Mana% > 50"
+        ]
+      },
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_HP_EAT%",
+        "Cost": 3
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < MIN_MANA_DRINK%",
+        "Cost": 3
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Requirement": "Items Broken"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        "Name": "ClassTrainer",
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
+      }
+    ]
+  }
+}

@@ -44,7 +44,12 @@ internal sealed class Program
         ["find-target"] = Test_FindTargetByCursor,
         ["pather"] = Test_PPather,
         ["navmesh"] = Test_NavmeshCoords,
+        ["routegen"] = Test_RouteGeneration,
     };
+
+    /// <summary>Suites that need no WoW process - see the attach decision in Main.</summary>
+    private static readonly HashSet<string> offlineSuites =
+        new(StringComparer.OrdinalIgnoreCase) { "navmesh", "routegen" };
 
     public static void Main(string[] args)
     {
@@ -105,18 +110,27 @@ internal sealed class Program
             return;
         }
 
-        // its expected to have at least 2 DataFrame
-        DataFrame[] mockFrames =
-        [
-            new DataFrame(0, 0, 0),
-            new DataFrame(1, 0, 0),
-        ];
+        // Suites that read only from Json/ and the baked navmesh. Attaching to the game
+        // would be the only thing that could fail, so do not attach at all - otherwise
+        // every offline suite needs WoW running to say anything.
+        bool needsGame = remaining.Count == 0 ||
+            !offlineSuites.Contains(remaining[0]);
 
-        cts = new CancellationTokenSource();
-        process = new(cts, Options.Create<StartupConfigPid>(new() { Id = -1 }));
-        screen = UseDxgi
-            ? new WowScreenDXGI(loggerFactory.CreateLogger<WowScreenDXGI>(), process, mockFrames)
-            : new WowScreenWGC(loggerFactory.CreateLogger<WowScreenWGC>(), process, mockFrames);
+        if (needsGame)
+        {
+            // its expected to have at least 2 DataFrame
+            DataFrame[] mockFrames =
+            [
+                new DataFrame(0, 0, 0),
+                new DataFrame(1, 0, 0),
+            ];
+
+            cts = new CancellationTokenSource();
+            process = new(cts, Options.Create<StartupConfigPid>(new() { Id = -1 }));
+            screen = UseDxgi
+                ? new WowScreenDXGI(loggerFactory.CreateLogger<WowScreenDXGI>(), process, mockFrames)
+                : new WowScreenWGC(loggerFactory.CreateLogger<WowScreenWGC>(), process, mockFrames);
+        }
 
         if (remaining.Count > 0 && suites.TryGetValue(remaining[0], out Action<string[]> suite))
         {
@@ -535,6 +549,153 @@ internal sealed class Program
         {
             logger.LogError("CostZones: {Failures} failures", failures);
         }
+    }
+
+    /// <summary>
+    /// Route generation against the on-disk data, with the player stubbed - no game client.
+    ///
+    /// <code>
+    /// CoreTests routegen
+    /// CoreTests routegen --zone "Elwynn Forest" --mobs "Type:Humanoid &amp;&amp; !Elite"
+    /// CoreTests routegen --subzone "Northshire Valley" --mobs "Name:Wolf || Name:Kobold"
+    /// CoreTests routegen --profile "Json/class/_/Warrior_1-10.json" --output routegen-out
+    /// </code>
+    /// </summary>
+    private static void Test_RouteGeneration(string[] args)
+    {
+        string zone = "Elwynn Forest";
+        string? subzone = null;
+        string mobs = string.Empty;
+        int stops = 8;
+        int level = 5;
+        string race = "Human";
+        string faction = "Alliance";
+        int uiMapId = 0;
+        string exp = "som";
+        string focus = "Density";
+        string mode = "Wander";
+        string? profile = null;
+        string? outputDir = null;
+        string format = "svg";
+        int? seedArg = null;
+
+        // Loops to args.Length, not args.Length - 1: the old bound silently ignored any
+        // flag in the final position, so "--output" at the end of the line produced nothing
+        // and said nothing about it.
+        for (int i = 0; i < args.Length; i++)
+        {
+            string flag = args[i].ToLowerInvariant();
+
+            // Reads the value after a flag, or reports the flag as incomplete.
+            bool Value(out string value)
+            {
+                if (i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    value = args[++i];
+                    return true;
+                }
+
+                value = string.Empty;
+                return false;
+            }
+
+            switch (flag)
+            {
+                case "--zone": if (Value(out string z)) zone = z; else Missing(flag); break;
+                case "--subzone": if (Value(out string sz)) subzone = sz; else Missing(flag); break;
+                case "--mobs": if (Value(out string m)) mobs = m; else Missing(flag); break;
+                case "--race": if (Value(out string r)) race = r; else Missing(flag); break;
+                case "--faction": if (Value(out string f)) faction = f; else Missing(flag); break;
+                case "--exp": if (Value(out string e)) exp = e; else Missing(flag); break;
+                case "--focus": if (Value(out string fo)) focus = fo; else Missing(flag); break;
+                case "--mode": if (Value(out string mo)) mode = mo; else Missing(flag); break;
+                case "--profile": if (Value(out string p)) profile = p; else Missing(flag); break;
+
+                case "--stops": if (Value(out string st)) stops = int.Parse(st); else Missing(flag); break;
+                case "--level": if (Value(out string lv)) level = int.Parse(lv); else Missing(flag); break;
+                case "--uimap": if (Value(out string um)) uiMapId = int.Parse(um); else Missing(flag); break;
+
+                case "--svg":
+                    // Kept as an alias: it predates --format, when SVG was the only output.
+                    Log.Logger.Warning("--svg is now --output - still honoured");
+                    goto case "--output";
+
+                case "--output":
+                    // A bare --output still means "write them"; only the folder is optional.
+                    // Named routegen-out, not routegen: the source folder is RouteGen/, and
+                    // Windows paths are case-insensitive, so an output folder called
+                    // "routegen" is the same directory as the source. Deleting the output
+                    // then deletes the source.
+                    outputDir = Value(out string dir) && dir.Length > 0 ? dir : "routegen-out";
+                    break;
+
+                case "--format":
+                    // Output encoding for --output. SVG stays the default: it is the only one
+                    // that keeps the tiles as tiles and stays sharp at any zoom.
+                    if (!Value(out string fmt))
+                    {
+                        Missing(flag);
+                        break;
+                    }
+
+                    fmt = fmt.ToLowerInvariant();
+                    if (fmt is "svg" or "png" or "webp")
+                    {
+                        format = fmt;
+                    }
+                    else
+                    {
+                        Log.Logger.Warning(
+                            "--format {Value} is not svg|png|webp - keeping {Current}", fmt, format);
+                    }
+                    break;
+
+                case "--seed":
+                    // "random" is explicit on purpose: omitting --seed keeps the fixed
+                    // default, so a harness run stays comparable to the last one unless
+                    // asked otherwise.
+                    if (!Value(out string seedText))
+                    {
+                        Missing(flag);
+                        break;
+                    }
+
+                    seedArg = seedText.Equals("random", StringComparison.OrdinalIgnoreCase)
+                        ? Random.Shared.Next()
+                        : int.Parse(seedText);
+                    break;
+
+                default:
+                    if (flag.StartsWith("--", StringComparison.Ordinal))
+                        Log.Logger.Warning("Unknown option {Flag}", args[i]);
+                    break;
+            }
+        }
+
+        void Missing(string flag) =>
+            Log.Logger.Warning("{Flag} needs a value - ignored", flag);
+
+        if (outputDir != null)
+        {
+            outputDir = System.IO.Path.GetFullPath(outputDir);
+            Log.Logger.Information("{Format} output: {Dir}", format, outputDir);
+        }
+        else if (format != "svg")
+        {
+            Log.Logger.Warning("--format {Format} does nothing without --output <dir>", format);
+        }
+
+        using Test_RouteGen test = new(logger, loggerFactory, level, race, faction, uiMapId, exp);
+
+        if (profile != null)
+        {
+            test.TestProfile(profile, seedArg, outputDir, format);
+            return;
+        }
+
+        test.TestExpressionScope();
+        test.TestGenerate(zone, subzone, mobs, stops, Enum.Parse<RouteFocus>(focus, true),
+            Enum.Parse<RouteGenMode>(mode, true), seedArg, outputDir, format);
     }
 
     private static void Test_NavmeshCoords(string[] args)

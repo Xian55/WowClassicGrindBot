@@ -1,0 +1,408 @@
+@page "/RouteGen"
+@implements IDisposable
+
+@using System.IO
+@using System.Numerics
+@using System.Text.Json
+@using Core.Database
+@using SharedLib
+@using static System.Text.Json.JsonSerializer
+
+@inject ILogger logger
+@inject RouteGenerator generator
+@inject WorldMapAreaDB worldMapAreaDB
+@inject DataConfig dataConfig
+@inject IBotController botController
+@inject PlayerReader PlayerReader
+@inject IJSRuntime jsRuntime
+@inject JsonSerializerOptions options
+
+<div class="row">
+    <div class="col-md-4">
+        <Card>
+            <CardHeader>Generate a route</CardHeader>
+            <CardBody>
+
+                @if (profilePaths.Count > 0)
+                {
+                    <div class="mb-2">
+                        <label class="form-label">From the loaded profile</label>
+                        <select class="form-select" @onchange="LoadFromProfile">
+                            <option value="-1">-- custom --</option>
+                            @foreach ((int id, PathSettings p) in profilePaths)
+                            {
+                                <option value="@id" selected="@(id == loadedPathId)">
+                                    [@id] @p.DisplayName
+                                </option>
+                            }
+                        </select>
+                        <small class="text-muted">
+                            Only paths with a <code>Generate</code> block are listed.
+                            Editing here does not change the profile.
+                        </small>
+                    </div>
+                    <hr />
+                }
+
+                <div class="mb-2">
+                    <label class="form-label">Zone</label>
+                    <input class="form-control" @bind="settings.Zone" placeholder="Elwynn Forest" />
+                    <small class="text-muted">Blank = the player's current zone.</small>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Subzone</label>
+                    <input class="form-control" @bind="settings.Subzone" placeholder="Northshire Valley" />
+                    <small class="text-muted">Narrower than Zone; wins when both are set.</small>
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Mobs</label>
+                    <input class="form-control" @bind="settings.Mobs"
+                           placeholder="@RouteGenerator.DefaultMobFilter" />
+                    <small class="text-muted">
+                        Creature scope, not player scope: <code>Level</code> is the mob's level,
+                        the player's is <code>PlayerLevel</code>.
+                        Keys: <code>Type:</code> <code>Name:</code> <code>Faction:</code>
+                        <code>Family:</code> <code>NpcId</code> <code>Rank</code>
+                        <code>SpawnCount</code> <code>Elite</code> <code>Skinnable</code>
+                        <code>Hostile</code>.
+                    </small>
+                </div>
+
+                <div class="row">
+                    <div class="col mb-2">
+                        <label class="form-label">Mode</label>
+                        <select class="form-select" @bind="settings.Mode">
+                            <option value="@RouteGenMode.Wander">Wander</option>
+                            <option value="@RouteGenMode.Loop">Loop</option>
+                        </select>
+                    </div>
+                    <div class="col mb-2">
+                        <label class="form-label">Stops</label>
+                        <input type="number" class="form-control" @bind="settings.Stops" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col mb-2">
+                        <label class="form-label">Focus</label>
+                        <select class="form-select" @bind="settings.Focus">
+                            <option value="@RouteFocus.Density">Density</option>
+                            <option value="@RouteFocus.Balanced">Balanced</option>
+                            <option value="@RouteFocus.Coverage">Coverage</option>
+                        </select>
+                        <small class="text-muted">
+                            Density sticks to the packs and drops isolated spawns;
+                            Coverage takes in everything that matched.
+                        </small>
+                    </div>
+                    <div class="col mb-2">
+                        <label class="form-label">Waypoint spacing (yd)</label>
+                        <input type="number" class="form-control" @bind="settings.WaypointSpacingYards" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col mb-2">
+                        <label class="form-label">Padding (yd)</label>
+                        <input type="number" class="form-control" @bind="settings.PaddingYards" />
+                    </div>
+                    <div class="col mb-2">
+                        <label class="form-label">Max &Delta;z (yd)</label>
+                        <input type="number" class="form-control" @bind="settings.MaxVerticalDelta" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col mb-2">
+                        <label class="form-label">Min spacing (yd)</label>
+                        <input type="number" class="form-control" @bind="settings.MinSpacingYards" />
+                    </div>
+                    <div class="col mb-2">
+                        <label class="form-label">Seed</label>
+                        <input type="number" class="form-control" @bind="seed"
+                               placeholder="blank = random" />
+                        <small class="text-muted">
+                            @(settings.Mode == RouteGenMode.Loop
+                                ? "Loop ignores the seed - it is the same route every time."
+                                : "Blank draws a fresh one each Generate.")
+                        </small>
+                    </div>
+                </div>
+
+                <hr />
+
+                <button class="btn btn-primary" @onclick="Generate" disabled="@busy">
+                    Generate
+                </button>
+                <button class="btn btn-secondary" @onclick="Reroll"
+                        disabled="@(busy || context == null)">
+                    Re-roll
+                </button>
+
+                <hr />
+
+                <div class="mb-2">
+                    <label class="form-label">Save as</label>
+                    <input class="form-control" @bind="saveName" placeholder="@DefaultSaveName()" />
+                </div>
+                <button class="btn btn-success" @onclick="Save" disabled="@(route.Length == 0)">
+                    Save to Json/path
+                </button>
+
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="alert alert-info mt-2 mb-0 py-2">@message</div>
+                }
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="alert alert-danger mt-2 mb-0 py-2">@error</div>
+                }
+
+            </CardBody>
+        </Card>
+
+        @if (context != null)
+        {
+            <Card class="mt-2">
+                <CardHeader>@context.Target.Name</CardHeader>
+                <CardBody>
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr><td>UIMapId / MapId</td><td>@context.Target.UIMapId / @context.Target.MapId</td></tr>
+                            <tr><td>Creature types matched</td><td>@context.MatchedCreatures</td></tr>
+                            <tr><td>Spawns kept</td><td>@context.Polygon.Spawns.Length (dropped @context.Polygon.PrunedSpawns)</td></tr>
+                            <tr><td>Clusters</td><td>@context.Polygon.ClusterCount</td></tr>
+                            <tr><td>Polygon cells</td><td>@context.Polygon.CellCount</td></tr>
+                            <tr><td>Navmesh polys</td><td>@context.Connectivity.PolyCount</td></tr>
+                            <tr><td>Components (route on)</td><td>@context.Connectivity.ComponentCount (#@context.Component)</td></tr>
+                            <tr><td>Stops sampled</td><td>@route.Length</td></tr>
+                        </tbody>
+                    </table>
+                </CardBody>
+            </Card>
+        }
+    </div>
+
+    <div class="col-md-8">
+        <LeafletComponent Size="80vh" Edit="true" />
+    </div>
+</div>
+
+@code {
+    private RouteGenSettings settings = new();
+
+    private RouteGenerator.Context? context;
+    private Vector3[] route = [];
+    private Vector3[] mapRoute = [];
+
+    private int? seed;
+    private int lap;
+    private int effectiveSeed;
+    private bool busy;
+    private int loadedPathId = -1;
+
+    private List<(int Id, PathSettings Path)> profilePaths = [];
+
+    private string saveName = string.Empty;
+    private string message = string.Empty;
+    private string error = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        settings.Zone = PlayerReader.WorldMapArea.AreaName;
+
+        RefreshProfilePaths();
+        botController.ProfileLoaded += OnProfileLoaded;
+    }
+
+    public void Dispose()
+    {
+        botController.ProfileLoaded -= OnProfileLoaded;
+    }
+
+    private void OnProfileLoaded()
+    {
+        InvokeAsync(() =>
+        {
+            RefreshProfilePaths();
+            StateHasChanged();
+        });
+    }
+
+    private void RefreshProfilePaths()
+    {
+        profilePaths = botController.ClassConfig == null
+            ? []
+            : [.. botController.ClassConfig.Paths
+                    .Where(static p => p.Generate != null)
+                    .Select(static p => (p.Id, p))];
+    }
+
+    /// <summary>
+    /// Copies a profile entry's settings into the form. A copy on purpose - previewing must
+    /// not mutate the running profile's own <see cref="RouteGenSettings"/>.
+    /// </summary>
+    private void LoadFromProfile(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out int id) || id < 0)
+        {
+            loadedPathId = -1;
+            return;
+        }
+
+        PathSettings? source = profilePaths.FirstOrDefault(x => x.Id == id).Path;
+        if (source?.Generate == null) return;
+
+        loadedPathId = id;
+
+        RouteGenSettings g = source.Generate;
+        settings = new RouteGenSettings
+        {
+            Zone = g.Zone,
+            Subzone = g.Subzone,
+            UIMapId = g.UIMapId,
+            Name = g.Name,
+            Mobs = g.Mobs,
+            Mode = g.Mode,
+            Focus = g.Focus,
+            MinClusterShare = g.MinClusterShare,
+            DensityBias = g.DensityBias,
+            WaypointSpacingYards = g.WaypointSpacingYards,
+            Stops = g.Stops,
+            PaddingYards = g.PaddingYards,
+            MaxVerticalDelta = g.MaxVerticalDelta,
+            MinSpacingYards = g.MinSpacingYards,
+            Seed = g.Seed
+        };
+
+        seed = g.Seed;
+
+        message = $"Loaded path [{id}] {source.DisplayName}";
+    }
+
+    private string DefaultSaveName() =>
+        context == null
+            ? "generated"
+            : $"{context.Target.Name}_{settings.Mode}_{effectiveSeed}";
+
+    private async Task Generate()
+    {
+        busy = true;
+        message = error = string.Empty;
+        lap = 0;
+
+        try
+        {
+            // Null out blanks so RouteTarget's resolution order behaves the same as it
+            // does for a profile, where an unset field is absent rather than empty.
+            settings.Zone = Blank(settings.Zone);
+            settings.Subzone = Blank(settings.Subzone);
+
+            context = generator.TryBuildContext(settings);
+
+            if (context == null)
+            {
+                error = "Generation failed - check the log for the reason " +
+                    "(unknown zone, no spawn data, bad filter, or no baked navmesh).";
+                route = mapRoute = [];
+                await Draw();
+                return;
+            }
+
+            await SampleAndDraw();
+        }
+        catch (Exception e)
+        {
+            error = e.Message;
+            logger.LogError(e, "Route generation failed");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    /// <summary>
+    /// Re-samples from the cached context - the same path a Wander lap takes, so this is
+    /// also how you eyeball whether consecutive laps actually differ.
+    /// </summary>
+    private async Task Reroll()
+    {
+        if (context == null) return;
+
+        busy = true;
+        try
+        {
+            lap++;
+            await SampleAndDraw();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task SampleAndDraw()
+    {
+        // Blank means "surprise me": draw once per Generate so a re-roll still varies, and
+        // report it, because a route worth keeping needs a seed you can put in the profile.
+        effectiveSeed = seed ?? Random.Shared.Next();
+
+        route = generator.Sample(context!, settings, RouteSeed.For(effectiveSeed, 0, lap));
+
+        mapRoute = new Vector3[route.Length];
+        Array.Copy(route, mapRoute, route.Length);
+        worldMapAreaDB.ToMap_FlipXY(context!.Target.UIMapId, mapRoute);
+
+        message = settings.Mode == RouteGenMode.Loop
+            ? $"{route.Length} waypoints (Loop - deterministic, seed not used)"
+            : $"{route.Length} waypoints (lap {lap}, seed {effectiveSeed})";
+
+        await Draw();
+    }
+
+    private async Task Draw()
+    {
+        if (route.Length == 0)
+        {
+            await jsRuntime.InvokeVoidAsync("clearPolyPath", "Generated");
+            return;
+        }
+
+        // setPolyPath accepts world coordinates directly - its isMap() check only treats
+        // 0..100 values as map space, and world coords are far outside that.
+        //
+        // force: true because a re-roll keeps the same stop count, and setPolyPath's default
+        // skips any update that does not change the point count - which left the previous
+        // route drawn and made it look like the query had been ignored.
+        await jsRuntime.InvokeVoidAsync("setPolyPath", "Generated",
+            Serialize(route, options), true);
+    }
+
+    private void Save()
+    {
+        error = string.Empty;
+
+        try
+        {
+            string name = Blank(saveName) ?? DefaultSaveName();
+            string path = Path.Join(dataConfig.Path, $"{name}.json");
+
+            // Recorded routes on disk are map coordinates, so a generated one has to be
+            // written that way too or it will not load as a PathFilename.
+            File.WriteAllText(path,
+                Newtonsoft.Json.JsonConvert.SerializeObject(mapRoute));
+
+            message = $"Saved {mapRoute.Length} points to {path}";
+        }
+        catch (Exception e)
+        {
+            error = e.Message;
+        }
+    }
+
+    private static string? Blank(string? s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s;
+}

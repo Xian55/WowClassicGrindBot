@@ -1,0 +1,284 @@
+{
+  // Paladin 1-10, starting-zone grind. Amalgamated from Paladin_1 / Paladin_8 / Paladin_10.
+  //
+  // Paladin_10 is built around Seal of the Crusader, which is not trained until 22. Here
+  // the rotation is Seal of Righteousness plus Judgement, and the Crusader entries are
+  // gated on knowing that seal so they stay dormant until it exists - at which point the
+  // judge-Crusader-then-Righteousness order takes over on its own.
+  //
+  // Gating is "Spell:<name>" - do I know it - NOT "WhenUsable" alone. WhenUsable only
+  // reads the usable bit of the slot the key maps to; it cannot tell that the slot holds
+  // a different spell. A Blood Elf has Arcane Torrent on slot 5 by default, which is
+  // always usable, so a WhenUsable-only gate fires, casts the racial, never satisfies
+  // "!Blessing of Might" and retries forever.
+  //
+  // That fixes abilities trained after level 1. It CANNOT fix a wrong binding for one
+  // known at level 1 - Devotion Aura and Seal of Righteousness are known immediately, so
+  // if their slots hold something else the bot still casts the wrong thing. Those carry a
+  // Cooldown so a mis-bound bar degrades to a slow retry instead of a hard loop, but the
+  // real fix is to bind the bars to match this profile - see the Sync Actionbar button,
+  // and the ActionBarSlotValidator "Mismatch" lines at startup.
+  //
+  // Bars: 1 Judgement | 2 Seal of Righteousness | 3 Holy Light | 4 Blessing of Might
+  //       5 Devotion Aura | 6 Seal of the Crusader | 7 Hammer of Justice
+  //       9 Gift of the Naaru | N1 Divine Protection | N2 Blessing of Protection
+  //       N3 Lay on Hands | = Food | - Drink
+  "Loot": true,
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
+  "IntVariables": {
+    "MIN_HP_EAT%": 40,
+    "MIN_MANA_DRINK%": 30,
+    "EMERGENCY_HP%": 20,
+
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
+    // Rank chains, verified against Json/dbc/wrath/spells.json. IDs rather than names on
+    // purpose: Blizzard renamed Blessing of Protection to Hand of Protection and dropped
+    // Seal of the Crusader outright, so a name gate breaks across clients where the id
+    // does not.
+    "SPELL_SEAL_OF_RIGHTEOUSNESS": [21084, 20154],
+    "SPELL_JUDGEMENT": [20271],
+    "SPELL_HOLY_LIGHT": [635, 639, 647, 1026, 1042, 3472],
+    "SPELL_DEVOTION_AURA": [465, 10290, 643, 10291, 1032],
+    "SPELL_BLESSING_OF_MIGHT": [19740, 19834, 19835, 19836],
+    "SPELL_DIVINE_PROTECTION": [498, 13007],
+    "SPELL_HAMMER_OF_JUSTICE": [853, 5588, 5589],
+    "SPELL_LAY_ON_HANDS": [633, 2800, 9257],
+    "SPELL_HAND_OF_PROTECTION": [1022, 5599, 10278]
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Seal of Righteousness",
+        "Key": "2",
+        "WhenUsable": true,
+        "Cooldown": 1500,
+        "Requirements": [
+          "Spell:SPELL_SEAL_OF_RIGHTEOUSNESS",
+          "!Seal of Righteousness"
+        ]
+      },
+      {
+        // Learned at 4.
+        "Name": "Judgement",
+        "Key": "1",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_JUDGEMENT",
+          "SpellInRange:0",
+          "Seal of Righteousness"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!SoftTargetDead"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        // Learned at 6.
+        "Name": "Divine Protection",
+        "Key": "N1",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_DIVINE_PROTECTION",
+          "Health% < EMERGENCY_HP%",
+          "!Blessing of Protection"
+        ]
+      },
+      {
+        // Learned at 10. Named Hand of Protection from Wrath on - gated on the id chain,
+        // which spans both names.
+        "Name": "Blessing of Protection",
+        "Key": "N2",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_HAND_OF_PROTECTION",
+          "Health% < EMERGENCY_HP%",
+          "!Divine Protection"
+        ]
+      },
+      {
+        // Learned at 10.
+        "Name": "Lay on Hands",
+        "Key": "N3",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_LAY_ON_HANDS",
+          "Health% < EMERGENCY_HP%",
+          "!Blessing of Protection && CD_Blessing of Protection > 0",
+          "!Divine Protection && CD_Divine Protection > 0"
+        ]
+      },
+      {
+        "Name": "Gift of the Naaru",
+        "Key": "9",
+        "HasCastBar": true,
+        "WhenUsable": true,
+        "Requirements": [
+          "Race:Draenei",
+          "Health% < 45"
+        ]
+      },
+      {
+        "Name": "Holy Light",
+        "Key": "3",
+        "HasCastBar": true,
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_HOLY_LIGHT",
+          "(Blessing of Protection || Divine Protection && Health% < 60) || (!Blessing of Protection && CD_Blessing of Protection > 0 && !Divine Protection && CD_Divine Protection > 0 && Health% < 50 && TargetHealth% > 20 && LastMainHandMs <= 1000)"
+        ]
+      },
+      {
+        // Learned at 4.
+        "Name": "Judgement",
+        "Key": "1",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_JUDGEMENT",
+          "Seal of Righteousness"
+        ]
+      },
+      {
+        // Learned at 8.
+        "Name": "Hammer of Justice",
+        "Key": "7",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_HAMMER_OF_JUSTICE",
+          "TargetCastingSpell || TargetHealth% < 50"
+        ]
+      },
+      {
+        "Name": "Seal of Righteousness",
+        "Key": "2",
+        "WhenUsable": true,
+        "Cooldown": 1500,
+        "Requirements": [
+          "Spell:SPELL_SEAL_OF_RIGHTEOUSNESS",
+          "!Seal of Righteousness",
+          "TargetHealth% > 20"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "!Divine Protection",
+          "!Blessing of Protection"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!MeleeSwinging && !SoftTargetDead"
+        ],
+        "Log": false
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        // Known from level 1, so no Spell: gate can stop this one firing on a wrong
+        // binding - a Blood Elf has Arcane Torrent on slot 5 by default, and casting that
+        // never satisfies the aura check. The Cooldown caps the damage at one wasted
+        // press every 10s instead of a hard loop; fix the binding to actually fix it.
+        "Name": "Devotion Aura",
+        "Key": "5",
+        "WhenUsable": true,
+        "Cooldown": 10000,
+        "Requirements": [
+          "Spell:SPELL_DEVOTION_AURA",
+          "!Form:Paladin_Devotion_Aura"
+        ],
+        "AfterCastAuraExpected": true
+      },
+      {
+        // Learned at 4.
+        "Name": "Blessing of Might",
+        "Key": "4",
+        "WhenUsable": true,
+        "Cooldown": 10000,
+        "Requirements": [
+          "Spell:SPELL_BLESSING_OF_MIGHT",
+          "!Blessing of Might"
+        ]
+      },
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_HP_EAT%",
+        "Cost": 3
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < MIN_MANA_DRINK%",
+        "Cost": 3
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Requirement": "Items Broken"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        "Name": "ClassTrainer",
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
+      }
+    ]
+  }
+}

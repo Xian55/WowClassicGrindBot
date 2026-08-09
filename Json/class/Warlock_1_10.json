@@ -1,9 +1,17 @@
 {
   //"Mode": "AttendedGrind",
   "Loot": true,
-  "PathFilename": "1_Gnome.json",
-  "PathThereAndBack": true,
-  "PathReduceSteps": false,
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
   "IntVariables": {
     "MIN_WATER%": 20,
     "MIN_MANA_SHADOWBOLT%": 40,
@@ -12,9 +20,23 @@
     "MIN_HEALTH_CAST%": 40,
     "DOT_MIN_HEALTH": 50,
 
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
     "SPELL_IMMOLATE": [348, 707, 1094, 2941, 11665, 11667, 11668, 25309],
     "SPELL_CORRUPTION": [172, 6222, 6223, 7648, 11671, 11672, 25311],
     "SPELL_SUMMON_IMP": [688]
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite" 
+      }
+    ]
   },
   "Wait": {
     "Sequence": [
@@ -168,6 +190,16 @@
           "BagFull",
           "BagGreyItem"
         ]
+      },
+      {
+        "Name": "ClassTrainer",
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
       }
     ]
   }

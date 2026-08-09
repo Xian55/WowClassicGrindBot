@@ -1,0 +1,290 @@
+{
+  //"Mode": "AttendedGrind", //Grind //AttendedGrind //CorpseRun //AutoGather
+  "KeyboardOnly": true,
+  "NPCMaxLevels_Below": 10,
+  "IntVariables": {
+    "MIN_TARGET_HP%": 20,
+    "MIN_HP_BEFORE_HEAL%": 25,
+    "MIN_HP_EAT%": 40,
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
+    "WAIT_CHARGE_MS": 4000,
+
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "SPELL_CHARGE": [100, 6178, 11578],
+    "SPELL_BATTLE_SHOUT": [6673, 5242, 6192, 11549, 11550, 11551, 25289],
+    "SPELL_THUNDER_CLAP": [6343, 8198, 8204, 8205, 11580, 11581],
+    "SPELL_REND": [772, 6546, 6547, 6548, 11572, 11573],
+    "SPELL_OVERPOWER": [7384, 7887, 11584, 11585],
+    "SPELL_SUNDER_ARMOR": [7386, 7405, 8380, 11596, 11597],
+    "SPELL_BLOODRAGE": 2687,
+
+    "SPELL_VICTORY_RUSH": 34428
+  },
+  // PathSettings groups, relative to Json/path/. Appended after any inline "Paths"
+  // below, in this order - which is what sets each route goal's GOAP cost.
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite" 
+      }
+    ]
+  },
+  "Form": {
+    "Sequence": [
+      {
+        "Name": "Battle Stance",
+        "Key": "F1",
+        "Form": "Warrior_BattleStance"
+      },
+      {
+        "Name": "Defensive Stance",
+        "Key": "F2",
+        "Form": "Warrior_DefensiveStance"
+      },
+      {
+        "Name": "Berserker Stance",
+        "Key": "F3",
+        "Form": "Warrior_BerserkerStance"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      },
+      {
+        "Cost": 19,
+        "Name": "HP regen",
+        "Requirements": [
+          "FoodCount == 0 || !Usable:Food",
+          "Health% < 50"
+        ]
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      /*
+      {
+        "Name": "Throw",
+        "Key": "9",
+        "Item": true,
+        "WhenUsable": true,
+        "BeforeCastStop": true,
+        "AfterCastWaitMeleeRange": true,
+        "Requirements": [
+          "AddVisible",
+          "HasRangedWeapon",
+          "SpellInRange:3",
+          "!Items Broken"
+        ]
+      },
+      */
+      {
+        "Name": "Charge",
+        "Key": "3",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_CHARGE",
+          "SpellInRange:0"
+        ]
+      },
+
+      {
+        "Name": "StopAttack",
+        "BeforeCastDelay": 30,
+        "Requirements": [
+          "Spell:SPELL_CHARGE",
+          "AutoAttacking",
+          "Usable:Approach"
+        ],
+        "AfterCastDelay": 50
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Spell:SPELL_CHARGE || (Spell:SPELL_CHARGE && (CD_Charge >= WAIT_CHARGE_MS || Rage >= Cost_Heroic Strike)) || InMeleeRange"
+        ],
+        "Log": false
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Victory Rush",
+        "Key": "8",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_VICTORY_RUSH"
+        ]
+      },
+      {
+        "Name": "Bloodrage",
+        "Key": "9",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_BLOODRAGE",
+          "Rage < 10",
+          "Health% > 50"
+        ]
+      },
+      {
+        "Name": "Thunder Clap",
+        "Key": "6",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_THUNDER_CLAP",
+          "!Thunder Clap",
+          "MobCount > 1"
+        ]
+      },
+      {
+        "Name": "Overpower",
+        "Key": "0",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_OVERPOWER"
+        ]
+      },
+      {
+        "Name": "Rend",
+        "Key": "5",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_REND",
+          "!Charge Stun && TargetHealth% > 50",
+          "!Rend"
+        ],
+        "Form": "Warrior_BattleStance"
+      },
+      {
+        "Name": "Sunder Armor",
+        "Key": "1",
+        "WhenUsable": true,
+        "Cooldown": 28000,
+        "Charge": 5,
+        "ResetOnNewTarget": true,
+        "Requirements": [
+          "Spell:SPELL_SUNDER_ARMOR",
+          "TargetHealth% > 30"
+        ]
+      },
+      {
+        "Name": "Heroic Strike",
+        "Key": "2",
+        "WhenUsable": true,
+        "Requirements": [
+          "!Spell:SPELL_REND || Rage >= 50",
+          "!Charge Stun && MainHandSwing > -400"
+        ],
+        "AfterCastWaitSwing": true
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "InMeleeRange",
+          "!Charge Stun"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Charge Stun && !MeleeSwinging && !SoftTargetDead"
+        ],
+        "Log": false
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Cost": 3.1,
+        "Name": "Battle Shout",
+        "Key": "4",
+        "InCombat": "i dont care",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_BATTLE_SHOUT",
+          "!Battle Shout"
+        ] 
+      },
+      {
+        "Name": "Gift of the Naaru",
+        "Key": 9,
+        "WhenUsable": true,
+        "Requirements": [
+          "Race:Draenei",
+          "FoodCount == 0 || !Usable:Food",
+          "Health% < 50"
+        ]
+      },
+      {
+        "Name": "Cannibalize",
+        "Key": 9,
+        "WhenUsable": true,
+        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
+        "Requirements": [
+          "Race:Undead",
+          "Health% < 80",
+          "CannibalizeCorpse"
+        ],
+        "Interrupt": "Health% > 98"
+      },
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_HP_EAT%",
+        "Cost": 3
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Name": "Repair",
+        "Requirement": "Items Broken",
+        "Cost": 6
+      },
+      {
+        "Name": "Sell",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ],
+        "Cost": 6
+      },
+      {
+        "Name": "ClassTrainer",
+        //"TrainAll": true,
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
+      }
+    ]
+  }
+}

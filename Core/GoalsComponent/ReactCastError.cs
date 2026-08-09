@@ -11,6 +11,13 @@ namespace Core;
 
 public sealed partial class ReactCastError
 {
+    /// <summary>
+    /// How many <c>updateCount</c>-frame samples the facing gets to settle in before the
+    /// interact-turn is called failed. Needs to be &gt; 1: at exactly one sample the
+    /// timeout equals the cost of taking it, so the loop exits before it can ever compare.
+    /// </summary>
+    private const float SettleSampleBudget = 2.5f;
+
     private readonly ILogger<ReactCastError> logger;
     private readonly PlayerReader playerReader;
     private readonly ActionBarBits<IUsableAction> usableAction;
@@ -174,28 +181,39 @@ public sealed partial class ReactCastError
                 // Try fast interact if no invalid soft target exists
                 if (!bits.SoftInteract_CombatBlocker())
                 {
-                    float beforeDir = playerReader.Direction;
                     input.PressFastInteract();
 
                     const int updateCount = 4;
-                    float e = wait.AfterEquals(playerReader.SpellQueueTimeMs,
-                        updateCount, playerReader._Direction);
 
+                    // Budget the settle window off what a sample actually costs, not off
+                    // SpellQueueTimeMs. That CVar caps at 400ms while one sample is
+                    // updateCount addon frames - at ~100ms a frame the first sample eats
+                    // the whole budget, AfterEquals can only ever time out, and the turn
+                    // is reported as failed at every frame rate but the fastest.
                     float sampleTimeMs =
                         updateCount * (float)addonReader.AvgUpdateLatency;
 
-                    if (e > sampleTimeMs)
+                    int settleMs = Math.Max(playerReader.SpellQueueTimeMs,
+                        (int)(sampleTimeMs * SettleSampleBudget));
+
+                    float e = wait.AfterEquals(settleMs,
+                        updateCount, playerReader._Direction);
+
+                    // AfterEquals returns negative on timeout - the facing never held
+                    // still, so the character is mid-spin. Do NOT treat "direction
+                    // changed" as success there: it is true precisely while the turn is
+                    // unfinished, and it used to suppress the fallback below in the one
+                    // state that needs it.
+                    turnedWithInteract = e > sampleTimeMs;
+
+                    if (turnedWithInteract)
                     {
                         stopMoving.Stop();
                         LogReactFastTurnInteract(logger, value, e);
-                        turnedWithInteract = true;
                     }
                     else
                     {
                         LogUnableToReactFastTurn(logger, value, e);
-
-                        // Check if we turned at all (even if slowly)
-                        turnedWithInteract = beforeDir != playerReader.Direction;
                     }
                 }
 

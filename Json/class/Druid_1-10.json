@@ -1,0 +1,292 @@
+{
+  // Druid 1-10, starting-zone grind. Amalgamated from Druid_1 / Druid_4 / Druid_6 /
+  // Druid_10_bear.
+  //
+  // Caster first: Wrath and Moonfire carry the whole range. Bear Form is not trained
+  // until 10, so every bear entry carries "WhenUsable": true and stays dormant until
+  // then - at which point the pull switches to Moonfire-then-Bear on its own.
+  //
+  // Key 2 and key 3 are deliberately double-booked: WoW swaps the action bar with the
+  // form, so 2 is Wrath in caster and Maul in bear, 3 is Healing Touch in caster and
+  // Demoralizing Roar in bear. That is how Druid_10_bear binds them too.
+  //
+  // Bars (caster): 2 Wrath | 3 Healing Touch | 4 Mark of the Wild | 5 Moonfire
+  //                6 Rejuvenation | 7 Thorns | = Food | - Drink
+  // Bars (bear):   2 Maul | 3 Demoralizing Roar
+  // Forms:         F1 /cancelform macro | F2 Bear Form
+  "Loot": true,
+  "CheckTargetGivesExp": true,
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
+  "IntVariables": {
+    "MIN_HP_EAT%": 40,
+    "MIN_MANA_DRINK%": 30,
+
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
+    // Rank chains, verified against Json/dbc/wrath/spells.json. IDs rather than names:
+    // names drift between expansions, ids do not.
+    "SPELL_WRATH": [5176, 5177, 5178, 5179, 5180, 6780],
+    "SPELL_MOONFIRE": [8921, 8924, 8925, 8926, 8927, 8928, 8929],
+    "SPELL_HEALING_TOUCH": [5185, 5186, 5187, 5189, 6778, 8903],
+    "SPELL_REJUVENATION": [774, 1058, 1430, 2090, 2091, 3627, 8910],
+    "SPELL_MARK_OF_THE_WILD": [1126, 5232, 5234, 8907],
+    "SPELL_THORNS": [467, 782, 1075, 8914],
+    "SPELL_BEAR_FORM": [5487],
+    "SPELL_MAUL": [6807, 6808, 6809, 8972, 9745],
+    "SPELL_DEMORALIZING_ROAR": [99, 9490, 9747, 10968]
+  },
+  "Form": {
+    "Sequence": [
+      {
+        //macro: /cancelform
+        "Name": "cancelform",
+        "BaseAction": true,
+        "Key": "F1",
+        "Form": "None"
+      },
+      {
+        "Name": "Bear Form",
+        "Key": "F2",
+        "Form": "Druid_Bear"
+      }
+    ]
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Moonfire",
+        "Key": "5",
+        "Form": "None",
+        "WhenUsable": true,
+        "BeforeCastStop": true,
+        "AfterCastWaitBuff": true,
+        "AfterCastWaitGCD": true,
+        "Requirements": [
+          "Spell:SPELL_MOONFIRE",
+          "!Moonfire",
+          "SpellInRange:0",
+          "MinRange > 10"
+        ]
+      },
+      {
+        // From 10 on: open at range, then close as a bear.
+        "Name": "Bear Form",
+        "Key": "F2",
+        "WhenUsable": true,
+        "AfterCastWaitMeleeRange": true,
+        "Requirements": [
+          "Spell:SPELL_BEAR_FORM",
+          "Moonfire",
+          "!Form:Druid_Bear"
+        ]
+      },
+      {
+        "Name": "Wrath",
+        "Key": "2",
+        "Form": "None",
+        "HasCastBar": true,
+        "Requirements": [
+          "Spell:SPELL_WRATH",
+          "!Spell:SPELL_BEAR_FORM",
+          "SpellInRange:0"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Casting",
+          "!SoftTargetDead"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Healing Touch",
+        "Key": "3",
+        "HasCastBar": true,
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_HEALING_TOUCH",
+          "Health% < 25"
+        ],
+        "Form": "None"
+      },
+      {
+        "Name": "Rejuvenation",
+        "Key": "6",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_REJUVENATION",
+          "Health% < 55",
+          "!Rejuvenation"
+        ],
+        "Form": "None"
+      },
+      {
+        // Learned at 10 - dormant below that, so the caster rotation below runs instead.
+        "Name": "Demoralizing Roar",
+        "Key": "3",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_DEMORALIZING_ROAR",
+          "InMeleeRange",
+          "!Demoralizing Roar",
+          "Form:Druid_Bear"
+        ],
+        "Form": "Druid_Bear"
+      },
+      {
+        "Name": "Maul",
+        "Key": "2",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_MAUL",
+          "InMeleeRange",
+          "LastMainHandMs > 2100", // bear swing speed fixed at 2.5
+          "Form:Druid_Bear"
+        ],
+        "AfterCastWaitSwing": true,
+        "Form": "Druid_Bear"
+      },
+      {
+        "Name": "Moonfire",
+        "Key": "5",
+        "Form": "None",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_MOONFIRE",
+          "!Spell:SPELL_BEAR_FORM",
+          "!Moonfire",
+          "TargetHealth% > 25"
+        ]
+      },
+      {
+        "Name": "Wrath",
+        "Key": "2",
+        "Form": "None",
+        "HasCastBar": true,
+        "Requirements": [
+          "Spell:SPELL_WRATH",
+          "!Spell:SPELL_BEAR_FORM",
+          "TargetHealth% > 50"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "!Casting"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Casting",
+          "!MeleeSwinging && !SoftTargetDead"
+        ],
+        "Log": false
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Mark of the Wild",
+        "Key": "4",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_MARK_OF_THE_WILD",
+          "!Mark of the Wild"
+        ],
+        "Form": "None"
+      },
+      {
+        // Learned at 6.
+        "Name": "Thorns",
+        "Key": "7",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_THORNS",
+          "!Thorns"
+        ],
+        "Form": "None"
+      },
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_HP_EAT%",
+        "Form": "None",
+        "Cost": 3
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < MIN_MANA_DRINK%",
+        "Form": "None",
+        "Cost": 3
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Form": "None",
+        "Requirement": "Items Broken"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Form": "None",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        "Name": "ClassTrainer",
+        "Form": "None",
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
+      }
+    ]
+  }
+}

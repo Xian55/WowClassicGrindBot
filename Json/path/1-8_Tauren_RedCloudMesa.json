@@ -1,0 +1,50 @@
+// PathSettings group - Tauren starting zone (Mulgore), level 1-8.
+// Referenced from a class profile via "PathsFilenames".
+//
+// Red Cloud Mesa, not Camp Narache: the camp is the village and holds a single spawn, while
+// the mesa around it holds 216. "Name:" is a substring match, so the level guards matter -
+// "Name:Bristleback" also matches Bristleback Thornweaver (18-19).
+[
+  {
+    "Requirements": [
+      "Level < 3",
+      "Race:Tauren"
+    ],
+    "Generate": {
+      "Subzone": "Red Cloud Mesa",
+      "Mobs": "Name:Plainstrider && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 5",
+      "Race:Tauren"
+    ],
+    "Generate": {
+      "Subzone": "Red Cloud Mesa",
+      "Mobs": "(Name:Battleboar || Name:Mountain Cougar || Name:Bristleback Quilboar) && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 8",
+      "Race:Tauren"
+    ],
+    "Generate": {
+      "Subzone": "Red Cloud Mesa",
+      "Mobs": "Level <= PlayerLevel + 3 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  }
+]

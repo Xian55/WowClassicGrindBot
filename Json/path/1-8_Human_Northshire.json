@@ -1,0 +1,46 @@
+// PathSettings group - Human starting zone, level 1-8.
+// Referenced from a class profile via "PathsFilenames".
+[
+  {
+    "Requirements": [
+      "Level < 3",
+      "Race:Human"
+    ],
+    "Generate": {
+      "Subzone": "Northshire Valley",
+      "Mobs": "Name:Young Wolf || Name:Kobold Vermin",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 5",
+      "Race:Human"
+    ],
+    "Generate": {
+      "Subzone": "Northshire Valley",
+      "Mobs": "Name:Young Wolf || Name:Timber Wolf || Name:Kobold Vermin || Name:Kobold Vermin",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 8",
+      "Race:Human"
+    ],
+    "Generate": {
+      "Subzone": "Northshire Vineyards",
+      //"Mobs": "Name:Young Wolf || Name:Timber Wolf || Name:Kobold Vermin || Name:Kobold Vermin",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  }
+]

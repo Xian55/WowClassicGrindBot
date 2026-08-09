@@ -932,6 +932,7 @@ The class configuration controls all aspects of bot behavior. Here's why each se
 | `"SideActivityRequirements"` | List of [Requirements](#requirement) to limit when the player should search for target<br/>Great for enforcing how closely should follow the path. | true | `true` |
 | --- | --- | --- | --- |
 | `"Paths"` | Array of [PathSettings](#pathsettings).<br>Either define this array or use the above properties | true | `[]` |
+| `"Seed"` | Pins the randomness of [generated routes](#generated-routes) so a session replays identically.<br>Unset draws a fresh seed per session and logs it. | true | `null` |
 | `"Mode"` | What kind of [behaviour](#modes) should the bot operate | true | `Mode.Grind` |
 | `"NPCMaxLevels_Above"` | Maximum allowed level above difference to the player | true | `1` |
 | `"NPCMaxLevels_Below"` | Maximum allowed level below difference to the player | true | `7` |
@@ -1125,7 +1126,8 @@ The path that the player follows during [Follow Route Goal](#follow-route-goal),
 
 | Property Name | Description | Optional | Default value |
 | --- | --- | --- | --- |
-| `"PathFilename"` | [Path](#path) to use while alive | **false** | `""` |
+| `"PathFilename"` | [Path](#path) to use while alive | **false**, unless `"Generate"` is set | `""` |
+| `"Generate"` | [Generate the route](#generated-routes) from spawn data instead of a file | true | `null` |
 | `"Id"` | <b>Must be a Unique Integer value</b> to identify PathSettings. | true | `"Auto incremented from zero"` or `"Unless specified by user."` |
 | `"PathThereAndBack"` | While using the path, [should go start to and reverse](#there-and-back) | true | `true` |
 | `"PathReduceSteps"` | Reduce the number of path points | true | `false` |
@@ -1188,6 +1190,121 @@ Let's look at the following example
 ```
 
 The previously mentioned example can be found under [Hunter_1.json](./Json/class/Hunter_1.json).
+
+### Generated Routes
+
+Instead of pointing at a recorded file, a path can describe **what to grind** and let the bot
+build the route from the running client's own NPC spawn data and the baked navmesh.
+
+This exists because a recorded route is tied to one race, one level band and one client - and
+the Cataclysm/Mists zone revamps moved the world, so routes recorded on Classic/TBC/Wrath do
+not survive there. The spawn data is already partitioned per client, so the same profile entry
+produces a valid route on every one.
+
+```json
+"Paths": [
+{
+    "Generate": {
+        "Subzone": "Northshire Valley",
+        "Mobs": "Name:Wolf || Name:Kobold",
+        "Mode": "Wander"
+    },
+    "Requirements": [ "Level < 5", "Race:Human" ]
+},
+{
+    "Generate": {
+        "Zone": "Elwynn Forest",
+        "Mobs": "Type:Humanoid && Level <= PlayerLevel + 2 && !Elite"
+    },
+    "Requirements": [ "Level < 10" ]
+}
+],
+```
+
+| Property Name | Description | Optional | Default value |
+| --- | --- | --- | --- |
+| `"Zone"` | Zone name, e.g. `"Elwynn Forest"` | true | player's current zone |
+| `"Subzone"` | Subzone name, e.g. `"Northshire Valley"`. Narrower than `Zone`; wins when both are set | true | `null` |
+| `"UIMapId"` | Explicit map id; wins over both names | true | `0` |
+| `"Name"` | Label shown as the goal name and in logs | true | derived from `Subzone`/`Zone` |
+| `"Mobs"` | Which mobs shape the route - see [Mob filter](#mob-filter-creature-scope) | true | mobs within `PlayerLevel - 3 .. + 2`, non-elite |
+| `"Mode"` | `"Wander"` regenerates a fresh set of spots every lap. `"Loop"` builds one fixed closed tour, ordered shortest-first | true | `"Wander"` |
+| `"Focus"` | `"Density"` sticks to where mobs pack together and drops isolated spawns. `"Balanced"` drops only the sparsest. `"Coverage"` takes in everything that matched | true | `"Density"` |
+| `"MinClusterShare"` | Override: a spawn cluster is kept only if it holds this share of what the biggest cluster holds | true | from `Focus` |
+| `"DensityBias"` | Override: how hard **Wander** spots are drawn to dense areas. `0` uniform, `1` proportional, `2` packs dominate. Not used by `Loop` | true | from `Focus` |
+| `"MinCellShare"` | Override: share of the busiest spot's mob count a place must hold to become a **Loop** stop. This is what `Focus` uses to skip thin outlying spots | true | from `Focus` |
+| `"WaypointSpacingYards"` | Spacing of the emitted waypoints. Recorded routes sit near 17; much denser makes the follower brake constantly | true | `15` |
+| `"Stops"` | How many hunting spots to pick. The route is then filled in by pathing between them, so the waypoint count is much higher than this | true | `8` |
+| `"PaddingYards"` | How far the roaming area is grown beyond the spawn footprint | true | `25` |
+| `"MaxVerticalDelta"` | Rejects a spot this far above the mob that anchored it - keeps routes off rooftops and ledges | true | `5` |
+| `"MinSpacingYards"` | Minimum gap between two spots | true | `30` |
+
+The generated route is **dense**: after picking the spots, each consecutive pair is pathed
+through the navmesh and those points become the waypoints. Target acquisition happens while
+walking, so a long straight hop between two spots would skip every mob beside it.
+
+#### Wander vs Loop
+
+`"Wander"` picks its spots at random - weighted toward dense areas - and picks a **fresh set
+every lap**, so the bot never retraces the same line. Good for staying unpredictable.
+
+`"Loop"` takes the densest spots in the area, measures the real walking distance between every
+pair, and orders them into the shortest closed tour. The result is the same route every
+session for a given zone and mob filter, and a lap covers the area once instead of
+criss-crossing it. It is the drop-in replacement for a recorded route.
+
+Set `"PathThereAndBack": false` with `"Loop"` - the tour already returns to its start, so
+walking it backwards afterwards just repeats it in reverse.
+| `"Seed"` | Pins this path's randomness. Overrides the profile-level `"Seed"`. `Loop` ignores it - that mode is deterministic already | true | `null` |
+
+`"Seed"` at the [Class Configuration](#class-configuration) level pins every generated route in
+the session. Left unset, a fresh seed is drawn per session **and written to the log**, so a run
+can still be reproduced afterwards.
+
+Generation needs a **baked navmesh** for the continent. Without one it fails, logs the reason,
+and that path simply drops out of planning so the next one in the profile takes over - so keep
+a fallback path with no requirements, exactly as with recorded routes.
+
+Preview and tune these in the browser under **Route Gen**, which draws the result on the
+Leaflet map and can save it to `Json/path` as an ordinary recorded route.
+
+#### Mob filter (creature scope)
+
+`"Mobs"` uses the same expression language as [Requirement](#requirement) - `&&`, `||`, `!`,
+parentheses, arithmetic and comparisons all work.
+
+> **The subject is a creature, not the player.** `Level` here is the *mob's* level; the
+> player's is `PlayerLevel`. So `"Level <= PlayerLevel + 2"` reads exactly as you'd say it.
+> Player-only names such as `Health%` or `Race:` are not available here and will fail to
+> parse, which is intentional - a filter must not silently test the wrong thing.
+
+| Name | Meaning |
+| --- | --- |
+| `Level` | Average of the mob's min/max level |
+| `MinLevel` / `MaxLevel` | The mob's level range |
+| `Rank` | 0 normal, higher for elite/rare |
+| `NpcId` | Creature entry id |
+| `SpawnCount` | How many of this mob spawn inside the target zone |
+| `PlayerLevel` | The player's level |
+| `Elite` | `Rank > 0` |
+| `Skinnable` | The mob can be skinned |
+| `Hostile` | Attackable by the player's faction |
+| `Type:[type]` | Creature type - same values as [Target requirements](#target-requirements), e.g. `Type:Humanoid` |
+| `Name:[text]` | Mob name contains `text`, case-insensitive. `Name:Wolf` covers Young Wolf, Rabid Wolf, ... |
+| `Faction:[id]` | Faction template id |
+| `Family:[id]` | Creature family id |
+
+e.g.
+```json
+"Mobs": "Type:Humanoid && !Elite"                              // any non-elite humanoid
+"Mobs": "(Name:Wolf || Name:Kobold) && Level >= PlayerLevel - 3"
+"Mobs": "Faction:7 && !Name:Defias"                            // a faction, minus one family of mobs
+"Mobs": "NpcId == 299 || NpcId == 6"                           // exactly these two
+"Mobs": "SpawnCount > 8 && Skinnable"                          // dense skinning spots only
+```
+
+Regardless of the expression, service NPCs, critters, totems, pets and anything not hostile to
+your faction are never picked.
 
 #### Time-based Path Cycling
 
@@ -2713,6 +2830,37 @@ e.g.
 ```
 
 ---
+### **RangedWeapon requirements**
+
+Check what **kind** of weapon occupies the ranged slot. `Equipment:Ranged` only says
+something is there; this says whether it is a bow, a gun, a crossbow, a wand or a thrown
+weapon.
+
+The motivating case is ammunition: a bow and a crossbow consume arrows, a gun consumes
+bullets, and a wand consumes neither. Without this a restocking entry has to hardcode one
+ammo item and is wrong for the other half of the weapons.
+
+Formula: `RangedWeapon:[subclass]`
+
+| subclass |
+| --- |
+| Bow |
+| Gun |
+| Crossbow |
+| Thrown |
+| Wand |
+
+Any other [`ItemWeaponSubclass`](SharedLib/Data/ItemWeaponSubclass.cs) name is accepted
+too. An unknown name throws at profile load rather than silently never matching.
+
+e.g.
+```json
+"Requirement": "RangedWeapon:Gun"                          // Gun equipped - needs bullets
+"Requirement": "RangedWeapon:Bow || RangedWeapon:Crossbow" // Either - needs arrows
+"Requirement": "!RangedWeapon:Wand"                        // Anything but a wand
+```
+
+---
 ### **Spell requirements**
 
 If a given Spell `name` or `id` must be known by the player then you can use this requirement. 
@@ -2974,7 +3122,7 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"BagFull"` | Inventory is full |
 | `"BagGreyItem"` | Indicates that there are at least one Grey Quality level item. |
 | `"Items Broken"` | Has any broken(red) worn item |
-| `"HasRangedWeapon"` | Has equipped ranged weapon (wand/crossbow/bow/gun) |
+| `"HasRangedWeapon"` | Has equipped ranged weapon (wand/crossbow/bow/gun). To tell *which*, see [RangedWeapon requirements](#rangedweapon-requirements). |
 | `"HasAmmo"` | AmmoSlot has equipped ammo and count is greater than zero |
 | `"HasTrainableSpell"` | There is at least one spell on the [class trainer whitelist](#class-trainer) the player does not know yet and is high enough level to learn. Also false while the spellbook is still loading. Note the bot applies two further checks of its own that this variable does not expose - see the [Class Trainer](#class-trainer) notes. |
 | `"Casting"` | The player is currently casting any spell. |

@@ -49,6 +49,19 @@ public sealed partial class Navigation : IDisposable
     private const float SIMPLIFY_LOOK_AHEAD = 0.25f;   // seconds
 
     private float AvgDistance;
+
+    /// <summary>
+    /// The destination has resisted every unstuck attempt for long enough that the caller
+    /// should stop trying to reach it. See <see cref="StuckDetector.IsUnreachable"/>.
+    /// </summary>
+    public bool IsUnreachable => stuckDetector.IsUnreachable;
+
+    /// <summary>
+    /// The waypoints are hunting anchors spread over an area, not a traced path, so every
+    /// leg between them must be pathfound. Set by the caller that supplies such a route -
+    /// see the note in <see cref="SetWayPoints"/>.
+    /// </summary>
+    public bool SparseWaypoints { get; set; }
     private float lastWorldDistance = float.MaxValue;
 
     private const float minAngleToTurn = PI / 35f;              // 5.14 degree
@@ -589,7 +602,17 @@ public sealed partial class Navigation : IDisposable
             wayPoints.Push(point);
         }
 
-        AvgDistance = wayPoints.Count > 1 ? Max(mapDistanceXY / wayPoints.Count, OutDoorMinDistance) : OutDoorMinDistance;
+        // The average-spacing heuristic in RefillRouteToNextWaypoint means "a hop about as
+        // long as this route's own point spacing is not worth pathfinding for". That holds
+        // for a recorded route of hundreds of points a few yards apart. It is actively wrong
+        // for sparse waypoints, where the spacing IS the long hop: an 8-anchor route across
+        // a subzone yields AvgDistance ~60yd, so a 100yd leg counted as trivial and the bot
+        // walked blind through whatever stood in the way.
+        AvgDistance = SparseWaypoints
+            ? OutDoorMinDistance
+            : wayPoints.Count > 1
+                ? Max(mapDistanceXY / wayPoints.Count, OutDoorMinDistance)
+                : OutDoorMinDistance;
 
         UpdateTotalRoute();
 

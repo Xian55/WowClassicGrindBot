@@ -1,0 +1,283 @@
+{
+  // Priest 1-10, starting-zone grind. Amalgamated from Priest_1 / Priest_10.
+  //
+  // Level spanning is done two ways: "Spell:SPELL_RANK_x" skips an ability until it is
+  // actually trained, and "WhenUsable": true skips one whose bar slot is empty.
+  //
+  // Bars: 2 Smite | 3 Lesser Heal | 4 Renew | 5 Shadow Word: Pain | 6 Power Word: Shield
+  //       7 Flash Heal | 8 Inner Fire | 9 Power Word: Fortitude | 0 Shoot (wand)
+  //       = Food | - Drink
+  "Loot": true,
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
+  "IntVariables": {
+    "MIN_TARGET_HP%": 20,
+    "MIN_HP_BEFORE_HEAL%": 45,
+    "MIN_MANA_OFFENSIVE%": 30,
+    "MIN_MANA_DRINK%": 25,
+    "MIN_HP_EAT%": 40,
+
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
+    "SPELL_RANK_SHIELD": 17,
+    "SPELL_RANK_PAIN": 594,
+    "SPELL_RANK_RENEW": 139,
+    "SPELL_RANK_FLASH": 2061,
+    "SPELL_RANK_FORTITUDE": 1243,
+    "SPELL_RANK_INNER_FIRE": 588,
+    "Debuff_Weakened_Soul": 135871
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Power Word: Shield",
+        "Key": "6",
+        "WhenUsable": true,
+        "AfterCastWaitBuff": true,
+        "AfterCastWaitGCD": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_SHIELD",
+          "Debuff_Weakened_Soul == 0",
+          "!Shield"
+        ]
+      },
+      {
+        "Name": "Shadow Word: Pain",
+        "Key": "5",
+        "WhenUsable": true,
+        "BeforeCastStop": true,
+        "BeforeCastFaceTarget": true,
+        "AfterCastAuraExpected": true,
+        "AfterCastWaitBuff": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_PAIN",
+          "Mana% > MIN_MANA_OFFENSIVE%"
+        ]
+      },
+      {
+        "Name": "Smite",
+        "Key": "2",
+        "HasCastBar": true,
+        "Requirements": [
+          "Mana% > MIN_MANA_OFFENSIVE%"
+        ]
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "AfterCastDelay": 500,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "InMeleeRange || MIN_MANA_OFFENSIVE% < Mana%",
+          "!Casting",
+          "!Shooting"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        // Gated on the shield spell and on low HEALTH. Priest_10 gated this on
+        // SPELL_RANK_PAIN and on low mana, which shielded at the wrong moment and
+        // required an unrelated spell to be trained first.
+        "Name": "Power Word: Shield",
+        "Key": "6",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_SHIELD",
+          "Health% < MIN_HP_BEFORE_HEAL%",
+          "Debuff_Weakened_Soul == 0",
+          "!Shield"
+        ]
+      },
+      {
+        "Name": "Renew",
+        "Key": "4",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_RENEW",
+          "Health% < MIN_HP_BEFORE_HEAL%",
+          "!Renew",
+          "Mana% > MIN_HP_BEFORE_HEAL%"
+        ]
+      },
+      {
+        "Name": "Flash Heal",
+        "Key": "7",
+        "WhenUsable": true,
+        "HasCastBar": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_FLASH",
+          "Health% < MIN_HP_BEFORE_HEAL%",
+          "Mana% > MIN_HP_BEFORE_HEAL%"
+        ]
+      },
+      {
+        // The pre-20 heal. Drops out once Flash Heal is trained.
+        "Name": "Lesser Heal",
+        "Key": "3",
+        "HasCastBar": true,
+        "Requirements": [
+          "!Spell:SPELL_RANK_FLASH",
+          "Health% < MIN_HP_BEFORE_HEAL%",
+          "Mana% > MIN_HP_BEFORE_HEAL%"
+        ]
+      },
+      {
+        "Name": "Shadow Word: Pain",
+        "Key": "5",
+        "WhenUsable": true,
+        "AfterCastAuraExpected": true,
+        "Requirements": [
+          "Spell:SPELL_RANK_PAIN",
+          "!Shadow Word: Pain",
+          "TargetHealth% > 40",
+          "Mana% > MIN_MANA_OFFENSIVE%"
+        ]
+      },
+      {
+        "Name": "Smite",
+        "Key": "2",
+        "HasCastBar": true,
+        "Requirements": [
+          "Mana% > MIN_MANA_OFFENSIVE%",
+          "!InMeleeRange || Shield",
+          "TargetHealth% > MIN_TARGET_HP%"
+        ]
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "AfterCastDelay": 500,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "!HasRangedWeapon",
+          "!Casting",
+          "!Shooting"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "InMeleeRange || Mana% < MIN_MANA_OFFENSIVE%",
+          "!Casting",
+          "!Shooting",
+          "AutoAttacking && !MeleeSwinging",
+          "!SoftTargetDead"
+        ]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Cost": 3,
+        "Name": "Power Word: Fortitude",
+        "Key": "9",
+        "WhenUsable": true,
+        "InCombat": "i dont care",
+        "Requirements": [
+          "Spell:SPELL_RANK_FORTITUDE",
+          "!Fortitude"
+        ]
+      },
+      {
+        "Cost": 3,
+        "Name": "Inner Fire",
+        "Key": "8",
+        "WhenUsable": true,
+        "InCombat": "i dont care",
+        "Requirements": [
+          "Spell:SPELL_RANK_INNER_FIRE",
+          "!Inner Fire"
+        ]
+      }
+    ]
+  },
+  "Parallel": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_HP_EAT%"
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < MIN_MANA_DRINK%"
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Requirement": "Items Broken"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        "Name": "ClassTrainer",
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
+      }
+    ]
+  }
+}

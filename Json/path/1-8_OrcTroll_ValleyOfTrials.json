@@ -1,0 +1,49 @@
+// PathSettings group - Orc and Troll starting zone (Durotar), level 1-8.
+// Referenced from a class profile via "PathsFilenames".
+//
+// "Name:" is a substring match, so the level guards are load-bearing here:
+// "Name:Mottled Boar" also matches Dire Mottled Boar (6-7) and Elder Mottled Boar (8-9).
+[
+  {
+    "Requirements": [
+      "Level < 3",
+      "Race:Orc || Race:Troll"
+    ],
+    "Generate": {
+      "Subzone": "Valley of Trials",
+      "Mobs": "Name:Mottled Boar && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 5",
+      "Race:Orc || Race:Troll"
+    ],
+    "Generate": {
+      "Subzone": "Valley of Trials",
+      "Mobs": "(Name:Scorpid Worker || Name:Vile Familiar) && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 8",
+      "Race:Orc || Race:Troll"
+    ],
+    "Generate": {
+      "Subzone": "Valley of Trials",
+      "Mobs": "Level <= PlayerLevel + 3 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  }
+]

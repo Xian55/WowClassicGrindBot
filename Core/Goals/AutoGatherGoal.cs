@@ -135,7 +135,7 @@ public sealed class AutoGatherGoal : GoapGoal, IGoapEventListener, IRouteProvide
     public override void Update()
     {
         if (bits.Drowning())
-            input.PressJump();
+            input.PressJumpAscend();
 
         // Check if we're close to the target node
         if (key.Path.Length == 1 && key.Path[0] != default)

@@ -117,7 +117,7 @@ public sealed class CombatGoal : GoapGoal, IGoapEventListener
 
         if (bits.Drowning())
         {
-            input.PressJump();
+            input.PressJumpAscend();
             return;
         }
 

@@ -271,6 +271,28 @@ public sealed partial class ConfigurableInput
 
     public void PressJump(CancellationToken token = default) => PressRandom(Jump, token);
 
+    /// <summary>
+    /// How long Jump is held to swim upward while drowning.
+    /// </summary>
+    public const int DROWNING_ASCEND_MS = 800;
+
+    /// <summary>
+    /// Holds Jump so a swimming character actually ascends. A tap barely lifts
+    /// them, which is why the drowning branches used to fire on every frame and
+    /// still not surface - from the outside that reads as a stuck spacebar.
+    /// <para>Press and release happen inside this call. Cancelling only cuts the
+    /// hold short: PressFixed waits on the token handle and posts the key-up
+    /// afterwards either way, so the key cannot be left latched.</para>
+    /// </summary>
+    public void PressJumpAscend(CancellationToken token = default)
+    {
+        if (Jump.ConsoleKey == default)
+            return;
+
+        input.PressFixed(Jump.ConsoleKey, DROWNING_ASCEND_MS, token);
+        Jump.SetClicked();
+    }
+
     public void PressPetAttack(CancellationToken token = default) => PressRandom(PetAttack, token);
 
     public void PressMount(CancellationToken token = default) => PressRandom(Mount, token);

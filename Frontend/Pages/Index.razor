@@ -102,7 +102,7 @@
                             </AccordionItem>
                         </Accordion>
                     }
-                    else
+                    else if (botController.ClassConfig!.Paths.Length == 1)
                     {
                         <PathSelectorComponent Hide="@(botController.IsBotActive)"
                                                Target="@(botController.ClassConfig!.Paths.First())"

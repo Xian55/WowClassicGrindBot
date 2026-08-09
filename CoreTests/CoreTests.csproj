@@ -12,6 +12,9 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.Debug" />
     <PackageReference Include="Serilog.Sinks.File" />
+    <!-- Raster route rendering: shapes and text for the png/webp output format. ImageSharp
+         itself already arrives transitively, but the drawing extensions do not. -->
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" />
   </ItemGroup>
 
   <ItemGroup>

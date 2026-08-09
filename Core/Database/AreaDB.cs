@@ -206,7 +206,7 @@ public sealed class AreaDB : IDisposable
                             continue;
                     }
 
-                    if (!FriendlyToPlayer(n, faction, factionDB))
+                    if (!FactionExt.FriendlyToPlayer(n, faction, factionDB))
                         continue;
 
                     float d = playerPosW.WorldDistanceXYTo(pos);
@@ -230,30 +230,6 @@ public sealed class AreaDB : IDisposable
         {
             pool.Return(rented, clearArray: false);
         }
-    }
-
-    static bool FriendlyToPlayer(Creature npc, PlayerFaction playerFaction, FactionTemplateDB factionDB)
-    {
-        if (!factionDB.Factions.TryGetValue(npc.Faction, out int friendGroup))
-            return false;
-
-        const int AllPlayers = 1;
-
-        const int AlliancePlayers = 2;
-        int allianceOurMask = AllPlayers | AlliancePlayers;
-
-        const int HordePlayers = 4;
-        int hordeOurMask = AllPlayers | HordePlayers;
-
-        return playerFaction switch
-        {
-            PlayerFaction.Alliance => (friendGroup & allianceOurMask) != 0,
-            PlayerFaction.Horde => (friendGroup & hordeOurMask) != 0,
-            // A Neutral player (Pandaren before the Wandering Isle is finished)
-            // only counts NPCs friendly to every player as friendly.
-            PlayerFaction.Neutral => (friendGroup & AllPlayers) != 0,
-            _ => false
-        };
     }
 
     public (Creature, Vector3) FindClosestCreatureByNpcFlag(NpcFlags npcFlag, Vector3 position)

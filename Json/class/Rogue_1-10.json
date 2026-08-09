@@ -1,0 +1,208 @@
+{
+  // Rogue 1-10, starting-zone grind. Amalgamated from Rogue_1 / Rogue_10.
+  //
+  // Everything learned after level 1 is gated on "Spell:SPELL_x" - do I know it - NOT on
+  // "WhenUsable" alone. WhenUsable only reads the usable bit of the slot the key maps to;
+  // it cannot tell that the slot holds a different spell, so a racial or any other usable
+  // ability sitting on that key makes the gate pass and the bot casts the wrong thing,
+  // forever. WhenUsable is kept as a second check for genuinely empty slots.
+  //
+  // This cannot save an ability known at level 1 from a wrong binding - bind the bars to
+  // match, see the Sync Actionbar button and the ActionBarSlotValidator lines at startup.
+  //
+  // Rogue_1 bound Throw to 4 and Rogue_10 bound Slice and Dice to 4 - they cannot both
+  // have it. Throw moved to 7 here.
+  //
+  // Bars: 1 Backstab | 2 Sinister Strike | 3 Eviscerate | 4 Slice and Dice | 5 Evasion
+  //       7 Throw | N2 Stealth | = Food
+  "Loot": true,
+  "KeyboardOnly": true,
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
+  "IntVariables": {
+    "MIN_HP_EAT%": 40,
+
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
+    // Rank chains, verified against Json/dbc/wrath/spells.json. IDs rather than names:
+    // names drift between expansions, ids do not.
+    "SPELL_SINISTER_STRIKE": [1752, 1757, 1758, 1759, 1760, 8621],
+    "SPELL_EVISCERATE": [2098, 6760, 6761, 6762, 8623, 8624],
+    "SPELL_BACKSTAB": [53, 2589, 2590, 2591, 8721],
+    "SPELL_SLICE_AND_DICE": [5171, 6774],
+    "SPELL_EVASION": [5277],
+    "SPELL_STEALTH": [1784, 1785, 1786],
+    "SPELL_THROW": [2764]
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        "Name": "Stealth",
+        "Key": "N2",
+        "WhenUsable": true,
+        "AfterCastWaitBuff": true,
+        "Requirements": [
+          "Spell:SPELL_STEALTH",
+          "!Stealth",
+          "!InMeleeRange"
+        ]
+      },
+      {
+        // Opener from stealth - only lands from behind, so it is worth the attempt only
+        // while the buff is up.
+        "Name": "Backstab",
+        "Key": "1",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_BACKSTAB",
+          "Stealth && InMeleeRange"
+        ]
+      },
+      {
+        "Name": "Throw",
+        "Key": "7",
+        "Item": true,
+        "WhenUsable": true,
+        "BeforeCastStop": true,
+        "AfterCastWaitMeleeRange": true,
+        "Requirements": [
+          "Spell:SPELL_THROW",
+          "AddVisible", // Uses NpcNameFinder to detect danger
+          "HasRangedWeapon && !Items Broken",
+          "!InMeleeRange && SpellInRange:1"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!MeleeSwinging && !SoftTargetDead"
+        ],
+        "Log": false
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        // Learned at 8.
+        "Name": "Evasion",
+        "Key": "5",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_EVASION",
+          "Health% < 40"
+        ]
+      },
+      {
+        // Learned at 10.
+        "Name": "Slice and Dice",
+        "Key": "4",
+        "WhenUsable": true,
+        "AfterCastAuraExpected": true,
+        "Requirements": [
+          "Spell:SPELL_SLICE_AND_DICE",
+          "!Slice and Dice",
+          "Combo Point > 1"
+        ]
+      },
+      {
+        "Name": "Eviscerate",
+        "Key": "3",
+        "Requirements": [
+          "Spell:SPELL_EVISCERATE",
+          "TargetHealth% > 20",
+          "LastMainHandMs < 500",
+          "Combo Point > 1"
+        ]
+      },
+      {
+        "Name": "Sinister Strike",
+        "Key": "2",
+        "Requirements": [
+          "Spell:SPELL_SINISTER_STRIKE",
+          "LastMainHandMs < 500"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "InMeleeRange"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!MeleeSwinging && !SoftTargetDead"
+        ],
+        "Log": false
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_HP_EAT%",
+        "Cost": 3
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Requirement": "Items Broken"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        "Name": "ClassTrainer",
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
+      }
+    ]
+  }
+}

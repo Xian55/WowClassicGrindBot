@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using SharedLib;
+using SharedLib.Data;
 using SharedLib.NpcFinder;
 
 using System;
@@ -126,6 +127,7 @@ public sealed partial class RequirementFactory
             { "Form", CreateForm },
             { "Race", CreateRace },
             { "Equipment:", CreateEquipment },
+            { "RangedWeapon:", CreateRangedWeapon },
             { "Spell:", CreateSpell },
             { "Talent", CreateTalent },
             { "Trigger:", CreateTrigger },
@@ -1155,6 +1157,48 @@ public sealed partial class RequirementFactory
                 LogMessage = s
             };
         }
+    }
+
+    /// <summary>
+    /// True when the equipped ranged weapon is of the named
+    /// <see cref="SharedLib.Data.ItemWeaponSubclass"/> - 'RangedWeapon:Bow'.
+    ///
+    /// <para>Exists so a profile can tell arrows from bullets. A hunter runs dry and has
+    /// to restock, but which ammo to buy depends on whether the ranged slot holds a bow, a
+    /// crossbow or a gun, and nothing in the expression language could see that - so an
+    /// ammo-vendor entry had to hardcode one item id and was wrong for half of them.</para>
+    /// </summary>
+    private Requirement CreateRangedWeapon(ReadOnlySpan<char> requirement)
+    {
+        // 'RangedWeapon:_SUBCLASS_'
+        int sep = requirement.IndexOf(SEP1);
+        ReadOnlySpan<char> name = requirement[(sep + 1)..].Trim();
+
+        if (!Enum.TryParse(name, true, out ItemWeaponSubclass want))
+        {
+            throw new InvalidOperationException(
+                $"'{requirement}' - '{name}' is not a known {nameof(ItemWeaponSubclass)}. " +
+                $"Expected one of: {string.Join(", ", Enum.GetNames<ItemWeaponSubclass>())}");
+        }
+
+        ItemWeaponSubclass captured = want;
+
+        bool f()
+        {
+            int id = equipmentReader.GetId((int)InventorySlotId.Ranged);
+            return id != 0 &&
+                itemDb.Items.TryGetValue(id, out Item item) &&
+                item.ClassId == ItemClass.Weapon &&
+                item.SubclassId == (int)captured;
+        }
+
+        string s() => $"RangedWeapon {captured}";
+
+        return new Requirement
+        {
+            HasRequirement = f,
+            LogMessage = s
+        };
     }
 
     private Requirement CreateEquipment(ReadOnlySpan<char> requirement)

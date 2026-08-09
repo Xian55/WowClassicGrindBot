@@ -61,6 +61,31 @@ public sealed partial class ClassConfiguration
     public List<string> SideActivityRequirements = [];
     public PathSettings[] Paths { get; set; } = [];
 
+    /// <summary>
+    /// External <see cref="PathSettings"/> group files, relative to Json/path/. Each file is a
+    /// bare array of PathSettings, so a group can be shared across profiles instead of pasted
+    /// into each one.
+    ///
+    /// <para>Loaded in listed order and appended after any inline <see cref="Paths"/>. Order is
+    /// not cosmetic: it decides each route goal's GOAP cost through
+    /// <see cref="Core.Goals.FollowRouteGoal.COST_OFFSET"/>, so a profile keeps control of
+    /// priority by where it lists a group.</para>
+    /// </summary>
+    public string[] PathsFilenames { get; set; } = [];
+
+    /// <summary>
+    /// Seeds every randomised decision route generation makes. Null draws a fresh one per
+    /// session, which is then logged - so a run stays reproducible after the fact without
+    /// making every run identical. Set it to pin a route while testing.
+    /// </summary>
+    public int? Seed { get; set; }
+
+    /// <summary>
+    /// The seed actually in force, resolved once in <see cref="Initialise"/>.
+    /// </summary>
+    [JsonIgnore]
+    public int ResolvedSeed { get; private set; }
+
     public Mode Mode { get; set; } = Mode.Grind;
 
     public bool GatheringMode => Mode is Mode.AttendedGather or Mode.AutoGather;
@@ -133,6 +158,51 @@ public sealed partial class ClassConfiguration
     private readonly List<KeyAction> macroActions = [];
     public IReadOnlyList<KeyAction> MacroActions => macroActions;
 
+    [JsonIgnore]
+    private bool pathGroupsResolved;
+
+    /// <summary>
+    /// Appends every <see cref="PathsFilenames"/> group onto <see cref="Paths"/>, in listed
+    /// order, inline entries first.
+    ///
+    /// <para>Public and callable without <see cref="Initialise"/> on purpose: tooling that only
+    /// wants the routes reads <see cref="Paths"/> straight off a deserialized profile, and
+    /// would otherwise see the inline entries alone and silently miss every group.</para>
+    ///
+    /// <para>Runs at most once per instance - a second call is a no-op rather than a second
+    /// append.</para>
+    /// </summary>
+    /// <param name="pathRoot">Directory the group filenames are relative to (DataConfig.Path).</param>
+    /// <returns>True when at least one group file was read.</returns>
+    public bool ResolvePathGroups(string pathRoot)
+    {
+        if (pathGroupsResolved || PathsFilenames.Length == 0)
+            return false;
+
+        pathGroupsResolved = true;
+
+        List<PathSettings> combined = [.. Paths];
+
+        for (int i = 0; i < PathsFilenames.Length; i++)
+        {
+            string groupFile = PathsFilenames[i];
+            string groupPath = Path.Join(pathRoot, groupFile);
+
+            if (!File.Exists(groupPath))
+            {
+                throw new Exception(
+                    $"[{nameof(ClassConfiguration)}.{nameof(PathsFilenames)}[{i}]] " +
+                    $"`{groupFile}` file does not exists!");
+            }
+
+            combined.AddRange(
+                JsonConvert.DeserializeObject<PathSettings[]>(File.ReadAllText(groupPath)) ?? []);
+        }
+
+        Paths = [.. combined];
+        return true;
+    }
+
     public void Initialise(IServiceProvider sp, Dictionary<int, string> overridePathFile)
     {
         Approach.Key = Interact.Key;
@@ -142,6 +212,9 @@ public sealed partial class ClassConfiguration
         PlayerReader playerReader = sp.GetRequiredService<PlayerReader>();
 
         RecordInt globalTime = sp.GetRequiredService<AddonReader>().GlobalTime;
+
+        ResolvedSeed = Seed ?? Random.Shared.Next();
+        LogSeed(logger, ResolvedSeed, Seed.HasValue);
 
         if (Paths == Array.Empty<PathSettings>() &&
             !string.IsNullOrEmpty(PathFilename))
@@ -185,6 +258,12 @@ public sealed partial class ClassConfiguration
             }
         }
 
+        int inlinePathCount = Paths.Length;
+        if (ResolvePathGroups(dataConfig.Path))
+        {
+            LogLoadedPathGroups(logger, PathsFilenames.Length, inlinePathCount, Paths.Length);
+        }
+
         for (int i = 0; i < Paths.Length; i++)
         {
             PathSettings settings = Paths[i];
@@ -197,7 +276,11 @@ public sealed partial class ClassConfiguration
                 settings.PathFilename = settings.OverridePathFilename;
             }
 
-            if (!File.Exists(Path.Join(dataConfig.Path, settings.PathFilename)))
+            // A generated path has no file, by design - the whole point is that the route
+            // comes from the client's spawn data instead. Only demand a file when one was
+            // asked for.
+            if (settings.Generate == null &&
+                !File.Exists(Path.Join(dataConfig.Path, settings.PathFilename)))
             {
                 if (!string.IsNullOrEmpty(OverridePathFilename))
                     throw new Exception(
@@ -472,4 +555,15 @@ public sealed partial class ClassConfiguration
         Message = "Loaded mail config from {MailPath}")]
     static partial void LogLoadedMailConfig(ILogger logger, string mailPath);
 
+    [LoggerMessage(
+        EventId = 0013,
+        Level = LogLevel.Information,
+        Message = "Route generation seed {seed} (pinned: {pinned})")]
+    static partial void LogSeed(ILogger logger, int seed, bool pinned);
+
+    [LoggerMessage(
+        EventId = 0014,
+        Level = LogLevel.Information,
+        Message = "Loaded {groupCount} PathSettings group file(s): {inlineCount} inline + groups -> {totalCount} path(s)")]
+    static partial void LogLoadedPathGroups(ILogger logger, int groupCount, int inlineCount, int totalCount);
 }

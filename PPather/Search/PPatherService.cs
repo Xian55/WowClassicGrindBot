@@ -1089,6 +1089,81 @@ public sealed class PPatherService : IDisposable
     }
 
     /// <summary>
+    /// Area id at a world (x, y) from the pre-baked grid alone. The cheap half of
+    /// <see cref="GetAreaIdAndZ"/> - route generation tests thousands of points for zone
+    /// membership and has no use for the height query that goes with it.
+    /// </summary>
+    public int GetAreaId(float mapId, float worldX, float worldY)
+    {
+        return ContinentDB.IdToName.TryGetValue(mapId, out string continent)
+            ? GetAreaGrid(continent)?.GetAreaId(worldX, worldY) ?? 0
+            : 0;
+    }
+
+    /// <summary>
+    /// The disk-only navmesh for a map, for callers that want to sample or query it
+    /// directly (route generation). Null when nothing is baked for the continent.
+    ///
+    /// <para>Deliberately the query mesh rather than <see cref="NavmeshPathfinder"/>: it
+    /// never bakes and never touches the live search state, so a generator can run without
+    /// disturbing - or being disturbed by - the follower's own requests.</para>
+    /// </summary>
+    public NavmeshPathfinder? GetQueryNavmeshForMap(float mapId)
+    {
+        return ContinentDB.IdToName.TryGetValue(mapId, out string continent)
+            ? GetQueryNavmesh(continent, mapId)
+            : null;
+    }
+
+    /// <summary>
+    /// Connected components of the navmesh polygons covering a world-space AABB, so a
+    /// caller can answer "is this point reachable from that one" with an array read instead
+    /// of a pathfinding query. See <see cref="NavmeshConnectivity"/>.
+    ///
+    /// <para>Loads the covering tiles first - a tile that is not resident contributes no
+    /// polygons, and its absence would read as "unreachable" rather than as missing data.</para>
+    /// </summary>
+    public NavmeshConnectivity? BuildConnectivity(float mapId,
+        float minWorldX, float minWorldY, float maxWorldX, float maxWorldY)
+    {
+        NavmeshPathfinder? nav = GetQueryNavmeshForMap(mapId);
+        if (nav == null)
+            return null;
+
+        NavmeshCoords.GetTileIndex(minWorldX, minWorldY, out int tx0, out int tz0);
+        NavmeshCoords.GetTileIndex(maxWorldX, maxWorldY, out int tx1, out int tz1);
+
+        // World x/y descend as detour tile indices ascend, so the corners can arrive in
+        // either order; normalise rather than assume. One tile of skirt keeps a component
+        // that only connects through the fringe from looking severed.
+        int minTileX = System.Math.Min(tx0, tx1) - 1;
+        int maxTileX = System.Math.Max(tx0, tx1) + 1;
+        int minTileZ = System.Math.Min(tz0, tz1) - 1;
+        int maxTileZ = System.Math.Max(tz0, tz1) + 1;
+
+        for (int tx = minTileX; tx <= maxTileX; tx++)
+        {
+            for (int tz = minTileZ; tz <= maxTileZ; tz++)
+            {
+                if (!NavmeshCoords.IsValidTile(tx, tz) || !nav.Tiles.IsTileOnDisk(tx, tz))
+                    continue;
+
+                NavmeshCoords.GetTileWowBounds(tx, tz,
+                    out float bMinX, out float bMinY, out float bMaxX, out float bMaxY);
+
+                // Guarded by IsTileOnDisk above, so this only stitches in what is already
+                // baked - it never triggers a bake, which would need the game archives and
+                // would be wildly out of budget here.
+                Vector3 centre = new((bMinX + bMaxX) / 2f, (bMinY + bMaxY) / 2f, 0f);
+                nav.Tiles.EnsureTilesForSegment(centre, centre);
+            }
+        }
+
+        return NavmeshConnectivity.Build(logger, nav.Tiles,
+            minTileX, minTileZ, maxTileX, maxTileZ);
+    }
+
+    /// <summary>
     /// Disk-only navmesh for a continent, used purely to answer height queries
     /// without the game files. Reuses the live pathfinding mesh when it already
     /// covers the continent; otherwise builds a world-less (never-baking) one

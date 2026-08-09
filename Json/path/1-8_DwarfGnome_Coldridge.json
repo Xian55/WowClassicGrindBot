@@ -1,0 +1,46 @@
+// PathSettings group - Dwarf and Gnome starting zone (Dun Morogh), level 1-8.
+// Referenced from a class profile via "PathsFilenames".
+[
+  {
+    "Requirements": [
+      "Level < 3",
+      "Race:Dwarf || Race:Gnome"
+    ],
+    "Generate": {
+      "Subzone": "Coldridge Valley",
+      "Mobs": "(Name:Ragged Young Wolf || Name:Rockjaw Trogg) && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 5",
+      "Race:Dwarf || Race:Gnome"
+    ],
+    "Generate": {
+      "Subzone": "Coldridge Valley",
+      "Mobs": "(Name:Small Crag Boar || Name:Burly Rockjaw Trogg) && Level <= PlayerLevel + 2 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 8",
+      "Race:Dwarf || Race:Gnome"
+    ],
+    "Generate": {
+      "Subzone": "Coldridge Valley",
+      "Mobs": "Level <= PlayerLevel + 3 && !Elite",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  }
+]

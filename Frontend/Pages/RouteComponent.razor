@@ -302,7 +302,11 @@
     {
         if (botController.ClassConfig == null) return;
 
-        PathSettings? first = botController.ClassConfig.Paths.First(x => x.CanRun());
+        // FirstOrDefault, not First: no path being runnable right now is a normal state,
+        // not an error. Every path can be conditional, and a generated one also drops out
+        // when its query yields nothing. First() threw and took the circuit down with it,
+        // which made the null check below dead code.
+        PathSettings? first = botController.ClassConfig.Paths.FirstOrDefault(x => x.CanRun());
         if (first == null) return;
 
         routeSymbol = first.PathThereAndBack ?

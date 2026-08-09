@@ -1,0 +1,46 @@
+// PathSettings group - Human starting zone, level 1-8.
+// Referenced from a class profile via "PathsFilenames".
+[
+  {
+    "Requirements": [
+      "Level < 3",
+      "Race:NightElf"
+    ],
+    "Generate": {
+      "Subzone": "Shadowglen",
+      "Mobs": "Name:Young Nightsaber",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 5",
+      "Race:NightElf"
+    ],
+    "Generate": {
+      "Subzone": "Shadowglen",
+      "Mobs": "Name:Young Nightsaber || Name:Young Thistle Boar",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  },
+  {
+    "Requirements": [
+      "Level < 6",
+      "Race:NightElf"
+    ],
+    "Generate": {
+      "Subzone": "Shadowglen",
+      "Mobs": "Name:Webwood Spider || Name:Mangy Nightsaber || Name:Thistle Boar",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
+  }
+]
