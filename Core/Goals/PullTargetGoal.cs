@@ -31,6 +31,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
     private readonly IMountHandler mountHandler;
     private readonly CombatTracker combatTracker;
     private readonly IBlacklist targetBlacklist;
+    private readonly ApproachThrottle approachThrottle;
 
     private readonly KeyAction? approachKey;
     private readonly Action approachAction;
@@ -48,7 +49,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
         StopMoving stopMoving, CastingHandler castingHandler,
         IMountHandler mountHandler, NpcNameTargeting npcNameTargeting,
         StuckDetector stuckDetector, CombatTracker combatTracker,
-        ClassConfiguration classConfig)
+        ClassConfiguration classConfig, ApproachThrottle approachThrottle)
         : base(nameof(PullTargetGoal))
     {
         this.logger = logger;
@@ -65,6 +66,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
         this.combatTracker = combatTracker;
         this.targetBlacklist = targetBlacklist;
         this.classConfig = classConfig;
+        this.approachThrottle = approachThrottle;
 
         Keys = classConfig.Pull.Sequence;
 
@@ -102,6 +104,7 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
     {
         wait.Update();
         stuckDetector.Reset();
+        approachThrottle.Reset();
 
         if (mountHandler.IsMounted())
         {
@@ -228,13 +231,21 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
 
     private void DefaultApproach()
     {
+        // Rate limiter for the whole method, not just the press: the stuck
+        // detector below jumps on every call until its ladder opens, and
+        // PressJump does not honour a cooldown of its own.
         if (input.Approach.OnCooldown())
+        {
             return;
+        }
 
-        if (!bits.SoftInteract() || EligibleEnemySoftTargetExists())
+        if (approachThrottle.ShouldPress(playerReader.WithInCombatRange()) &&
+            (!bits.SoftInteract() || EligibleEnemySoftTargetExists()))
         {
             input.PressApproach();
             wait.Update();
+
+            approachThrottle.OnPressed();
         }
 
         if (!stuckDetector.IsMoving)

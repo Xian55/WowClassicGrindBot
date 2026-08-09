@@ -88,6 +88,7 @@ public static class GoalFactory
         services.AddScoped<CastingHandlerInterruptWatchdog>();
         services.AddScoped<CastingHandler>();
         services.AddScoped<StuckDetector>();
+        services.AddScoped<ApproachThrottle>();
         services.AddScoped<CombatTracker>();
         services.AddScoped<SafeSpotCollector>();
         services.AddScoped<ThreatFinder>();
@@ -377,11 +378,22 @@ public static class GoalFactory
 
             services.AddKeyedScoped<PathSettings>(i,
                 (IServiceProvider sp, object? key) =>
-                GetPathSettings(
-                    sp.GetRequiredService<ILogger>(),
-                    sp.GetRequiredService<ClassConfiguration>().Paths[(int)key!],
-                    sp.GetRequiredService<DataConfig>(),
-                    sp.GetRequiredService<WorldMapAreaDB>()));
+                {
+                    PathSettings setting =
+                        sp.GetRequiredService<ClassConfiguration>().Paths[(int)key!];
+
+                    // A generated path builds itself the first time its goal actually runs
+                    // - see FollowRouteGoal.EnsureGenerated. Doing it here built every
+                    // path in the profile at session start, including the ones whose
+                    // requirements can never pass for this character.
+                    return setting.Generate != null
+                        ? setting
+                        : GetPathSettings(
+                            sp.GetRequiredService<ILogger>(),
+                            setting,
+                            sp.GetRequiredService<DataConfig>(),
+                            sp.GetRequiredService<WorldMapAreaDB>());
+                });
 
             services.AddScoped<GoapGoal>(sp =>
                 ActivatorUtilities.CreateInstance<FollowRouteGoal>(sp,

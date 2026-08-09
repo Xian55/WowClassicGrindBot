@@ -52,6 +52,8 @@ public sealed partial class CastingHandler
 
     private readonly CastingHandlerInterruptWatchdog interruptWatchdog;
 
+    private readonly ApproachThrottle approachThrottle;
+
     public bool SpellInQueue()
     {
         // Returns true while a non-base press would be wasted; CombatGoal
@@ -92,7 +94,8 @@ public sealed partial class CastingHandler
         CombatLog combatLog,
         StopMoving stopMoving,
         ReactCastError react,
-        CastingHandlerInterruptWatchdog interruptWatchdog)
+        CastingHandlerInterruptWatchdog interruptWatchdog,
+        ApproachThrottle approachThrottle)
     {
         this.logger = logger;
         this.input = input;
@@ -119,6 +122,24 @@ public sealed partial class CastingHandler
         this.react = react;
 
         this.interruptWatchdog = interruptWatchdog;
+
+        this.approachThrottle = approachThrottle;
+    }
+
+    /// <summary>
+    /// Keepalive for the melee swing wait. The point here is staying on the mob and
+    /// facing it, not reaching combat range, so this uses the engaged cadence rather
+    /// than any notion of arrival - see <see cref="ApproachThrottle.ShouldPressEngaged"/>
+    /// for why suppressing the press at close melee range was wrong.
+    /// </summary>
+    private void PressApproachThrottled()
+    {
+        if (approachThrottle.ShouldPressEngaged())
+        {
+            input.PressApproach();
+
+            approachThrottle.OnPressed();
+        }
     }
 
     private int PressKeyAction(KeyAction item, CancellationToken token)
@@ -217,14 +238,32 @@ public sealed partial class CastingHandler
                 LogInstantInput(logger, item.Name, pressMs,
                     playerReader.CastState, elapsedMs);
 
-            if (!CastInstantSuccessful(playerReader.CastEvent.Value) &&
-                playerReader.CastState is not UI_ERROR.NONE &&
-                beforeCastEventTime != playerReader.UIErrorTime.Value)
-            {
-                return CastResult.UIError;
-            }
+            // The action bar bit is the primary signal, but it is only observable while the
+            // slot is highlighted, and for some instants that never survives a frame - Rend
+            // on 3.4.3 shows no outline at all. Against a local server the window is at its
+            // shortest, so the poll missed it on ~60% of instants and reported a cast that
+            // had plainly succeeded as a failure, burning the whole spell-queue wait.
+            //
+            // The addon stamps uiErrorMessageTime alongside lastCastEvent in
+            // OnUnitSpellCastSucceeded, so a cast event newer than the one we saw before
+            // pressing, carrying a success code, is proof the spell went out. Fall through
+            // to the normal post-cast handling rather than returning - AfterCastWaitSwing
+            // and the aura/event wait below still have to run.
+            bool castConfirmed =
+                beforeCastEventTime != playerReader.UIErrorTime.Value &&
+                CastInstantSuccessful(playerReader.CastEvent.Value);
 
-            return CastResult.CurrentActionNotDetected;
+            if (!castConfirmed)
+            {
+                if (!CastInstantSuccessful(playerReader.CastEvent.Value) &&
+                    playerReader.CastState is not UI_ERROR.NONE &&
+                    beforeCastEventTime != playerReader.UIErrorTime.Value)
+                {
+                    return CastResult.UIError;
+                }
+
+                return CastResult.CurrentActionNotDetected;
+            }
         }
 
         // Melee Swing
@@ -233,7 +272,7 @@ public sealed partial class CastingHandler
             elapsedMs = AfterCastWaitSwing(
                 playerReader.MainHandSpeedMs() + playerReader.NetworkLatency,
                 wait, item, playerReader, currentAction,
-                input.PressApproachOnCooldown, token);
+                PressApproachThrottled, token);
 
             static float AfterCastWaitSwing(int duration, Wait wait,
                 KeyAction item,

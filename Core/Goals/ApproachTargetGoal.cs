@@ -17,6 +17,44 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
     private const double MAX_APPROACH_DURATION_MS = 15_000; // max time to chase to pull
     private const double MIN_TIME_TILL_IDLE = 2000;
 
+    // Spacing between tab-probes for a closer target. The TargetNearestTarget
+    // key cooldown alone let this re-tab every 400ms for the whole approach.
+    private const double NEAREST_PROBE_INTERVAL_MS = 3000;
+
+    // The addon needs a few frames after the tab lands before the range cells
+    // describe the new unit rather than the old one.
+    private const double NEAREST_PROBE_SETTLE_MS = 300;
+
+    private const double SWAP_BACK_TIMEOUT_MS = 300;
+    private const int SWAP_BACK_MAX_ATTEMPTS = 2;
+
+    /// <summary>
+    /// Yards the tab-target must beat the current one by before the swap is
+    /// worth it. A bare "closer" comparison flip-flops between two mobs at
+    /// similar distance, because MinRange is a coarse bucket that jitters and
+    /// because the baseline it is compared against is captured one settle
+    /// window before the reading. The player keeps closing on the initial
+    /// target during that window - at run speed roughly
+    /// NEAREST_PROBE_SETTLE_MS * 7yd/s - so the baseline reads too far and
+    /// every probe leans towards switching. This margin has to cover both.
+    /// </summary>
+    private const int NEAREST_PROBE_MIN_GAIN = 5;
+
+    /// <summary>
+    /// How long a mob stays "the one we just walked away from". Long enough to
+    /// outlast a whole approach so the two candidates cannot trade places every
+    /// time the goal re-enters, short enough that a genuinely new situation is
+    /// judged on its own merits.
+    /// </summary>
+    private const double ABANDONED_GUID_TTL_MS = 20_000;
+
+    private enum CloserTargetProbe
+    {
+        Idle,
+        Settling,
+        SwappingBack
+    }
+
     public override float Cost => 8f;
 
     private readonly ILogger<ApproachTargetGoal> logger;
@@ -29,6 +67,7 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
     private readonly IMountHandler mountHandler;
     private readonly IBlacklist targetBlacklist;
     private readonly CombatLog combatLog;
+    private readonly ApproachThrottle approachThrottle;
 
     private long approachStart;
 
@@ -36,6 +75,23 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
 
     private int initialTargetGuid;
     private float initialMinRange;
+
+    private CloserTargetProbe probe;
+
+    /// <summary>
+    /// A probe holds a different unit than the one being approached, so anything
+    /// keyed off the target's range reads the wrong mob until it resolves. The
+    /// old blocking version never exposed that window.
+    /// </summary>
+    private bool ProbeInFlight => probe != CloserTargetProbe.Idle;
+
+    private double probeDeadline;
+    private double nextNearestProbeTime;
+    private int probeInitialMinRange;
+    private int swapBackAttempts;
+
+    private int probeAbandonedGuid;
+    private long probeAbandonedAt;
 
     private double ApproachDurationMs => GetElapsedTime(approachStart).TotalMilliseconds;
 
@@ -45,7 +101,8 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
         StopMoving stopMoving, CombatTracker combatTracker,
         IBlacklist blacklist,
         IMountHandler mountHandler,
-        CombatLog combatLog)
+        CombatLog combatLog,
+        ApproachThrottle approachThrottle)
         : base(nameof(ApproachTargetGoal))
     {
         this.logger = logger;
@@ -60,6 +117,7 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
         this.mountHandler = mountHandler;
         this.targetBlacklist = blacklist;
         this.combatLog = combatLog;
+        this.approachThrottle = approachThrottle;
 
         AddPrecondition(GoapKey.hastarget, true);
         AddPrecondition(GoapKey.targetisalive, true);
@@ -86,7 +144,11 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
         initialMinRange = playerReader.MinRange();
 
         approachStart = GetTimestamp();
+        approachThrottle.Reset();
         SetNextStuckTimeCheck();
+
+        probe = CloserTargetProbe.Idle;
+        nextNearestProbeTime = 0;
     }
 
     public override void OnExit()
@@ -112,10 +174,19 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
             return;
         }
 
-        if (!input.Approach.OnCooldown() && (!bits.SoftInteract() || HasValidSoftInteract()))
+        // WithInCombatRange is the source of GoapKey.incombatrange and this
+        // goal's own effect: once it holds the goal is done and GOAP simply
+        // has not replanned yet. A press inside that lag window restarts the
+        // interact run onto a mob the player already stands on, which is what
+        // carries a melee class past it.
+        if (!ProbeInFlight &&
+            approachThrottle.ShouldPress(playerReader.WithInCombatRange()) &&
+            (!bits.SoftInteract() || HasValidSoftInteract()))
         {
             input.PressApproach();
             wait.Update();
+
+            approachThrottle.OnPressed();
         }
 
         if (!bits.Combat())
@@ -184,49 +255,14 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
             return;
         }
 
-        if (playerReader.TargetGuid == initialTargetGuid &&
-            !playerReader.IsInMeleeRange() &&
-            // Tab-targeting with an auto attack running engages whatever it lands
-            // on: Auto Shot fires the moment the new target is acquired, so even
-            // switching straight back leaves a second mob pulled and inbound.
-            // Only once something is in pull range though - out of range the swap
-            // costs nothing, and that is where a closer target is worth finding.
-            !(bits.Any_AutoAttack() && playerReader.WithInPullRange()))
+        if (UpdateCloserTargetProbe())
         {
-            int initialTargetMinRange = playerReader.MinRange();
-            if (!input.TargetNearestTarget.OnCooldown())
-            {
-                //logger.LogWarning($"Attempt to find closer target IsInMeleeRange:{playerReader.IsInMeleeRange()} - min:{playerReader.MinRange()} | max:{playerReader.MaxRange()} - initialMinRange:{initialTargetMinRange}");
-
-                input.PressNearestTarget();
-                wait.Update();
-
-                if (bits.Target() && playerReader.TargetGuid != initialTargetGuid)
-                {
-                    if (targetBlacklist.Is())
-                    {
-                        logger.LogWarning("Losing the target due blacklist!");
-                        return;
-                    }
-
-                    if (playerReader.MinRange() < initialTargetMinRange)
-                    {
-                        logger.LogWarning("Found a closer target! {MinRange} < {InitialTargetMinRange}", playerReader.MinRange(), initialTargetMinRange);
-
-                        initialMinRange = playerReader.MinRange();
-                    }
-                    else
-                    {
-                        initialTargetGuid = -1;
-                        logger.LogWarning("Stick to initial target!");
-
-                        input.PressLastTargetAndWait(wait, bits.Target);
-                    }
-                }
-            }
+            return;
         }
 
-        if (ApproachDurationMs > MIN_TIME_TILL_IDLE && initialMinRange < playerReader.MinRange())
+        if (!ProbeInFlight &&
+            ApproachDurationMs > MIN_TIME_TILL_IDLE &&
+            initialMinRange < playerReader.MinRange())
         {
             Log($"Going away from the target! {initialMinRange} < {playerReader.MinRange()}");
 
@@ -238,6 +274,163 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
     private void SetNextStuckTimeCheck()
     {
         nextStuckCheckTime = ApproachDurationMs + STUCK_INTERVAL_MS;
+    }
+
+    /// <summary>
+    /// Tab for a closer target, spread across ticks instead of blocking the loop.
+    /// A keypress and the addon frame that reflects it are several frames apart,
+    /// so each step arms a deadline and a later Update picks it up. Nothing here
+    /// waits.
+    /// </summary>
+    /// <returns>True when the caller should give up the rest of this tick.</returns>
+    private bool UpdateCloserTargetProbe()
+    {
+        if (probe == CloserTargetProbe.Settling)
+        {
+            return ApproachDurationMs >= probeDeadline && JudgeCloserTarget();
+        }
+
+        if (probe == CloserTargetProbe.SwappingBack)
+        {
+            if (ApproachDurationMs >= probeDeadline)
+            {
+                ResolveSwapBack();
+            }
+
+            return false;
+        }
+
+        if (!CanStartCloserTargetProbe())
+        {
+            return false;
+        }
+
+        probeInitialMinRange = playerReader.MinRange();
+
+        input.PressNearestTarget();
+
+        probe = CloserTargetProbe.Settling;
+        probeDeadline = ApproachDurationMs + NEAREST_PROBE_SETTLE_MS;
+        nextNearestProbeTime = ApproachDurationMs + NEAREST_PROBE_INTERVAL_MS;
+
+        return false;
+    }
+
+    private bool CanStartCloserTargetProbe()
+    {
+        return playerReader.TargetGuid == initialTargetGuid &&
+            !playerReader.IsInMeleeRange() &&
+            ApproachDurationMs >= nextNearestProbeTime &&
+            !input.TargetNearestTarget.OnCooldown() &&
+            // Inside pull range the chase is over and a swap is all downside.
+            // Tab-targeting with an auto attack running engages whatever it
+            // lands on: Auto Shot fires the moment the new target is acquired,
+            // so even switching straight back leaves a second mob pulled and
+            // inbound. Beyond that, a warrior reaches charge range long before
+            // melee, so the plan flips between this goal and PullTargetGoal and
+            // every re-entry re-arms the probe - trading targets there is how
+            // the bot closes on two mobs and pulls neither. Out of pull range
+            // the swap costs nothing, and that is where a closer target is
+            // worth finding.
+            !playerReader.WithInPullRange();
+    }
+
+    private bool JudgeCloserTarget()
+    {
+        probe = CloserTargetProbe.Idle;
+
+        // The tab landed back on the same unit, or on nothing at all.
+        if (!bits.Target() || playerReader.TargetGuid == initialTargetGuid)
+        {
+            return false;
+        }
+
+        if (targetBlacklist.Is())
+        {
+            logger.LogWarning("Losing the target due blacklist!");
+            return true;
+        }
+
+        // The mob we just walked away from. Without this the two candidates
+        // trade places on every re-entry: switch to B, re-enter, tab back to A,
+        // switch to A, re-enter, tab back to B - closing on both, pulling
+        // neither.
+        if (RecentlyAbandoned(playerReader.TargetGuid))
+        {
+            SwapBackToInitial();
+            return false;
+        }
+
+        if (playerReader.MinRange() + NEAREST_PROBE_MIN_GAIN <= probeInitialMinRange)
+        {
+            logger.LogWarning("Found a closer target! {MinRange} + {MinGain} <= {InitialTargetMinRange}",
+                playerReader.MinRange(), NEAREST_PROBE_MIN_GAIN, probeInitialMinRange);
+
+            Abandon(initialTargetGuid);
+
+            initialMinRange = playerReader.MinRange();
+
+            return false;
+        }
+
+        logger.LogWarning("Stick to initial target!");
+
+        Abandon(playerReader.TargetGuid);
+        SwapBackToInitial();
+
+        return false;
+    }
+
+    private void SwapBackToInitial()
+    {
+        swapBackAttempts = 0;
+        PressLastTargetAndArm();
+    }
+
+    private void Abandon(int guid)
+    {
+        probeAbandonedGuid = guid;
+        probeAbandonedAt = GetTimestamp();
+    }
+
+    private bool RecentlyAbandoned(int guid)
+    {
+        return guid == probeAbandonedGuid &&
+            GetElapsedTime(probeAbandonedAt).TotalMilliseconds < ABANDONED_GUID_TTL_MS;
+    }
+
+    private void PressLastTargetAndArm()
+    {
+        input.PressLastTarget();
+
+        swapBackAttempts++;
+
+        probe = CloserTargetProbe.SwappingBack;
+        probeDeadline = ApproachDurationMs + SWAP_BACK_TIMEOUT_MS;
+    }
+
+    private void ResolveSwapBack()
+    {
+        probe = CloserTargetProbe.Idle;
+
+        if (playerReader.TargetGuid == initialTargetGuid)
+        {
+            // Back on the original. Retire the probe for the rest of this
+            // approach - the start guard keys off initialTargetGuid, so -1
+            // stops it re-firing.
+            initialTargetGuid = -1;
+            return;
+        }
+
+        if (swapBackAttempts < SWAP_BACK_MAX_ATTEMPTS)
+        {
+            PressLastTargetAndArm();
+            return;
+        }
+
+        // Out of attempts and still holding the farther unit. Retire the probe
+        // rather than tab back and forth for the rest of the approach.
+        initialTargetGuid = -1;
     }
 
     private void RandomJump()
