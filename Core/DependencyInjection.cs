@@ -111,6 +111,15 @@ public static class DependencyInjection
         s.AddSingleton<CreatureDB>();
         s.AddSingleton<FactionTemplateDB>();
         s.AddSingleton<AreaDB>();
+        s.AddSingleton<NpcSpawnDB>();
+
+        // Root-scoped so the preview page can generate without a bot session running.
+        // RouteGenerator serialises its own creature-filter evaluation, so the page and a
+        // wander regeneration can share the instance.
+        s.AddSingleton<IRouteGenPlayer, RouteGenPlayer>();
+        s.AddSingleton<CreatureRequirementFactory>();
+        s.AddSingleton<RouteGenerator>();
+
         s.AddSingleton<SpellDB>();
         s.AddSingleton<IconDB>();
         s.AddSingleton<ItemDB>();
@@ -160,6 +169,13 @@ public static class DependencyInjection
         s.ForwardSingleton<ItemDB>(sp);
         s.ForwardSingleton<CreatureDB>(sp);
         s.ForwardSingleton<FactionTemplateDB>(sp);
+        s.ForwardSingleton<NpcSpawnDB>(sp);
+
+        // Route generation samples and floods the navmesh directly, which IPPather - a
+        // point-to-point interface - cannot express. The service is registered regardless
+        // of pathing mode, so this is available even when a remote pather is in use.
+        s.ForwardSingleton<PPatherService>(sp);
+        s.ForwardSingleton<RouteGenerator>(sp);
         s.ForwardSingleton<SpellDB>(sp);
         s.ForwardSingleton<IconDB>(sp);
         s.ForwardSingleton<TalentDB>(sp);
@@ -278,10 +294,19 @@ public static class DependencyInjection
         s.AddSingleton<ItemDB>();
         s.AddSingleton<CreatureDB>();
         s.AddSingleton<FactionTemplateDB>();
+        s.AddSingleton<NpcSpawnDB>();
         s.AddSingleton<SpellDB>();
         s.AddSingleton<IconDB>();
         s.AddSingleton<TalentDB>();
         s.AddSingleton<MailboxDB>();
+
+        // Route generation. Root-scoped so the preview page can generate with no bot
+        // session running, and so AddStartupIoC can forward one shared instance into the
+        // session container - RouteGenerator serialises its own creature-filter evaluation
+        // precisely so the page and a wander lap can share it.
+        s.AddSingleton<IRouteGenPlayer, RouteGenPlayer>();
+        s.AddSingleton<CreatureRequirementFactory>();
+        s.AddSingleton<RouteGenerator>();
 
         s.AddAddonComponents();
 

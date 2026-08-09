@@ -18,6 +18,41 @@ public sealed partial class PathSettings
     public bool PathReduceSteps { get; set; }
     public int UIMapId { get; set; }
 
+    /// <summary>
+    /// Describes the route as a query over spawn data instead of a file. Mutually exclusive
+    /// with <see cref="PathFilename"/>; when set, no file is read or required to exist.
+    /// </summary>
+    public RouteGenSettings? Generate { get; set; }
+
+    /// <summary>
+    /// Whether generation produced a usable route. False leaves <see cref="Path"/> empty,
+    /// where <see cref="GetDistanceXYFromPath"/> returns int.MaxValue and
+    /// <see cref="PathFinished"/> is permanently true - a silently dead goal that would
+    /// still win planning. <see cref="CanRun"/> gates on this so GOAP falls through to the
+    /// next path instead.
+    /// </summary>
+    public bool Generated { get; private set; } = true;
+
+    /// <summary>
+    /// Zone, mob selection and navmesh connectivity for <see cref="Generate"/>, resolved
+    /// once. All of it is lap-invariant, so a Wander re-sample reuses it and does no
+    /// pathfinding at all.
+    /// </summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public RouteGenerator.Context? GenerateContext { get; set; }
+
+    /// <summary>Laps completed, so each regenerated route gets a distinct seed.</summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public int Lap { get; set; }
+
+    /// <summary>
+    /// Whether the generated route was filled in by pathing between its stops. False means
+    /// the legs could not be pathed and the route is still bare anchors, which
+    /// <see cref="Core.Goals.FollowRouteGoal"/> has to tell Navigation about.
+    /// </summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public bool RouteIsDense { get; set; }
+
     public bool WorldCoords { get; private set; }
     public Vector3[] OriginalMapPath { get; private set; } = Array.Empty<Vector3>();
 
@@ -27,6 +62,15 @@ public sealed partial class PathSettings
         !string.IsNullOrEmpty(OverridePathFilename)
         ? OverridePathFilename
         : PathFilename;
+
+    /// <summary>
+    /// Display name, for the goal title and the UI badge. A generated path has no filename,
+    /// so callers must not reach for <c>GetFileNameWithoutExtension(FileName)</c> directly.
+    /// </summary>
+    public string DisplayName =>
+        Generate != null
+        ? Generate.Name ?? Generate.Subzone ?? Generate.Zone ?? "Generated"
+        : System.IO.Path.GetFileNameWithoutExtension(FileName);
 
     private const int MaxRaceStartingZoneLevel = 20;
 
@@ -116,7 +160,12 @@ public sealed partial class PathSettings
         WorldCoords = true;
     }
 
-    private static bool TryFindRaceZone(ReadOnlySpan<char> input, WorldMapAreaDB worldMapAreaDB, out int uiMapId)
+    /// <summary>
+    /// Starting-zone map for the first race name found in <paramref name="input"/>. Public
+    /// because route generation resolves an unqualified <see cref="RouteGenSettings"/> the
+    /// same way a filename is resolved - one race-to-zone table, not two.
+    /// </summary>
+    public static bool TryFindRaceZone(ReadOnlySpan<char> input, WorldMapAreaDB worldMapAreaDB, out int uiMapId)
     {
         if (TryParseMinLevel(input, out int minLevel) && minLevel > MaxRaceStartingZoneLevel)
         {
@@ -156,12 +205,36 @@ public sealed partial class PathSettings
         return false;
     }
 
+    /// <summary>
+    /// Replaces the route with world-space points, keeping the map-space copy the UI draws
+    /// in sync. The counterpart to <see cref="ConvertToWorldCoords"/> for routes that were
+    /// never in map space to begin with.
+    /// </summary>
+    public void SetWorldPath(Vector3[] worldPath, int uiMapId, WorldMapAreaDB worldMapAreaDB,
+        bool isDense = false)
+    {
+        Path = worldPath;
+        WorldCoords = true;
+        Generated = worldPath.Length > 0;
+        RouteIsDense = isDense;
+        UIMapId = uiMapId;
+
+        Vector3[] mapPath = new Vector3[worldPath.Length];
+        Array.Copy(worldPath, mapPath, worldPath.Length);
+        worldMapAreaDB.ToMap_FlipXY(uiMapId, mapPath);
+
+        OriginalMapPath = mapPath;
+    }
+
     public bool CanRun()
     {
         if (canRunTime == globalTime.Value)
             return canRun;
 
         canRunTime = globalTime.Value;
+
+        if (!Generated)
+            return canRun = false;
 
         ReadOnlySpan<Requirement> span = RequirementsRuntime;
         for (int i = 0; i < span.Length; i++)

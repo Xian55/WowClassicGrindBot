@@ -19,6 +19,14 @@ public sealed class WorldMapAreaDB
 
     public IEnumerable<WorldMapArea> Values => wmas.Values;
 
+    /// <summary>
+    /// Entries with a parent zone and no map of their own. Not part of <see cref="Values"/>,
+    /// which only carries drawable maps - but a caller filtering world positions to a zone
+    /// needs them, because the baked area grid stores the finest (subzone) id, never the
+    /// parent's.
+    /// </summary>
+    public ReadOnlySpan<WorldMapArea> Subzones => subzonesByNameLengthDesc;
+
     public FrozenDictionary<int, WorldMapArea> AreaHitbox;
 
     public WorldMapAreaDB(DataConfig dataConfig)
@@ -172,6 +180,27 @@ public sealed class WorldMapAreaDB
         }
 
         result = default;
+        return false;
+    }
+
+    /// <summary>
+    /// The subzone entry itself, rather than its parent zone. <see cref="TryFindBySubzoneName"/>
+    /// answers "which map do I draw this on", which is what a route file name needs; this
+    /// answers "which area id is this", which is what filtering spawns to a subzone needs.
+    /// </summary>
+    public bool TryFindSubzone(ReadOnlySpan<char> input, out WorldMapArea subzone)
+    {
+        ReadOnlySpan<WorldMapArea> subzones = subzonesByNameLengthDesc;
+        for (int i = 0; i < subzones.Length; i++)
+        {
+            if (input.Contains(subzones[i].AreaName, StringComparison.OrdinalIgnoreCase))
+            {
+                subzone = subzones[i];
+                return true;
+            }
+        }
+
+        subzone = default;
         return false;
     }
 

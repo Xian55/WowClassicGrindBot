@@ -27,6 +27,13 @@ public sealed class AreaGrid
     /// <summary>MCNK cells per world side: 64 ADTs * 16 MCNK.</summary>
     public const int CellsPerSide = WDT.SIZE * MapTile.SIZE;
 
+    /// <summary>
+    /// World-space size of one cell, in yards. Surfaced because <c>ChunkReader</c> is
+    /// internal and callers outside PPather (route generation) need to reason about the
+    /// same grid resolution this class buckets into.
+    /// </summary>
+    public const float CellSize = ChunkReader.CHUNKSIZE;
+
     private readonly int minCellX;
     private readonly int minCellY;
     private readonly int width;

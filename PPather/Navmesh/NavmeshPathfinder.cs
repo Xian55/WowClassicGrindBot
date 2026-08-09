@@ -94,6 +94,13 @@ public sealed class NavmeshPathfinder : IDisposable
 
     private static readonly Vector3 ValidateExtents = new(2f, 4f, 2f);
 
+    /// <summary>
+    /// Search box for <see cref="TrySampleWalkable"/>'s anchor. Deliberately short in y:
+    /// the anchor carries a trustworthy height, and a tall box would let the probe climb to
+    /// a roof or canopy poly - the exact failure the sampler exists to avoid.
+    /// </summary>
+    private static readonly Vector3 SampleAnchorExtents = new(4f, 8f, 4f);
+
     private readonly ILogger logger;
     private readonly NavmeshTileCache tiles;
     private readonly DtNavMeshQuery query;
@@ -261,6 +268,62 @@ public sealed class NavmeshPathfinder : IDisposable
         }
 
         z = NavmeshCoords.ToWow(closest).Z;
+        return true;
+    }
+
+    /// <summary>
+    /// Snaps a caller-chosen point onto the nearest walkable polygon, returning both the
+    /// on-mesh position and the poly it landed on.
+    ///
+    /// <para><b>Why not <c>FindRandomPointWithinCircle</c>.</b> Letting Detour pick the
+    /// point is the obvious approach and it was the first one here, but it is <i>not
+    /// reproducible across processes</i>: the search walks polygons whose refs encode tile
+    /// slot indices, and slot assignment depends on the order tiles happened to become
+    /// resident. Two runs with the same seed produced different routes. Snapping a point the
+    /// caller derived from its own seeded RNG keeps the whole decision on the caller's side,
+    /// where the seed actually controls it, while still ending up on the mesh by
+    /// construction rather than by a test applied afterwards.</para>
+    ///
+    /// <para>On-mesh is <b>not</b> the same as reachable - a rooftop, a ledge and a tree
+    /// canopy are all walkable polys, merely disconnected from the floor the caller means.
+    /// Callers must still check connectivity (and their own height band) against
+    /// <paramref name="polyRef"/>.</para>
+    /// </summary>
+    public bool TrySnapWalkable(Vector3 wowPointHint, out Vector3 wowPoint, out long polyRef)
+    {
+        wowPoint = wowPointHint;
+        polyRef = 0;
+
+        NavmeshCoords.GetTileIndex(wowPointHint.X, wowPointHint.Y, out int tx, out int tz);
+        if (!tiles.IsTileOnDisk(tx, tz))
+        {
+            return false;
+        }
+
+        tiles.EnsureTilesForSegment(wowPointHint, wowPointHint);
+
+        Vector3 rc = NavmeshCoords.ToRc(wowPointHint);
+
+        filter.BeginQuery();
+
+        // Tight box on purpose. The caller supplies a hint whose height it trusts (it is
+        // offset from a real spawn position), and a tall box is exactly what lets a probe
+        // climb onto a roof or canopy above the floor that was meant.
+        DtStatus status = query.FindNearestPoly(rc, SampleAnchorExtents, filter,
+            out long refs, out Vector3 nearest, out _);
+
+        if (!status.Succeeded() || refs == 0)
+        {
+            return false;
+        }
+
+        if (!query.ClosestPointOnPoly(refs, rc, out Vector3 closest, out _).Succeeded())
+        {
+            closest = nearest;
+        }
+
+        wowPoint = NavmeshCoords.ToWow(closest);
+        polyRef = refs;
         return true;
     }
 

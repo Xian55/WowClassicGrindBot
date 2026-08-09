@@ -4,6 +4,7 @@ using Game;
 
 using Microsoft.Extensions.Logging;
 
+using SharedLib;
 using SharedLib.Extensions;
 using SharedLib.NpcFinder;
 
@@ -48,6 +49,8 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
     private CancellationTokenSource sideActivityCts;
 
     private readonly PathSettings pathSettings;
+    private readonly RouteGenerator routeGenerator;
+    private readonly WorldMapAreaDB worldMapAreaDB;
 
     private Vector3[] mapRoute
     {
@@ -92,10 +95,14 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
         ClassConfiguration classConfig,
         Navigation navigation,
         IMountHandler mountHandler, TargetFinder targetFinder,
-        IBlacklist targetBlacklist)
-    : base("Follow " + System.IO.Path.GetFileNameWithoutExtension(pathSettings.FileName))
+        IBlacklist targetBlacklist,
+        RouteGenerator routeGenerator,
+        WorldMapAreaDB worldMapAreaDB)
+    : base("Follow " + pathSettings.DisplayName)
     {
         this.cost = cost;
+        this.routeGenerator = routeGenerator;
+        this.worldMapAreaDB = worldMapAreaDB;
 
         this.logger = logger;
         this.input = input;
@@ -117,7 +124,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
             Keys = [
              new KeyAction() {
                 RequirementsRuntime = pathSettings.RequirementsRuntime,
-                Name = "Follow " + System.IO.Path.GetFileNameWithoutExtension(pathSettings.FileName)
+                Name = "Follow " + pathSettings.DisplayName
             }];
         }
 
@@ -188,6 +195,8 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
     {
         SendGoapEvent(FollowRouteChanged.Instance);
 
+        EnsureGenerated();
+
         if (sideActivityCts.IsCancellationRequested)
         {
             sideActivityCts = new();
@@ -247,7 +256,7 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
 
         if (bits.Drowning())
         {
-            input.PressJump();
+            input.PressJumpAscend();
         }
 
         if (bits.Combat() && !classConfig.GatheringMode) { return; }
@@ -372,9 +381,79 @@ public sealed class FollowRouteGoal : GoapGoal, IGoapEventListener, IRouteProvid
         MountIfPossible();
     }
 
+    /// <summary>
+    /// Builds a generated route the first time this goal actually runs, rather than at
+    /// session start.
+    ///
+    /// <para>Every path in the profile gets a goal, including ones whose requirements can
+    /// never pass in this session - a Human character still carries the Draenei entries.
+    /// Generating all of them up front cost ~1.8s of startup flooding navmesh connectivity
+    /// and pathing legs for routes that would never be walked.</para>
+    /// </summary>
+    private void EnsureGenerated()
+    {
+        if (pathSettings.Generate == null || pathSettings.GenerateContext != null)
+            return;
+
+        RouteGenerator.Context? context =
+            routeGenerator.TryBuildContext(pathSettings.Generate);
+
+        if (context == null)
+        {
+            // Leaves Generated false, so CanRun() drops this goal and GOAP falls through
+            // to the next path instead of walking an empty route.
+            pathSettings.SetWorldPath([], pathSettings.UIMapId, worldMapAreaDB);
+            return;
+        }
+
+        pathSettings.GenerateContext = context;
+
+        int seed = RouteSeed.For(
+            pathSettings.Generate.Seed ?? classConfig.ResolvedSeed, pathSettings.Id, lap: 0);
+
+        pathSettings.SetWorldPath(
+            routeGenerator.Sample(context, pathSettings.Generate, seed),
+            context.Target.UIMapId, worldMapAreaDB, routeGenerator.LastRouteIsDense);
+
+        ApplyWaypointDensity();
+    }
+
+    /// <summary>
+    /// A densified route is hundreds of points a few yards apart, so Navigation's
+    /// average-spacing heuristic works as designed. Only a route whose legs could not be
+    /// pathed stays sparse and needs every hop forced through the pathfinder.
+    /// </summary>
+    private void ApplyWaypointDensity()
+    {
+        navigation.SparseWaypoints =
+            pathSettings.Generate != null && !pathSettings.RouteIsDense;
+    }
+
     public void RefillWaypoints(bool onlyClosest)
     {
         Log($"{nameof(RefillWaypoints)} - findClosest:{onlyClosest} - ThereAndBack:{pathSettings.PathThereAndBack}");
+
+        // A Wander route is not walked twice. Re-sampling costs a cached component lookup
+        // per stop - no pathfinding - so the lap boundary is the natural place to do it,
+        // and the bot never retraces the line it just walked.
+        if (!onlyClosest &&
+            pathSettings.Generate is { Mode: RouteGenMode.Wander } gen &&
+            pathSettings.GenerateContext is { } context)
+        {
+            pathSettings.Lap++;
+
+            int seed = RouteSeed.For(
+                gen.Seed ?? classConfig.ResolvedSeed, pathSettings.Id, pathSettings.Lap);
+
+            Vector3[] fresh = routeGenerator.Sample(context, gen, seed);
+            if (fresh.Length > 0)
+            {
+                pathSettings.SetWorldPath(fresh, context.Target.UIMapId, worldMapAreaDB,
+                    routeGenerator.LastRouteIsDense);
+                ApplyWaypointDensity();
+                Log($"{nameof(RefillWaypoints)} - regenerated {fresh.Length} waypoints for lap {pathSettings.Lap}");
+            }
+        }
 
         Span<Vector3> path = stackalloc Vector3[mapRoute.Length];
         mapRoute.CopyTo(path);
