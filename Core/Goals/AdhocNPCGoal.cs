@@ -294,7 +294,7 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
     public override void Update()
     {
         if (bits.Drowning())
-            input.PressJump();
+            input.PressJumpAscend();
 
         if (pathState != PathState.Finished)
             navigation.Update();
