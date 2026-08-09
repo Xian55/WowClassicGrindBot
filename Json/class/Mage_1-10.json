@@ -1,0 +1,274 @@
+{
+  // Mage 1-10, starting-zone grind. Amalgamated from Mage_1 / Mage_6 / Mage_10.
+  //
+  // Everything learned after level 1 carries "WhenUsable": true, so an ability the
+  // character has not trained yet has an empty action bar slot, reads as unusable and is
+  // skipped. That is what lets one profile span the whole range - ActionBarSlotValidator
+  // will log the empty slots at startup, which is expected until they are trained.
+  //
+  // Bars: 1 Frostbolt | 2 Fireball | 3 Frost Armor | 4 Arcane Intellect | 5 Fire Blast
+  //       6 Frost Nova | 8 Conjure Food | 9 Conjure Water | 0 Shoot (wand)
+  //       = Food | - Drink
+  "Loot": true,
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
+  "IntVariables": {
+    "Item_Conjure_Drink": 5350,
+    "Item_Conjure_Food": 5349,
+    "MIN_FOOD%": 50,
+    "MIN_WATER%": 40,
+    "MIN_MANA_SPELL%": 30,
+
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
+    // Rank chains, verified against Json/dbc/wrath/spells.json. IDs rather than names:
+    // names drift between expansions, ids do not.
+    "SPELL_FIREBALL": [133, 143, 145, 3140, 8400, 8401, 8402, 10148],
+    "SPELL_FROSTBOLT": [116, 205, 837, 7322, 8406, 8407, 8408],
+    "SPELL_FIRE_BLAST": [2136, 2137, 2138, 8412, 8413],
+    "SPELL_FROST_NOVA": [122, 865, 6131],
+    "SPELL_FROST_ARMOR": [168, 7300, 7301],
+    "SPELL_ARCANE_INTELLECT": [1459, 1460, 1461, 10156],
+    "SPELL_CONJURE_WATER": [5504, 5505, 5506, 6127, 10138],
+    "SPELL_CONJURE_FOOD": [587, 597, 990, 6129, 10144]
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        // Learned at 4 - before that this is unusable and Fireball opens instead.
+        "Name": "Frostbolt",
+        "Key": "1",
+        "WhenUsable": true,
+        "HasCastBar": true,
+        "Requirements": [
+          "Spell:SPELL_FROSTBOLT",
+          "SpellInRange:3",
+          "Mana% > MIN_MANA_SPELL%"
+        ]
+      },
+      {
+        "Name": "Fireball",
+        "Key": "2",
+        "HasCastBar": true,
+        "Requirements": [
+          "Spell:SPELL_FIREBALL",
+          "SpellInRange:2",
+          "Mana% > MIN_MANA_SPELL%"
+        ]
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting",
+          "SpellInRange:1",
+          "Mana% < MIN_MANA_SPELL%"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Casting",
+          "!Shooting"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        // Learned at 10. Steps back so the freeze buys distance rather than being wasted.
+        "Name": "Frost Nova",
+        "Key": "6",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_FROST_NOVA",
+          "InMeleeRange"
+        ],
+        "AfterCastStepBack": 1000
+      },
+      {
+        // Learned at 6.
+        "Name": "Fire Blast",
+        "Key": "5",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_FIRE_BLAST",
+          "TargetAlive && TargetHealth% < 40",
+          "SpellInRange:4"
+        ]
+      },
+      {
+        "Name": "Frostbolt",
+        "Key": "1",
+        "WhenUsable": true,
+        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
+        "Requirements": [
+          "Spell:SPELL_FROSTBOLT",
+          "Mana% > MIN_MANA_SPELL%",
+          "TargetHealth% > 35"
+        ],
+        "Interrupt": "CanRun:Fire Blast",
+        "CancelOnInterrupt": true
+      },
+      {
+        "Name": "Fireball",
+        "Key": "2",
+        "HasCastBar": true,
+        "AfterCastWaitCastbar": true,
+        "Requirements": [
+          "Spell:SPELL_FIREBALL",
+          "Mana% > MIN_MANA_SPELL%",
+          "TargetHealth% > 35"
+        ],
+        "Interrupt": "CanRun:Fire Blast",
+        "CancelOnInterrupt": true
+      },
+      {
+        "Name": "Shoot",
+        "Key": "0",
+        "Item": true,
+        "Requirements": [
+          "HasRangedWeapon",
+          "!Shooting",
+          "SpellInRange:1"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "!HasRangedWeapon",
+          "!Casting && !Shooting"
+        ]
+      },
+      {
+        "Name": "Approach",
+        "Requirements": [
+          "!Casting",
+          "AutoAttacking && !MeleeSwinging",
+          "!SoftTargetDead"
+        ]
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        "Name": "Frost Armor",
+        "Key": "3",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_FROST_ARMOR",
+          "!Frost Armor"
+        ]
+      },
+      {
+        "Name": "Arcane Intellect",
+        "Key": "4",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_ARCANE_INTELLECT",
+          "!Arcane Intellect"
+        ],
+        "Log": false
+      },
+      {
+        // Learned at 5 / 1 respectively; both self-gate on the bar slot.
+        "Name": "Conjure Water",
+        "Key": "9",
+        "WhenUsable": true,
+        "HasCastBar": true,
+        "Requirements": [
+          "Spell:SPELL_CONJURE_WATER",
+          "!BagItem:Item_Conjure_Drink:4"
+        ],
+        "AfterCastWaitCastbar": true,
+        "AfterCastWaitBag": true
+      },
+      {
+        "Name": "Conjure Food",
+        "Key": "8",
+        "WhenUsable": true,
+        "HasCastBar": true,
+        "Requirements": [
+          "Spell:SPELL_CONJURE_FOOD",
+          "!BagItem:Item_Conjure_Food:4"
+        ],
+        "AfterCastWaitCastbar": true,
+        "AfterCastWaitBag": true
+      },
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_FOOD%",
+        "Cost": 3
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < MIN_WATER%",
+        "Cost": 3
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Requirement": "Items Broken"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        "Name": "ClassTrainer",
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
+      }
+    ]
+  }
+}

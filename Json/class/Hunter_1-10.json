@@ -1,0 +1,333 @@
+{
+  // Hunter 1-10, starting-zone grind. Amalgamated from Hunter_1 / Hunter_10.
+  //
+  // Everything learned after level 1 is gated on "Spell:SPELL_x" - do I know it - NOT on
+  // "WhenUsable" alone. WhenUsable only reads the usable bit of the slot the key maps to;
+  // it cannot tell that the slot holds a different spell, so a racial or any other usable
+  // ability sitting on that key makes the gate pass and the bot casts the wrong thing,
+  // forever. WhenUsable is kept as a second check for genuinely empty slots.
+  //
+  // This cannot save an ability known at level 1 from a wrong binding - bind the bars to
+  // match, see the Sync Actionbar button and the ActionBarSlotValidator lines at startup. A hunter has no pet until
+  // Tame Beast at 10, so the pet entries sit idle for most of this range - they are
+  // gated on "Has Pet" rather than removed.
+  //
+  // Bars: 2 Serpent Sting | 3 Auto Shot | 4 Raptor Strike | 5 Aspect of the Hawk
+  //       6 Aspect of the Monkey | 8 Arcane Shot | 9 Gift of the Naaru
+  //       N5 Feed Pet | N6 Call Pet | N7 Mend Pet | = Food | - Drink
+  "Loot": true,
+  "PathsFilenames": [
+    "1-8_Human_Northshire.json",
+    "1-8_Draenei_AmmenVale.json",
+    "1-8_NightElf_Teldrassil.json",
+    "1-8_DwarfGnome_Coldridge.json",
+    "1-8_OrcTroll_ValleyOfTrials.json",
+    "1-8_Undead_Deathknell.json",
+    "1-8_Tauren_RedCloudMesa.json",
+    "1-8_BloodElf_SunstriderIsle.json"
+  ],
+  "Paths": [],
+  "IntVariables": {
+    "MIN_HP_EAT%": 40,
+    "MIN_MANA_DRINK%": 30,
+
+    // Not SPELL_ prefixed on purpose - that prefix marks a trainer whitelist.
+    "TRAIN_COOLDOWN_SEC": 600,
+
+    "FLEE_MOB_COUNT": 1,
+    "FLEE_HP_LOW%": 60,
+
+    // Rank chains, verified against Json/dbc/wrath/spells.json. IDs rather than names:
+    // names drift between expansions, ids do not.
+    "SPELL_SERPENT_STING": [1978, 13549, 13550, 13551, 13552, 13553],
+    "SPELL_ARCANE_SHOT": [3044, 14281, 14283, 14284],
+    "SPELL_RAPTOR_STRIKE": [2973, 14260, 14261, 14262, 14263, 14264],
+    "SPELL_AUTO_SHOT": [75],
+    "SPELL_ASPECT_HAWK": [13165, 14318, 14319, 14320],
+    "SPELL_ASPECT_MONKEY": [13163],
+    "SPELL_CALL_PET": [883],
+    "SPELL_MEND_PET": [136, 3661, 3662],
+    "SPELL_FEED_PET": [6991],
+
+    // Ammo. Which one is needed depends on the ranged slot, not on the class - a bow or
+    // crossbow eats arrows, a gun eats bullets - so both are declared and the vendor
+    // entries below pick between them with "RangedWeapon:".
+    //
+    // 2512 Rough Arrow / 2516 Light Shot are the level-1 vendor stock. Beware the item DB:
+    // it also holds "Deprecated Iron Shot" (2513) and "Depricated Sharp Arrow" (2514),
+    // which are not buyable.
+    "ITEM_ARROW": 2512,
+    "ITEM_BULLET": 2516,
+    "MIN_COUNT_AMMO": 200,
+    "AMMO_BUY_STACKS": 5,
+
+    // Copper for one BuyMerchantItem call - a 200 stack of first-tier ammo. The macro
+    // makes AMMO_BUY_STACKS of those calls, so the run costs the product of the two, and
+    // the money gate below is what stops the bot walking to a vendor it cannot pay.
+    // Raise this when moving to better ammo.
+    "AMMO_COST_COPPER": 9
+  },
+  "StringVariables": {
+    "$ITEM_NAME_ARROW": "ITEM_ARROW",
+    "$ITEM_NAME_BULLET": "ITEM_BULLET",
+    "$AMMO_BUY_STACKS": "AMMO_BUY_STACKS"
+  },
+  "Flee": {
+    "Sequence": [
+      {
+        "Name": "Flee",
+        "Requirement": "(MobCount > FLEE_MOB_COUNT && Health% < FLEE_HP_LOW%) || TargetElite"
+      }
+    ]
+  },
+  "Wait": {
+    "Sequence": [
+      {
+        "Cost": 0.9,
+        "Name": "User",
+        "Requirement": "MenuOpen || ChatInputVisible"
+      }
+    ]
+  },
+  "Pull": {
+    "Sequence": [
+      {
+        // Learned at 4. Before that the pull is just Auto Shot.
+        "Name": "Serpent Sting",
+        "Key": "2",
+        "WhenUsable": true,
+        "BeforeCastStop": true,
+        "AfterCastWaitCombat": true,
+        "Requirements": [
+          "Spell:SPELL_SERPENT_STING",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "!InMeleeRange"
+        ]
+      },
+      {
+        "Name": "Auto Shot",
+        "Key": "3",
+        "Item": true,
+        "BeforeCastStop": true,
+        "Requirements": [
+          "Spell:SPELL_AUTO_SHOT",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "!InMeleeRange",
+          "!AutoShot"
+        ]
+      },
+      {
+        // No bow/gun or no ammo - walk in and melee it.
+        "Name": "Approach",
+        "Requirements": [
+          "!HasRangedWeapon || !HasAmmo",
+          "!SoftTargetDead"
+        ]
+      }
+    ]
+  },
+  "Combat": {
+    "Sequence": [
+      {
+        "Name": "Gift of the Naaru",
+        "Key": "9",
+        "HasCastBar": true,
+        "WhenUsable": true,
+        "Requirements": [
+          "Race:Draenei",
+          "Health% < 45"
+        ]
+      },
+      {
+        "Name": "Mend Pet",
+        "Key": "N7",
+        "Cooldown": 15000,
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_MEND_PET",
+          "Has Pet",
+          "PetHealth% < 40"
+        ]
+      },
+      {
+        "Name": "Serpent Sting",
+        "Key": "2",
+        "WhenUsable": true,
+        "BeforeCastStop": true,
+        "Requirements": [
+          "Spell:SPELL_SERPENT_STING",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "!InMeleeRange",
+          "!Serpent Sting",
+          "TargetHealth% > 40"
+        ]
+      },
+      {
+        "Name": "Auto Shot",
+        "Key": "3",
+        "Item": true,
+        "BeforeCastStop": true,
+        "Requirements": [
+          "Spell:SPELL_AUTO_SHOT",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "!InMeleeRange",
+          "!AutoShot"
+        ]
+      },
+      {
+        // Learned at 6.
+        "Name": "Arcane Shot",
+        "Key": "8",
+        "Cooldown": 6000,
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_ARCANE_SHOT",
+          "HasRangedWeapon",
+          "HasAmmo",
+          "!InMeleeRange",
+          "!Rapid Fire",
+          "!Quick Shots"
+        ]
+      },
+      {
+        "Name": "Raptor Strike",
+        "Key": "4",
+        "WhenUsable": true,
+        "AfterCastWaitSwing": true,
+        "Requirements": [
+          "Spell:SPELL_RAPTOR_STRIKE",
+          "MainHandSwing > -400",
+          "InMeleeRange",
+          "!AutoShot"
+        ]
+      },
+      {
+        "Name": "AutoAttack",
+        "Requirements": [
+          "InMeleeRange",
+          "!AutoShot"
+        ]
+      },
+      {
+        // Only closes when it cannot shoot - otherwise a hunter should stay at range.
+        "Name": "Approach",
+        "Requirements": [
+          "!HasRangedWeapon || !HasAmmo",
+          "!MeleeSwinging && !SoftTargetDead"
+        ],
+        "Log": false
+      }
+    ]
+  },
+  "Adhoc": {
+    "Sequence": [
+      {
+        // Learned at 10; Monkey at 4 covers the gap below.
+        "Name": "Aspect of the Hawk",
+        "Key": "5",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_ASPECT_HAWK",
+          "!Aspect of the Hawk"
+        ]
+      },
+      {
+        "Name": "Aspect of the Monkey",
+        "Key": "6",
+        "WhenUsable": true,
+        "Requirements": [
+          "Spell:SPELL_ASPECT_MONKEY",
+          "!Spell:SPELL_ASPECT_HAWK",
+          "!Aspect of the Monkey"
+        ]
+      },
+      {
+        "Name": "Feed Pet",
+        "Key": "N5",
+        "WhenUsable": true,
+        "Cooldown": 20000,
+        "Requirements": [
+          "Spell:SPELL_FEED_PET",
+          "Has Pet",
+          "!Pet Happy"
+        ]
+      },
+      {
+        "Name": "Call Pet",
+        "Key": "N6",
+        "HasCastBar": true,
+        "WhenUsable": true,
+        "Cooldown": 4000,
+        "Requirements": [
+          "Spell:SPELL_CALL_PET",
+          "!Has Pet"
+        ]
+      },
+      {
+        "Name": "Food",
+        "Key": "=",
+        "Requirement": "Health% < MIN_HP_EAT%",
+        "Cost": 3
+      },
+      {
+        "Name": "Drink",
+        "Key": "-",
+        "Requirement": "Mana% < MIN_MANA_DRINK%",
+        "Cost": 3
+      }
+    ]
+  },
+  "NPC": {
+    "Sequence": [
+      {
+        "Cost": 6,
+        "Name": "Repair",
+        "Requirement": "Items Broken"
+      },
+      {
+        "Cost": 6,
+        "Name": "Sell",
+        "Requirements": [
+          "BagFull",
+          "BagGreyItem"
+        ]
+      },
+      {
+        // Restock arrows - only when the ranged slot actually takes them.
+        "Cost": 6,
+        "Name": "VendorAmmo",
+        "Requirements": [
+          "RangedWeapon:Bow || RangedWeapon:Crossbow",
+          "!BagItem:ITEM_ARROW:MIN_COUNT_AMMO",
+          "Money > AMMO_BUY_STACKS * AMMO_COST_COPPER"
+        ],
+        "MacroText": "/run local a={'$ITEM_NAME_ARROW',$AMMO_BUY_STACKS} for i=1,GetMerchantNumItems() do if GetMerchantItemInfo(i)==a[1] then for j=1,a[2] do BuyMerchantItem(i,200) end end end"
+      },
+      {
+        // Same, for a gun.
+        "Cost": 6,
+        "Name": "VendorAmmo",
+        "Requirements": [
+          "RangedWeapon:Gun",
+          "!BagItem:ITEM_BULLET:MIN_COUNT_AMMO",
+          "Money > AMMO_BUY_STACKS * AMMO_COST_COPPER"
+        ],
+        "MacroText": "/run local a={'$ITEM_NAME_BULLET',$AMMO_BUY_STACKS} for i=1,GetMerchantNumItems() do if GetMerchantItemInfo(i)==a[1] then for j=1,a[2] do BuyMerchantItem(i,200) end end end"
+      },
+      {
+        "Name": "ClassTrainer",
+        "Requirements": [
+          "HasTrainableSpell",
+          "VendoredOrRepairedRecently",
+          "Money > 100", // 1 silver
+          "SecondsSinceTrained > TRAIN_COOLDOWN_SEC"
+        ],
+        "Cost": 6.1
+      }
+    ]
+  }
+}
