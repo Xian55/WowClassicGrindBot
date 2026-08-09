@@ -320,3 +320,6 @@ local/
 # Host-specific native binary; the Windows DLLs are committed, these are not.
 PPather/MPQ/libstorm.dylib
 PPather/MPQ/libstorm.so
+
+# Rendered route pictures from `run.ps1 routegen --output`. Regenerated in seconds.
+CoreTests/routegen-out/
