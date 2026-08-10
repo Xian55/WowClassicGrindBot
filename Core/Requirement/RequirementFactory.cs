@@ -165,6 +165,7 @@ public sealed partial class RequirementFactory
             { "Has Pet", bits.Pet },
             { "Pet Happy", bits.Pet_Happy },
             { "Pet HasTarget", playerReader.PetTarget },
+            { "PetCanPull", bits.Pet_CanPull },
             { "Mounted", bits.Mounted },
             
             // Auto Spell
