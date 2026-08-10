@@ -12,11 +12,23 @@ namespace Core;
 public sealed partial class ReactCastError
 {
     /// <summary>
-    /// How many <c>updateCount</c>-frame samples the facing gets to settle in before the
-    /// interact-turn is called failed. Needs to be &gt; 1: at exactly one sample the
-    /// timeout equals the cost of taking it, so the loop exits before it can ever compare.
+    /// Addon frames the client gets to register the interact press and begin turning.
+    /// Counted in frames, not milliseconds, on purpose - the only latency-independent
+    /// unit available here.
     /// </summary>
-    private const float SettleSampleBudget = 2.5f;
+    private const int TurnStartFrames = 5;
+
+    /// <summary>
+    /// Longest an interact-turn can run. The client turns at PI rad/s
+    /// (see <see cref="PlayerDirection"/>), so a 180 costs a full second. The wait
+    /// returns as soon as the facing settles, so a generous ceiling costs nothing.
+    /// </summary>
+    private const int TurnSettleMs = 1000;
+
+    /// <summary>
+    /// Frames the facing must hold identical to count as settled.
+    /// </summary>
+    private const int SettleFrames = 4;
 
     private readonly ILogger<ReactCastError> logger;
     private readonly PlayerReader playerReader;
@@ -26,18 +38,15 @@ public sealed partial class ReactCastError
     private readonly ConfigurableInput input;
     private readonly StopMoving stopMoving;
     private readonly PlayerDirection direction;
-    private readonly AddonReader addonReader;
 
     public ReactCastError(ILogger<ReactCastError> logger,
         PlayerReader playerReader,
-        AddonReader addonReader,
         ActionBarBits<IUsableAction> usableAction,
         AddonBits bits, Wait wait, ConfigurableInput input, StopMoving stopMoving,
         PlayerDirection direction)
     {
         this.logger = logger;
         this.playerReader = playerReader;
-        this.addonReader = addonReader;
         this.usableAction = usableAction;
         this.bits = bits;
         this.wait = wait;
@@ -176,63 +185,13 @@ public sealed partial class ReactCastError
             case UI_ERROR.ERR_BADATTACKFACING:
 
                 bool wasAnyAuto = bits.Any_AutoAttack();
-                bool turnedWithInteract = false;
 
-                // Try fast interact if no invalid soft target exists
-                if (!bits.SoftInteract_CombatBlocker())
-                {
-                    input.PressFastInteract();
+                // Stop first: every path below turned out to stop anyway, and steering
+                // while sampling the facing is what makes a turn look like it never ends.
+                stopMoving.Stop();
 
-                    const int updateCount = 4;
-
-                    // Budget the settle window off what a sample actually costs, not off
-                    // SpellQueueTimeMs. That CVar caps at 400ms while one sample is
-                    // updateCount addon frames - at ~100ms a frame the first sample eats
-                    // the whole budget, AfterEquals can only ever time out, and the turn
-                    // is reported as failed at every frame rate but the fastest.
-                    float sampleTimeMs =
-                        updateCount * (float)addonReader.AvgUpdateLatency;
-
-                    int settleMs = Math.Max(playerReader.SpellQueueTimeMs,
-                        (int)(sampleTimeMs * SettleSampleBudget));
-
-                    float e = wait.AfterEquals(settleMs,
-                        updateCount, playerReader._Direction);
-
-                    // AfterEquals returns negative on timeout - the facing never held
-                    // still, so the character is mid-spin. Do NOT treat "direction
-                    // changed" as success there: it is true precisely while the turn is
-                    // unfinished, and it used to suppress the fallback below in the one
-                    // state that needs it.
-                    turnedWithInteract = e > sampleTimeMs;
-
-                    if (turnedWithInteract)
-                    {
-                        stopMoving.Stop();
-                        LogReactFastTurnInteract(logger, value, e);
-                    }
-                    else
-                    {
-                        LogUnableToReactFastTurn(logger, value, e);
-                    }
-                }
-
-                // Fallback: slow turn 180 degrees if interact didn't work or was skipped
-                if (!turnedWithInteract)
-                {
-                    stopMoving.Stop();
-
-                    float targetDir = playerReader.Direction + PI;
-                    if (targetDir > Tau)
-                        targetDir -= Tau;
-
-                    direction.SetDirection(targetDir, Vector3.Zero);
-
-                    string reason = bits.SoftInteract_CombatBlocker()
-                        ? "invalid soft target"
-                        : "interact failed";
-                    LogReactSlowTurn(logger, value, reason);
-                }
+                if (!TurnWithInteract(value))
+                    TurnAround(value);
 
                 if (!wasAnyAuto)
                     input.PressStopAttack();
@@ -280,6 +239,57 @@ public sealed partial class ReactCastError
         }
     }
 
+    /// <summary>
+    /// Presses interact and reports whether the client acted on it - the facing moving
+    /// at all is the proof, and the only one available. A turn that is merely slow is
+    /// still a turn, so it is waited out rather than failed: <see cref="TurnAround"/>
+    /// from a mid-turn heading aims away from the target.
+    /// </summary>
+    private bool TurnWithInteract(UI_ERROR value)
+    {
+        if (bits.SoftInteract_CombatBlocker())
+            return false;
+
+        float beforeDir = playerReader.Direction;
+        input.PressFastInteract();
+        wait.Update();
+
+        // Did the press land? Counted in addon frames, not milliseconds - a latency
+        // spike must not be able to decide this.
+        float startMs = wait.UntilCount(TurnStartFrames,
+            () => beforeDir != playerReader.Direction);
+
+        if (startMs < 0)
+        {
+            LogUnableToReactFastTurn(logger, value, -startMs);
+            return false;
+        }
+
+        // It is turning. Let it finish - the wait returns as soon as the facing holds,
+        // so the ceiling only costs time on the turns that genuinely need it.
+        float settleMs = wait.AfterEquals(TurnSettleMs,
+            SettleFrames, playerReader._Direction);
+
+        LogReactFastTurnInteract(logger, value, startMs, settleMs);
+        return true;
+    }
+
+    /// <summary>
+    /// Last resort once interact is out: assume the target is behind and spin.
+    /// </summary>
+    private void TurnAround(UI_ERROR value)
+    {
+        float targetDir = playerReader.Direction + PI;
+        if (targetDir > Tau)
+            targetDir -= Tau;
+
+        direction.SetDirection(targetDir, Vector3.Zero);
+
+        LogReactSlowTurn(logger, value, bits.SoftInteract_CombatBlocker()
+            ? "invalid soft target"
+            : "interact failed");
+    }
+
     private void WaitForCooldown(KeyAction item, UI_ERROR value)
     {
         LogReactWaitUntilReady(logger, value);
@@ -318,10 +328,10 @@ public sealed partial class ReactCastError
     [LoggerMessage(EventId = 3007, Level = LogLevel.Information, Message = "React to {UiError} -- Start moving forward as outside of pull range.")]
     private static partial void LogReactStartMovingForward(ILogger logger, UI_ERROR uiError);
 
-    [LoggerMessage(EventId = 3008, Level = LogLevel.Information, Message = "React to {UiError} - Fast turn with Interact {ElapsedMs}ms")]
-    private static partial void LogReactFastTurnInteract(ILogger logger, UI_ERROR uiError, float elapsedMs);
+    [LoggerMessage(EventId = 3008, Level = LogLevel.Information, Message = "React to {UiError} - Fast turn with Interact: started {StartMs}ms, settled {SettleMs}ms")]
+    private static partial void LogReactFastTurnInteract(ILogger logger, UI_ERROR uiError, float startMs, float settleMs);
 
-    [LoggerMessage(EventId = 3009, Level = LogLevel.Warning, Message = "Unable to react to {UiError} - Fast turn with Interact {ElapsedMs}ms")]
+    [LoggerMessage(EventId = 3009, Level = LogLevel.Warning, Message = "Unable to react to {UiError} - Interact never moved the facing in {ElapsedMs}ms")]
     private static partial void LogUnableToReactFastTurn(ILogger logger, UI_ERROR uiError, float elapsedMs);
 
     [LoggerMessage(EventId = 3010, Level = LogLevel.Information, Message = "React to {UiError} - Slow turn 180deg ({Reason})")]
