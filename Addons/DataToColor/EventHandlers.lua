@@ -575,8 +575,23 @@ function DataToColor:OnCombatEvent(...)
         end
     end
 
-    if DataToColor.playerPetSummons[sourceGUID] then
+    -- petGUID first, the way the damage taken branch above already does it.
+    -- playerPetSummons is only ever filled by a SPELL_SUMMON row seen live, and it
+    -- is emptied on every reinit, so a pet that was already out when the addon
+    -- loaded - login, /reload, a loading screen - is not in it and every point of
+    -- its damage used to be dropped here.
+    if sourceGUID == DataToColor.petGUID or
+        DataToColor.playerPetSummons[sourceGUID] then
         if playerDamageDone[subEvent] then
+            -- Same kill credit rule as the player's own damage above. Without it a
+            -- mob the pet killed on its own is never queued by unitDied, so the
+            -- corpse is never reported as lootable.
+            local targetGuid = UnitGUID(DataToColor.C.unitTarget)
+            if targetGuid == destGUID and not DataToColor:UnitIsTapDenied(DataToColor.C.unitTarget) and DataToColor.eligibleKillCredit[destGUID] == nil then
+                DataToColor.eligibleKillCredit[destGUID] = true
+                --DataToColor:Print("Kill Credit added(pet): ", destGUID)
+            end
+
             DataToColor.CombatDamageDoneQueue:push(DataToColor:getGuidFromUUID(destGUID))
         end
     end
