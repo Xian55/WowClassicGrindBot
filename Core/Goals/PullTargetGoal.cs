@@ -239,7 +239,13 @@ public sealed class PullTargetGoal : GoapGoal, IGoapEventListener
             return;
         }
 
-        if (approachThrottle.ShouldPress(playerReader.WithInCombatRange()) &&
+        // Pull chases the target - only the profile's own Approach requirements
+        // stop it, so this passes no arrival condition. WithInCombatRange() was the
+        // wrong one: for a class whose combat range is a spell range - a Paladin's
+        // Judgement at 10 yards from level 4 - it reads as arrived while the
+        // character is still 10 yards out, so a melee pull never closes and the whole
+        // pull ends up gated on that spell's cooldown.
+        if (approachThrottle.ShouldPress() &&
             (!bits.SoftInteract() || EligibleEnemySoftTargetExists()))
         {
             input.PressApproach();
