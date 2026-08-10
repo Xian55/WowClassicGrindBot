@@ -323,7 +323,11 @@ public sealed partial class GoapAgent : IDisposable
         bool dmgTaken = combatLog.DamageTakenCount() > 0;
         bool dmgDone = combatLog.DamageDoneCount() > 0;
         bool hasTarget = b.Target();
-        bool playerCombat = b.Combat();
+
+        // Not b.Combat(): a pet opener leaves the player unflagged until the mob
+        // walks over and swings, so every combat gated goal would sit out the first
+        // seconds of a pull the pet already won. See CombatLog.PetEngaged.
+        bool playerCombat = combatLog.PlayerOrPetCombat();
 
         int data =
             (B(hasTarget) << (int)GoapKey.hastarget) |
@@ -344,7 +348,7 @@ public sealed partial class GoapAgent : IDisposable
             (B(mountHandler.IsMounted()) << (int)GoapKey.ismounted) |
             (B(playerReader.WithInPullRange()) << (int)GoapKey.withinpullrange) |
             (B(playerReader.WithInCombatRange()) << (int)GoapKey.incombatrange) |
-            (B(bits.Combat() && bits.Target_Combat() && combatLog.ToPullCount() > 0) << (int)GoapKey.pulled) |
+            (B(playerCombat && bits.Target_Combat() && combatLog.ToPullCount() > 0) << (int)GoapKey.pulled) |
             (B(b.Dead()) << (int)GoapKey.isdead) |
             (B(State.LootableCorpseCount > 0) << (int)GoapKey.shouldloot) |
             (B(State.GatherableCorpseCount > 0) << (int)GoapKey.shouldgather) |

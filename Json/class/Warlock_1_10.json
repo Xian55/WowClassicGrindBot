@@ -50,10 +50,12 @@
   "Pull": {
     "Sequence": [
       {
-        // let the pet pull
+        // let the pet pull - PetCanPull goes false once the pet is out of power,
+        // and a pet with nothing to cast stands still instead of closing to melee
         "Name": "Approach",
         "Requirements": [
           "Has Pet",
+          "PetCanPull",
           "MinRange > 20"
         ]
       },
@@ -62,7 +64,7 @@
         "Key": "4",
         "AfterCastAuraExpected": true,
         "Requirements": [
-          "!Has Pet",
+          "!Has Pet || !PetCanPull",
           "!Immolate",
           "Spell:SPELL_IMMOLATE",
           "Mana% > MIN_MANA_IMMOLATE%"
@@ -72,7 +74,7 @@
         "Name": "Shadow Bolt",
         "Key": "2",
         "Requirements": [
-          "!Has Pet",
+          "!Has Pet || !PetCanPull",
           "!Spell:SPELL_IMMOLATE",
           "Mana% > MIN_MANA_SHADOWBOLT%"
         ]

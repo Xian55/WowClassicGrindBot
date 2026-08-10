@@ -61,6 +61,8 @@ local SpellBookFrame = SpellBookFrame
 local FriendsFrame = FriendsFrame
 
 local HasPetUI = HasPetUI
+local GetPetActionInfo = GetPetActionInfo
+local UnitPower = UnitPower
 
 -- bits
 
@@ -201,7 +203,111 @@ function DataToColor:Bits3()
         (DataToColor:SpellBookFrameOpen() and 2 or 0) ^ 14 +
         (DataToColor:FriendsFrameOpen() and 2 or 0) ^ 15 +
         (DataToColor:TrainerFrameShown() and 2 or 0) ^ 16 +
-        (MerchantFrame:IsShown() and 2 or 0) ^ 17
+        (MerchantFrame:IsShown() and 2 or 0) ^ 17 +
+        (DataToColor:PetCanPull() and 2 or 0) ^ 18
+end
+
+-- Mode and command buttons are PET_MODE_* / PET_ACTION_* tokens. The name is the
+-- only GetPetActionInfo field at the same position on both layouts.
+local PET_TOKEN_PATTERN = "^PET_"
+local NUM_PET_ACTION_SLOTS = 10
+
+------------------------------------------------------------
+-- GetPetActionInfo return layout - both shapes are seven values, so the count
+-- cannot tell them apart and the client generation has to.
+--   Legacy 4.3.4 / 5.4.8:
+--     name, subtext, texture, isToken, isActive, autoCastAllowed, autoCastEnabled
+--   Modern Classic:
+--     name, texture, isToken, isActive, autoCastAllowed, autoCastEnabled, spellID
+------------------------------------------------------------
+-- Legacy has no spellID return at all, so its cost is looked up by name instead.
+local PET_SPELL_ID_INDEX = DataToColor.IsLegacy() and 0 or 7
+
+--- Power cost of the spell in a pet action slot, or nil when the slot holds
+--- nothing the pet spends power to cast.
+---
+--- Cost is the discriminator. Both obvious alternatives were measured on 3.4.x
+--- and both are dead: GetPetActionSlotUsable answers true for every slot,
+--- PET_ACTION_FOLLOW included, and stays true for Firebolt while the Imp is far
+--- too dry to cast it, so it says nothing about power. autoCastAllowed does not
+--- separate them either - Blood Pact (6307) reports it exactly like Firebolt
+--- (3110) does. What actually differs is that Blood Pact is free.
+---
+--- @return number|nil cost, number powerType
+function DataToColor:GetPetActionSpellCost(index)
+    local name, _, _, _, _, _, spellID = GetPetActionInfo(index)
+    if not name or find(name, PET_TOKEN_PATTERN) then
+        return nil
+    end
+
+    local costs
+    if PET_SPELL_ID_INDEX ~= 0 and spellID then
+        costs = DataToColor.GetSpellPowerCost(spellID)
+    else
+        -- name, rank, icon, cost, isFunnel, powerType, ... - the long layout,
+        -- which is the only one a client without a spellID return has.
+        local cost, _, powerType = select(4, GetSpellInfo(name))
+        if cost then
+            costs = { { cost = cost, type = powerType or 0 } }
+        end
+    end
+
+    if not costs then
+        return nil
+    end
+
+    for i = 1, #costs do
+        local entry = costs[i]
+        if entry.cost and entry.cost > 0 then
+            return entry.cost, entry.type or 0
+        end
+    end
+
+    return nil
+end
+
+--- Whether the pet can start a fight on its own right now.
+---
+--- The case this exists for is the pet running out of power: an Imp with no mana
+--- left for Firebolt just stands where it is, it does not close to melee, so the
+--- pull silently never happens and the bot waits out its pull timer.
+--- See GetPetActionSpellCost for why the answer is built from power and cost
+--- rather than from anything the client offers about slot usability.
+---
+--- @param slots table|nil BitCache's pre-scanned { cost, type } entries
+--- @param count number|nil how many of them are valid
+function DataToColor:PetCanPull(slots, count)
+    local pet = DataToColor.C.unitPet
+
+    if not UnitIsVisible(pet) or UnitIsDead(pet) then
+        return false
+    end
+
+    if slots then
+        for i = 1, count do
+            local entry = slots[i]
+            if UnitPower(pet, entry.type) >= entry.cost then
+                return true
+            end
+        end
+
+        -- A pet with nothing costed to cast pulls by running in and meleeing.
+        return count == 0
+    end
+
+    local sawCosted = false
+
+    for i = 1, NUM_PET_ACTION_SLOTS do
+        local cost, powerType = DataToColor:GetPetActionSpellCost(i)
+        if cost then
+            sawCosted = true
+            if UnitPower(pet, powerType) >= cost then
+                return true
+            end
+        end
+    end
+
+    return not sawCosted
 end
 
 -- Blizzard_TrainerUI is loaded on demand, so the frame does not exist until the player

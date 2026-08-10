@@ -157,7 +157,7 @@ public sealed partial class RouteGenerator
         if (polygon.PrunedSpawns > 0)
         {
             LogPruned(logger, target.Name, polygon.PrunedSpawns, polygon.ClusterCount,
-                settings.Focus.ToString());
+                settings.Focus);
         }
 
         NavmeshPathfinder? navmesh = pather.GetQueryNavmeshForMap(target.MapId);
@@ -224,7 +224,7 @@ public sealed partial class RouteGenerator
             out int consideredCells);
 
         LogLoopPeaks(logger, context.Target.Name, peaks.Count, consideredCells,
-            settings.Focus.ToString(), settings.ResolvedMinCellShare);
+            settings.Focus, settings.ResolvedMinCellShare);
 
         // A centroid is an average, so it can land off-mesh, on a roof, or on the far side
         // of a wall even when every spawn that formed it is fine. Same three gates as wander.
@@ -731,7 +731,7 @@ public sealed partial class RouteGenerator
         Level = LogLevel.Information,
         Message = "[RouteGen] {zone}: {peaks} stops from {cells} occupied cells (Focus={focus}, cell floor {share:P0})")]
     static partial void LogLoopPeaks(ILogger logger, string zone, int peaks, int cells,
-        string focus, float share);
+        RouteFocus focus, float share);
 
     [LoggerMessage(
         EventId = 0099,
@@ -756,7 +756,7 @@ public sealed partial class RouteGenerator
         Level = LogLevel.Information,
         Message = "[RouteGen] {zone}: dropped {pruned} isolated spawn(s), kept {clusters} cluster(s) (Focus={focus})")]
     static partial void LogPruned(ILogger logger, string zone, int pruned, int clusters,
-        string focus);
+        RouteFocus focus);
 
     [LoggerMessage(
         EventId = 0097,

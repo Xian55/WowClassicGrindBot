@@ -1863,6 +1863,28 @@ e.g.
 }
 ```
 
+#### Backing out of melee
+
+No dedicated action is needed for this - a plain `KeyAction` bound to the backpedal key does it. `PressDuration` holds the key, `Interrupt` is a *keep-going* condition rather than a stop one, so the press is cut short as soon as it stops holding. `BaseAction` keeps it out of the spell/cast-time machinery, and `BeforeCastFaceTarget` aims first, since backpedalling is relative to facing.
+
+```json
+{
+    "Name": "Stepback",
+    "Key": "S",
+    "PressDuration": 3000,
+    "BaseAction": true,
+    "BeforeCastFaceTarget": true,
+    "Requirements": [
+        "Has Pet",
+        "TargetsPet",
+        "InMeleeRange"
+    ],
+    "Interrupt": "InMeleeRange && TargetAlive"
+}
+```
+
+That one only fires while the pet holds the mob - backing away from something chasing you just drags it along. A mage kiting off a root uses the same shape with `"Frostbite"` and `"TargetsMe"` instead.
+
 ### Adhoc Goals
 
 **Why Adhoc Goals?** These handle "between fight" activities - things you do when you're not actively killing something. Buffs that expired, health/mana that needs restoring, pet summoning, etc. The bot checks these when out of combat and performs them if conditions are met.
@@ -3118,6 +3140,7 @@ Allow requirements about what buffs/debuffs you have or the target has or in gen
 | `"Has Pet"` | The player's pet is alive |
 | `"Pet HasTarget"` | Players pet has target |
 | `"Pet Happy"` | Pet happiness is green |
+| `"PetCanPull"` | The pet is alive and at least one of its spells is castable right now. False once the pet runs out of power - an Imp with no mana for Firebolt stands still instead of closing to melee, so a pull handed to the pet never happens. |
 | `"Mounted"` | Player riding on a mount (druid form excluded) |
 | `"BagFull"` | Inventory is full |
 | `"BagGreyItem"` | Indicates that there are at least one Grey Quality level item. |

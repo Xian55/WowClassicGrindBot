@@ -181,8 +181,10 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     public UI_ERROR CastState => (UI_ERROR)CastEvent.Value;
     public RecordInt CastSpellId { get; } = new(63);
 
+    public const int PetTargetGuidCell = 69;
+
     public int PetGuid => reader.GetInt(68);
-    public int PetTargetGuid => reader.GetInt(69);
+    public int PetTargetGuid => reader.GetInt(PetTargetGuidCell);
     public bool PetTarget() => PetTargetGuid != 0;
 
     public int CastCount => reader.GetInt(70);

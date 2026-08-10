@@ -78,7 +78,8 @@ public static class NoPlanReport
             .Append(" defensive=").Append(bits.Pet_Defensive())
             .Append(" petTarget=");
         AppendGuid(sb, playerReader.PetTargetGuid);
-        sb.Append(" petTargetDead=").Append(bits.PetTarget_Dead());
+        sb.Append(" petTargetDead=").Append(bits.PetTarget_Dead())
+            .Append(" engaged=").Append(combatLog.PetEngaged);
 
         sb.Append("\n State : kills=").Append(state.LastCombatKillCount)
             .Append(" lootable=").Append(state.LootableCorpseCount)
