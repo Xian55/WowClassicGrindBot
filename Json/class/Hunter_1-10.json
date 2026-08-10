@@ -111,7 +111,7 @@
         "AfterCastWaitCombat": true,
         "Requirements": [
           "Spell:SPELL_SERPENT_STING",
-          "!Has Pet",
+          "!Has Pet || !PetCanPull",
           "HasRangedWeapon",
           "HasAmmo",
           "!InMeleeRange"
@@ -123,7 +123,7 @@
         "Item": true,
         "BeforeCastStop": true,
         "Requirements": [
-          "!Has Pet",
+          "!Has Pet || !PetCanPull",
           "Spell:SPELL_AUTO_SHOT",
           "HasRangedWeapon",
           "HasAmmo",
@@ -144,7 +144,7 @@
         // most of this range only the second half of the condition can fire.
         "Name": "Approach",
         "Requirements": [
-          "(Has Pet && MinRange > 20) || !HasRangedWeapon || !HasAmmo",
+          "(Has Pet && PetCanPull && MinRange > 20) || !HasRangedWeapon || !HasAmmo",
           "!SoftTargetDead"
         ]
       }
