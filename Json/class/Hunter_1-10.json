@@ -12,9 +12,16 @@
   // Tame Beast at 10, so the pet entries sit idle for most of this range - they are
   // gated on "Has Pet" rather than removed.
   //
+  // From 10 the pet makes the pull and the hunter holds its shots, the way
+  // Hunter_66_farm_pet_pull does. "PetCanPull" is what keeps that honest: it goes
+  // false when the pet has no focus left for a costed attack, and a pet in that
+  // state stands where it is instead of closing to melee, so the pull would
+  // otherwise stall until the pull timer gave up.
+  //
   // Bars: 2 Serpent Sting | 3 Auto Shot | 4 Raptor Strike | 5 Aspect of the Hawk
   //       6 Aspect of the Monkey | 8 Arcane Shot | 9 Gift of the Naaru
   //       N5 Feed Pet | N6 Call Pet | N7 Mend Pet | = Food | - Drink
+  //       S backpedal (the movement binding, not an action bar slot)
   "Loot": true,
   "PathsFilenames": [
     "1-8_Human_Northshire.json",
@@ -93,6 +100,10 @@
     "Sequence": [
       {
         // Learned at 4. Before that the pull is just Auto Shot.
+        //
+        // Held back once the pet can make the pull: opening from range puts the mob
+        // on the hunter instead of on the pet, and mana is the scarce resource in
+        // this bracket. Combat takes over the moment the pet's first hit lands.
         "Name": "Serpent Sting",
         "Key": "2",
         "WhenUsable": true,
@@ -100,6 +111,7 @@
         "AfterCastWaitCombat": true,
         "Requirements": [
           "Spell:SPELL_SERPENT_STING",
+          "!Has Pet",
           "HasRangedWeapon",
           "HasAmmo",
           "!InMeleeRange"
@@ -111,6 +123,7 @@
         "Item": true,
         "BeforeCastStop": true,
         "Requirements": [
+          "!Has Pet",
           "Spell:SPELL_AUTO_SHOT",
           "HasRangedWeapon",
           "HasAmmo",
@@ -119,10 +132,19 @@
         ]
       },
       {
-        // No bow/gun or no ammo - walk in and melee it.
+        // Two jobs in one entry, because PullTargetGoal keeps a single Approach key
+        // per sequence - a second entry named Approach silently shadows the first.
+        //
+        // Either the pet is making the pull and the hunter closes to 20 so it is in
+        // shooting range when Combat starts, or there is no bow/gun/ammo and this is
+        // a melee pull. PetCanPull drops to false when the pet is out of focus, which
+        // hands the opener back to Serpent Sting and Auto Shot above - a focus-less
+        // pet stands still rather than closing, so without this the pull would stall
+        // until the pull timer gave up. No pet at all before Tame Beast at 10, so for
+        // most of this range only the second half of the condition can fire.
         "Name": "Approach",
         "Requirements": [
-          "!HasRangedWeapon || !HasAmmo",
+          "(Has Pet && MinRange > 20) || !HasRangedWeapon || !HasAmmo",
           "!SoftTargetDead"
         ]
       }
@@ -152,6 +174,28 @@
         ]
       },
       {
+        // The pet has the mob, so nothing is gained by standing in its reach - back
+        // out and the hunter stops eating swings and can shoot again. Held to the
+        // pet-tanking case on purpose: retreating from a mob that is chasing the
+        // hunter only drags it along.
+        //
+        // Interrupt is a keep-going condition, not a stop one, so the 3s press is cut
+        // short the moment melee range is left or the mob dies. BeforeCastFaceTarget
+        // aims first - backpedalling is relative to facing, so without it the retreat
+        // can walk sideways or straight back into the mob.
+        "Name": "Stepback",
+        "Key": "S",
+        "PressDuration": 3000,
+        "BaseAction": true,
+        "BeforeCastFaceTarget": true,
+        "Requirements": [
+          "Has Pet",
+          "TargetsPet",
+          "InMeleeRange"
+        ],
+        "Interrupt": "InMeleeRange && TargetAlive"
+      },
+      {
         "Name": "Serpent Sting",
         "Key": "2",
         "WhenUsable": true,
@@ -179,6 +223,29 @@
         ]
       },
       {
+        // No pet to hand the mob to, so the hunter kites it itself: shoot, give
+        // ground while the weapon reloads, shoot again.
+        //
+        // Sits directly after Auto Shot because it needs the shot already away -
+        // "LastAutoShotMs < 400" is the window just after one lands. RangedSwing
+        // counts up to 0 as the next shot comes due, so "< -500" keeps the retreat
+        // to the slack before the reload animation needs the character standing.
+        // No BeforeCastFaceTarget here: the mob is chasing the hunter, so it is
+        // already being faced, and a turn mid-kite would throw the shot away.
+        "Name": "Stepback",
+        "Key": "S",
+        "PressDuration": 3000,
+        "BaseAction": true,
+        "Requirements": [
+          "!Has Pet",
+          "TargetsMe",
+          "LastAutoShotMs < 400",
+          "!InMeleeRange",
+          "AutoShot"
+        ],
+        "Interrupt": "RangedSwing < -500 && TargetAlive"
+      },
+      {
         // Learned at 6.
         "Name": "Arcane Shot",
         "Key": "8",
@@ -202,6 +269,7 @@
           "Spell:SPELL_RAPTOR_STRIKE",
           "MainHandSwing > -400",
           "InMeleeRange",
+          "(Has Pet && !TargetsMe) || !Has Pet",
           "!AutoShot"
         ]
       },
