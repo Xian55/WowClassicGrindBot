@@ -42,5 +42,19 @@
     "SideActivityRequirements": [
       "PathDist <= 40"
     ]
+  },
+  {
+    "Requirements": [
+      "Level < 11",
+      "Race:NightElf"
+    ],
+    "Generate": {
+      "Subzone": "The Oracle Glade",
+      "Mobs": "Name: Bloodfeather",
+      "Mode": "Wander"
+    },
+    "SideActivityRequirements": [
+      "PathDist <= 40"
+    ]
   }
 ]
