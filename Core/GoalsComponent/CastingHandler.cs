@@ -128,13 +128,13 @@ public sealed partial class CastingHandler
 
     /// <summary>
     /// Keepalive for the melee swing wait. The point here is staying on the mob and
-    /// facing it, not reaching combat range, so this uses the engaged cadence rather
-    /// than any notion of arrival - see <see cref="ApproachThrottle.ShouldPressEngaged"/>
-    /// for why suppressing the press at close melee range was wrong.
+    /// facing it, not reaching combat range, so this passes no arrival condition -
+    /// see <see cref="ApproachThrottle.ShouldPress()"/> for why suppressing the press
+    /// at close melee range was wrong.
     /// </summary>
     private void PressApproachThrottled()
     {
-        if (approachThrottle.ShouldPressEngaged())
+        if (approachThrottle.ShouldPress())
         {
             input.PressApproach();
 

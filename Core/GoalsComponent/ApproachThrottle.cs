@@ -7,11 +7,12 @@ namespace Core.Goals;
 /// client finishes the run on its own and keeps the player facing the target the
 /// whole way. Re-pressing restarts that run, and a press landing in the final
 /// yards carries a melee class straight past the mob. This narrows Approach down
-/// to the presses that do something - (re)starting a stalled run, and re-aiming
-/// at a target that moved.
+/// to a keepalive: slow at a target holding still, at the base cadence for one
+/// that moved and invalidated the run's heading. Every press goes through that
+/// cadence - a caller that wants to bypass it wants the overshoot back.
 /// </summary>
 public sealed class ApproachThrottle(
-    ConfigurableInput input, PlayerReader playerReader, AddonBits bits)
+    ConfigurableInput input, PlayerReader playerReader)
 {
     /// <summary>
     /// A run at a stationary target keeps its heading, so re-aiming is wasted.
@@ -47,20 +48,37 @@ public sealed class ApproachThrottle(
     }
 
     /// <summary>
-    /// Whether to re-press Interact while already engaged and standing on the target,
-    /// waiting out a swing.
-    ///
-    /// <para>There is no run left to restart at this range, so the overshoot the
-    /// approach path guards against cannot happen - the press is here to re-face a mob
-    /// that has moved around the player. Treating close melee range as "arrived" and
-    /// suppressing it outright removed the only thing that recovers from
-    /// ERR_BADATTACKFACING while auto-attacking, which is the state issue #827
-    /// describes: on top of the mob, in combat, never turning, dead.</para>
-    ///
-    /// <para>Bearing drift does the deciding. A mob that circles the player drifts it and
-    /// earns a prompt re-face; a mob standing still gets the slow keepalive.</para>
+    /// Re-seeds, and lets the next press through without waiting out the keepalive.
+    /// For a caller starting a fresh chase: the first press of an approach cannot be
+    /// a re-press, so nothing is being restarted and nothing can be overshot - the
+    /// goal only runs while out of combat range. Making that one wait leaves the
+    /// player standing still through a stuck check, which then clears a target the
+    /// bot never actually walked towards.
     /// </summary>
-    public bool ShouldPressEngaged()
+    public void ResetForNewChase()
+    {
+        input.Approach.ResetCooldown();
+        Reset();
+    }
+
+    /// <summary>
+    /// Whether to press Interact now. The cadence is the whole decision: bearing
+    /// drift picks the rate, and nothing bypasses it.
+    ///
+    /// <para>Not-moving is deliberately not a reason to press immediately. A run that
+    /// ended because the player arrived reads exactly like one that never started -
+    /// both are "not moving" - so an immediate restart on that condition fires at the
+    /// key cooldown, 400ms, right where the player is standing on the mob. That is the
+    /// overshoot this class exists to stop. A stalled run instead waits out the
+    /// keepalive below, which costs at most a second.</para>
+    ///
+    /// <para>Suppressing the press outright once inside melee is also wrong: it removed
+    /// the only thing that recovers from ERR_BADATTACKFACING while auto-attacking,
+    /// which is the state issue #827 describes - on top of the mob, in combat, never
+    /// turning, dead. A mob that circles the player drifts the bearing and earns a
+    /// prompt re-face; a mob standing still gets the slow keepalive.</para>
+    /// </summary>
+    public bool ShouldPress()
     {
         if (input.Approach.OnCooldown())
         {
@@ -74,33 +92,12 @@ public sealed class ApproachThrottle(
     }
 
     /// <param name="arrived">
-    /// The reason to press is already satisfied - for the approach goals,
-    /// WithInCombatRange(). Callers already engaged with the target want
-    /// <see cref="ShouldPressEngaged"/> instead.
+    /// The reason to press is already satisfied - for <see cref="ApproachTargetGoal"/>,
+    /// WithInCombatRange(), which is that goal's own effect. Callers with no arrival
+    /// condition of their own - a pull that chases, a swing keepalive - want
+    /// <see cref="ShouldPress()"/>.
     /// </param>
-    public bool ShouldPress(bool arrived)
-    {
-        if (input.Approach.OnCooldown())
-        {
-            return false;
-        }
-
-        if (arrived)
-        {
-            return false;
-        }
-
-        // Nothing is carrying the player forward - (re)start the run.
-        if (!bits.Moving())
-        {
-            return true;
-        }
-
-        return input.Approach.SinceLastClickMs >
-            (TargetMoved()
-                ? MOVING_TARGET_REPEAT_MS
-                : STATIONARY_TARGET_REPEAT_MS);
-    }
+    public bool ShouldPress(bool arrived) => !arrived && ShouldPress();
 
     /// <summary>
     /// Call right after a press so the next comparison is against the bearing the

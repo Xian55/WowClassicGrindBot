@@ -13,7 +13,15 @@ namespace Core.Goals;
 public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
 {
     private const bool debug = true;
-    private const double STUCK_INTERVAL_MS = 400; // cant be lower than Approach.Cooldown
+    /// <summary>
+    /// The stuck ladder reads "Interact was pressed and the player is still not
+    /// moving", so it cannot be shorter than the gap between presses - and that gap
+    /// is <see cref="ApproachThrottle"/>'s keepalive, not the Approach key cooldown.
+    /// A shorter window hands down its verdict between two presses and clears a
+    /// target the bot was about to walk to.
+    /// </summary>
+    private const double STUCK_INTERVAL_MS =
+        ApproachThrottle.STATIONARY_TARGET_REPEAT_MS;
     private const double MAX_APPROACH_DURATION_MS = 15_000; // max time to chase to pull
     private const double MIN_TIME_TILL_IDLE = 2000;
 
@@ -144,7 +152,7 @@ public sealed partial class ApproachTargetGoal : GoapGoal, IGoapEventListener
         initialMinRange = playerReader.MinRange();
 
         approachStart = GetTimestamp();
-        approachThrottle.Reset();
+        approachThrottle.ResetForNewChase();
         SetNextStuckTimeCheck();
 
         probe = CloserTargetProbe.Idle;
