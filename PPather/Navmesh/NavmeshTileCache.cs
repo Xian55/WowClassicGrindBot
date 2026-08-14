@@ -102,6 +102,9 @@ public sealed class NavmeshTileCache : IDisposable
 
     private long touchCounter;
 
+    // Disk-only misses. Written from every bake worker, so keep it atomic.
+    private int missingOnDisk;
+
     private readonly record struct TileRequest(int X, int Z, TaskCompletionSource? Done);
 
     /// <summary>Raised after a tile lands in the mesh (viz). May fire on a worker thread.</summary>
@@ -129,6 +132,13 @@ public sealed class NavmeshTileCache : IDisposable
 
     /// <summary>Incremented from every bake worker, so keep the update atomic.</summary>
     public int TilesBakedThisSession => Volatile.Read(ref tilesBakedThisSession);
+
+    /// <summary>
+    /// Tiles a disk-only cache was asked for and could not find on disk. Non-zero
+    /// means this install cannot path through those tiles at all - it is a missing
+    /// download, not a routing decision.
+    /// </summary>
+    public int MissingTilesOnDisk => Volatile.Read(ref missingOnDisk);
 
     public NavmeshTileCache(ILogger logger, ChunkedTriangleCollection? world, string cacheDir,
         NavmeshBakeOptions bake, int corridorTileRadius, float? minWorldZ = null)
@@ -486,6 +496,27 @@ public sealed class NavmeshTileCache : IDisposable
         {
             // Disk-only cache: the tile is not baked and there is no geometry
             // source to bake it from. Absent tile -> no data.
+            //
+            // Saying nothing here is what makes a partial tile set impossible to
+            // diagnose: every query over the gap resolves no endpoint, and the
+            // only symptom that reaches the user is Navigation's "Unable to find
+            // path ... Character may stuck!", which blames the character for a
+            // missing file. Name the file and the remedy once, then count.
+            if (Interlocked.Increment(ref missingOnDisk) == 1)
+            {
+                logger.LogWarning(
+                    "Navmesh tile {Path} is not on disk, and there are no game files to bake it from. " +
+                    "Every path through this area will fail until the baked tiles are present: run " +
+                    "scripts/download-navmesh.ps1 (add -Force to replace a partial download), or install " +
+                    "the client archives to bake on demand.",
+                    path);
+            }
+            else if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("Navmesh tile {Path} missing (disk-only) - {Count} so far",
+                    path, MissingTilesOnDisk);
+            }
+
             return null;
         }
 

@@ -969,11 +969,64 @@ public sealed class PPatherService : IDisposable
             (x, z) => OnNavmeshTileRemoved?.Invoke(x, z);
         navmeshMapId = activeMapId;
 
+        int bakedTiles = CountBakedTiles(cacheDir);
+
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation("Navmesh engine ready for {Continent} ({Mode}) - tile cache: {CacheDir}",
-                continent, search == null ? "disk-only, no game files" : "geometry available", cacheDir);
+            logger.LogInformation("Navmesh engine ready for {Continent} ({Mode}) - {Tiles} baked tiles in {CacheDir}",
+                continent, search == null ? "disk-only, no game files" : "geometry available", bakedTiles, cacheDir);
         }
+
+        // An empty cache directory with no geometry behind it cannot answer a
+        // single query, and every failure downstream reads as "the character is
+        // stuck". Said here, once per continent, it is the first line the user
+        // sees - and it names the directory that is actually being read, which
+        // is the half of the problem a bare tile count would miss.
+        if (bakedTiles == 0 && search == null)
+        {
+            logger.LogError(
+                "No baked navmesh tiles for {Continent} in {CacheDir} - pathing on this continent will " +
+                "fail every request. Download them (scripts/download-navmesh.ps1 -Era {Era}) or install " +
+                "the client archives so tiles can be baked on demand.{OtherHashes}",
+                continent, cacheDir, DataConfig.ClientEra(dataConfig.Exp), OtherHashDirs(cacheDir));
+        }
+    }
+
+    private static int CountBakedTiles(string cacheDir)
+    {
+        return System.IO.Directory.Exists(cacheDir)
+            ? System.IO.Directory.EnumerateFiles(cacheDir, "*.dnm").Count()
+            : 0;
+    }
+
+    /// <summary>
+    /// Sibling settings-hash directories that do hold tiles. Tiles baked under a
+    /// different agent config are not wrong, they are invisible (see
+    /// PPather/CLAUDE.md), and that failure is indistinguishable from having
+    /// never downloaded anything unless the other directory is named.
+    /// </summary>
+    private static string OtherHashDirs(string cacheDir)
+    {
+        string? parent = System.IO.Path.GetDirectoryName(cacheDir);
+        if (parent == null || !System.IO.Directory.Exists(parent))
+        {
+            return string.Empty;
+        }
+
+        List<string> found = [];
+        foreach (string dir in System.IO.Directory.EnumerateDirectories(parent))
+        {
+            if (!dir.Equals(cacheDir, StringComparison.OrdinalIgnoreCase) &&
+                CountBakedTiles(dir) > 0)
+            {
+                found.Add(System.IO.Path.GetFileName(dir));
+            }
+        }
+
+        return found.Count == 0
+            ? string.Empty
+            : $" Tiles exist under a different settings hash ({string.Join(", ", found)}) - " +
+              "those were baked with another agent config and cannot be used.";
     }
 
     public void Save()
