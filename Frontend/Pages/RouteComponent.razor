@@ -168,7 +168,7 @@
     {
         if (firstRender || themeChanged)
         {
-            await JSRuntime.InvokeVoidAsync("draw", Color3, Color4);
+            await JSRuntime.InvokeVoidAsync("routeDraw", Color3, Color4);
             themeChanged = false;
         }
     }
