@@ -748,6 +748,10 @@ end
 
 function DataToColor:OnPlayerEquipmentChanged(event, equipmentSlot, hasCurrent)
     DataToColor.equipmentQueue:push(equipmentSlot)
+
+    -- Swapping gear changes durability without raising UPDATE_INVENTORY_DURABILITY,
+    -- so cells 54 and 116 have to be recomputed from here.
+    DataToColor:InvalidateDurabilityCache()
     --local c = hasCurrent and 1 or 0
     --DataToColor:Print("OnPlayerEquipmentChanged "..equipmentSlot.." -> "..c)
 end

@@ -862,27 +862,64 @@ function DataToColor:getUnitRangedDamage(unit)
     return floor((speed or 0) * 100)
 end
 
-function DataToColor:getAvgEquipmentDurability()
-    local current = 0
-    local max = 0
-    for i = 1, 18 do
-        local c, m = GetInventoryItemDurability(i)
-        current = current + (c or 0)
-        max = max + (m or 0)
+-- Equipment durability caches: cell 54 carries the all-slot average, cell 116 the
+-- per weapon slot breakdown. Both are filled by one pass over the inventory and
+-- share the dirty flag, so a single invalidate refreshes them together.
+-- Mainhand = 16, Offhand = 17, Ranged = 18 - see Core/Equipments/InventorySlotId.cs
+local FIRST_WEAPON_SLOT = 16
+local WEAPON_SLOT_MUL = { [16] = 10000, [17] = 100, [18] = 1 }
+
+-- 0-99. The +1 bias makes an empty slot - or an equipped item that has no
+-- durability at all, such as a thrown weapon or an off hand tome - report 99,
+-- while a genuinely broken item reports 0.
+local function durabilityPercent(current, maxValue)
+    local p = floor((current + 1) * 100 / (maxValue + 1)) - 1
+    if p < 0 then
+        return 0
     end
-    return math.max(0, floor((current + 1) * 100 / (max + 1)) - 1) -- 0-99
+    return p
 end
 
--- Equipment durability cache (cell 54)
 local cachedDurability = 0
+local cachedWeaponDurability = 0
 local durabilityDirty = true
+
+local function refreshDurability()
+    local current = 0
+    local max = 0
+    local weapon = 0
+
+    for i = 1, 18 do
+        local c, m = GetInventoryItemDurability(i)
+        c = c or 0
+        m = m or 0
+
+        current = current + c
+        max = max + m
+
+        if i >= FIRST_WEAPON_SLOT then
+            weapon = weapon + durabilityPercent(c, m) * WEAPON_SLOT_MUL[i]
+        end
+    end
+
+    cachedDurability = durabilityPercent(current, max)
+    cachedWeaponDurability = weapon
+    durabilityDirty = false
+end
 
 function DataToColor:getAvgEquipmentDurabilityCached()
     if durabilityDirty then
-        cachedDurability = DataToColor:getAvgEquipmentDurability()
-        durabilityDirty = false
+        refreshDurability()
     end
     return cachedDurability
+end
+
+-- mainHand * 10000 + offHand * 100 + ranged, each 0-99
+function DataToColor:getWeaponDurabilityCached()
+    if durabilityDirty then
+        refreshDurability()
+    end
+    return cachedWeaponDurability
 end
 
 function DataToColor:InvalidateDurabilityCache()
