@@ -2134,6 +2134,12 @@ examples of full automatic npc detection or multiple whitelisted names:
 }
 ```
 
+**Note:** `Durability%` is the average across all 18 equipped slots, so it is dominated by
+armour and lags well behind a weapon that is about to break. Use
+[`WeaponDurability%`](#value-base-requirements) - the lowest of main hand, off hand and
+ranged - when the repair trip is really about the weapon:
+`"Requirement": "Durability% < 35 || WeaponDurability% < 30"`.
+
 #### Class Trainer
 
 A `ClassTrainer` entry walks to the trainer and **learns spells**, instead of opening a
@@ -2502,7 +2508,11 @@ Arithmetic operators can be used to build complex expressions:
 | `TotalRune` | Player current runes (blood+frost+unholy+death) |
 | `Combo Point` | Player current combo points on the target |
 | `Holy Power` | Player current Holy Power points on the target |
-| `Durability%` | Player worn equipment average durability. **0-99** value range. |
+| `Durability%` | Player worn equipment average durability across **all 18** slots. Dominated by armour, since 15 of the 18 slots are armour. **0-99** value range. |
+| `MainHandDurability%` | Main hand weapon durability. **0-99** value range. |
+| `OffHandDurability%` | Off hand weapon or shield durability. **0-99** value range. |
+| `RangedDurability%` | Ranged weapon (bow / gun / crossbow / wand) durability. **0-99** value range. |
+| `WeaponDurability%` | Lowest of the three weapon slots above - the "is any weapon about to break" check. **0-99** value range. |
 | `BagCount` | How many items in the player inventory |
 | `FoodCount` | Returns the highest amount of food type, item count |
 | `DrinkCount` | Returns the highest amount of drink type, item count |
@@ -2549,6 +2559,16 @@ Arithmetic operators can be used to build complex expressions:
 | `PathDist` | Returns the context [PathSettings](#pathsettings) of closest distance (in yards) from the player location to the Path. |
 | `PathDist_{PathSettings.Id}` | Returns the closest distance (in yards) from the player location to the Path. |
 
+The durability keywords all report **0-99**, where **0** means broken and **99** means fully repaired.
+
+**99 is also what an empty slot reports**, along with an equipped item that has no durability at all - a thrown weapon, an off hand tome, a Wrath relic. That is deliberate: it keeps `WeaponDurability%` (the lowest of the three weapon slots) meaningful for any spec. A caster with an empty off hand and no ranged weapon gets `WeaponDurability% == MainHandDurability%`, a dual wielder gets the worse of the two, a hunter gets the worst of all three - and a slot that cannot break never drags the value down.
+
+Weapons wear out several times faster than armour, so the all-slot `Durability%` average is late to notice a weapon about to break. Prefer `WeaponDurability%` for a repair gate, on its own or next to `Durability%`:
+
+```json
+"Requirement": "Durability% < 35 || WeaponDurability% < 30"
+```
+
 For the `MinRange` and `MaxRange` gives an approximation range distance between the player and target.
 
 **Note:** _Every class has its own unique way to find these values by using different in game items/spells/interact._
@@ -2572,6 +2592,8 @@ e.g. Single Requirement
 "Requirement": "Rage > 90"
 "Requirement": "BagCount > 80"
 "Requirement": "MobCount > 1"
+"Requirement": "WeaponDurability% < 30"      // The most worn of main hand / off hand / ranged is below 30%
+"Requirement": "MainHandDurability% < 25"    // Only the main hand weapon
 "Requirement": "MinRange < 5"
 "Requirement": "MinRange > 15"
 "Requirement": "MaxRange > 20"

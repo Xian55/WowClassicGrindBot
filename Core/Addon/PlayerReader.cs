@@ -3,6 +3,7 @@ using Core.Database;
 
 using SharedLib;
 
+using System;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Numerics;
@@ -159,6 +160,19 @@ public sealed partial class PlayerReader : IMouseOverReader, IReader
     // avgEquipDurability * 100 + target combo points
     public int ComboPoints() => reader.GetInt(54) % 100;
     public int AvgEquipDurability() => reader.GetInt(54) / 100; // 0-99
+
+    public const int WeaponDurabilityCell = 116;
+
+    // mainHandDurability * 10000 + offHandDurability * 100 + rangedDurability
+    // Each is 0-99, where 99 also covers an empty slot or an equipped item that
+    // has no durability - a thrown weapon, an off hand tome, a relic.
+    public int MainHandDurability() => reader.GetInt(WeaponDurabilityCell) / 10000;
+    public int OffHandDurability() => reader.GetInt(WeaponDurabilityCell) / 100 % 100;
+    public int RangedDurability() => reader.GetInt(WeaponDurabilityCell) % 100;
+
+    // The weapon closest to breaking. 99 = nothing equipped that can break.
+    public int MinWeaponDurability() =>
+        Math.Min(MainHandDurability(), Math.Min(OffHandDurability(), RangedDurability()));
 
     public AuraCount AuraCount => new(reader, 55);
 
