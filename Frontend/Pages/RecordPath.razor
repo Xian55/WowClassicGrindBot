@@ -284,8 +284,8 @@
         if (firstRender)
         {
             var dotNetReference = DotNetObjectReference.Create(this);
-            await JSRuntime.InvokeVoidAsync("init", dotNetReference);
-            await JSRuntime.InvokeVoidAsync("draw", Color3, Color4);
+            await JSRuntime.InvokeVoidAsync("routeInit", dotNetReference);
+            await JSRuntime.InvokeVoidAsync("routeDraw", Color3, Color4);
 
             UpdateRouteMarkup();
         }
@@ -297,7 +297,7 @@
 
         areaDB.Changed -= OnZoneChanged;
 
-        await JSRuntime.InvokeVoidAsync("dispose");
+        await JSRuntime.InvokeVoidAsync("routeDispose");
     }
 
 
@@ -318,7 +318,7 @@
             route.ToCanvasPointY(p.Y),
         0);
 
-        await JSRuntime.InvokeVoidAsync("focusAt", JsonConvert.SerializeObject(pp));
+        await JSRuntime.InvokeVoidAsync("routeFocusAt", JsonConvert.SerializeObject(pp));
     */
     }
 

@@ -1,16 +1,19 @@
-var DotNet = null;
+var routeDotNetRef = null;
 var panzoom = null;
 var gridNode = null;
 var prect = null;
 
-function init(obj) {
-    DotNet = obj;
+// Named routeInit/routeDispose/routeDraw, not init/dispose/draw: every script in
+// App.razor shares one global scope, and leaflet-watch.js also defines init().
+// It loads after this file, so a bare init() here is silently overwritten.
+function routeInit(obj) {
+    routeDotNetRef = obj;
 }
-function dispose() {
-    DotNet = null;
+function routeDispose() {
+    routeDotNetRef = null;
 }
 
-function draw(color3, color4) {
+function routeDraw(color3, color4) {
 
     gridNode = document.getElementById("grid")
     panzoom = Panzoom(gridNode, { /*contain: 'outside',*/ excludeClass: 'group2', minScale: 0.99, maxScale: 8, roundPixels: true })
@@ -83,12 +86,12 @@ function hideTooltip() {
 }
 
 function pointClick(evt, x, y, i) {
-    if (DotNet == null) return;
+    if (routeDotNetRef == null) return;
 
-    DotNet.invokeMethodAsync('PointClick', x, y, i);
+    routeDotNetRef.invokeMethodAsync('PointClick', x, y, i);
 }
 
-function focusAt(payload) {
+function routeFocusAt(payload) {
     if (panzoom == null) return;
 
     //console.log(payload);
