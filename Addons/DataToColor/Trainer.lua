@@ -234,9 +234,14 @@ function DataToColor:TGo(trainAll)
 
     -- Unhide everything so a service is never missed because of a leftover filter.
     if SetTrainerServiceTypeFilter then
-        SetTrainerServiceTypeFilter("available", 1)
-        SetTrainerServiceTypeFilter("unavailable", 1)
-        SetTrainerServiceTypeFilter("used", 1)
+        local enabled = 1;
+        if DataToColor.IsClassic_BCC() then
+            enabled = true;
+        end
+
+        SetTrainerServiceTypeFilter("available", enabled)
+        SetTrainerServiceTypeFilter("unavailable", enabled)
+        SetTrainerServiceTypeFilter("used", enabled)
     end
 
     for spellId in pairs(mWanted) do
