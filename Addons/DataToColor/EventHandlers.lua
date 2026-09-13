@@ -632,7 +632,12 @@ end
 function DataToColor:OnUnitSpellCastSucceeded(...)
     --print(...)
     local unit = select(2, ...)
-    local spellId = select(-1, ...)
+    local spellId
+    if DataToColor.IsClassic_BCC() then
+        spellId = select(4, ...)
+    else
+        spellId = select(-1, ...)
+    end
     if unit ~= DataToColor.C.unitPlayer then return end
 
     DataToColor.lastCastEvent = CAST_SUCCESS
@@ -645,7 +650,12 @@ end
 function DataToColor:OnUnitSpellCastFailed(...)
     --print(...)
     local unit = select(2, ...)
-    local spellId = select(-1, ...)
+    local spellId
+    if DataToColor.IsClassic_BCC() then
+        spellId = select(4, ...)
+    else
+        spellId = select(-1, ...)
+    end
     if unit ~= DataToColor.C.unitPlayer then return end
 
     DataToColor.lastCastEvent = DataToColor.uiErrorMessage
