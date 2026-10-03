@@ -61,7 +61,7 @@ public sealed class WowProcess
         process = p;
         id = process.Id;
         IsRunning = true;
-        (Path, FileVersion) = GetProcessInfo();
+        (Path, FileVersion) = GetProcessInfo(process);
 
         thread = new(PollProcessExited);
         thread.Start();
@@ -79,12 +79,13 @@ public sealed class WowProcess
                 IsRunning = false;
 
                 Process? p = Get();
-                if (p != null)
+                if (p != null && TryGetProcessInfo(p, out string path, out Version version))
                 {
                     process = p;
                     id = process.Id;
+                    Path = path;
+                    FileVersion = version;
                     IsRunning = true;
-                    (Path, FileVersion) = GetProcessInfo();
                 }
             }
 
@@ -115,10 +116,39 @@ public sealed class WowProcess
         return null;
     }
 
-    private (string path, Version version) GetProcessInfo()
+    // Runs on the poll thread, where an escaping exception would take the whole host down.
+    // A client that cannot be read (still starting, or started as Administrator)
+    // stays not-running and is retried on the next tick.
+    private static bool TryGetProcessInfo(Process process, out string path, out Version version)
     {
-        string path = WinAPI.ExecutablePath.Get(process)
-            ?? throw new NullReferenceException("Unable to identify World of Warcraft process path!");
+        try
+        {
+            (path, version) = GetProcessInfo(process);
+            return true;
+        }
+        catch (Exception)
+        {
+            path = string.Empty;
+            version = new Version();
+            return false;
+        }
+    }
+
+    private static (string path, Version version) GetProcessInfo(Process process)
+    {
+        // ExecutablePath.Get reports an unreadable process as an empty string, not null.
+        // Joining that with the file name yields a relative path, which would resolve
+        // against the working directory and look for the game inside the
+        // BlazorServer/HeadlessServer folder.
+        string path = WinAPI.ExecutablePath.Get(process);
+        if (string.IsNullOrEmpty(path))
+        {
+            throw new InvalidOperationException(
+                $"Unable to read the install directory of the running World of Warcraft process " +
+                $"'{process.ProcessName}' (pid={process.Id})! " +
+                "This usually means the game was started as Administrator while BlazorServer/HeadlessServer was not. " +
+                "Start both with the same privilege level.");
+        }
 
         var exePath = System.IO.Path.Join(path, process.ProcessName + ".exe");
         FileVersionInfo info = FileVersionInfo.GetVersionInfo(exePath);
