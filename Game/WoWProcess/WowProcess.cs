@@ -147,7 +147,7 @@ public sealed class WowProcess
                 $"Unable to read the install directory of the running World of Warcraft process " +
                 $"'{process.ProcessName}' (pid={process.Id})! " +
                 "This usually means the game was started as Administrator while BlazorServer/HeadlessServer was not. " +
-                "Start both with the same privilege level.");
+                "Start both without Administrator privileges.");
         }
 
         var exePath = System.IO.Path.Join(path, process.ProcessName + ".exe");
