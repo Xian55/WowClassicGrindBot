@@ -1,8 +1,8 @@
-## Interface: 20500
+## Interface: 20500, 20506
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Classic TBC)
-## Version: 1.13.2
+## Version: 1.13.3
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:
