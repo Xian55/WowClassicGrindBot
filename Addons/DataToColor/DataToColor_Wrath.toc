@@ -1,8 +1,8 @@
-## Interface: 34300
+## Interface: 30403, 30405
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Classic Wrath)
-## Version: 1.13.2
+## Version: 1.13.3
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:

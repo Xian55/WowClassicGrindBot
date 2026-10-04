@@ -1,8 +1,8 @@
-## Interface: 11300, 11400, 11500, 20500, 30400, 40400, 50500
+## Interface: 11300, 11400, 11500, 11509, 20500, 20506, 30400, 30405, 40400, 40402, 50500, 50504
 ## Title: DataToColor
 ## Author: FreeHongKongMMO
 ## Notes: Displays data as colors (Classic)
-## Version: 1.13.2
+## Version: 1.13.3
 ## RequiredDeps:
 ## OptionalDeps: Ace3, LibRangeCheck, LibClassicCasterino
 ## SavedVariables:
