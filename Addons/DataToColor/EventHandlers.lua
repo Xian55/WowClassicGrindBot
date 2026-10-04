@@ -132,6 +132,7 @@ function DataToColor:RegisterEvents()
     DataToColor:RegisterEvent('PLAYER_EQUIPMENT_CHANGED', 'OnPlayerEquipmentChanged')
     DataToColor:RegisterEvent('GOSSIP_SHOW', 'OnGossipShow') -- defined in Versions.lua
     DataToColor:RegisterEvent('SPELLS_CHANGED', 'OnSpellsChanged')
+    DataToColor:SafeRegisterEvent('SKILL_LINES_CHANGED', 'OnWeaponProficienciesChanged')
     DataToColor:RegisterEvent('ACTIONBAR_SLOT_CHANGED', 'ActionbarSlotChanged')
     DataToColor:RegisterEvent('CORPSE_IN_RANGE', 'CorpseInRangeEvent')
     DataToColor:RegisterEvent('CORPSE_OUT_OF_RANGE', 'CorpseOutOfRangeEvent')

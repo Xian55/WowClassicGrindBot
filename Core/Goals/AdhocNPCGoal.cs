@@ -480,7 +480,9 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             wait.Update();
         }
 
-        bool training = npcFlag == NpcFlags.ClassTrainer;
+        bool training =
+            npcFlag == NpcFlags.ClassTrainer ||
+            npcFlag == NpcFlags.Trainer;
 
         MerchantResult merchantResult = training
             ? OpenTrainerWindow()
@@ -691,7 +693,12 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
             if (!gossipReader.Gossips.TryGetValue(Gossip.Trainer, out int orderNum))
             {
                 LogWarn($"Target({playerReader.TargetId}) has no {Gossip.Trainer.ToString()} option!");
-                trainerPlanner.OnNothingToTrain(npcId);
+
+                if (npcFlag == NpcFlags.ClassTrainer)
+                {
+                    trainerPlanner.OnNothingToTrain(npcId);
+                }
+
                 return MerchantResult.TryNextNPC;
             }
 
@@ -707,6 +714,35 @@ public sealed partial class AdhocNPCGoal : GoapGoal, IGoapEventListener, IRouteP
         }
 
         Log($"Trainer window opened after {e}ms");
+
+        // Generic trainers use MacroText instead of the spell whitelist.
+        if (npcFlag == NpcFlags.Trainer)
+        {
+            if (string.IsNullOrEmpty(key.MacroText))
+            {
+                LogWarn("Generic trainer action has no MacroText.");
+                return MerchantResult.Failed;
+            }
+
+            execGameCommand.Run(key.Macro());
+            wait.Update();
+
+            string addonTitle = addonConfigurator.Config.Title;
+
+            execGameCommand.Run(
+                $"/run {addonTitle}:OnWeaponProficienciesChanged()--");
+            wait.Update();
+
+            float completionElapsed = wait.Until(TRAIN_TIMEOUT, () => !key.CanRun());
+
+            if (completionElapsed < 0)
+            {
+                LogWarn("Generic trainer action did not satisfy its completion requirement.");
+                return MerchantResult.Failed;
+            }
+
+            return MerchantResult.Success;
+        }
 
         Span<int> buffer = stackalloc int[trainerPlanner.MaxTrainable];
         bool trainAll = key.TrainAll;

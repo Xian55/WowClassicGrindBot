@@ -703,6 +703,87 @@ function DataToColor:InitActionBarCastTimeQueue()
     end
 end
 
+local weaponProficiencySpellIds = {
+    196,   -- One-Handed Axes
+    197,   -- Two-Handed Axes
+    198,   -- One-Handed Maces
+    199,   -- Two-Handed Maces
+    200,   -- Polearms
+    201,   -- One-Handed Swords
+    202,   -- Two-Handed Swords
+    227,   -- Staves
+    264,   -- Bows
+    266,   -- Guns
+    1180,  -- Daggers
+    2567,  -- Thrown
+    5009,  -- Wands
+    5011   -- Crossbows
+}
+
+local weaponProficiencyNames = {
+    [196] = "Axes",
+    [198] = "Maces",
+    [201] = "Swords"
+}
+
+local weaponProficiencyIdByName
+
+local function GetWeaponProficiencyIdByName()
+    if weaponProficiencyIdByName then
+        return weaponProficiencyIdByName
+    end
+
+    weaponProficiencyIdByName = {}
+
+    for i = 1, #weaponProficiencySpellIds do
+        local spellId = weaponProficiencySpellIds[i]
+        local spellName = GetSpellInfo(spellId)
+        local skillName =
+            weaponProficiencyNames[spellId] or
+            spellName
+
+        if skillName then
+            weaponProficiencyIdByName[skillName] = spellId
+        end
+    end
+
+    return weaponProficiencyIdByName
+end
+
+local function RecordWeaponProficiencies(storage)
+    if not GetNumSkillLines or not GetSkillLineInfo then
+        return 0
+    end
+
+    local idsByName = GetWeaponProficiencyIdByName()
+    local count = 0
+
+    for skillIndex = 1, GetNumSkillLines() do
+        local skillName, isHeader = GetSkillLineInfo(skillIndex)
+        local spellId = skillName and idsByName[skillName]
+
+        if not isHeader and spellId and
+            not storage.playerSpellBookId[spellId] then
+
+            storage.playerSpellBookId[spellId] = true
+            storage.playerSpellBookIdHighest[skillName] = spellId
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+function DataToColor:OnWeaponProficienciesChanged()
+    C_Timer.After(0.1, function()
+        local added = RecordWeaponProficiencies(DataToColor.S)
+
+        if added > 0 then
+            DataToColor:InitSpellBookQueue()
+        end
+    end)
+end
+
 function DataToColor:PopulateSpellBookInfo()
     local numLoaded = 0
     local bookType = "spell"
@@ -779,6 +860,8 @@ function DataToColor:PopulateSpellBookInfo()
             end
         end
     end
+
+    numLoaded = numLoaded + RecordWeaponProficiencies(S)
 
     --DataToColor:Print(("Loaded %d spells"):format(numLoaded))
 
